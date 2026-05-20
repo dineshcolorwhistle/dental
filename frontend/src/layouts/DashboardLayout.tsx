@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Moon,
   Sun,
+  Bell,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -85,9 +86,27 @@ export function DashboardLayout() {
         </nav>
 
         <div className="sidebar__footer">
-          <div className="sidebar__role-badge">
-            {ROLE_LABELS[user?.role ?? ''] ?? user?.role}
+          <div className="sidebar__user-profile">
+            <div className="sidebar__user-avatar">
+              {user?.firstName?.[0]}{user?.lastName?.[0]}
+            </div>
+            <div className="sidebar__user-details">
+              <span className="sidebar__user-name">
+                {user?.firstName} {user?.lastName}
+              </span>
+              <span className="sidebar__user-email">
+                {user?.email}
+              </span>
+            </div>
           </div>
+          <button
+            className="sidebar__logout-btn-full"
+            onClick={handleLogout}
+            aria-label="Logout"
+          >
+            <LogOut size={16} />
+            <span>Logout</span>
+          </button>
         </div>
       </aside>
 
@@ -112,14 +131,23 @@ export function DashboardLayout() {
 
           <div className="topbar__spacer" />
 
-          <button
-            onClick={toggleTheme}
-            className="topbar__menu-btn"
-            style={{ display: 'flex', marginRight: '1rem' }}
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', marginRight: '1rem' }}>
+            <button
+              className="topbar__menu-btn"
+              style={{ display: 'flex' }}
+              aria-label="Notifications"
+            >
+              <Bell size={20} />
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="topbar__menu-btn"
+              style={{ display: 'flex' }}
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+          </div>
 
           <div className="topbar__user" ref={dropdownRef}>
             <button
