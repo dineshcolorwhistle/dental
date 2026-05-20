@@ -1,0 +1,133 @@
+// Dental Lab Management System — Core Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  ADMIN
+  TECHNICIAN
+  DELIVERY
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+}
+
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// ─── Tenant ──────────────────────────────────────────────
+
+model Tenant {
+  id          String       @id @default(uuid())
+  name        String
+  subdomain   String       @unique
+  status      TenantStatus @default(ACTIVE)
+  logoUrl     String?      @map("logo_url")
+  contactEmail String?     @map("contact_email")
+  contactPhone String?     @map("contact_phone")
+  address     String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  branches Branch[]
+  users    User[]
+  settings TenantSettings?
+
+  @@map("tenants")
+}
+
+model TenantSettings {
+  id             String @id @default(uuid())
+  tenantId       String @unique @map("tenant_id")
+  timezone       String @default("UTC")
+  dateFormat     String @default("DD/MM/YYYY") @map("date_format")
+  currency       String @default("INR")
+  workingDays    String @default("Mon,Tue,Wed,Thu,Fri,Sat") @map("working_days")
+  workingHoursStart String @default("09:00") @map("working_hours_start")
+  workingHoursEnd   String @default("18:00") @map("working_hours_end")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_settings")
+}
+
+// ─── Branch ──────────────────────────────────────────────
+
+model Branch {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  code        String
+  address     String?
+  phone       String?
+  email       String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users  User[]
+
+  @@unique([tenantId, code])
+  @@map("branches")
+}
+
+// ─── User ────────────────────────────────────────────────
+
+model User {
+  id            String     @id @default(uuid())
+  tenantId      String?    @map("tenant_id")
+  branchId      String?    @map("branch_id")
+  email         String
+  passwordHash  String     @map("password_hash")
+  firstName     String     @map("first_name")
+  lastName      String     @map("last_name")
+  phone         String?
+  role          UserRole
+  status        UserStatus @default(ACTIVE)
+  avatarUrl     String?    @map("avatar_url")
+  lastLoginAt   DateTime?  @map("last_login_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch        Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  refreshTokens RefreshToken[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+// ─── Refresh Token ───────────────────────────────────────
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
