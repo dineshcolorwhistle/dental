@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTenantDto {
@@ -25,12 +25,12 @@ export class CreateTenantDto {
   @ApiProperty({
     example: 'Main Branch',
     description: 'Name of the default branch',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
-  @MinLength(2)
+  @IsOptional()
   @MaxLength(100)
-  branchName: string;
+  branchName?: string;
 
   @ApiProperty({
     example: 'owner@smilelab.com',

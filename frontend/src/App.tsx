@@ -8,6 +8,8 @@ import { LoginPage } from './pages/LoginPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TenantsPage } from './pages/TenantsPage';
+import { BranchesPage } from './pages/BranchesPage';
+import { AdminsPage } from './pages/AdminsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -53,6 +55,8 @@ function App() {
           >
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/tenants" element={<TenantsPage />} />
+            <Route path="/branches" element={<BranchesPage />} />
+            <Route path="/admins" element={<AdminsPage />} />
           </Route>
 
           {/* Error pages */}

@@ -1393,12 +1393,18 @@ a:hover { color: var(--accent-primary-hover); }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: transparent;
+  color: var(--text-primary);
   font-size: 0.75rem;
   font-weight: 500;
   font-family: var(--font-family);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
+}
+
+.btn-action:hover {
+  background: var(--bg-surface-hover, rgba(0, 0, 0, 0.05));
+  color: var(--text-heading);
 }
 
 .btn-action--danger {

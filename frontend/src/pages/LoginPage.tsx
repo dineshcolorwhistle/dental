@@ -21,7 +21,6 @@ export function LoginPage() {
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loginMode, setLoginMode] = useState<'super_admin' | 'tenant'>('super_admin');
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
 
@@ -38,13 +37,36 @@ export function LoginPage() {
     },
   });
 
+  const getSubdomain = () => {
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+    
+    // Ignore IP addresses and single-segment hosts like "localhost"
+    if (parts.length <= 1 || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+      return undefined;
+    }
+    
+    // If it's a localhost with a subdomain (e.g. smilelab.localhost)
+    if (parts.length === 2 && parts[1] === 'localhost') {
+      return parts[0];
+    }
+    
+    // For standard domains like subdomain.dental.com
+    if (parts.length >= 3) {
+      return parts[0];
+    }
+    
+    return undefined;
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     try {
+      const extractedSubdomain = getSubdomain();
       await login({
         email: data.email,
         password: data.password,
-        subdomain: loginMode === 'tenant' ? data.subdomain : undefined,
+        subdomain: extractedSubdomain,
       });
       toast.success('Login successful!');
       navigate(from, { replace: true });
@@ -64,49 +86,7 @@ export function LoginPage() {
         Sign in to your account to continue
       </p>
 
-      {/* Login Mode Toggle */}
-      <div className="login-page__mode-toggle">
-        <button
-          type="button"
-          className={`login-page__mode-btn ${loginMode === 'super_admin' ? 'login-page__mode-btn--active' : ''}`}
-          onClick={() => setLoginMode('super_admin')}
-        >
-          Platform Admin
-        </button>
-        <button
-          type="button"
-          className={`login-page__mode-btn ${loginMode === 'tenant' ? 'login-page__mode-btn--active' : ''}`}
-          onClick={() => setLoginMode('tenant')}
-        >
-          Lab Login
-        </button>
-      </div>
-
       <form className="login-page__form" onSubmit={handleSubmit(onSubmit)}>
-        {loginMode === 'tenant' && (
-          <div className="form-group">
-            <label htmlFor="subdomain" className="form-label">
-              Lab Subdomain
-            </label>
-            <div className="form-input-wrapper">
-              <input
-                id="subdomain"
-                type="text"
-                className={`form-input ${errors.subdomain ? 'form-input--error' : ''}`}
-                placeholder="e.g. smilelab"
-                {...register('subdomain')}
-              />
-              <span className="form-input-suffix">.dental.com</span>
-            </div>
-            {errors.subdomain && (
-              <span className="form-error">
-                <AlertCircle size={14} />
-                {errors.subdomain.message}
-              </span>
-            )}
-          </div>
-        )}
-
         <div className="form-group">
           <label htmlFor="email" className="form-label">
             Email Address

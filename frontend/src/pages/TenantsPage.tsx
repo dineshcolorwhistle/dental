@@ -16,6 +16,7 @@ import {
   Settings,
   ToggleLeft,
   ToggleRight,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tenantService, type TenantListItem, type CreateTenantPayload } from '../services';
@@ -38,11 +39,15 @@ export function TenantsPage() {
   const [updatingFeatures, setUpdatingFeatures] = useState(false);
   const [featureForm, setFeatureForm] = useState<Record<string, boolean>>({});
 
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [tenantToDelete, setTenantToDelete] = useState<TenantListItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Form state
   const [form, setForm] = useState<CreateTenantPayload>({
     tenantName: '',
     ownerName: '',
-    branchName: '',
     ownerEmail: '',
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateTenantPayload, string>>>({});
@@ -102,7 +107,6 @@ export function TenantsPage() {
 
     if (!form.tenantName.trim()) errors.tenantName = 'Lab name is required';
     if (!form.ownerName.trim()) errors.ownerName = 'Owner name is required';
-    if (!form.branchName.trim()) errors.branchName = 'Branch name is required';
     if (!form.ownerEmail.trim()) {
       errors.ownerEmail = 'Owner email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.ownerEmail)) {
@@ -122,7 +126,7 @@ export function TenantsPage() {
       await tenantService.create(form);
       toast.success('Tenant created successfully! Invite email sent.');
       setShowCreateModal(false);
-      setForm({ tenantName: '', ownerName: '', branchName: '', ownerEmail: '' });
+      setForm({ tenantName: '', ownerName: '', ownerEmail: '' });
       setFormErrors({});
       await fetchTenants();
     } catch (err: any) {
@@ -192,6 +196,27 @@ export function TenantsPage() {
       toast.error(err?.response?.data?.message || 'Failed to update features');
     } finally {
       setUpdatingFeatures(false);
+    }
+  };
+
+  const confirmDelete = (tenant: TenantListItem) => {
+    setTenantToDelete(tenant);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!tenantToDelete) return;
+    try {
+      setDeleting(true);
+      await tenantService.delete(tenantToDelete.id);
+      toast.success('Tenant deleted successfully');
+      setDeleteModalOpen(false);
+      setTenantToDelete(null);
+      await fetchTenants();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to delete tenant');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -415,6 +440,13 @@ export function TenantsPage() {
                         <Settings size={15} />
                         <span>Features</span>
                       </button>
+                      <button
+                        className="btn-action btn-action--danger"
+                        onClick={() => confirmDelete(tenant)}
+                        title="Delete Tenant"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -485,26 +517,6 @@ export function TenantsPage() {
                 {formErrors.ownerName && (
                   <span className="form-error">
                     <AlertCircle size={12} /> {formErrors.ownerName}
-                  </span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="input-branch-name">
-                  Branch Name *
-                </label>
-                <input
-                  id="input-branch-name"
-                  className={`form-input ${formErrors.branchName ? 'form-input--error' : ''}`}
-                  type="text"
-                  placeholder="e.g., Main Branch"
-                  value={form.branchName}
-                  onChange={(e) => handleInputChange('branchName', e.target.value)}
-                  disabled={creating}
-                />
-                {formErrors.branchName && (
-                  <span className="form-error">
-                    <AlertCircle size={12} /> {formErrors.branchName}
                   </span>
                 )}
               </div>
@@ -660,6 +672,66 @@ export function TenantsPage() {
                   </>
                 ) : (
                   <span>Save Features</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && tenantToDelete && (
+        <div className="modal-overlay" onClick={() => !deleting && setDeleteModalOpen(false)}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '400px' }}
+          >
+            <div className="modal__header">
+              <div>
+                <h2 className="modal__title">Delete Tenant</h2>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => !deleting && setDeleteModalOpen(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-body)' }}>
+                Are you sure you want to delete <strong>{tenantToDelete.name}</strong>? This action will permanently remove the lab, its branches, users, and all associated data.
+              </p>
+            </div>
+
+            <div className="modal__footer" style={{ padding: '1rem 1.75rem' }}>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                style={{ backgroundColor: 'var(--danger)' }}
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={16} className="spinner" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    <span>Delete Permanently</span>
+                  </>
                 )}
               </button>
             </div>

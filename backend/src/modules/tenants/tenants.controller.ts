@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Param,
+  Delete,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -53,5 +54,12 @@ export class TenantsController {
     @Body('status') status: TenantStatus,
   ) {
     return this.tenantsService.updateStatus(id, status);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a tenant' })
+  async remove(@Param('id') id: string) {
+    return this.tenantsService.remove(id);
   }
 }

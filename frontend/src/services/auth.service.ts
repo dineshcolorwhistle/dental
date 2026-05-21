@@ -13,6 +13,7 @@ export interface AuthUser {
   lastName: string;
   role: 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'DELIVERY';
   tenantId: string | null;
+  tenantName?: string | null;
   branchId: string | null;
 }
 

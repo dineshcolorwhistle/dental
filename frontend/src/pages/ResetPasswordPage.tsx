@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authService } from '../services';
 

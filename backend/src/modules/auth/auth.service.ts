@@ -55,6 +55,28 @@ export class AuthService {
       user = await this.prisma.user.findFirst({
         where: { email, tenantId: null, role: 'SUPER_ADMIN' },
       });
+
+      // Smart automatic tenant resolution if not super admin
+      if (!user) {
+        const matchingUsers = await this.prisma.user.findMany({
+          where: { email },
+          include: { tenant: true },
+        });
+
+        if (matchingUsers.length === 1) {
+          const singleUser = matchingUsers[0];
+          if (singleUser.tenant) {
+            if (singleUser.tenant.status !== 'ACTIVE') {
+              throw new UnauthorizedException('Tenant is inactive or suspended');
+            }
+            user = singleUser;
+          }
+        } else if (matchingUsers.length > 1) {
+          throw new UnauthorizedException(
+            'Multiple accounts found. Please log in using your specific laboratory subdomain.',
+          );
+        }
+      }
     }
 
     if (!user) {
@@ -77,6 +99,16 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
+    // Fetch tenant name if tenantId exists
+    let tenantName: string | null = null;
+    if (user.tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: user.tenantId },
+        select: { name: true },
+      });
+      tenantName = tenant?.name || null;
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
@@ -90,6 +122,7 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         tenantId: user.tenantId,
+        tenantName,
         branchId: user.branchId,
       },
       ...tokens,
@@ -119,6 +152,16 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
+    // Fetch tenant name if tenantId exists
+    let tenantName: string | null = null;
+    if (stored.user.tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: stored.user.tenantId },
+        select: { name: true },
+      });
+      tenantName = tenant?.name || null;
+    }
+
     // Generate new token pair
     const tokens = await this.generateTokens(stored.user);
 
@@ -130,6 +173,7 @@ export class AuthService {
         lastName: stored.user.lastName,
         role: stored.user.role,
         tenantId: stored.user.tenantId,
+        tenantName,
         branchId: stored.user.branchId,
       },
       ...tokens,

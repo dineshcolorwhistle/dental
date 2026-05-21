@@ -1,4 +1,3 @@
-import { ApiProperty } from '@swagger/api'; // Wait, let's just use @nestjs/swagger
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, MinLength } from 'class-validator';
 

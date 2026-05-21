@@ -26,7 +26,8 @@ export class TenantsService {
    * Create a new tenant with owner, default branch, settings, and send invite email.
    */
   async create(dto: CreateTenantDto) {
-    const { tenantName, ownerName, branchName, ownerEmail } = dto;
+    const { tenantName, ownerName, ownerEmail } = dto;
+    const branchName = dto.branchName || 'Main Branch';
 
     // Generate subdomain from tenant name (slugify)
     const subdomain = this.generateSubdomain(tenantName);
@@ -187,6 +188,7 @@ export class TenantsService {
           select: {
             id: true,
             name: true,
+            createdAt: true,
           },
           take: 1,
           orderBy: { createdAt: 'asc' },
@@ -308,6 +310,23 @@ export class TenantsService {
     this.logger.log(`Tenant status updated: ${updated.name} → ${status}`);
 
     return updated;
+  }
+
+  /**
+   * Delete a tenant.
+   */
+  async remove(id: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id } });
+
+    if (!tenant) {
+      throw new NotFoundException(`Tenant with ID "${id}" not found`);
+    }
+
+    await this.prisma.tenant.delete({ where: { id } });
+
+    this.logger.log(`Tenant deleted: ${tenant.name} (${id})`);
+
+    return { success: true };
   }
 
   // ─── Private Helpers ──────────────────────────────────

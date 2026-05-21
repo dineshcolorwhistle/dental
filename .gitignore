@@ -139,3 +139,10 @@ backend/prisma/*.db-journal
 *.sln
 *.sw?
 
+
+# Scratch & temporary test scripts
+backend/test*.js
+backend/inspect*.js
+backend/get-token.js
+test*.js
+inspect*.js

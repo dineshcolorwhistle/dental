@@ -5,6 +5,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { MailModule } from './modules/mail/mail.module';
+import { BranchesModule } from './modules/branches/branches.module';
+import { AdminsModule } from './modules/admins/admins.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -20,6 +22,8 @@ import { RolesGuard } from './common/guards/roles.guard';
     AuthModule,
     TenantsModule,
     MailModule,
+    BranchesModule,
+    AdminsModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default

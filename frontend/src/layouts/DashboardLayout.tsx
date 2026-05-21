@@ -12,6 +12,8 @@ import {
   Sun,
   Bell,
   Building2,
+  GitBranch,
+  Users,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -61,7 +63,9 @@ export function DashboardLayout() {
                 </linearGradient>
               </defs>
             </svg>
-            <span className="sidebar__brand-text">DentalLab</span>
+            <span className="sidebar__brand-text">
+              {user?.role === 'SUPER_ADMIN' ? 'DentalLab' : (user?.tenantName || 'DentalLab')}
+            </span>
           </div>
           <button
             className="sidebar__close"
@@ -84,6 +88,31 @@ export function DashboardLayout() {
             <LayoutDashboard size={20} />
             <span>Dashboard</span>
           </NavLink>
+
+          {user?.role === 'OWNER' && (
+            <>
+              <NavLink
+                to="/branches"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <GitBranch size={20} />
+                <span>Branches</span>
+              </NavLink>
+              <NavLink
+                to="/admins"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Users size={20} />
+                <span>Lab Admins</span>
+              </NavLink>
+            </>
+          )}
 
           {user?.role === 'SUPER_ADMIN' && (
             <NavLink

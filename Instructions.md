@@ -272,6 +272,7 @@ Delivery personnel receive assigned deliveries, update pickup/transit status, an
 - Environment-based configuration (`.env` files).
 - Consistent naming conventions (camelCase TS, snake_case DB).
 - Comprehensive error logging.
+- **Testing Scripts:** Do not commit temporary test/scratch scripts (e.g., `test*.js`, `inspect*.js`, `get-token.js`) to the repository. If you create temporary files for testing, they must be removed immediately after the test is completed.
 
 ---
 

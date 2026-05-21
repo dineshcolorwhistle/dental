@@ -45,4 +45,42 @@ export class MailService {
       // Don't throw — tenant creation should still succeed even if email fails
     }
   }
+
+  /**
+   * Send an admin invitation email with a password-reset link.
+   */
+  async sendAdminInvite(
+    email: string,
+    adminName: string,
+    tenantName: string,
+    branchName: string,
+    resetToken: string,
+  ): Promise<void> {
+    const frontendUrl = this.configService.get(
+      'FRONTEND_URL',
+      'http://localhost:5173',
+    );
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: `Welcome to ${tenantName} — Set Up Your Admin Account`,
+        template: 'admin-invite',
+        context: {
+          adminName,
+          tenantName,
+          branchName,
+          resetLink,
+          year: new Date().getFullYear(),
+        },
+      });
+
+      this.logger.log(`Admin invite email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send admin invite email to ${email}`, error);
+      // Don't throw — user creation should still succeed even if email fails
+    }
+  }
 }
+

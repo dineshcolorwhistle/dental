@@ -5,7 +5,7 @@ import api from './api';
 export interface CreateTenantPayload {
   tenantName: string;
   ownerName: string;
-  branchName: string;
+  branchName?: string;
   ownerEmail: string;
 }
 
@@ -89,5 +89,9 @@ export const tenantService = {
   ): Promise<TenantListItem> => {
     const { data } = await api.patch<TenantListItem>(`/tenants/${id}/status`, { status });
     return data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/tenants/${id}`);
   },
 };
