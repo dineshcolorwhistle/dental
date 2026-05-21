@@ -5,7 +5,9 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './components';
 import { AuthLayout, DashboardLayout } from './layouts';
 import { LoginPage } from './pages/LoginPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { TenantsPage } from './pages/TenantsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -38,6 +40,7 @@ function App() {
           {/* Auth routes */}
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
           </Route>
 
           {/* Protected dashboard routes */}
@@ -49,6 +52,7 @@ function App() {
             }
           >
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/tenants" element={<TenantsPage />} />
           </Route>
 
           {/* Error pages */}

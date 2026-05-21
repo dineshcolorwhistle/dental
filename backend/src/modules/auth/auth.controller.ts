@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshTokenDto } from './dto';
+import { LoginDto, RefreshTokenDto, ResetPasswordDto } from './dto';
 import { Public, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Authentication')
@@ -22,6 +22,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using token' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Public()

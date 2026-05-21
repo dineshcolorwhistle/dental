@@ -53,6 +53,11 @@ export const authService = {
     return data;
   },
 
+  resetPassword: async (payload: { token: string; newPassword: string }) => {
+    const { data } = await api.post('/auth/reset-password', payload);
+    return data;
+  },
+
   logout: async (): Promise<void> => {
     await api.post('/auth/logout');
   },

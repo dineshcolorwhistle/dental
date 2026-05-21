@@ -11,6 +11,7 @@ import {
   Moon,
   Sun,
   Bell,
+  Building2,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -83,6 +84,19 @@ export function DashboardLayout() {
             <LayoutDashboard size={20} />
             <span>Dashboard</span>
           </NavLink>
+
+          {user?.role === 'SUPER_ADMIN' && (
+            <NavLink
+              to="/tenants"
+              className={({ isActive }) =>
+                `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+              }
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Building2 size={20} />
+              <span>Tenants</span>
+            </NavLink>
+          )}
         </nav>
 
         <div className="sidebar__footer">

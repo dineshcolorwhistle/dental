@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto } from './dto';
+import { LoginDto, ResetPasswordDto } from './dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
@@ -146,6 +146,44 @@ export class AuthService {
     });
 
     return { message: 'Logged out successfully' };
+  }
+
+  /**
+   * Reset user password using a valid reset token.
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    const { token, newPassword } = dto;
+
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    // Hash the new password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update user password and set status to ACTIVE (if they were INVITED)
+    await this.prisma.user.update({
+      where: { id: resetToken.userId },
+      data: {
+        passwordHash,
+        status: 'ACTIVE',
+      },
+    });
+
+    // Mark token as used
+    await this.prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { usedAt: new Date() },
+    });
+
+    this.logger.log(`Password reset for user: ${resetToken.user.email}`);
+
+    return { message: 'Password reset successfully' };
   }
 
   /**

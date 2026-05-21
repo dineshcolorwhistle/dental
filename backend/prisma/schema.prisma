@@ -60,6 +60,7 @@ model TenantSettings {
   workingDays    String @default("Mon,Tue,Wed,Thu,Fri,Sat") @map("working_days")
   workingHoursStart String @default("09:00") @map("working_hours_start")
   workingHoursEnd   String @default("18:00") @map("working_hours_end")
+  features       Json   @default("{}")
 
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -108,9 +109,10 @@ model User {
   updatedAt     DateTime   @updatedAt @map("updated_at")
 
   // Relations
-  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch        Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  refreshTokens RefreshToken[]
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch              Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
 
   @@unique([email, tenantId])
   @@map("users")
@@ -130,4 +132,20 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+// ─── Password Reset Token ────────────────────────────────
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }

@@ -45,7 +45,14 @@ Platform (Super Admin)
 
 Each tenant operates under a **subdomain** (e.g., `smilelab.dental.com`, `brightlab.dental.com`). Data is fully isolated per tenant.
 
-### 3.2 Backend Architecture Pattern
+### 3.2 Post-Production & Tenant-Controlled Releases
+
+The platform supports tenant-controlled releases without requiring separate deployments. This is achieved via a robust **Feature Flag** system:
+- **`tenant_settings.features` JSON column**: Stores boolean flags for each module (e.g., `{"qrWorkflow": true, "deliveryModule": false, "doctorPortal": false}`).
+- **Super Admin Control**: The Super Admin can toggle these features on a per-tenant basis from the master dashboard.
+- **Frontend & Backend Enforcement**: The frontend conditionally renders UI based on these flags, and the backend validates access. This allows rolling out major new features (like the Doctor Portal) to beta tenants first, before enabling them globally.
+
+### 3.3 Backend Architecture Pattern
 
 ```
 Controller → Service → Repository (Prisma) → PostgreSQL

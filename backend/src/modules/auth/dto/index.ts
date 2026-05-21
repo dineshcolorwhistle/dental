@@ -1,2 +1,3 @@
-export { LoginDto } from './login.dto';
-export { RefreshTokenDto } from './refresh-token.dto';
+export * from './login.dto';
+export * from './refresh-token.dto';
+export * from './reset-password.dto';

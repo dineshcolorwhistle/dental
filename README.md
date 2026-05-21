@@ -7,6 +7,7 @@ A modern, SaaS-ready operational workflow platform for dental laboratories — m
 ## ✨ Key Features
 
 - **Multi-Tenant SaaS Architecture** — Subdomain-based tenant isolation with branch-level data separation.
+- **Tenant-Controlled Releases** — Feature flag system enabling module rollouts (e.g., Doctor Portal) on a per-tenant basis without separate deployments.
 - **Real-Time Workflow Engine** — Event-driven process orchestration with strict sequential validation.
 - **Role-Based Dashboards** — Tailored views for Super Admins, Owners, Admins, Technicians, and Delivery staff.
 - **Live Production Tracking** — WebSocket-powered dashboards with instant status updates.
