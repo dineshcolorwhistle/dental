@@ -19,11 +19,9 @@ export class MailService {
     ownerName: string,
     tenantName: string,
     resetToken: string,
+    subdomain: string,
   ): Promise<void> {
-    const frontendUrl = this.configService.get(
-      'FRONTEND_URL',
-      'http://localhost:5173',
-    );
+    const frontendUrl = this.buildSubdomainUrl(subdomain);
     const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
 
     try {
@@ -55,11 +53,9 @@ export class MailService {
     tenantName: string,
     branchName: string,
     resetToken: string,
+    subdomain: string,
   ): Promise<void> {
-    const frontendUrl = this.configService.get(
-      'FRONTEND_URL',
-      'http://localhost:5173',
-    );
+    const frontendUrl = this.buildSubdomainUrl(subdomain);
     const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
 
     try {
@@ -80,6 +76,33 @@ export class MailService {
     } catch (error) {
       this.logger.error(`Failed to send admin invite email to ${email}`, error);
       // Don't throw — user creation should still succeed even if email fails
+    }
+  }
+
+  /**
+   * Build a subdomain-specific frontend URL.
+   * e.g., http://localhost:5173 -> http://happy-dental.localhost:5173
+   */
+  private buildSubdomainUrl(subdomain: string | null): string {
+    const frontendUrl = this.configService.get(
+      'FRONTEND_URL',
+      'http://localhost:5173',
+    );
+
+    if (!subdomain) {
+      return frontendUrl;
+    }
+
+    try {
+      const url = new URL(frontendUrl);
+      url.hostname = `${subdomain}.${url.hostname}`;
+      return url.toString().replace(/\/$/, '');
+    } catch {
+      const protoMatch = frontendUrl.match(/^(https?:\/\/)(.*)$/i);
+      if (protoMatch) {
+        return `${protoMatch[1]}${subdomain}.${protoMatch[2]}`;
+      }
+      return frontendUrl;
     }
   }
 }

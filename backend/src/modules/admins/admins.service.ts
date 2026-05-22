@@ -38,10 +38,10 @@ export class AdminsService {
       );
     }
 
-    // Load tenant name
+    // Load tenant name and subdomain
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { name: true },
+      select: { name: true, subdomain: true },
     });
 
     if (!tenant) {
@@ -111,6 +111,7 @@ export class AdminsService {
       tenant.name,
       branch.name,
       result.resetToken,
+      tenant.subdomain,
     );
 
     this.logger.log(

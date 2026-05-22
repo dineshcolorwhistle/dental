@@ -135,6 +135,7 @@ export class TenantsService {
       `${firstName} ${lastName}`,
       tenantName,
       result.resetToken,
+      subdomain,
     );
 
     this.logger.log(
