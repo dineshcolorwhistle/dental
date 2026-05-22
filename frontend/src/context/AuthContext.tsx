@@ -6,6 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
+import { toast } from 'react-hot-toast';
 import { authService, type AuthUser, type LoginPayload } from '../services';
 
 interface AuthContextType {
@@ -60,6 +61,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
     }
   }, []);
+
+  // Idle session timeout logic
+  useEffect(() => {
+    if (!user) return;
+
+    // Get timeout from environment variable (default: 1 hour in ms = 3600000)
+    const envTimeout = import.meta.env.VITE_IDLE_TIMEOUT;
+    const timeoutDuration = envTimeout ? parseInt(envTimeout, 10) : 3600000;
+
+    let timeoutId: number;
+
+    const resetTimer = () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+      timeoutId = window.setTimeout(() => {
+        logout().then(() => {
+          toast.error('You have been logged out due to inactivity.', {
+            id: 'idle-timeout-toast', // Prevent multiple duplicate toasts
+          });
+        });
+      }, timeoutDuration);
+    };
+
+    // Events to monitor for activity
+    const events = [
+      'mousedown',
+      'mousemove',
+      'keypress',
+      'scroll',
+      'touchstart',
+      'click',
+    ];
+
+    // Initialize timer
+    resetTimer();
+
+    // Add event listeners
+    events.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    return () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+      events.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [user, logout]);
 
   return (
     <AuthContext.Provider
