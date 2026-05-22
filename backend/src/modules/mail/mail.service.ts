@@ -80,6 +80,41 @@ export class MailService {
   }
 
   /**
+   * Send a technician invitation email with a password-reset link.
+   */
+  async sendTechnicianInvite(
+    email: string,
+    technicianName: string,
+    tenantName: string,
+    branchName: string,
+    resetToken: string,
+    subdomain: string,
+  ): Promise<void> {
+    const frontendUrl = this.buildSubdomainUrl(subdomain);
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: `Welcome to ${tenantName} — Set Up Your Technician Account`,
+        template: 'technician-invite',
+        context: {
+          technicianName,
+          tenantName,
+          branchName,
+          resetLink,
+          year: new Date().getFullYear(),
+        },
+      });
+
+      this.logger.log(`Technician invite email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send technician invite email to ${email}`, error);
+      // Don't throw — user creation should still succeed even if email fails
+    }
+  }
+
+  /**
    * Build a subdomain-specific frontend URL.
    * e.g., http://localhost:5173 -> http://happy-dental.localhost:5173
    */

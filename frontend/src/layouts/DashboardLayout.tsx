@@ -14,6 +14,8 @@ import {
   Building2,
   GitBranch,
   Users,
+  Wrench,
+  Stethoscope,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -110,6 +112,51 @@ export function DashboardLayout() {
               >
                 <Users size={20} />
                 <span>Lab Admins</span>
+              </NavLink>
+              <NavLink
+                to="/technicians"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Wrench size={20} />
+                <span>Technicians</span>
+              </NavLink>
+              <NavLink
+                to="/doctors"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Stethoscope size={20} />
+                <span>Doctors</span>
+              </NavLink>
+            </>
+          )}
+
+          {user?.role === 'ADMIN' && (
+            <>
+              <NavLink
+                to="/technicians"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Wrench size={20} />
+                <span>Technician</span>
+              </NavLink>
+              <NavLink
+                to="/doctors"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Stethoscope size={20} />
+                <span>Doctors</span>
               </NavLink>
             </>
           )}

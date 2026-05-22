@@ -10,6 +10,8 @@ import { DashboardPage } from './pages/DashboardPage';
 import { TenantsPage } from './pages/TenantsPage';
 import { BranchesPage } from './pages/BranchesPage';
 import { AdminsPage } from './pages/AdminsPage';
+import { DoctorsPage } from './pages/DoctorsPage';
+import { TechniciansPage } from './pages/TechniciansPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -57,6 +59,8 @@ function App() {
             <Route path="/tenants" element={<TenantsPage />} />
             <Route path="/branches" element={<BranchesPage />} />
             <Route path="/admins" element={<AdminsPage />} />
+            <Route path="/doctors" element={<DoctorsPage />} />
+            <Route path="/technicians" element={<TechniciansPage />} />
           </Route>
 
           {/* Error pages */}

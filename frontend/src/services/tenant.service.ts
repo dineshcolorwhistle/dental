@@ -47,7 +47,7 @@ export interface CreateTenantResponse {
   subdomain: string;
   status: string;
   owner: TenantOwner;
-  branch: TenantBranch;
+  branch?: TenantBranch | null;
   createdAt: string;
 }
 

@@ -27,7 +27,6 @@ export class TenantsService {
    */
   async create(dto: CreateTenantDto) {
     const { tenantName, ownerName, ownerEmail } = dto;
-    const branchName = dto.branchName || 'Main Branch';
 
     // Generate subdomain from tenant name (slugify)
     const subdomain = this.generateSubdomain(tenantName);
@@ -61,9 +60,6 @@ export class TenantsService {
     const tempPassword = uuidv4();
     const passwordHash = await bcrypt.hash(tempPassword, 12);
 
-    // Generate branch code from branch name
-    const branchCode = this.generateBranchCode(branchName);
-
     // Create everything in a transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // 1. Create Tenant
@@ -76,22 +72,11 @@ export class TenantsService {
         },
       });
 
-      // 2. Create default Branch
-      const branch = await tx.branch.create({
-        data: {
-          tenantId: tenant.id,
-          name: branchName,
-          code: branchCode,
-          email: ownerEmail,
-          isActive: true,
-        },
-      });
-
-      // 3. Create Owner user
+      // 2. Create Owner user
       const owner = await tx.user.create({
         data: {
           tenantId: tenant.id,
-          branchId: branch.id,
+          branchId: null,
           email: ownerEmail,
           passwordHash,
           firstName,
@@ -101,7 +86,7 @@ export class TenantsService {
         },
       });
 
-      // 4. Create Tenant Settings with defaults
+      // 3. Create Tenant Settings with defaults
       await tx.tenantSettings.create({
         data: {
           tenantId: tenant.id,
@@ -113,7 +98,7 @@ export class TenantsService {
         },
       });
 
-      // 5. Create password reset token (24h expiry)
+      // 4. Create password reset token (24h expiry)
       const resetToken = uuidv4();
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
@@ -126,10 +111,10 @@ export class TenantsService {
         },
       });
 
-      return { tenant, branch, owner, resetToken };
+      return { tenant, owner, resetToken };
     });
 
-    // 6. Send invite email (outside transaction — non-blocking)
+    // 5. Send invite email (outside transaction — non-blocking)
     await this.mailService.sendOwnerInvite(
       ownerEmail,
       `${firstName} ${lastName}`,
@@ -153,11 +138,7 @@ export class TenantsService {
         firstName: result.owner.firstName,
         lastName: result.owner.lastName,
       },
-      branch: {
-        id: result.branch.id,
-        name: result.branch.name,
-        code: result.branch.code,
-      },
+      branch: null,
       createdAt: result.tenant.createdAt,
     };
   }

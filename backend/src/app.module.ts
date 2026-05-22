@@ -7,6 +7,8 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { MailModule } from './modules/mail/mail.module';
 import { BranchesModule } from './modules/branches/branches.module';
 import { AdminsModule } from './modules/admins/admins.module';
+import { DoctorsModule } from './modules/doctors/doctors.module';
+import { TechniciansModule } from './modules/technicians/technicians.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -24,6 +26,8 @@ import { RolesGuard } from './common/guards/roles.guard';
     MailModule,
     BranchesModule,
     AdminsModule,
+    DoctorsModule,
+    TechniciansModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default
