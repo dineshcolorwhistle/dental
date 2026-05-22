@@ -59,7 +59,7 @@ export function TechniciansPage() {
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
       const [technicianData, branchData] = await Promise.all([
         technicianService.getAll(branchScope),
-        branchService.getAll(),
+        isAdmin ? Promise.resolve([]) : branchService.getAll(),
       ]);
       setTechnicians(technicianData);
       setBranches(branchData.filter((b) => b.isActive));

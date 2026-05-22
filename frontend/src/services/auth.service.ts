@@ -15,6 +15,7 @@ export interface AuthUser {
   tenantId: string | null;
   tenantName?: string | null;
   branchId: string | null;
+  branchName?: string | null;
 }
 
 export interface AuthResponse {

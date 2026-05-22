@@ -62,7 +62,7 @@ export function DoctorsPage() {
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
       const [doctorData, branchData] = await Promise.all([
         doctorService.getAll(branchScope),
-        branchService.getAll(),
+        isAdmin ? Promise.resolve([]) : branchService.getAll(),
       ]);
       setDoctors(doctorData);
       setBranches(branchData.filter((b) => b.isActive));

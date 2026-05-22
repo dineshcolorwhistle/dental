@@ -65,8 +65,21 @@ export function DashboardLayout() {
                 </linearGradient>
               </defs>
             </svg>
-            <span className="sidebar__brand-text">
-              {user?.role === 'SUPER_ADMIN' ? 'DentalLab' : (user?.tenantName || 'DentalLab')}
+            <span className="sidebar__brand-text" style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+              <span>
+                {user?.role === 'SUPER_ADMIN' ? 'DentalLab' : (user?.tenantName || 'DentalLab')}
+              </span>
+              {(user?.role === 'ADMIN' || user?.role === 'TECHNICIAN') && user?.branchName && (
+                <span style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 500,
+                  color: 'var(--accent-primary)',
+                  letterSpacing: '0.02em',
+                  marginTop: '2px'
+                }}>
+                  {user.branchName}
+                </span>
+              )}
             </span>
           </div>
           <button
@@ -187,6 +200,24 @@ export function DashboardLayout() {
               <span className="sidebar__user-email">
                 {user?.email}
               </span>
+              {(user?.role === 'ADMIN' || user?.role === 'TECHNICIAN') && user?.branchName && (
+                <div className="sidebar__user-branch" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  marginTop: '4px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--accent-primary)',
+                  backgroundColor: 'var(--accent-primary-light)',
+                  padding: '2px 8px',
+                  borderRadius: '100px',
+                  width: 'fit-content'
+                }}>
+                  <Building2 size={10} />
+                  <span>{user.branchName}</span>
+                </div>
+              )}
             </div>
           </div>
           <button

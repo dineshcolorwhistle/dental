@@ -23,20 +23,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load user from localStorage on mount
+  // Load user from localStorage on mount and sync in background
   useEffect(() => {
     const stored = localStorage.getItem('user');
     const token = localStorage.getItem('accessToken');
 
+    let isMounted = true;
+
     if (stored && token) {
       try {
-        setUser(JSON.parse(stored));
+        const parsedUser = JSON.parse(stored);
+        setUser(parsedUser);
+
+        // Fetch fresh profile in background to self-heal stale cached session details (e.g. branchName)
+        authService.getProfile()
+          .then((profile) => {
+            if (!isMounted) return;
+            const updatedUser: AuthUser = {
+              id: profile.id,
+              email: profile.email,
+              firstName: profile.firstName,
+              lastName: profile.lastName,
+              role: profile.role,
+              tenantId: profile.tenantId,
+              tenantName: profile.tenant?.name || null,
+              branchId: profile.branchId,
+              branchName: profile.branch?.name || null,
+            };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+          })
+          .catch((err) => {
+            console.error('Failed to sync user profile in background:', err);
+          });
       } catch {
         localStorage.removeItem('user');
       }
     }
 
     setIsLoading(false);
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = useCallback(async (payload: LoginPayload) => {

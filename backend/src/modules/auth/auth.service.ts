@@ -109,6 +109,16 @@ export class AuthService {
       tenantName = tenant?.name || null;
     }
 
+    // Fetch branch name if branchId exists
+    let branchName: string | null = null;
+    if (user.branchId) {
+      const branch = await this.prisma.branch.findUnique({
+        where: { id: user.branchId },
+        select: { name: true },
+      });
+      branchName = branch?.name || null;
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
@@ -124,6 +134,7 @@ export class AuthService {
         tenantId: user.tenantId,
         tenantName,
         branchId: user.branchId,
+        branchName,
       },
       ...tokens,
     };
@@ -162,6 +173,16 @@ export class AuthService {
       tenantName = tenant?.name || null;
     }
 
+    // Fetch branch name if branchId exists
+    let branchName: string | null = null;
+    if (stored.user.branchId) {
+      const branch = await this.prisma.branch.findUnique({
+        where: { id: stored.user.branchId },
+        select: { name: true },
+      });
+      branchName = branch?.name || null;
+    }
+
     // Generate new token pair
     const tokens = await this.generateTokens(stored.user);
 
@@ -175,6 +196,7 @@ export class AuthService {
         tenantId: stored.user.tenantId,
         tenantName,
         branchId: stored.user.branchId,
+        branchName,
       },
       ...tokens,
     };
