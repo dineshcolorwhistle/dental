@@ -31,6 +31,7 @@ import { Pagination } from '../components';
 export function ProcessesPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const canEdit = user?.role === 'ADMIN';
 
   const [processes, setProcesses] = useState<ProcessListItem[]>([]);
   const [prosthesisTypes, setProsthesisTypes] = useState<ProsthesisTypeListItem[]>([]);
@@ -383,16 +384,18 @@ export function ProcessesPage() {
           <h1 className="page-header__title">Processes</h1>
           <p className="page-header__subtitle">Manage workflow stages and customize production handoffs</p>
         </div>
-        <button
-          id="btn-add-process"
-          className="btn btn--primary"
-          onClick={handleCreateOpen}
-          disabled={prosthesisTypes.length === 0}
-          title={prosthesisTypes.length === 0 ? 'Create a Prosthesis Type first' : 'Add Process'}
-        >
-          <Plus size={18} />
-          <span>Add Process</span>
-        </button>
+        {canEdit && (
+          <button
+            id="btn-add-process"
+            className="btn btn--primary"
+            onClick={handleCreateOpen}
+            disabled={prosthesisTypes.length === 0}
+            title={prosthesisTypes.length === 0 ? 'Create a Prosthesis Type first' : 'Add Process'}
+          >
+            <Plus size={18} />
+            <span>Add Process</span>
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -447,7 +450,7 @@ export function ProcessesPage() {
           </div>
 
           {/* Reorder Button */}
-          {selectedProsthesisTypeFilter !== 'ALL' && (
+          {selectedProsthesisTypeFilter !== 'ALL' && canEdit && (
             <button
               className="btn btn--secondary"
               style={{ height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}
@@ -501,7 +504,7 @@ export function ProcessesPage() {
               ? 'Configure processes to define operational workflow stages like scanning, designing, and QC.'
               : 'Try adjusting your search or filter criteria.'}
           </p>
-          {processes.length === 0 && prosthesisTypes.length > 0 && (
+          {processes.length === 0 && prosthesisTypes.length > 0 && canEdit && (
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}
@@ -532,7 +535,7 @@ export function ProcessesPage() {
                 <th>Prosthesis Type</th>
                 <th>Default Technician</th>
                 {!isAdmin && <th>Branch</th>}
-                <th>Actions</th>
+                {canEdit && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -591,24 +594,26 @@ export function ProcessesPage() {
                       )}
                     </td>
                   )}
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        className="btn-action"
-                        onClick={() => handleEditOpen(proc)}
-                        title="Edit Process"
-                      >
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        className="btn-action btn-action--danger"
-                        onClick={() => confirmDelete(proc)}
-                        title="Delete Process"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
+                  {canEdit && (
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          className="btn-action"
+                          onClick={() => handleEditOpen(proc)}
+                          title="Edit Process"
+                        >
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          className="btn-action btn-action--danger"
+                          onClick={() => confirmDelete(proc)}
+                          title="Delete Process"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

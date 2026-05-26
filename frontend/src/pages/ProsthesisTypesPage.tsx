@@ -11,9 +11,13 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { prosthesisTypeService, type ProsthesisTypeListItem, type CreateProsthesisTypePayload } from '../services';
+import { useAuth } from '../context';
 import { Pagination } from '../components';
 
 export function ProsthesisTypesPage() {
+  const { user } = useAuth();
+  const canEdit = user?.role === 'ADMIN';
+
   const [types, setTypes] = useState<ProsthesisTypeListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -193,14 +197,16 @@ export function ProsthesisTypesPage() {
           <h1 className="page-header__title">Prosthesis Types</h1>
           <p className="page-header__subtitle">Manage dental laboratory work types and catalog items</p>
         </div>
-        <button
-          id="btn-add-prosthesis-type"
-          className="btn btn--primary"
-          onClick={handleCreateOpen}
-        >
-          <Plus size={18} />
-          <span>Add Prosthesis Type</span>
-        </button>
+        {canEdit && (
+          <button
+            id="btn-add-prosthesis-type"
+            className="btn btn--primary"
+            onClick={handleCreateOpen}
+          >
+            <Plus size={18} />
+            <span>Add Prosthesis Type</span>
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -255,7 +261,7 @@ export function ProsthesisTypesPage() {
               ? 'Add prosthesis types to define work items and build custom manufacturing workflow sequences.'
               : 'Try adjusting your search or filter criteria.'}
           </p>
-          {types.length === 0 && (
+          {types.length === 0 && canEdit && (
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}
@@ -283,7 +289,7 @@ export function ProsthesisTypesPage() {
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Actions</th>
+                {canEdit && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -317,24 +323,26 @@ export function ProsthesisTypesPage() {
                       })}
                     </span>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        className="btn-action"
-                        onClick={() => handleEditOpen(item)}
-                        title="Edit Type"
-                      >
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        className="btn-action btn-action--danger"
-                        onClick={() => confirmDelete(item)}
-                        title="Delete Type"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
+                  {canEdit && (
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          className="btn-action"
+                          onClick={() => handleEditOpen(item)}
+                          title="Edit Type"
+                        >
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          className="btn-action btn-action--danger"
+                          onClick={() => confirmDelete(item)}
+                          title="Delete Type"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

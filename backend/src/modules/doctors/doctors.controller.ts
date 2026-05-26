@@ -25,6 +25,7 @@ export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new doctor/clinic record' })
   async create(
@@ -76,6 +77,7 @@ export class DoctorsController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update a specific doctor/clinic\'s details' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
@@ -92,6 +94,7 @@ export class DoctorsController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a doctor/clinic record' })
   async remove(

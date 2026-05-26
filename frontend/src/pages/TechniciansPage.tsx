@@ -24,6 +24,7 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 export function TechniciansPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const canEdit = user?.role === 'ADMIN';
 
   const [technicians, setTechnicians] = useState<TechnicianListItem[]>([]);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
@@ -296,14 +297,16 @@ export function TechniciansPage() {
           <h1 className="page-header__title">Technicians</h1>
           <p className="page-header__subtitle">Manage dental lab technicians and their access</p>
         </div>
-        <button
-          id="btn-add-technician"
-          className="btn btn--primary"
-          onClick={handleCreateOpen}
-        >
-          <Plus size={18} />
-          <span>Invite Technician</span>
-        </button>
+        {canEdit && (
+          <button
+            id="btn-add-technician"
+            className="btn btn--primary"
+            onClick={handleCreateOpen}
+          >
+            <Plus size={18} />
+            <span>Invite Technician</span>
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -411,7 +414,7 @@ export function TechniciansPage() {
               ? 'Invite technicians to assign design tasks and lab manufacturing workflow steps.'
               : 'Try adjusting your search or filter criteria.'}
           </p>
-          {technicians.length === 0 && (
+          {technicians.length === 0 && canEdit && (
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}
@@ -441,7 +444,7 @@ export function TechniciansPage() {
                 <th>Phone</th>
                 {!isAdmin && <th>Branch</th>}
                 <th>Status</th>
-                <th>Actions</th>
+                {canEdit && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -495,34 +498,36 @@ export function TechniciansPage() {
                   <td>
                     <StatusBadge status={tech.status} />
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      {tech.status !== 'INVITED' && (
+                  {canEdit && (
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {tech.status !== 'INVITED' && (
+                          <button
+                            className={`btn-action ${tech.status === 'ACTIVE' ? 'btn-action--danger' : 'btn-action--success'}`}
+                            onClick={() => handleToggleStatus(tech)}
+                            title={tech.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                          >
+                            {tech.status === 'ACTIVE' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
+                            <span>{tech.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</span>
+                          </button>
+                        )}
                         <button
-                          className={`btn-action ${tech.status === 'ACTIVE' ? 'btn-action--danger' : 'btn-action--success'}`}
-                          onClick={() => handleToggleStatus(tech)}
-                          title={tech.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                          className="btn-action"
+                          onClick={() => handleEditOpen(tech)}
+                          title="Edit Technician"
                         >
-                          {tech.status === 'ACTIVE' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                          <span>{tech.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</span>
+                          <span>Edit</span>
                         </button>
-                      )}
-                      <button
-                        className="btn-action"
-                        onClick={() => handleEditOpen(tech)}
-                        title="Edit Technician"
-                      >
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        className="btn-action btn-action--danger"
-                        onClick={() => confirmDelete(tech)}
-                        title="Delete Technician"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
+                        <button
+                          className="btn-action btn-action--danger"
+                          onClick={() => confirmDelete(tech)}
+                          title="Delete Technician"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

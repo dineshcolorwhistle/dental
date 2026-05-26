@@ -24,6 +24,7 @@ export class ProsthesisTypesController {
   constructor(private readonly prosthesisTypesService: ProsthesisTypesService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new prosthesis/work type' })
   async create(
@@ -58,6 +59,7 @@ export class ProsthesisTypesController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update a prosthesis type' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
@@ -71,6 +73,7 @@ export class ProsthesisTypesController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a prosthesis type' })
   async remove(

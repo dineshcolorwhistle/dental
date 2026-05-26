@@ -25,6 +25,7 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 export function DoctorsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const canEdit = user?.role === 'ADMIN';
 
   const [doctors, setDoctors] = useState<DoctorListItem[]>([]);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
@@ -276,14 +277,16 @@ export function DoctorsPage() {
           <h1 className="page-header__title">Doctors</h1>
           <p className="page-header__subtitle">Manage dental doctor and clinic records</p>
         </div>
-        <button
-          id="btn-add-doctor"
-          className="btn btn--primary"
-          onClick={handleCreateOpen}
-        >
-          <Plus size={18} />
-          <span>Add Doctor</span>
-        </button>
+        {canEdit && (
+          <button
+            id="btn-add-doctor"
+            className="btn btn--primary"
+            onClick={handleCreateOpen}
+          >
+            <Plus size={18} />
+            <span>Add Doctor</span>
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -391,7 +394,7 @@ export function DoctorsPage() {
               ? 'Add details of dental clinics or external doctors to assign work orders.'
               : 'Try adjusting your search or filter criteria.'}
           </p>
-          {doctors.length === 0 && (
+          {doctors.length === 0 && canEdit && (
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}
@@ -422,7 +425,7 @@ export function DoctorsPage() {
                 <th>Clinic Address</th>
                 {!isAdmin && <th>Branch</th>}
                 <th>Status</th>
-                <th>Actions</th>
+                {canEdit && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -498,32 +501,34 @@ export function DoctorsPage() {
                       {doctor.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        className={`btn-action ${doctor.isActive ? 'btn-action--danger' : 'btn-action--success'}`}
-                        onClick={() => handleToggleStatus(doctor)}
-                        title={doctor.isActive ? 'Deactivate' : 'Activate'}
-                      >
-                        {doctor.isActive ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                        <span>{doctor.isActive ? 'Deactivate' : 'Activate'}</span>
-                      </button>
-                      <button
-                        className="btn-action"
-                        onClick={() => handleEditOpen(doctor)}
-                        title="Edit Doctor"
-                      >
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        className="btn-action btn-action--danger"
-                        onClick={() => confirmDelete(doctor)}
-                        title="Delete Doctor"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
+                  {canEdit && (
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          className={`btn-action ${doctor.isActive ? 'btn-action--danger' : 'btn-action--success'}`}
+                          onClick={() => handleToggleStatus(doctor)}
+                          title={doctor.isActive ? 'Deactivate' : 'Activate'}
+                        >
+                          {doctor.isActive ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
+                          <span>{doctor.isActive ? 'Deactivate' : 'Activate'}</span>
+                        </button>
+                        <button
+                          className="btn-action"
+                          onClick={() => handleEditOpen(doctor)}
+                          title="Edit Doctor"
+                        >
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          className="btn-action btn-action--danger"
+                          onClick={() => confirmDelete(doctor)}
+                          title="Delete Doctor"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

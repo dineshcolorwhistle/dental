@@ -25,6 +25,7 @@ export class TechniciansController {
   constructor(private readonly techniciansService: TechniciansService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Invite a new technician user' })
   async create(
@@ -76,6 +77,7 @@ export class TechniciansController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update a specific technician\'s details' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
@@ -92,6 +94,7 @@ export class TechniciansController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a technician user' })
   async remove(

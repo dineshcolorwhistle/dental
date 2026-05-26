@@ -25,6 +25,7 @@ export class ProcessesController {
   constructor(private readonly processesService: ProcessesService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new process/workflow stage' })
   async create(
@@ -40,6 +41,7 @@ export class ProcessesController {
   }
 
   @Post('reorder')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reorder process sequence for a prosthesis type' })
   async reorder(
@@ -89,6 +91,7 @@ export class ProcessesController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update a specific process\'s details' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
@@ -105,6 +108,7 @@ export class ProcessesController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a process' })
   async remove(
