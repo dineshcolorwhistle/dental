@@ -206,6 +206,7 @@ model Process {
   processArea         String   @map("process_area") // e.g. "Scanning", "Design", "Milling", "QC"
   defaultTechnicianId String   @map("default_technician_id")
   prosthesisTypeId    String   @map("prosthesis_type_id")
+  sequence            Int      @default(0)
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 

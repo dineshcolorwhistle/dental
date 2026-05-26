@@ -55,6 +55,14 @@ export class ProcessesService {
       );
     }
 
+    // Find the current max sequence for this prosthesis type
+    const maxProcess = await this.prisma.process.findFirst({
+      where: { tenantId, prosthesisTypeId },
+      orderBy: { sequence: 'desc' },
+      select: { sequence: true },
+    });
+    const nextSequence = maxProcess ? maxProcess.sequence + 1 : 0;
+
     const process = await this.prisma.process.create({
       data: {
         tenantId,
@@ -63,6 +71,7 @@ export class ProcessesService {
         processArea,
         defaultTechnicianId,
         prosthesisTypeId,
+        sequence: nextSequence,
       },
       include: {
         prosthesisType: true,
@@ -94,7 +103,11 @@ export class ProcessesService {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { prosthesisTypeId: 'asc' },
+        { sequence: 'asc' },
+        { createdAt: 'asc' },
+      ],
     });
   }
 
@@ -201,6 +214,29 @@ export class ProcessesService {
     });
 
     this.logger.log(`Process deleted: ${id} inside tenant ${tenantId}`);
+    return { success: true };
+  }
+
+  async reorder(tenantId: string, prosthesisTypeId: string, processIds: string[]) {
+    // Verify prosthesis type belongs to tenant
+    const prosthesisType = await this.prisma.prosthesisType.findFirst({
+      where: { id: prosthesisTypeId, tenantId },
+    });
+    if (!prosthesisType) {
+      throw new NotFoundException(`Prosthesis type with ID "${prosthesisTypeId}" not found.`);
+    }
+
+    // Update sequences inside a transaction
+    await this.prisma.$transaction(
+      processIds.map((id, index) =>
+        this.prisma.process.updateMany({
+          where: { id, tenantId, prosthesisTypeId },
+          data: { sequence: index },
+        }),
+      ),
+    );
+
+    this.logger.log(`Processes reordered for prosthesis type: ${prosthesisTypeId}`);
     return { success: true };
   }
 }

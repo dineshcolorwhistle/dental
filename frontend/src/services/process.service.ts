@@ -9,6 +9,7 @@ export interface ProcessListItem {
   processArea: string;
   defaultTechnicianId: string;
   prosthesisTypeId: string;
+  sequence: number;
   createdAt: string;
   updatedAt: string;
   prosthesisType: ProsthesisTypeListItem;
@@ -56,6 +57,14 @@ export const processService = {
 
   delete: async (id: string): Promise<{ success: boolean }> => {
     const response = await api.delete<{ success: boolean }>(`/processes/${id}`);
+    return response.data;
+  },
+
+  reorder: async (prosthesisTypeId: string, processIds: string[]): Promise<{ success: boolean }> => {
+    const response = await api.post<{ success: boolean }>('/processes/reorder', {
+      prosthesisTypeId,
+      processIds,
+    });
     return response.data;
   },
 };

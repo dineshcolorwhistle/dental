@@ -69,7 +69,7 @@ export function TechniciansPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, user?.branchId]);
 
   useEffect(() => {
     fetchData();

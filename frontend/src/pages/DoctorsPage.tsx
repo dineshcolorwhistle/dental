@@ -72,7 +72,7 @@ export function DoctorsPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, user?.branchId]);
 
   useEffect(() => {
     fetchData();

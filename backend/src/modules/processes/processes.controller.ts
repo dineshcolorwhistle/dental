@@ -14,7 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { ProcessesService } from './processes.service';
-import { CreateProcessDto, UpdateProcessDto } from './dto';
+import { CreateProcessDto, UpdateProcessDto, ReorderProcessesDto } from './dto';
 import { Roles, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Processes')
@@ -37,6 +37,19 @@ export class ProcessesController {
       throw new BadRequestException('Organization context is required.');
     }
     return this.processesService.create(tenantId, branchIdContext, userRole, dto);
+  }
+
+  @Post('reorder')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reorder process sequence for a prosthesis type' })
+  async reorder(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: ReorderProcessesDto,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.processesService.reorder(tenantId, dto.prosthesisTypeId, dto.processIds);
   }
 
   @Get()
