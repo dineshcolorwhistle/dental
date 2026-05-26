@@ -48,6 +48,8 @@ model Tenant {
   users    User[]
   settings TenantSettings?
   doctors  Doctor[]
+  prosthesisTypes ProsthesisType[]
+  processes       Process[]
 
   @@map("tenants")
 }
@@ -87,6 +89,7 @@ model Branch {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users  User[]
   doctors Doctor[]
+  processes Process[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -115,6 +118,7 @@ model User {
   branch              Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  defaultTechnicianProcesses Process[]     @relation("ProcessDefaultTechnician")
 
   @@unique([email, tenantId])
   @@map("users")
@@ -173,4 +177,45 @@ model Doctor {
 
   @@map("doctors")
 }
+
+// ─── Prosthesis Type ──────────────────────────────────────
+
+model ProsthesisType {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  processes Process[]
+
+  @@unique([tenantId, name])
+  @@map("prosthesis_types")
+}
+
+// ─── Process ─────────────────────────────────────────────
+
+model Process {
+  id                  String   @id @default(uuid())
+  tenantId            String   @map("tenant_id")
+  branchId            String?  @map("branch_id")
+  name                String
+  processArea         String   @map("process_area") // e.g. "Scanning", "Design", "Milling", "QC"
+  defaultTechnicianId String   @map("default_technician_id")
+  prosthesisTypeId    String   @map("prosthesis_type_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch            Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  defaultTechnician User            @relation("ProcessDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: Cascade)
+  prosthesisType    ProsthesisType  @relation(fields: [prosthesisTypeId], references: [id], onDelete: Cascade)
+
+  @@map("processes")
+}
+
 

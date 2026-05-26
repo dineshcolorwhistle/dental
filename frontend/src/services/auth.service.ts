@@ -11,7 +11,7 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'DELIVERY';
+  role: 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'DELIVERY' | 'DOCTOR';
   tenantId: string | null;
   tenantName?: string | null;
   branchId: string | null;

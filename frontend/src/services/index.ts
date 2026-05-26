@@ -5,6 +5,8 @@ export { branchService } from './branch.service';
 export { adminService } from './admin.service';
 export { doctorService } from './doctor.service';
 export { technicianService } from './technician.service';
+export { prosthesisTypeService } from './prosthesis-type.service';
+export { processService } from './process.service';
 export type { LoginPayload, AuthUser, AuthResponse, UserProfile } from './auth.service';
 export type {
   CreateTenantPayload,
@@ -17,4 +19,7 @@ export type { CreateBranchPayload, BranchListItem } from './branch.service';
 export type { CreateAdminPayload, AdminListItem } from './admin.service';
 export type { CreateDoctorPayload, UpdateDoctorPayload, DoctorListItem } from './doctor.service';
 export type { CreateTechnicianPayload, UpdateTechnicianPayload, TechnicianListItem } from './technician.service';
+export type { CreateProsthesisTypePayload, ProsthesisTypeListItem } from './prosthesis-type.service';
+export type { CreateProcessPayload, ProcessListItem } from './process.service';
+
 

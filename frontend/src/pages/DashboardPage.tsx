@@ -12,6 +12,7 @@ const ROLE_GREETINGS: Record<string, string> = {
   ADMIN: 'Branch Overview',
   TECHNICIAN: 'My Queue',
   DELIVERY: 'My Deliveries',
+  DOCTOR: 'Doctor Portal',
 };
 
 export function DashboardPage() {

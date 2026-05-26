@@ -12,6 +12,8 @@ import { BranchesPage } from './pages/BranchesPage';
 import { AdminsPage } from './pages/AdminsPage';
 import { DoctorsPage } from './pages/DoctorsPage';
 import { TechniciansPage } from './pages/TechniciansPage';
+import { ProsthesisTypesPage } from './pages/ProsthesisTypesPage';
+import { ProcessesPage } from './pages/ProcessesPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -61,6 +63,8 @@ function App() {
             <Route path="/admins" element={<AdminsPage />} />
             <Route path="/doctors" element={<DoctorsPage />} />
             <Route path="/technicians" element={<TechniciansPage />} />
+            <Route path="/prosthesis-types" element={<ProsthesisTypesPage />} />
+            <Route path="/processes" element={<ProcessesPage />} />
           </Route>
 
           {/* Error pages */}

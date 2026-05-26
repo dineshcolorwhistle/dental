@@ -16,6 +16,8 @@ import {
   Users,
   Wrench,
   Stethoscope,
+  Sparkles,
+  GitMerge,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -25,6 +27,7 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrator',
   TECHNICIAN: 'Technician',
   DELIVERY: 'Delivery',
+  DOCTOR: 'Doctor',
 };
 
 export function DashboardLayout() {
@@ -146,6 +149,26 @@ export function DashboardLayout() {
                 <Stethoscope size={20} />
                 <span>Doctors</span>
               </NavLink>
+              <NavLink
+                to="/prosthesis-types"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Sparkles size={20} />
+                <span>Prosthesis Types</span>
+              </NavLink>
+              <NavLink
+                to="/processes"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <GitMerge size={20} />
+                <span>Processes</span>
+              </NavLink>
             </>
           )}
 
@@ -170,6 +193,26 @@ export function DashboardLayout() {
               >
                 <Stethoscope size={20} />
                 <span>Doctors</span>
+              </NavLink>
+              <NavLink
+                to="/prosthesis-types"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Sparkles size={20} />
+                <span>Prosthesis Types</span>
+              </NavLink>
+              <NavLink
+                to="/processes"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <GitMerge size={20} />
+                <span>Processes</span>
               </NavLink>
             </>
           )}
