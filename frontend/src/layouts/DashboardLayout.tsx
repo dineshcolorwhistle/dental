@@ -18,8 +18,11 @@ import {
   Stethoscope,
   Sparkles,
   GitMerge,
+  ClipboardList,
+  Check,
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { notificationService, type NotificationItem } from '../services';
 
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
@@ -37,11 +40,68 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    if (!user || user.role === 'SUPER_ADMIN') return;
+    try {
+      const [notifs, countData] = await Promise.all([
+        notificationService.getAll(),
+        notificationService.getUnreadCount(),
+      ]);
+      setNotifications(notifs);
+      setUnreadCount(countData.count);
+    } catch {
+      // Silently fail — non-critical
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchNotifications();
+    // Poll every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationService.markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch {
+      // Silently fail
+    }
+  };
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      await notificationService.markRead(id);
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch {
+      // Silently fail
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close notification dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -169,6 +229,16 @@ export function DashboardLayout() {
                 <GitMerge size={20} />
                 <span>Processes</span>
               </NavLink>
+              <NavLink
+                to="/work-orders"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <ClipboardList size={20} />
+                <span>Work Orders</span>
+              </NavLink>
             </>
           )}
 
@@ -213,6 +283,16 @@ export function DashboardLayout() {
               >
                 <GitMerge size={20} />
                 <span>Processes</span>
+              </NavLink>
+              <NavLink
+                to="/work-orders"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <ClipboardList size={20} />
+                <span>Work Orders</span>
               </NavLink>
             </>
           )}
@@ -296,13 +376,57 @@ export function DashboardLayout() {
           <div className="topbar__spacer" />
 
           <div style={{ display: 'flex', gap: '0.5rem', marginRight: '1rem' }}>
-            <button
-              className="topbar__menu-btn"
-              style={{ display: 'flex' }}
-              aria-label="Notifications"
-            >
-              <Bell size={20} />
-            </button>
+            <div ref={notifRef} style={{ position: 'relative' }}>
+              <button
+                className="topbar__menu-btn"
+                style={{ display: 'flex', position: 'relative' }}
+                aria-label="Notifications"
+                onClick={() => setNotifOpen(!notifOpen)}
+              >
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div className="notif-dropdown">
+                  <div className="notif-dropdown__header">
+                    <span className="notif-dropdown__title">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button className="notif-dropdown__mark-all" onClick={handleMarkAllRead}>
+                        <Check size={12} />
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="notif-dropdown__list">
+                    {notifications.length === 0 ? (
+                      <div className="notif-dropdown__empty">
+                        <Bell size={20} style={{ opacity: 0.3 }} />
+                        <span>No notifications</span>
+                      </div>
+                    ) : (
+                      notifications.slice(0, 20).map((n) => (
+                        <div
+                          key={n.id}
+                          className={`notif-dropdown__item ${!n.isRead ? 'notif-dropdown__item--unread' : ''}`}
+                          onClick={() => { if (!n.isRead) handleMarkRead(n.id); }}
+                        >
+                          <div className="notif-dropdown__item-title">{n.title}</div>
+                          <div className="notif-dropdown__item-msg">{n.message}</div>
+                          <div className="notif-dropdown__item-time">
+                            {new Date(n.createdAt).toLocaleDateString('en-IN', {
+                              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                            })}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               onClick={toggleTheme}
               className="topbar__menu-btn"

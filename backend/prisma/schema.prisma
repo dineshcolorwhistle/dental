@@ -29,6 +29,14 @@ enum TenantStatus {
   SUSPENDED
 }
 
+enum WorkOrderStatus {
+  CREATED
+  ASSIGNED
+  IN_PROGRESS
+  VERIFICATION
+  COMPLETED
+}
+
 // ─── Tenant ──────────────────────────────────────────────
 
 model Tenant {
@@ -44,12 +52,14 @@ model Tenant {
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   // Relations
-  branches Branch[]
-  users    User[]
-  settings TenantSettings?
-  doctors  Doctor[]
+  branches        Branch[]
+  users           User[]
+  settings        TenantSettings?
+  doctors         Doctor[]
   prosthesisTypes ProsthesisType[]
   processes       Process[]
+  workOrders      WorkOrder[]
+  notifications   Notification[]
 
   @@map("tenants")
 }
@@ -86,10 +96,11 @@ model Branch {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users  User[]
-  doctors Doctor[]
-  processes Process[]
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users      User[]
+  doctors    Doctor[]
+  processes  Process[]
+  workOrders WorkOrder[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -119,6 +130,9 @@ model User {
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   defaultTechnicianProcesses Process[]     @relation("ProcessDefaultTechnician")
+  createdWorkOrders   WorkOrder[]          @relation("WorkOrderCreatedBy")
+  assignedWoProcesses WorkOrderProcess[]   @relation("WoProcessTechnician")
+  notifications       Notification[]
 
   @@unique([email, tenantId])
   @@map("users")
@@ -172,8 +186,9 @@ model Doctor {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch     Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  workOrders WorkOrder[]
 
   @@map("doctors")
 }
@@ -189,8 +204,9 @@ model ProsthesisType {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  processes Process[]
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  processes  Process[]
+  workOrders WorkOrder[]
 
   @@unique([tenantId, name])
   @@map("prosthesis_types")
@@ -219,4 +235,72 @@ model Process {
   @@map("processes")
 }
 
+// ─── Work Order ──────────────────────────────────────────
 
+model WorkOrder {
+  id               String          @id @default(uuid())
+  tenantId         String          @map("tenant_id")
+  branchId         String?         @map("branch_id")
+  folioNumber      String          @map("folio_number")
+  doctorId         String          @map("doctor_id")
+  patient          String
+  boxNumber        String?         @map("box_number")
+  prosthesisTypeId String          @map("prosthesis_type_id")
+  specification    String?
+  notes            String?
+  totalQuote       Float?          @map("total_quote")
+  initialPayment   Float?          @map("initial_payment")
+  status           WorkOrderStatus @default(CREATED)
+  createdById      String          @map("created_by_id")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch         Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  doctor         Doctor             @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  prosthesisType ProsthesisType     @relation(fields: [prosthesisTypeId], references: [id], onDelete: Cascade)
+  createdBy      User               @relation("WorkOrderCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  processes      WorkOrderProcess[]
+
+  @@unique([tenantId, folioNumber])
+  @@map("work_orders")
+}
+
+// ─── Work Order Process ──────────────────────────────────
+
+model WorkOrderProcess {
+  id             String   @id @default(uuid())
+  workOrderId    String   @map("work_order_id")
+  processName    String   @map("process_name")
+  technicianId   String?  @map("technician_id")
+  sequence       Int      @default(0)
+  isVerification Boolean  @default(false) @map("is_verification")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  workOrder  WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  technician User?     @relation("WoProcessTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+
+  @@map("work_order_processes")
+}
+
+// ─── Notification ────────────────────────────────────────
+
+model Notification {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  title       String
+  message     String
+  type        String   @default("INFO")
+  referenceId String?  @map("reference_id")
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

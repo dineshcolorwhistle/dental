@@ -1,0 +1,126 @@
+import api from './api';
+
+export interface WorkOrderProcessItem {
+  id: string;
+  workOrderId: string;
+  processName: string;
+  technicianId: string | null;
+  sequence: number;
+  isVerification: boolean;
+  createdAt: string;
+  technician?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+}
+
+export interface WorkOrderListItem {
+  id: string;
+  tenantId: string;
+  branchId: string | null;
+  folioNumber: string;
+  doctorId: string;
+  patient: string;
+  boxNumber: string | null;
+  prosthesisTypeId: string;
+  specification: string | null;
+  notes: string | null;
+  totalQuote: number | null;
+  initialPayment: number | null;
+  status: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'VERIFICATION' | 'COMPLETED';
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  doctor?: {
+    id: string;
+    name: string;
+    clinicName: string | null;
+  };
+  prosthesisType?: {
+    id: string;
+    name: string;
+  };
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  createdBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  processes: WorkOrderProcessItem[];
+}
+
+export interface CreateWorkOrderProcessPayload {
+  processName: string;
+  technicianId?: string;
+  sequence: number;
+  isVerification?: boolean;
+}
+
+export interface CreateWorkOrderPayload {
+  doctorId: string;
+  patient: string;
+  boxNumber?: string;
+  prosthesisTypeId: string;
+  specification?: string;
+  notes?: string;
+  totalQuote?: number;
+  initialPayment?: number;
+  branchId?: string;
+  action: 'create' | 'createAndAssign';
+  processes: CreateWorkOrderProcessPayload[];
+}
+
+export interface UpdateWorkOrderPayload {
+  doctorId?: string;
+  patient?: string;
+  boxNumber?: string;
+  prosthesisTypeId?: string;
+  specification?: string;
+  notes?: string;
+  totalQuote?: number;
+  initialPayment?: number;
+}
+
+export const workOrderService = {
+  getAll: async (branchId?: string, status?: string): Promise<WorkOrderListItem[]> => {
+    const params: Record<string, string> = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    if (status && status !== 'ALL') params.status = status;
+    const response = await api.get<WorkOrderListItem[]>('/work-orders', { params });
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<WorkOrderListItem> => {
+    const response = await api.get<WorkOrderListItem>(`/work-orders/${id}`);
+    return response.data;
+  },
+
+  getNextFolioNumber: async (branchId?: string): Promise<{ folioNumber: string }> => {
+    const params: Record<string, string> = {};
+    if (branchId) params.branchId = branchId;
+    const response = await api.get<{ folioNumber: string }>('/work-orders/next-folio', { params });
+    return response.data;
+  },
+
+  create: async (payload: CreateWorkOrderPayload): Promise<WorkOrderListItem> => {
+    const response = await api.post<WorkOrderListItem>('/work-orders', payload);
+    return response.data;
+  },
+
+  update: async (id: string, payload: UpdateWorkOrderPayload): Promise<WorkOrderListItem> => {
+    const response = await api.patch<WorkOrderListItem>(`/work-orders/${id}`, payload);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>(`/work-orders/${id}`);
+    return response.data;
+  },
+};

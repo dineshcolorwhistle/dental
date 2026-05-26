@@ -7,6 +7,8 @@ export { doctorService } from './doctor.service';
 export { technicianService } from './technician.service';
 export { prosthesisTypeService } from './prosthesis-type.service';
 export { processService } from './process.service';
+export { workOrderService } from './work-order.service';
+export { notificationService } from './notification.service';
 export type { LoginPayload, AuthUser, AuthResponse, UserProfile } from './auth.service';
 export type {
   CreateTenantPayload,
@@ -21,5 +23,11 @@ export type { CreateDoctorPayload, UpdateDoctorPayload, DoctorListItem } from '.
 export type { CreateTechnicianPayload, UpdateTechnicianPayload, TechnicianListItem } from './technician.service';
 export type { CreateProsthesisTypePayload, ProsthesisTypeListItem } from './prosthesis-type.service';
 export type { CreateProcessPayload, ProcessListItem } from './process.service';
-
-
+export type {
+  WorkOrderListItem,
+  WorkOrderProcessItem,
+  CreateWorkOrderPayload,
+  CreateWorkOrderProcessPayload,
+  UpdateWorkOrderPayload,
+} from './work-order.service';
+export type { NotificationItem } from './notification.service';

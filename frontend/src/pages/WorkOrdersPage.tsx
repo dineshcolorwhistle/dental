@@ -1,0 +1,1849 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  ClipboardList,
+  Plus,
+  Search,
+  X,
+  AlertCircle,
+  Loader2,
+  ArrowUpDown,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  CheckCircle2,
+  Clock,
+  PlayCircle,
+  ShieldCheck,
+  CircleDot,
+  FileText,
+  PlusCircle,
+  ShieldPlus,
+  Eye,
+  Pencil,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import {
+  workOrderService,
+  doctorService,
+  prosthesisTypeService,
+  processService,
+  technicianService,
+  branchService,
+  type WorkOrderListItem,
+  type CreateWorkOrderPayload,
+  type CreateWorkOrderProcessPayload,
+  type DoctorListItem,
+  type ProsthesisTypeListItem,
+  type ProcessListItem,
+  type TechnicianListItem,
+  type BranchListItem,
+} from '../services';
+import { useAuth } from '../context';
+import { Pagination } from '../components';
+
+type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'VERIFICATION' | 'COMPLETED';
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+  CREATED: { label: 'Created', color: '#6B7280', bg: '#F3F4F6', icon: <CircleDot size={12} /> },
+  ASSIGNED: { label: 'Assigned', color: '#3B82F6', bg: '#EFF6FF', icon: <Clock size={12} /> },
+  IN_PROGRESS: { label: 'In Progress', color: '#F59E0B', bg: '#FFFBEB', icon: <PlayCircle size={12} /> },
+  VERIFICATION: { label: 'Verification', color: '#8B5CF6', bg: '#F5F3FF', icon: <ShieldCheck size={12} /> },
+  COMPLETED: { label: 'Completed', color: '#10B981', bg: '#ECFDF5', icon: <CheckCircle2 size={12} /> },
+};
+
+interface ProcessFormItem {
+  tempId: string;
+  processName: string;
+  technicianId: string;
+  sequence: number;
+  isVerification: boolean;
+}
+
+export function WorkOrdersPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  const isOwner = user?.role === 'OWNER';
+  const canCreate = isAdmin;
+
+  // List state
+  const [workOrders, setWorkOrders] = useState<WorkOrderListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter>('ALL');
+  const [branches, setBranches] = useState<BranchListItem[]>([]);
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  useEffect(() => { setCurrentPage(0); }, [search, selectedBranchFilter, selectedStatusFilter]);
+
+  const [sortField, setSortField] = useState<'folioNumber' | 'patient' | 'createdAt'>('createdAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Create modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Delete modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [woToDelete, setWoToDelete] = useState<WorkOrderListItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // View modal
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedWO, setSelectedWO] = useState<WorkOrderListItem | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  // Edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingWO, setEditingWO] = useState<WorkOrderListItem | null>(null);
+
+  // Reference data for create form
+  const [doctors, setDoctors] = useState<DoctorListItem[]>([]);
+  const [prosthesisTypes, setProsthesisTypes] = useState<ProsthesisTypeListItem[]>([]);
+  const [technicians, setTechnicians] = useState<TechnicianListItem[]>([]);
+  const [allProcesses, setAllProcesses] = useState<ProcessListItem[]>([]);
+
+  // Form state
+  const [form, setForm] = useState({
+    doctorId: '',
+    patient: '',
+    boxNumber: '',
+    prosthesisTypeId: '',
+    specification: '',
+    notes: '',
+    totalQuote: '',
+    initialPayment: '',
+    branchId: '',
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [processList, setProcessList] = useState<ProcessFormItem[]>([]);
+  const [generatedFolio, setGeneratedFolio] = useState('');
+
+  // Add process inline
+  const [showAddProcess, setShowAddProcess] = useState(false);
+  const [newProcessName, setNewProcessName] = useState('');
+  const [newProcessTechnicianId, setNewProcessTechnicianId] = useState('');
+
+  // ─── Data Fetching ───────────────────────────
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const branchScope = isAdmin ? user?.branchId || undefined : undefined;
+      const [woData, branchData] = await Promise.all([
+        workOrderService.getAll(branchScope),
+        isAdmin ? Promise.resolve([]) : branchService.getAll(),
+      ]);
+      setWorkOrders(woData);
+      setBranches(branchData.filter((b) => b.isActive));
+    } catch (err) {
+      toast.error('Failed to load work orders');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin, user?.branchId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Load reference data for create modal
+  const loadReferenceData = useCallback(async () => {
+    try {
+      const branchScope = isAdmin ? user?.branchId || undefined : undefined;
+      const [doctorData, ptData, techData, processData] = await Promise.all([
+        doctorService.getAll(branchScope),
+        prosthesisTypeService.getAll(),
+        technicianService.getAll(branchScope),
+        processService.getAll(branchScope),
+      ]);
+      setDoctors(doctorData.filter((d) => d.isActive));
+      setProsthesisTypes(ptData);
+      setTechnicians(techData.filter((t) => t.status === 'ACTIVE'));
+      setAllProcesses(processData);
+    } catch (err) {
+      toast.error('Failed to load reference data');
+      console.error(err);
+    }
+  }, [isAdmin, user?.branchId]);
+
+  // ─── Filtering & Sorting ───────────────────────
+  const filtered = workOrders
+    .filter((wo) => {
+      if (!isAdmin && selectedBranchFilter !== 'ALL' && wo.branchId !== selectedBranchFilter) return false;
+      if (selectedStatusFilter !== 'ALL' && wo.status !== selectedStatusFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          wo.folioNumber.toLowerCase().includes(q) ||
+          wo.patient.toLowerCase().includes(q) ||
+          (wo.doctor?.name && wo.doctor.name.toLowerCase().includes(q)) ||
+          (wo.prosthesisType?.name && wo.prosthesisType.name.toLowerCase().includes(q)) ||
+          (wo.boxNumber && wo.boxNumber.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const mul = sortDir === 'asc' ? 1 : -1;
+      if (sortField === 'folioNumber') return mul * a.folioNumber.localeCompare(b.folioNumber);
+      if (sortField === 'patient') return mul * a.patient.localeCompare(b.patient);
+      return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    });
+
+  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+  // ─── Stats ──────────────────────────
+  const stats = {
+    total: workOrders.length,
+    created: workOrders.filter((wo) => wo.status === 'CREATED').length,
+    assigned: workOrders.filter((wo) => wo.status === 'ASSIGNED').length,
+    inProgress: workOrders.filter((wo) => wo.status === 'IN_PROGRESS').length,
+    completed: workOrders.filter((wo) => wo.status === 'COMPLETED').length,
+  };
+
+  // ─── Form Handling ──────────────────────────
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.doctorId) errors.doctorId = 'Doctor is required';
+    if (!form.patient.trim()) errors.patient = 'Patient name is required';
+    if (!form.prosthesisTypeId) errors.prosthesisTypeId = 'Prosthesis type is required';
+    if (!isAdmin && branches.length > 0 && !form.branchId) errors.branchId = 'Branch is required';
+    if (!form.specification.trim()) errors.specification = 'Specification is required';
+    if (!form.totalQuote.trim()) {
+      errors.totalQuote = 'Total quote is required';
+    } else if (parseFloat(form.totalQuote) <= 0) {
+      errors.totalQuote = 'Total quote must be greater than 0';
+    }
+    if (processList.length === 0) {
+      errors.processes = 'At least one process step is required';
+    } else {
+      const hasUnassignedProcess = processList.some((p) => !p.technicianId);
+      if (hasUnassignedProcess) {
+        errors.processes = 'All process steps must be assigned to a technician';
+      }
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCreateOpen = async () => {
+    await loadReferenceData();
+    const branchId = isAdmin ? user?.branchId || '' : '';
+    setForm({
+      doctorId: '',
+      patient: '',
+      boxNumber: '',
+      prosthesisTypeId: '',
+      specification: '',
+      notes: '',
+      totalQuote: '',
+      initialPayment: '',
+      branchId,
+    });
+    setProcessList([]);
+    setFormErrors({});
+    setShowAddProcess(false);
+    setNewProcessName('');
+    setNewProcessTechnicianId('');
+    setGeneratedFolio('');
+
+    // Fetch the next folio number!
+    if (branchId) {
+      try {
+        const { folioNumber } = await workOrderService.getNextFolioNumber(branchId);
+        setGeneratedFolio(folioNumber);
+      } catch (err) {
+        console.error('Failed to generate folio number:', err);
+      }
+    }
+
+    setShowCreateModal(true);
+  };
+
+  const handleProsthesisTypeChange = (ptId: string) => {
+    setForm((prev) => ({ ...prev, prosthesisTypeId: ptId }));
+    if (formErrors.prosthesisTypeId) setFormErrors((prev) => ({ ...prev, prosthesisTypeId: '' }));
+
+    // Load processes for this prosthesis type
+    const relatedProcesses = allProcesses
+      .filter((p) => p.prosthesisTypeId === ptId)
+      .sort((a, b) => a.sequence - b.sequence);
+
+    const items: ProcessFormItem[] = relatedProcesses.map((p, idx) => ({
+      tempId: `proc-${Date.now()}-${idx}`,
+      processName: p.name,
+      technicianId: p.defaultTechnicianId || '',
+      sequence: idx,
+      isVerification: false,
+    }));
+
+    setProcessList(items);
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (formErrors[field]) setFormErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  // ─── Process List Manipulation ──────────────────
+  const moveProcess = (index: number, direction: 'up' | 'down') => {
+    const newList = [...processList];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newList.length) return;
+    [newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]];
+    setProcessList(newList.map((p, i) => ({ ...p, sequence: i })));
+  };
+
+  const removeProcess = (index: number) => {
+    const newList = processList.filter((_, i) => i !== index);
+    setProcessList(newList.map((p, i) => ({ ...p, sequence: i })));
+  };
+
+  const updateProcessTechnician = (index: number, techId: string) => {
+    setProcessList((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, technicianId: techId } : p)),
+    );
+  };
+
+  const handleAddProcess = () => {
+    if (!newProcessName.trim()) {
+      toast.error('Process name is required');
+      return;
+    }
+    if (!newProcessTechnicianId) {
+      toast.error('Technician assignment is required');
+      return;
+    }
+    const newItem: ProcessFormItem = {
+      tempId: `proc-${Date.now()}`,
+      processName: newProcessName.trim(),
+      technicianId: newProcessTechnicianId,
+      sequence: processList.length,
+      isVerification: false,
+    };
+    setProcessList((prev) => [...prev, newItem]);
+    setNewProcessName('');
+    setNewProcessTechnicianId('');
+    setShowAddProcess(false);
+  };
+
+  const handleAddVerification = () => {
+    const newItem: ProcessFormItem = {
+      tempId: `ver-${Date.now()}`,
+      processName: 'Verification',
+      technicianId: user?.id || '',
+      sequence: processList.length,
+      isVerification: true,
+    };
+    setProcessList((prev) => [...prev, newItem]);
+  };
+
+  // ─── Submit ──────────────────────────
+  const handleSubmit = async (action: 'create' | 'createAndAssign') => {
+    if (!validateForm()) return;
+
+    try {
+      setSaving(true);
+      const processes: CreateWorkOrderProcessPayload[] = processList.map((p) => ({
+        processName: p.processName,
+        technicianId: p.technicianId || undefined,
+        sequence: p.sequence,
+        isVerification: p.isVerification,
+      }));
+
+      const payload: CreateWorkOrderPayload = {
+        doctorId: form.doctorId,
+        patient: form.patient,
+        boxNumber: form.boxNumber || undefined,
+        prosthesisTypeId: form.prosthesisTypeId,
+        specification: isAdmin ? form.specification || undefined : undefined,
+        notes: form.notes || undefined,
+        totalQuote: form.totalQuote ? parseFloat(form.totalQuote) : undefined,
+        initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
+        branchId: form.branchId || undefined,
+        action,
+        processes,
+      };
+
+      await workOrderService.create(payload);
+      toast.success(
+        action === 'createAndAssign'
+          ? 'Work order created and assigned!'
+          : 'Work order created successfully!',
+      );
+      setShowCreateModal(false);
+      await fetchData();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Failed to create work order';
+      toast.error(Array.isArray(message) ? message[0] : message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── View ────────────────────────────
+  const handleViewOpen = async (wo: WorkOrderListItem) => {
+    try {
+      setViewLoading(true);
+      setSelectedWO(wo);
+      setShowViewModal(true);
+      const detailedWo = await workOrderService.getById(wo.id);
+      setSelectedWO(detailedWo);
+    } catch (err) {
+      toast.error('Failed to load work order details');
+      console.error(err);
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  // ─── Edit ────────────────────────────
+  const handleEditOpen = async (wo: WorkOrderListItem) => {
+    await loadReferenceData();
+    setEditingWO(wo);
+    setForm({
+      doctorId: wo.doctorId,
+      patient: wo.patient,
+      boxNumber: wo.boxNumber || '',
+      prosthesisTypeId: wo.prosthesisTypeId,
+      specification: wo.specification || '',
+      notes: wo.notes || '',
+      totalQuote: wo.totalQuote != null ? wo.totalQuote.toString() : '',
+      initialPayment: wo.initialPayment != null ? wo.initialPayment.toString() : '',
+      branchId: wo.branchId || '',
+    });
+    
+    // Populate existing process steps and verification steps
+    const items: ProcessFormItem[] = (wo.processes || []).map((p, idx) => ({
+      tempId: p.id || `proc-edit-${Date.now()}-${idx}`,
+      processName: p.processName,
+      technicianId: p.technicianId || '',
+      sequence: p.sequence,
+      isVerification: p.isVerification,
+    }));
+    setProcessList(items);
+    
+    setFormErrors({});
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingWO) return;
+    const errors: Record<string, string> = {};
+    if (!form.doctorId) errors.doctorId = 'Doctor is required';
+    if (!form.patient.trim()) errors.patient = 'Patient name is required';
+    if (!form.prosthesisTypeId) errors.prosthesisTypeId = 'Prosthesis type is required';
+    if (!form.specification.trim()) errors.specification = 'Specification is required';
+    if (!form.totalQuote.trim()) {
+      errors.totalQuote = 'Total quote is required';
+    } else if (parseFloat(form.totalQuote) <= 0) {
+      errors.totalQuote = 'Total quote must be greater than 0';
+    }
+    
+    // Validate processes list
+    if (processList.length === 0) {
+      errors.processes = 'At least one process step is required';
+    } else {
+      const hasUnassignedProcess = processList.some((p) => !p.technicianId);
+      if (hasUnassignedProcess) {
+        errors.processes = 'All process steps must be assigned to a technician';
+      }
+    }
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    try {
+      setSaving(true);
+      const processes: CreateWorkOrderProcessPayload[] = processList.map((p) => ({
+        processName: p.processName,
+        technicianId: p.technicianId || undefined,
+        sequence: p.sequence,
+        isVerification: p.isVerification,
+      }));
+
+      const payload = {
+        doctorId: form.doctorId,
+        patient: form.patient,
+        boxNumber: form.boxNumber || undefined,
+        prosthesisTypeId: form.prosthesisTypeId,
+        specification: form.specification || undefined,
+        notes: form.notes || undefined,
+        totalQuote: form.totalQuote ? parseFloat(form.totalQuote) : undefined,
+        initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
+        processes,
+      };
+
+      await workOrderService.update(editingWO.id, payload);
+      toast.success('Work order updated successfully!');
+      setShowEditModal(false);
+      await fetchData();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Failed to update work order';
+      toast.error(Array.isArray(message) ? message[0] : message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Delete ──────────────────────────
+  const confirmDelete = (wo: WorkOrderListItem) => {
+    setWoToDelete(wo);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!woToDelete) return;
+    try {
+      setDeleting(true);
+      await workOrderService.delete(woToDelete.id);
+      toast.success('Work order deleted successfully');
+      setDeleteModalOpen(false);
+      setWoToDelete(null);
+      await fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to delete work order');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const toggleSort = (field: 'folioNumber' | 'patient' | 'createdAt') => {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  return (
+    <div className="admins-page">
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header__left">
+          <h1 className="page-header__title">Work Orders</h1>
+          <p className="page-header__subtitle">Manage dental lab work orders and workflows</p>
+        </div>
+        {canCreate && (
+          <button
+            id="btn-add-work-order"
+            className="btn btn--primary"
+            onClick={handleCreateOpen}
+          >
+            <Plus size={18} />
+            <span>New Work Order</span>
+          </button>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="tenants-page__stats">
+        <div className="stat-card">
+          <div className="stat-card__icon stat-card__icon--primary">
+            <ClipboardList size={24} />
+          </div>
+          <div className="stat-card__content">
+            <span className="stat-card__value">{stats.total}</span>
+            <span className="stat-card__label">Total Orders</span>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card__icon" style={{ backgroundColor: '#EFF6FF', color: '#3B82F6' }}>
+            <Clock size={24} />
+          </div>
+          <div className="stat-card__content">
+            <span className="stat-card__value">{stats.assigned}</span>
+            <span className="stat-card__label">Assigned</span>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card__icon" style={{ backgroundColor: '#FFFBEB', color: '#F59E0B' }}>
+            <PlayCircle size={24} />
+          </div>
+          <div className="stat-card__content">
+            <span className="stat-card__value">{stats.inProgress}</span>
+            <span className="stat-card__label">In Progress</span>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card__icon stat-card__icon--success">
+            <CheckCircle2 size={24} />
+          </div>
+          <div className="stat-card__content">
+            <span className="stat-card__value">{stats.completed}</span>
+            <span className="stat-card__label">Completed</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="table-toolbar" style={{ gap: '1rem' }}>
+        <div className="search-input-wrap">
+          <Search size={16} className="search-input__icon" />
+          <input
+            id="input-wo-search"
+            type="text"
+            className="form-input search-input"
+            placeholder="Search by folio, patient, doctor..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="search-input__clear" onClick={() => setSearch('')}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          {/* Branch Filter (Owner only) */}
+          {isOwner && branches.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>Branch:</span>
+              <select
+                className="form-input"
+                style={{ width: '160px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
+                value={selectedBranchFilter}
+                onChange={(e) => setSelectedBranchFilter(e.target.value)}
+              >
+                <option value="ALL">All Branches</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Status Chips */}
+          <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+            {(['ALL', 'CREATED', 'ASSIGNED', 'IN_PROGRESS', 'VERIFICATION', 'COMPLETED'] as StatusFilter[]).map((s) => (
+              <button
+                key={s}
+                className={`filter-chip ${selectedStatusFilter === s ? 'filter-chip--active' : ''}`}
+                onClick={() => setSelectedStatusFilter(s)}
+              >
+                {s === 'ALL' ? 'All' : STATUS_CONFIG[s]?.label || s}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="table-loading">
+          <Loader2 size={32} className="spinner" />
+          <span>Loading work orders...</span>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state__icon" style={{ backgroundColor: 'var(--accent-primary-light)' }}>
+            <ClipboardList size={48} style={{ color: 'var(--accent-primary)' }} />
+          </div>
+          <h3 className="empty-state__title">
+            {workOrders.length === 0 ? 'No work orders yet' : 'No matching work orders'}
+          </h3>
+          <p className="empty-state__text">
+            {workOrders.length === 0
+              ? 'Create your first work order to start managing lab workflows.'
+              : 'Try adjusting your search or filter criteria.'}
+          </p>
+          {workOrders.length === 0 && canCreate && (
+            <button className="btn btn--primary" onClick={handleCreateOpen}>
+              <Plus size={18} />
+              <span>New Work Order</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="data-table-wrap">
+          <table className="data-table" id="work-orders-table">
+            <thead>
+              <tr>
+                <th>
+                  <button className="th-sort" onClick={() => toggleSort('folioNumber')}>
+                    Folio # <ArrowUpDown size={14} />
+                  </button>
+                </th>
+                <th>
+                  <button className="th-sort" onClick={() => toggleSort('patient')}>
+                    Patient <ArrowUpDown size={14} />
+                  </button>
+                </th>
+                <th>Doctor</th>
+                <th>Prosthesis Type</th>
+                {isOwner && <th>Branch</th>}
+                <th>Quote</th>
+                <th>Status</th>
+                <th>
+                  <button className="th-sort" onClick={() => toggleSort('createdAt')}>
+                    Created <ArrowUpDown size={14} />
+                  </button>
+                </th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map((wo) => {
+                const sc = STATUS_CONFIG[wo.status] || STATUS_CONFIG.CREATED;
+                return (
+                  <tr key={wo.id}>
+                    <td>
+                      <div className="cell-primary">
+                        <div className="cell-avatar" style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', fontSize: '0.6rem' }}>
+                          <FileText size={14} />
+                        </div>
+                        <div>
+                          <span className="cell-primary__name" style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.03em' }}>
+                            {wo.folioNumber}
+                          </span>
+                          {wo.boxNumber && (
+                            <span className="cell-primary__meta">Box: {wo.boxNumber}</span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="cell-primary__name">{wo.patient}</span>
+                    </td>
+                    <td>
+                      {wo.doctor ? (
+                        <div>
+                          <span className="cell-primary__name" style={{ fontSize: '0.8125rem' }}>{wo.doctor.name}</span>
+                          {wo.doctor.clinicName && (
+                            <span className="cell-primary__meta">{wo.doctor.clinicName}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {wo.prosthesisType ? (
+                        <span className="cell-subdomain" style={{ textTransform: 'none', fontWeight: 600 }}>
+                          {wo.prosthesisType.name}
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    {isOwner && (
+                      <td>
+                        {wo.branch ? (
+                          <span className="cell-branch" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                            {wo.branch.name}
+                          </span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                    )}
+                    <td>
+                      {wo.totalQuote != null ? (
+                        <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
+                          ₹{wo.totalQuote.toLocaleString('en-IN')}
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        className="wo-status-badge"
+                        style={{
+                          color: sc.color,
+                          backgroundColor: sc.bg,
+                        }}
+                      >
+                        {sc.icon}
+                        {sc.label}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="cell-date">
+                        {new Date(wo.createdAt).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: '2-digit',
+                        })}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          className="btn-action"
+                          style={{ color: 'var(--accent-primary, #3B82F6)', backgroundColor: '#EFF6FF' }}
+                          onClick={() => handleViewOpen(wo)}
+                          title="View Work Order"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              className="btn-action"
+                              style={{ color: '#D97706', backgroundColor: '#FEF3C7' }}
+                              onClick={() => handleEditOpen(wo)}
+                              title="Edit Work Order"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
+                              className="btn-action btn-action--danger"
+                              onClick={() => confirmDelete(wo)}
+                              title="Delete Work Order"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={() => !saving && setShowCreateModal(false)}>
+          <div className="modal modal--lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <div>
+                <h2 className="modal__title">New Work Order</h2>
+                <p className="modal__subtitle">Create a new dental lab work order</p>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => !saving && setShowCreateModal(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal__body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {/* Row 1: Doctor + Patient */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="select-wo-doctor">Doctor *</label>
+                  <select
+                    id="select-wo-doctor"
+                    className={`form-input ${formErrors.doctorId ? 'form-input--error' : ''}`}
+                    value={form.doctorId}
+                    onChange={(e) => handleInputChange('doctorId', e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="" disabled>Select a doctor</option>
+                    {doctors.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}{d.clinicName ? ` — ${d.clinicName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.doctorId && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-wo-patient">Patient *</label>
+                  <input
+                    id="input-wo-patient"
+                    className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
+                    type="text"
+                    placeholder="e.g., John Doe"
+                    value={form.patient}
+                    onChange={(e) => handleInputChange('patient', e.target.value)}
+                    disabled={saving}
+                  />
+                  {formErrors.patient && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: Folio Number + Box Number */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-wo-folio">Folio Number</label>
+                  <input
+                    id="input-wo-folio"
+                    className="form-input"
+                    type="text"
+                    value={generatedFolio || 'Generating...'}
+                    disabled
+                    style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-wo-box">Box Number</label>
+                  <input
+                    id="input-wo-box"
+                    className="form-input"
+                    type="text"
+                    placeholder="e.g., BOX-42"
+                    value={form.boxNumber}
+                    onChange={(e) => handleInputChange('boxNumber', e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Prosthesis Type */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="select-wo-prosthesis">Prosthesis Type *</label>
+                <select
+                  id="select-wo-prosthesis"
+                  className={`form-input ${formErrors.prosthesisTypeId ? 'form-input--error' : ''}`}
+                  value={form.prosthesisTypeId}
+                  onChange={(e) => handleProsthesisTypeChange(e.target.value)}
+                  disabled={saving}
+                >
+                  <option value="" disabled>Select prosthesis type</option>
+                  {prosthesisTypes.map((pt) => (
+                    <option key={pt.id} value={pt.id}>{pt.name}</option>
+                  ))}
+                </select>
+                {formErrors.prosthesisTypeId && (
+                  <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
+                )}
+              </div>
+
+              {/* Specification (Admin only) */}
+              {isAdmin && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-wo-spec">Specification *</label>
+                  <textarea
+                    id="input-wo-spec"
+                    className={`form-input ${formErrors.specification ? 'form-input--error' : ''}`}
+                    style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
+                    placeholder="Color, shade, units, material details..."
+                    value={form.specification}
+                    onChange={(e) => handleInputChange('specification', e.target.value)}
+                    disabled={saving}
+                  />
+                  {formErrors.specification && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.specification}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Notes */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="input-wo-notes">Notes</label>
+                <textarea
+                  id="input-wo-notes"
+                  className="form-input"
+                  style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
+                  placeholder="Additional notes or instructions..."
+                  value={form.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+
+              {/* Row: Total Quote + Initial Payment */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-wo-quote">Total Quote (₹) *</label>
+                  <input
+                    id="input-wo-quote"
+                    className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g., 5000"
+                    value={form.totalQuote}
+                    onChange={(e) => handleInputChange('totalQuote', e.target.value)}
+                    disabled={saving}
+                  />
+                  {formErrors.totalQuote && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-wo-payment">Initial Payment (₹)</label>
+                  <input
+                    id="input-wo-payment"
+                    className="form-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g., 2000"
+                    value={form.initialPayment}
+                    onChange={(e) => handleInputChange('initialPayment', e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              {/* Branch select (Owner only) */}
+              {isOwner && branches.length > 0 && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="select-wo-branch">Branch *</label>
+                  <select
+                    id="select-wo-branch"
+                    className={`form-input ${formErrors.branchId ? 'form-input--error' : ''}`}
+                    value={form.branchId}
+                    onChange={(e) => handleInputChange('branchId', e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="" disabled>Select a branch</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+                    ))}
+                  </select>
+                  {formErrors.branchId && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Process Steps Section */}
+              <div className="wo-process-section">
+                <div className="wo-process-section__header">
+                  <h3 className="wo-process-section__title">
+                    Process Steps
+                    {processList.length > 0 && (
+                      <span className="wo-process-section__count">{processList.length}</span>
+                    )}
+                  </h3>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => setShowAddProcess(true)}
+                      disabled={saving}
+                    >
+                      <PlusCircle size={14} />
+                      <span>Add Process</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={handleAddVerification}
+                      disabled={saving}
+                    >
+                      <ShieldPlus size={14} />
+                      <span>Add Verification</span>
+                    </button>
+                  </div>
+                </div>
+
+                {formErrors.processes && (
+                  <span className="form-error" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                    <AlertCircle size={12} /> {formErrors.processes}
+                  </span>
+                )}
+
+                {processList.length === 0 && !showAddProcess ? (
+                  <div className="wo-process-empty">
+                    <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                    <span>Select a prosthesis type to load process steps</span>
+                  </div>
+                ) : (
+                  <div className="wo-process-list">
+                    {processList.map((proc, idx) => (
+                      <div
+                        key={proc.tempId}
+                        className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
+                      >
+                        <div className="wo-process-item__order">
+                          <span className="wo-process-item__number">{idx + 1}</span>
+                        </div>
+
+                        <div className="wo-process-item__name">
+                          <span>{proc.processName}</span>
+                          {proc.isVerification && (
+                            <span className="wo-process-item__tag">Verification</span>
+                          )}
+                        </div>
+
+                        <div className="wo-process-item__technician">
+                          <select
+                            className="form-input form-input--sm"
+                            value={proc.technicianId}
+                            onChange={(e) => updateProcessTechnician(idx, e.target.value)}
+                            disabled={saving || proc.isVerification}
+                          >
+                            <option value="" disabled>Select technician</option>
+                            {proc.isVerification ? (
+                              <option value={user?.id || ''}>{user?.firstName} {user?.lastName} (Admin)</option>
+                            ) : (
+                              technicians.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.firstName} {t.lastName}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+
+                        <div className="wo-process-item__actions">
+                          <button
+                            type="button"
+                            className="wo-process-item__btn"
+                            onClick={() => moveProcess(idx, 'up')}
+                            disabled={idx === 0 || saving}
+                            title="Move up"
+                          >
+                            <ChevronUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="wo-process-item__btn"
+                            onClick={() => moveProcess(idx, 'down')}
+                            disabled={idx === processList.length - 1 || saving}
+                            title="Move down"
+                          >
+                            <ChevronDown size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="wo-process-item__btn wo-process-item__btn--danger"
+                            onClick={() => removeProcess(idx)}
+                            disabled={saving}
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Inline Add Process Form */}
+                {showAddProcess && (
+                  <div className="wo-process-add">
+                    <input
+                      className="form-input form-input--sm"
+                      type="text"
+                      placeholder="Process name..."
+                      value={newProcessName}
+                      onChange={(e) => setNewProcessName(e.target.value)}
+                      autoFocus
+                    />
+                    <select
+                      className="form-input form-input--sm"
+                      value={newProcessTechnicianId}
+                      onChange={(e) => setNewProcessTechnicianId(e.target.value)}
+                    >
+                      <option value="" disabled>Select technician</option>
+                      {technicians.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.firstName} {t.lastName}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
+                      Add
+                    </button>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessName(''); }}>
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    id="btn-wo-create"
+                    type="button"
+                    className="btn btn--outline"
+                    onClick={() => handleSubmit('create')}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                    ) : (
+                      <span>Create</span>
+                    )}
+                  </button>
+                  <button
+                    id="btn-wo-create-assign"
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => handleSubmit('createAndAssign')}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                    ) : (
+                      <span>Create &amp; Assign</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && woToDelete && (
+        <div className="modal-overlay" onClick={() => !deleting && setDeleteModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <div>
+                <h2 className="modal__title">Delete Work Order</h2>
+                <p className="modal__subtitle">
+                  Are you sure you want to delete work order <strong>{woToDelete.folioNumber}</strong>?
+                </p>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => !deleting && setDeleteModalOpen(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body">
+              <div style={{
+                padding: '1rem',
+                borderRadius: '8px',
+                backgroundColor: 'var(--danger-light, #FEF2F2)',
+                border: '1px solid var(--danger, #EF4444)',
+                fontSize: '0.875rem',
+                color: 'var(--danger, #EF4444)',
+              }}>
+                <strong>Warning:</strong> This action cannot be undone. All process steps and data associated with this work order will be permanently removed.
+              </div>
+            </div>
+            <div className="modal__footer">
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <><Loader2 size={16} className="spinner" /><span>Deleting...</span></>
+                ) : (
+                  <><Trash2 size={16} /><span>Delete</span></>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
+      {showViewModal && selectedWO && (
+        <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
+          <div className="modal modal--lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <div>
+                <h2 className="modal__title">Work Order Details</h2>
+                <p className="modal__subtitle">Viewing details for folio <strong>{selectedWO.folioNumber}</strong></p>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => setShowViewModal(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal__body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {viewLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', gap: '1rem' }}>
+                  <Loader2 size={36} className="spinner" style={{ color: 'var(--accent-primary)' }} />
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Loading latest details...</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* Status Banner */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    padding: '0.75rem 1rem', 
+                    borderRadius: '8px', 
+                    backgroundColor: STATUS_CONFIG[selectedWO.status]?.bg || '#F3F4F6', 
+                    border: `1px solid ${STATUS_CONFIG[selectedWO.status]?.color || '#E5E7EB'}` 
+                  }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>Current Workflow Status:</span>
+                    <span
+                      className="wo-status-badge"
+                      style={{
+                        color: STATUS_CONFIG[selectedWO.status]?.color,
+                        backgroundColor: STATUS_CONFIG[selectedWO.status]?.bg,
+                        margin: 0,
+                      }}
+                    >
+                      {STATUS_CONFIG[selectedWO.status]?.icon}
+                      {STATUS_CONFIG[selectedWO.status]?.label}
+                    </span>
+                  </div>
+
+                  {/* Two-Column Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Patient</span>
+                        <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedWO.patient}</span>
+                      </div>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Doctor</span>
+                        <span style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{selectedWO.doctor?.name || '—'}</span>
+                        {selectedWO.doctor?.clinicName && (
+                          <span style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{selectedWO.doctor.clinicName}</span>
+                        )}
+                      </div>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Box Number</span>
+                        <span style={{ fontSize: '0.9375rem', fontWeight: 500, fontFamily: 'monospace' }}>{selectedWO.boxNumber || '—'}</span>
+                      </div>
+                      {selectedWO.branch && (
+                        <div>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Branch</span>
+                          <span className="cell-branch" style={{ fontSize: '0.875rem', display: 'inline-block', marginTop: '0.125rem' }}>
+                            {selectedWO.branch.name} ({selectedWO.branch.code})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Prosthesis Type</span>
+                        <span className="cell-subdomain" style={{ textTransform: 'none', fontWeight: 600, display: 'inline-block', marginTop: '0.125rem' }}>
+                          {selectedWO.prosthesisType?.name || '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Quote</span>
+                        <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {selectedWO.totalQuote != null ? `₹${selectedWO.totalQuote.toLocaleString('en-IN')}` : '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Initial Payment</span>
+                        <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--success, #10B981)' }}>
+                          {selectedWO.initialPayment != null ? `₹${selectedWO.initialPayment.toLocaleString('en-IN')}` : '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Created On</span>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                          {new Date(selectedWO.createdAt).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Specification & Notes */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
+                    {/* Specification (visible to ADMIN only, as requested in permissions) */}
+                    {isAdmin && (
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.375rem' }}>Specification (Admin Only)</span>
+                        <div style={{ 
+                          padding: '0.75rem 1rem', 
+                          borderRadius: '8px', 
+                          backgroundColor: 'var(--bg-muted, #F9FAFB)', 
+                          border: '1px solid var(--border)',
+                          fontSize: '0.875rem',
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'pre-wrap',
+                          fontFamily: 'inherit'
+                        }}>
+                          {selectedWO.specification || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No specifications provided.</span>}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.375rem' }}>Notes</span>
+                      <div style={{ 
+                        padding: '0.75rem 1rem', 
+                        borderRadius: '8px', 
+                        backgroundColor: 'var(--bg-muted, #F9FAFB)', 
+                        border: '1px solid var(--border)',
+                        fontSize: '0.875rem',
+                        color: 'var(--text-primary)',
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'inherit'
+                      }}>
+                        {selectedWO.notes || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No additional notes.</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Process Workflow Steps */}
+                  <div>
+                    <h3 style={{ fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem', letterSpacing: '0.05em' }}>
+                      Workflow Stepper ({selectedWO.processes?.length || 0} Steps)
+                    </h3>
+                    {(!selectedWO.processes || selectedWO.processes.length === 0) ? (
+                      <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: 'var(--bg-muted)', borderRadius: '8px', color: 'var(--text-muted)' }}>
+                        No process workflow steps found.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {selectedWO.processes.map((proc, idx) => (
+                          <div 
+                            key={proc.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '0.875rem 1rem',
+                              borderRadius: '8px',
+                              backgroundColor: proc.isVerification ? '#F5F3FF' : '#FFFFFF',
+                              border: proc.isVerification ? '1px dashed #8B5CF6' : '1px solid var(--border)',
+                            }}
+                          >
+                            <span style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              width: '24px', 
+                              height: '24px', 
+                              borderRadius: '50%', 
+                              backgroundColor: proc.isVerification ? '#8B5CF6' : 'var(--accent-primary, #3B82F6)', 
+                              color: '#FFFFFF',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              marginRight: '1rem'
+                            }}>
+                              {idx + 1}
+                            </span>
+                            
+                            <div style={{ flexGrow: 1 }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{proc.processName}</span>
+                              {proc.isVerification && (
+                                <span style={{ 
+                                  marginLeft: '0.5rem', 
+                                  fontSize: '0.6875rem', 
+                                  fontWeight: 700, 
+                                  padding: '2px 6px', 
+                                  borderRadius: '4px', 
+                                  backgroundColor: '#8B5CF6', 
+                                  color: '#FFFFFF',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  Verification
+                                </span>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Assigned to:</span>
+                              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {proc.technician ? `${proc.technician.firstName} ${proc.technician.lastName}` : 'Unassigned'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => setShowViewModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingWO && (
+        <div className="modal-overlay" onClick={() => !saving && setShowEditModal(false)}>
+          <div className="modal modal--lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <div>
+                <h2 className="modal__title">Edit Work Order</h2>
+                <p className="modal__subtitle">Edit work order <strong>{editingWO.folioNumber}</strong></p>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => !saving && setShowEditModal(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal__body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {/* Row 1: Doctor + Patient */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-wo-doctor">Doctor *</label>
+                  <select
+                    id="edit-wo-doctor"
+                    className={`form-input ${formErrors.doctorId ? 'form-input--error' : ''}`}
+                    value={form.doctorId}
+                    onChange={(e) => handleInputChange('doctorId', e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="" disabled>Select a doctor</option>
+                    {doctors.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}{d.clinicName ? ` — ${d.clinicName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.doctorId && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-wo-patient">Patient *</label>
+                  <input
+                    id="edit-wo-patient"
+                    className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
+                    type="text"
+                    placeholder="e.g., John Doe"
+                    value={form.patient}
+                    onChange={(e) => handleInputChange('patient', e.target.value)}
+                    disabled={saving}
+                  />
+                  {formErrors.patient && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: Folio Number + Box Number */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-wo-folio">Folio Number</label>
+                  <input
+                    id="edit-wo-folio"
+                    className="form-input"
+                    type="text"
+                    value={editingWO.folioNumber}
+                    disabled
+                    style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-wo-box">Box Number</label>
+                  <input
+                    id="edit-wo-box"
+                    className="form-input"
+                    type="text"
+                    placeholder="e.g., BOX-42"
+                    value={form.boxNumber}
+                    onChange={(e) => handleInputChange('boxNumber', e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Prosthesis Type */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-wo-prosthesis">Prosthesis Type *</label>
+                <select
+                  id="edit-wo-prosthesis"
+                  className={`form-input ${formErrors.prosthesisTypeId ? 'form-input--error' : ''}`}
+                  value={form.prosthesisTypeId}
+                  onChange={(e) => handleProsthesisTypeChange(e.target.value)}
+                  disabled={saving}
+                >
+                  <option value="" disabled>Select prosthesis type</option>
+                  {prosthesisTypes.map((pt) => (
+                    <option key={pt.id} value={pt.id}>{pt.name}</option>
+                  ))}
+                </select>
+                {formErrors.prosthesisTypeId && (
+                  <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
+                )}
+              </div>
+
+              {/* Specification (Admin only) */}
+              {isAdmin && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-wo-spec">Specification *</label>
+                  <textarea
+                    id="edit-wo-spec"
+                    className={`form-input ${formErrors.specification ? 'form-input--error' : ''}`}
+                    style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
+                    placeholder="Color, shade, units, material details..."
+                    value={form.specification}
+                    onChange={(e) => handleInputChange('specification', e.target.value)}
+                    disabled={saving}
+                  />
+                  {formErrors.specification && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.specification}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Notes */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-wo-notes">Notes</label>
+                <textarea
+                  id="edit-wo-notes"
+                  className="form-input"
+                  style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
+                  placeholder="Additional notes or instructions..."
+                  value={form.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+
+              {/* Row: Total Quote + Initial Payment */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-wo-quote">Total Quote (₹) *</label>
+                  <input
+                    id="edit-wo-quote"
+                    className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g., 5000"
+                    value={form.totalQuote}
+                    onChange={(e) => handleInputChange('totalQuote', e.target.value)}
+                    disabled={saving}
+                  />
+                  {formErrors.totalQuote && (
+                    <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-wo-payment">Initial Payment (₹)</label>
+                  <input
+                    id="edit-wo-payment"
+                    className="form-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g., 2000"
+                    value={form.initialPayment}
+                    onChange={(e) => handleInputChange('initialPayment', e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              {/* Process Steps Section */}
+              <div className="wo-process-section" style={{ marginTop: '1.5rem' }}>
+                <div className="wo-process-section__header">
+                  <h3 className="wo-process-section__title">
+                    Process Steps
+                    {processList.length > 0 && (
+                      <span className="wo-process-section__count">{processList.length}</span>
+                    )}
+                  </h3>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => setShowAddProcess(true)}
+                      disabled={saving}
+                    >
+                      <PlusCircle size={14} />
+                      <span>Add Process</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={handleAddVerification}
+                      disabled={saving}
+                    >
+                      <ShieldPlus size={14} />
+                      <span>Add Verification</span>
+                    </button>
+                  </div>
+                </div>
+
+                {formErrors.processes && (
+                  <span className="form-error" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                    <AlertCircle size={12} /> {formErrors.processes}
+                  </span>
+                )}
+
+                {processList.length === 0 && !showAddProcess ? (
+                  <div className="wo-process-empty">
+                    <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                    <span>Select a prosthesis type to load process steps</span>
+                  </div>
+                ) : (
+                  <div className="wo-process-list">
+                    {processList.map((proc, idx) => (
+                      <div
+                        key={proc.tempId}
+                        className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
+                      >
+                        <div className="wo-process-item__order">
+                          <span className="wo-process-item__number">{idx + 1}</span>
+                        </div>
+
+                        <div className="wo-process-item__name">
+                          <span>{proc.processName}</span>
+                          {proc.isVerification && (
+                            <span className="wo-process-item__tag">Verification</span>
+                          )}
+                        </div>
+
+                        <div className="wo-process-item__technician">
+                          <select
+                            className="form-input form-input--sm"
+                            value={proc.technicianId}
+                            onChange={(e) => updateProcessTechnician(idx, e.target.value)}
+                            disabled={saving || proc.isVerification}
+                          >
+                            <option value="" disabled>Select technician</option>
+                            {proc.isVerification ? (
+                              <option value={user?.id || ''}>{user?.firstName} {user?.lastName} (Admin)</option>
+                            ) : (
+                              technicians.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.firstName} {t.lastName}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+
+                        <div className="wo-process-item__actions">
+                          <button
+                            type="button"
+                            className="wo-process-item__btn"
+                            onClick={() => moveProcess(idx, 'up')}
+                            disabled={idx === 0 || saving}
+                            title="Move up"
+                          >
+                            <ChevronUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="wo-process-item__btn"
+                            onClick={() => moveProcess(idx, 'down')}
+                            disabled={idx === processList.length - 1 || saving}
+                            title="Move down"
+                          >
+                            <ChevronDown size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="wo-process-item__btn wo-process-item__btn--danger"
+                            onClick={() => removeProcess(idx)}
+                            disabled={saving}
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Inline Add Process Form */}
+                {showAddProcess && (
+                  <div className="wo-process-add">
+                    <input
+                      className="form-input form-input--sm"
+                      type="text"
+                      placeholder="Process name..."
+                      value={newProcessName}
+                      onChange={(e) => setNewProcessName(e.target.value)}
+                      autoFocus
+                    />
+                    <select
+                      className="form-input form-input--sm"
+                      value={newProcessTechnicianId}
+                      onChange={(e) => setNewProcessTechnicianId(e.target.value)}
+                    >
+                      <option value="" disabled>Select technician</option>
+                      {technicians.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.firstName} {t.lastName}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
+                      Add
+                    </button>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessName(''); }}>
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={handleEditSubmit}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
