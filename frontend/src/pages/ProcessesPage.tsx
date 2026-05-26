@@ -26,6 +26,7 @@ import {
   type CreateProcessPayload,
 } from '../services';
 import { useAuth } from '../context';
+import { Pagination } from '../components';
 
 export function ProcessesPage() {
   const { user } = useAuth();
@@ -38,6 +39,14 @@ export function ProcessesPage() {
   const [search, setSearch] = useState('');
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
   const [selectedProsthesisTypeFilter, setSelectedProsthesisTypeFilter] = useState<string>('ALL');
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  // Reset pagination when filters or search change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, selectedBranchFilter, selectedProsthesisTypeFilter]);
 
   // Reorder Modal State
   const [showReorderModal, setShowReorderModal] = useState(false);
@@ -155,6 +164,8 @@ export function ProcessesPage() {
       if (sortField === 'processArea') return mul * a.processArea.localeCompare(b.processArea);
       return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+
+  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   // ─── Form Handling ──────────────────────────────────
 
@@ -297,11 +308,11 @@ export function ProcessesPage() {
   const handleReorderOpen = () => {
     const defaultTypeId = selectedProsthesisTypeFilter !== 'ALL' ? selectedProsthesisTypeFilter : (prosthesisTypes[0]?.id || '');
     setReorderProsthesisTypeId(defaultTypeId);
-    
+
     const typeProcs = processes
       .filter((p) => p.prosthesisTypeId === defaultTypeId)
       .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-      
+
     setReorderProcesses(typeProcs);
     setShowReorderModal(true);
   };
@@ -317,7 +328,7 @@ export function ProcessesPage() {
   const moveStep = (index: number, direction: 'up' | 'down') => {
     const nextIndex = direction === 'up' ? index - 1 : index + 1;
     if (nextIndex < 0 || nextIndex >= reorderProcesses.length) return;
-    
+
     const updated = [...reorderProcesses];
     const temp = updated[index];
     updated[index] = updated[nextIndex];
@@ -333,7 +344,7 @@ export function ProcessesPage() {
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index) return;
-    
+
     const updated = [...reorderProcesses];
     const temp = updated[draggedIndex];
     updated.splice(draggedIndex, 1);
@@ -349,7 +360,7 @@ export function ProcessesPage() {
   const handleSaveReorder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reorderProsthesisTypeId) return;
-    
+
     try {
       setSavingReorder(true);
       const processIds = reorderProcesses.map((p) => p.id);
@@ -525,7 +536,7 @@ export function ProcessesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((proc) => (
+              {paginated.map((proc) => (
                 <tr key={proc.id}>
                   {selectedProsthesisTypeFilter !== 'ALL' && (
                     <td>
@@ -602,6 +613,12 @@ export function ProcessesPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 
@@ -735,10 +752,10 @@ export function ProcessesPage() {
                     {loadingTechs
                       ? 'Loading technicians...'
                       : !isAdmin && !form.branchId
-                      ? 'Select a branch first'
-                      : formTechnicians.length === 0
-                      ? 'No technicians in this branch'
-                      : 'Select pre-assigned default technician'}
+                        ? 'Select a branch first'
+                        : formTechnicians.length === 0
+                          ? 'No technicians in this branch'
+                          : 'Select pre-assigned default technician'}
                   </option>
                   {formTechnicians.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -967,7 +984,7 @@ export function ProcessesPage() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
                 Are you sure you want to delete process stage <strong>{processToDelete.name}</strong>?
@@ -1171,7 +1188,7 @@ export function ProcessesPage() {
                 </div>
               )}
 
-              <div className="modal__footer" style={{ marginTop: '1.5rem', padding: 0 }}>
+              <div className="modal__footer">
                 <button
                   type="button"
                   className="btn btn--ghost"

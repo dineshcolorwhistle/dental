@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { prosthesisTypeService, type ProsthesisTypeListItem, type CreateProsthesisTypePayload } from '../services';
+import { Pagination } from '../components';
 
 export function ProsthesisTypesPage() {
   const [types, setTypes] = useState<ProsthesisTypeListItem[]>([]);
@@ -22,6 +23,14 @@ export function ProsthesisTypesPage() {
   const [saving, setSaving] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'createdAt'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search]);
 
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -70,6 +79,8 @@ export function ProsthesisTypesPage() {
       if (sortField === 'name') return mul * a.name.localeCompare(b.name);
       return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+
+  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   // ─── Form Handling ──────────────────────────────────
 
@@ -276,7 +287,7 @@ export function ProsthesisTypesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item) => (
+              {paginated.map((item) => (
                 <tr key={item.id}>
                   <td>
                     <div className="cell-primary">
@@ -328,6 +339,12 @@ export function ProsthesisTypesPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

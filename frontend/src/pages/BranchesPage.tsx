@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { branchService, type BranchListItem, type CreateBranchPayload } from '../services';
+import { Pagination } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
@@ -31,6 +32,14 @@ export function BranchesPage() {
   const [saving, setSaving] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'code' | 'createdAt'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  // Reset pagination when filters or search change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, statusFilter]);
 
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -89,6 +98,8 @@ export function BranchesPage() {
       if (sortField === 'code') return mul * a.code.localeCompare(b.code);
       return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+
+  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   // ─── Stats ──────────────────────────────────────────
 
@@ -381,7 +392,7 @@ export function BranchesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((branch) => (
+              {paginated.map((branch) => (
                 <tr key={branch.id}>
                   <td>
                     <div className="cell-primary">
@@ -459,6 +470,12 @@ export function BranchesPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

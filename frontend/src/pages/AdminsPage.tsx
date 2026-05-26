@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminService, branchService, type AdminListItem, type BranchListItem, type CreateAdminPayload } from '../services';
+import { Pagination } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
@@ -26,6 +27,14 @@ export function AdminsPage() {
   const [search, setSearch] = useState('');
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter>('ALL');
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  // Reset pagination when filters or search change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, selectedBranchFilter, selectedStatusFilter]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<AdminListItem | null>(null);
@@ -98,6 +107,8 @@ export function AdminsPage() {
       if (sortField === 'email') return mul * a.email.localeCompare(b.email);
       return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+
+  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   // ─── Stats ──────────────────────────────────────────
 
@@ -421,7 +432,7 @@ export function AdminsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((admin) => (
+              {paginated.map((admin) => (
                 <tr key={admin.id}>
                   <td>
                     <div className="cell-primary">
@@ -501,6 +512,12 @@ export function AdminsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

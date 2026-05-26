@@ -18,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import { doctorService, branchService, type DoctorListItem, type BranchListItem, type CreateDoctorPayload } from '../services';
 import { useAuth } from '../context';
+import { Pagination } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
@@ -31,6 +32,14 @@ export function DoctorsPage() {
   const [search, setSearch] = useState('');
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter>('ALL');
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  // Reset pagination when filters or search change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, selectedBranchFilter, selectedStatusFilter]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorListItem | null>(null);
@@ -108,6 +117,8 @@ export function DoctorsPage() {
       }
       return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+
+  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   // ─── Stats ──────────────────────────────────────────
 
@@ -415,7 +426,7 @@ export function DoctorsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((doctor) => (
+              {paginated.map((doctor) => (
                 <tr key={doctor.id}>
                   <td>
                     <div className="cell-primary">
@@ -517,6 +528,12 @@ export function DoctorsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

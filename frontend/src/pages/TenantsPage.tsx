@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tenantService, type TenantListItem, type CreateTenantPayload } from '../services';
+import { Pagination } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
@@ -29,6 +30,14 @@ export function TenantsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  // Reset pagination when filters or search change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, statusFilter]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'createdAt'>('createdAt');
@@ -104,6 +113,8 @@ export function TenantsPage() {
       if (sortField === 'name') return mul * a.name.localeCompare(b.name);
       return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+
+  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   // ─── Stats ──────────────────────────────────────────
 
@@ -431,7 +442,7 @@ export function TenantsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((tenant) => (
+              {paginated.map((tenant) => (
                 <tr key={tenant.id}>
                   <td>
                     <div className="cell-primary">
@@ -525,6 +536,12 @@ export function TenantsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

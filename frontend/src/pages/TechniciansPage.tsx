@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import { technicianService, branchService, type TechnicianListItem, type BranchListItem, type CreateTechnicianPayload, type UpdateTechnicianPayload } from '../services';
 import { useAuth } from '../context';
+import { Pagination } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
@@ -30,6 +31,14 @@ export function TechniciansPage() {
   const [search, setSearch] = useState('');
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter>('ALL');
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  // Reset pagination when filters or search change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, selectedBranchFilter, selectedStatusFilter]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTechnician, setSelectedTechnician] = useState<TechnicianListItem | null>(null);
@@ -103,6 +112,8 @@ export function TechniciansPage() {
       if (sortField === 'email') return mul * a.email.localeCompare(b.email);
       return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+
+  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   // ─── Stats ──────────────────────────────────────────
 
@@ -434,7 +445,7 @@ export function TechniciansPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((tech) => (
+              {paginated.map((tech) => (
                 <tr key={tech.id}>
                   <td>
                     <div className="cell-primary">
@@ -516,6 +527,12 @@ export function TechniciansPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 
