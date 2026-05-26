@@ -17,6 +17,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tenantService, type TenantListItem, type CreateTenantPayload } from '../services';
@@ -43,6 +44,18 @@ export function TenantsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [tenantToDelete, setTenantToDelete] = useState<TenantListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    contactEmail: '',
+    contactPhone: '',
+    address: '',
+    status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED',
+  });
+  const [editFormErrors, setEditFormErrors] = useState<Partial<Record<keyof typeof editForm, string>>>({});
 
   // Form state
   const [form, setForm] = useState<CreateTenantPayload>({
@@ -217,6 +230,56 @@ export function TenantsPage() {
       toast.error(err?.response?.data?.message || 'Failed to delete tenant');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleEditOpen = (tenant: TenantListItem) => {
+    setSelectedTenant(tenant);
+    setEditForm({
+      name: tenant.name,
+      contactEmail: tenant.contactEmail || '',
+      contactPhone: tenant.contactPhone || '',
+      address: tenant.address || '',
+      status: tenant.status,
+    });
+    setEditFormErrors({});
+    setShowEditModal(true);
+  };
+
+  const handleEditInputChange = (field: keyof typeof editForm, value: string) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+    if (editFormErrors[field]) {
+      setEditFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const validateEditForm = (): boolean => {
+    const errors: Partial<Record<keyof typeof editForm, string>> = {};
+
+    if (!editForm.name.trim()) errors.name = 'Lab name is required';
+    if (editForm.contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.contactEmail)) {
+      errors.contactEmail = 'Enter a valid email address';
+    }
+
+    setEditFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTenant || !validateEditForm()) return;
+
+    try {
+      setSaving(true);
+      await tenantService.update(selectedTenant.id, editForm);
+      toast.success('Tenant updated successfully!');
+      setShowEditModal(false);
+      await fetchTenants();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Failed to update tenant';
+      toast.error(Array.isArray(message) ? message[0] : message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -434,11 +497,11 @@ export function TenantsPage() {
                       </button>
                       <button
                         className="btn-action"
-                        onClick={() => openFeaturesModal(tenant)}
-                        title="Manage Features"
+                        onClick={() => handleEditOpen(tenant)}
+                        title="Edit Tenant"
                       >
-                        <Settings size={15} />
-                        <span>Features</span>
+                        <Pencil size={15} />
+                        <span>Edit</span>
                       </button>
                       <button
                         className="btn-action btn-action--danger"
@@ -447,6 +510,15 @@ export function TenantsPage() {
                       >
                         <Trash2 size={15} />
                       </button>
+                      <button
+                        className="btn-action"
+                        onClick={() => openFeaturesModal(tenant)}
+                        title="Manage Features"
+                      >
+                        <Settings size={15} />
+                        <span>Features</span>
+                      </button>
+
                     </div>
                   </td>
                 </tr>
@@ -679,6 +751,153 @@ export function TenantsPage() {
         </div>
       )}
 
+      {/* Edit Modal */}
+      {showEditModal && selectedTenant && (
+        <div className="modal-overlay" onClick={() => !saving && setShowEditModal(false)}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal__header">
+              <div>
+                <h2 className="modal__title">Edit Tenant</h2>
+                <p className="modal__subtitle">
+                  Update details for <strong>{selectedTenant.name}</strong>
+                </p>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => !saving && setShowEditModal(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form className="modal__body" onSubmit={handleUpdate}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="input-edit-tenant-name">
+                  Tenant Name (Lab Name) *
+                </label>
+                <input
+                  id="input-edit-tenant-name"
+                  className={`form-input ${editFormErrors.name ? 'form-input--error' : ''}`}
+                  type="text"
+                  placeholder="e.g., Smile Dental Lab"
+                  value={editForm.name}
+                  onChange={(e) => handleEditInputChange('name', e.target.value)}
+                  disabled={saving}
+                  autoFocus
+                />
+                {editFormErrors.name && (
+                  <span className="form-error">
+                    <AlertCircle size={12} /> {editFormErrors.name}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-edit-tenant-email">
+                    Contact Email
+                  </label>
+                  <input
+                    id="input-edit-tenant-email"
+                    className={`form-input ${editFormErrors.contactEmail ? 'form-input--error' : ''}`}
+                    type="text"
+                    placeholder="e.g., contact@smilelab.com"
+                    value={editForm.contactEmail}
+                    onChange={(e) => handleEditInputChange('contactEmail', e.target.value)}
+                    disabled={saving}
+                  />
+                  {editFormErrors.contactEmail && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {editFormErrors.contactEmail}
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-edit-tenant-phone">
+                    Contact Phone
+                  </label>
+                  <input
+                    id="input-edit-tenant-phone"
+                    className="form-input"
+                    type="text"
+                    placeholder="e.g., +91-9876543210"
+                    value={editForm.contactPhone}
+                    onChange={(e) => handleEditInputChange('contactPhone', e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="input-edit-tenant-address">
+                  Address
+                </label>
+                <textarea
+                  id="input-edit-tenant-address"
+                  className="form-input"
+                  style={{ minHeight: '80px', resize: 'vertical' }}
+                  placeholder="e.g., 123 Dental Street, City"
+                  value={editForm.address}
+                  onChange={(e) => handleEditInputChange('address', e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="select-edit-tenant-status">
+                  Status *
+                </label>
+                <select
+                  id="select-edit-tenant-status"
+                  className="form-input"
+                  value={editForm.status}
+                  onChange={(e) => handleEditInputChange('status', e.target.value)}
+                  disabled={saving}
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="SUSPENDED">Suspended</option>
+                </select>
+              </div>
+
+              <div className="modal__footer">
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  id="btn-edit-submit-tenant"
+                  type="submit"
+                  className="btn btn--primary"
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 size={16} className="spinner" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Pencil size={16} />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && tenantToDelete && (
         <div className="modal-overlay" onClick={() => !deleting && setDeleteModalOpen(false)}>
@@ -699,7 +918,7 @@ export function TenantsPage() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
                 Are you sure you want to delete <strong>{tenantToDelete.name}</strong>? This action will permanently remove the lab, its branches, users, and all associated data.

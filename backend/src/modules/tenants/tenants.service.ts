@@ -187,6 +187,7 @@ export class TenantsService {
       status: tenant.status,
       contactEmail: tenant.contactEmail,
       contactPhone: tenant.contactPhone,
+      address: tenant.address,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
       branchCount: tenant._count.branches,

@@ -30,6 +30,7 @@ export interface TenantListItem {
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   contactEmail: string | null;
   contactPhone: string | null;
+  address: string | null;
   createdAt: string;
   updatedAt: string;
   branchCount: number;
@@ -76,6 +77,7 @@ export const tenantService = {
       contactEmail: string;
       contactPhone: string;
       address: string;
+      status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
       settings: { features?: Record<string, boolean> };
     }>,
   ): Promise<TenantListItem> => {
