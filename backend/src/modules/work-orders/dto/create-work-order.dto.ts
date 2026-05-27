@@ -38,6 +38,16 @@ export class WorkOrderProcessItemDto {
   @IsBoolean()
   @IsOptional()
   isVerification?: boolean;
+
+  @ApiProperty({
+    enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELLED'],
+    description: 'Status of this process step',
+    required: false,
+    default: 'NOT_STARTED',
+  })
+  @IsEnum(['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELLED'])
+  @IsOptional()
+  status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 }
 
 export class CreateWorkOrderDto {

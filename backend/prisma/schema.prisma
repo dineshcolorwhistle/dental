@@ -33,9 +33,21 @@ enum WorkOrderStatus {
   CREATED
   ASSIGNED
   IN_PROGRESS
-  VERIFICATION
+  INTERNAL_VERIFICATION
+  EXTERNAL_VERIFICATION
   COMPLETED
+  FAILED
+  CANCELLED
 }
+
+enum ProcessStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 
 // ─── Tenant ──────────────────────────────────────────────
 
@@ -293,8 +305,9 @@ model WorkOrderProcess {
   processName    String   @map("process_name")
   technicianId   String?  @map("technician_id")
   sequence       Int      @default(0)
-  isVerification Boolean  @default(false) @map("is_verification")
-  createdAt      DateTime @default(now()) @map("created_at")
+  isVerification Boolean       @default(false) @map("is_verification")
+  status         ProcessStatus @default(NOT_STARTED)
+  createdAt      DateTime      @default(now()) @map("created_at")
 
   // Relations
   workOrder  WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)

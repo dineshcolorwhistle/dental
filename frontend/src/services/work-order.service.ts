@@ -7,6 +7,7 @@ export interface WorkOrderProcessItem {
   technicianId: string | null;
   sequence: number;
   isVerification: boolean;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   createdAt: string;
   technician?: {
     id: string;
@@ -29,7 +30,7 @@ export interface WorkOrderListItem {
   notes: string | null;
   totalQuote: number | null;
   initialPayment: number | null;
-  status: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'VERIFICATION' | 'COMPLETED';
+  status: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +62,7 @@ export interface CreateWorkOrderProcessPayload {
   technicianId?: string;
   sequence: number;
   isVerification?: boolean;
+  status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 }
 
 export interface CreateWorkOrderPayload {
@@ -86,6 +88,8 @@ export interface UpdateWorkOrderPayload {
   notes?: string;
   totalQuote?: number;
   initialPayment?: number;
+  status?: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  processes?: CreateWorkOrderProcessPayload[];
 }
 
 export const workOrderService = {

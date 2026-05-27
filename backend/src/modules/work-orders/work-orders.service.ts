@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateWorkOrderDto, UpdateWorkOrderDto } from './dto';
-import { WorkOrderStatus, UserRole } from '@prisma/client';
+import { WorkOrderStatus, UserRole, ProcessStatus } from '@prisma/client';
 
 @Injectable()
 export class WorkOrdersService {
@@ -17,6 +17,53 @@ export class WorkOrdersService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  /**
+   * Helper to calculate overall Work Order status from underlying processes.
+   */
+  private calculateWorkOrderStatus(
+    processes: { isVerification: boolean; technicianId: string | null; status: ProcessStatus }[]
+  ): WorkOrderStatus {
+    if (processes.length === 0) {
+      return WorkOrderStatus.CREATED;
+    }
+
+    // 1. If any process is FAILED -> FAILED
+    if (processes.some((p) => p.status === ProcessStatus.FAILED)) {
+      return WorkOrderStatus.FAILED;
+    }
+
+    // 2. If any process is CANCELLED -> CANCELLED
+    if (processes.some((p) => p.status === ProcessStatus.CANCELLED)) {
+      return WorkOrderStatus.CANCELLED;
+    }
+
+    // 3. If all processes are COMPLETED -> COMPLETED
+    if (processes.every((p) => p.status === ProcessStatus.COMPLETED)) {
+      return WorkOrderStatus.COMPLETED;
+    }
+
+    // 4. If any process is IN_PROGRESS
+    const inProgressProc = processes.find((p) => p.status === ProcessStatus.IN_PROGRESS);
+    if (inProgressProc) {
+      if (inProgressProc.isVerification) {
+        return inProgressProc.technicianId
+          ? WorkOrderStatus.INTERNAL_VERIFICATION
+          : WorkOrderStatus.EXTERNAL_VERIFICATION;
+      }
+      return WorkOrderStatus.IN_PROGRESS;
+    }
+
+    // 5. Otherwise, check assignments
+    const allNotStarted = processes.every((p) => p.status === ProcessStatus.NOT_STARTED);
+    if (allNotStarted) {
+      const hasAnyTechnician = processes.some((p) => p.technicianId !== null);
+      return hasAnyTechnician ? WorkOrderStatus.ASSIGNED : WorkOrderStatus.CREATED;
+    }
+
+    // Default fallback
+    return WorkOrderStatus.IN_PROGRESS;
+  }
 
   // Standard includes for returning full work order data
   private readonly fullInclude = {
@@ -126,10 +173,16 @@ export class WorkOrdersService {
     // 4. Generate folio number
     const folioNumber = await this.generateFolioNumber(tenantId, finalBranchId);
 
-    // 5. Determine status based on action
-    const status = action === 'createAndAssign'
-      ? WorkOrderStatus.ASSIGNED
-      : WorkOrderStatus.CREATED;
+    // 5. Determine processes and status
+    const mappedProcesses = processes.map((p) => ({
+      processName: p.processName,
+      technicianId: p.technicianId || null,
+      sequence: p.sequence,
+      isVerification: p.isVerification || false,
+      status: (p as any).status || ProcessStatus.NOT_STARTED,
+    }));
+
+    const status = this.calculateWorkOrderStatus(mappedProcesses);
 
     // 6. Strip specification if user is not ADMIN
     const finalSpecification = userRole === 'ADMIN' ? specification : undefined;
@@ -151,12 +204,7 @@ export class WorkOrdersService {
         status,
         createdById: userId,
         processes: {
-          create: processes.map((p) => ({
-            processName: p.processName,
-            technicianId: p.technicianId || null,
-            sequence: p.sequence,
-            isVerification: p.isVerification || false,
-          })),
+          create: mappedProcesses,
         },
       },
       include: this.fullInclude,
@@ -232,6 +280,7 @@ export class WorkOrdersService {
       totalQuote,
       initialPayment,
       processes,
+      status,
     } = dto;
 
     // Verify doctor if updated
@@ -254,6 +303,32 @@ export class WorkOrdersService {
       }
     }
 
+    let finalStatus = status;
+    let mappedProcesses = processes
+      ? processes.map((p) => ({
+          processName: p.processName,
+          technicianId: p.technicianId || null,
+          sequence: p.sequence,
+          isVerification: p.isVerification || false,
+          status: (p as any).status || ProcessStatus.NOT_STARTED,
+        }))
+      : undefined;
+
+    if (finalStatus === WorkOrderStatus.FAILED || finalStatus === WorkOrderStatus.CANCELLED) {
+      const targetStatus =
+        finalStatus === WorkOrderStatus.FAILED ? ProcessStatus.FAILED : ProcessStatus.CANCELLED;
+      if (mappedProcesses) {
+        mappedProcesses = mappedProcesses.map((p) => ({ ...p, status: targetStatus }));
+      } else {
+        await this.prisma.workOrderProcess.updateMany({
+          where: { workOrderId: id },
+          data: { status: targetStatus },
+        });
+      }
+    } else if (processes) {
+      finalStatus = this.calculateWorkOrderStatus(mappedProcesses);
+    }
+
     const updated = await this.prisma.workOrder.update({
       where: { id },
       data: {
@@ -265,15 +340,11 @@ export class WorkOrdersService {
         ...(notes !== undefined && { notes: notes || null }),
         ...(totalQuote !== undefined && { totalQuote }),
         ...(initialPayment !== undefined && { initialPayment }),
-        ...(processes && {
+        ...(finalStatus && { status: finalStatus }),
+        ...(mappedProcesses && {
           processes: {
             deleteMany: {},
-            create: processes.map((p) => ({
-              processName: p.processName,
-              technicianId: p.technicianId || null,
-              sequence: p.sequence,
-              isVerification: p.isVerification || false,
-            })),
+            create: mappedProcesses,
           },
         }),
       },

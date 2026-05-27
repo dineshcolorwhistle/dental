@@ -1732,6 +1732,11 @@ a:hover { color: var(--accent-primary-hover); }
   width: 95%;
 }
 
+.modal--xl {
+  max-width: 880px;
+  width: 95%;
+}
+
 /* ═══════════════════════════════════════════════════════════
    WORK ORDER STATUS BADGE
    ═══════════════════════════════════════════════════════════ */

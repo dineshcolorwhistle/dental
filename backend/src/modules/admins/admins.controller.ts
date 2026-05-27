@@ -20,11 +20,11 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @ApiTags('Lab Admins')
 @ApiBearerAuth()
 @Controller('admins')
-@Roles(UserRole.OWNER)
 export class AdminsController {
   constructor(private readonly adminsService: AdminsService) {}
 
   @Post()
+  @Roles(UserRole.OWNER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Invite a new Lab Admin' })
   async create(
@@ -38,6 +38,7 @@ export class AdminsController {
   }
 
   @Get()
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({ summary: 'List all Lab Admins in the organization' })
   async findAll(
     @CurrentUser('tenantId') tenantId: string,
@@ -50,6 +51,7 @@ export class AdminsController {
   }
 
   @Get(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get specific Lab Admin details' })
   async findOne(
     @CurrentUser('tenantId') tenantId: string,
@@ -62,6 +64,7 @@ export class AdminsController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.OWNER)
   @ApiOperation({ summary: 'Update Lab Admin details or branch assignment' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
@@ -75,6 +78,7 @@ export class AdminsController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.OWNER)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a Lab Admin' })
   async remove(

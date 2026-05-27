@@ -28,6 +28,8 @@ import {
   prosthesisTypeService,
   technicianService,
   branchService,
+  processService,
+  adminService,
   type WorkOrderListItem,
   type CreateWorkOrderPayload,
   type CreateWorkOrderProcessPayload,
@@ -35,18 +37,23 @@ import {
   type ProsthesisTypeListItem,
   type TechnicianListItem,
   type BranchListItem,
+  type ProcessListItem,
+  type AdminListItem,
 } from '../services';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect } from '../components';
 
-type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'VERIFICATION' | 'COMPLETED';
+type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   CREATED: { label: 'Created', color: '#6B7280', bg: '#F3F4F6', icon: <CircleDot size={12} /> },
   ASSIGNED: { label: 'Assigned', color: '#3B82F6', bg: '#EFF6FF', icon: <Clock size={12} /> },
   IN_PROGRESS: { label: 'In Progress', color: '#F59E0B', bg: '#FFFBEB', icon: <PlayCircle size={12} /> },
-  VERIFICATION: { label: 'Verification', color: '#8B5CF6', bg: '#F5F3FF', icon: <ShieldCheck size={12} /> },
+  INTERNAL_VERIFICATION: { label: 'Internal Verification', color: '#8B5CF6', bg: '#F5F3FF', icon: <ShieldCheck size={12} /> },
+  EXTERNAL_VERIFICATION: { label: 'External Verification', color: '#6366F1', bg: '#EEF2FF', icon: <ShieldCheck size={12} /> },
   COMPLETED: { label: 'Completed', color: '#10B981', bg: '#ECFDF5', icon: <CheckCircle2 size={12} /> },
+  FAILED: { label: 'Failed', color: '#EF4444', bg: '#FEF2F2', icon: <AlertCircle size={12} /> },
+  CANCELLED: { label: 'Cancelled', color: '#94A3B8', bg: '#F8FAFC', icon: <X size={12} /> },
 };
 
 interface ProcessFormItem {
@@ -55,6 +62,7 @@ interface ProcessFormItem {
   technicianId: string;
   sequence: number;
   isVerification: boolean;
+  status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 }
 
 export function WorkOrdersPage() {
@@ -100,6 +108,8 @@ export function WorkOrdersPage() {
   const [doctors, setDoctors] = useState<DoctorListItem[]>([]);
   const [prosthesisTypes, setProsthesisTypes] = useState<ProsthesisTypeListItem[]>([]);
   const [technicians, setTechnicians] = useState<TechnicianListItem[]>([]);
+  const [availableProcesses, setAvailableProcesses] = useState<ProcessListItem[]>([]);
+  const [admins, setAdmins] = useState<AdminListItem[]>([]);
 
   // Form state
   const [form, setForm] = useState({
@@ -117,10 +127,20 @@ export function WorkOrdersPage() {
   const [processList, setProcessList] = useState<ProcessFormItem[]>([]);
   const [generatedFolio, setGeneratedFolio] = useState('');
 
+  // Tab Wizard States
+  const [modalTab, setModalTab] = useState<'details' | 'processes'>('details');
+  const [formStatus, setFormStatus] = useState<string>('CREATED');
+
   // Add process inline
   const [showAddProcess, setShowAddProcess] = useState(false);
+  const [newProcessId, setNewProcessId] = useState('');
   const [newProcessName, setNewProcessName] = useState('');
   const [newProcessTechnicianId, setNewProcessTechnicianId] = useState('');
+
+  // Add verification inline
+  const [showAddVerificationForm, setShowAddVerificationForm] = useState(false);
+  const [verificationType, setVerificationType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
+  const [verificationTechnicianId, setVerificationTechnicianId] = useState('');
 
   // ─── Data Fetching ───────────────────────────
   const fetchData = useCallback(async () => {
@@ -146,14 +166,18 @@ export function WorkOrdersPage() {
   const loadReferenceData = useCallback(async () => {
     try {
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
-      const [doctorData, ptData, techData] = await Promise.all([
+      const [doctorData, ptData, techData, processData, adminData] = await Promise.all([
         doctorService.getAll(branchScope),
         prosthesisTypeService.getAll(),
         technicianService.getAll(branchScope),
+        processService.getAll(branchScope),
+        adminService.getAll(branchScope),
       ]);
       setDoctors(doctorData.filter((d) => d.isActive));
       setProsthesisTypes(ptData);
       setTechnicians(techData.filter((t) => t.status === 'ACTIVE'));
+      setAvailableProcesses(processData);
+      setAdmins(adminData.filter((a) => a.status === 'ACTIVE'));
     } catch (err) {
       toast.error('Failed to load reference data');
       console.error(err);
@@ -196,7 +220,7 @@ export function WorkOrdersPage() {
   };
 
   // ─── Form Handling ──────────────────────────
-  const validateForm = (): boolean => {
+  const validateForm = (checkProcesses = true): boolean => {
     const errors: Record<string, string> = {};
     if (!form.doctorId) errors.doctorId = 'Doctor is required';
     if (!form.patient.trim()) errors.patient = 'Patient name is required';
@@ -208,12 +232,14 @@ export function WorkOrdersPage() {
     } else if (parseFloat(form.totalQuote) <= 0) {
       errors.totalQuote = 'Total quote must be greater than 0';
     }
-    if (processList.length === 0) {
-      errors.processes = 'At least one process step is required';
-    } else {
-      const hasUnassignedProcess = processList.some((p) => !p.technicianId);
-      if (hasUnassignedProcess) {
-        errors.processes = 'All process steps must be assigned to a technician';
+    if (checkProcesses) {
+      if (processList.length === 0) {
+        errors.processes = 'At least one process step is required';
+      } else {
+        const hasUnassignedProcess = processList.some((p) => !p.technicianId && !(p.isVerification && !p.technicianId));
+        if (hasUnassignedProcess) {
+          errors.processes = 'All process steps must be assigned to a technician';
+        }
       }
     }
     setFormErrors(errors);
@@ -237,9 +263,15 @@ export function WorkOrdersPage() {
     setProcessList([]);
     setFormErrors({});
     setShowAddProcess(false);
+    setNewProcessId('');
     setNewProcessName('');
     setNewProcessTechnicianId('');
     setGeneratedFolio('');
+    setModalTab('details');
+    setFormStatus('CREATED');
+    setShowAddVerificationForm(false);
+    setVerificationType('INTERNAL');
+    setVerificationTechnicianId('');
 
     // Fetch the next folio number!
     if (branchId) {
@@ -268,6 +300,7 @@ export function WorkOrdersPage() {
         technicianId: assign.process.defaultTechnicianId || '',
         sequence: assign.sequence,
         isVerification: false,
+        status: 'NOT_STARTED',
       }));
 
       setProcessList(items);
@@ -302,9 +335,24 @@ export function WorkOrdersPage() {
     );
   };
 
+  const handleAvailableProcessChange = (procId: string) => {
+    setNewProcessId(procId);
+    const proc = availableProcesses.find((p) => p.id === procId);
+    if (proc) {
+      setNewProcessName(proc.name);
+      setNewProcessTechnicianId(proc.defaultTechnicianId || '');
+    }
+  };
+
+  const updateProcessStatus = (index: number, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED') => {
+    setProcessList((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, status } : p)),
+    );
+  };
+
   const handleAddProcess = () => {
     if (!newProcessName.trim()) {
-      toast.error('Process name is required');
+      toast.error('Process selection is required');
       return;
     }
     if (!newProcessTechnicianId) {
@@ -317,27 +365,38 @@ export function WorkOrdersPage() {
       technicianId: newProcessTechnicianId,
       sequence: processList.length,
       isVerification: false,
+      status: 'NOT_STARTED',
     };
     setProcessList((prev) => [...prev, newItem]);
+    setNewProcessId('');
     setNewProcessName('');
     setNewProcessTechnicianId('');
     setShowAddProcess(false);
   };
 
   const handleAddVerification = () => {
+    if (verificationType === 'INTERNAL' && !verificationTechnicianId) {
+      toast.error('Technician assignment is required for internal verification');
+      return;
+    }
+
     const newItem: ProcessFormItem = {
       tempId: `ver-${Date.now()}`,
-      processName: 'Verification',
-      technicianId: user?.id || '',
+      processName: verificationType === 'INTERNAL' ? 'Verification (Internal)' : 'Verification (External)',
+      technicianId: verificationType === 'INTERNAL' ? verificationTechnicianId : '',
       sequence: processList.length,
       isVerification: true,
+      status: 'NOT_STARTED',
     };
     setProcessList((prev) => [...prev, newItem]);
+    setShowAddVerificationForm(false);
+    setVerificationTechnicianId('');
   };
 
   // ─── Submit ──────────────────────────
   const handleSubmit = async (action: 'create' | 'createAndAssign') => {
-    if (!validateForm()) return;
+    const isAssign = action === 'createAndAssign';
+    if (!validateForm(isAssign)) return;
 
     try {
       setSaving(true);
@@ -346,6 +405,7 @@ export function WorkOrdersPage() {
         technicianId: p.technicianId || undefined,
         sequence: p.sequence,
         isVerification: p.isVerification,
+        status: p.status || 'NOT_STARTED',
       }));
 
       const payload: CreateWorkOrderPayload = {
@@ -407,6 +467,13 @@ export function WorkOrdersPage() {
       branchId: wo.branchId || '',
     });
     
+    setModalTab('details');
+    setFormStatus(wo.status);
+    setNewProcessId('');
+    setShowAddVerificationForm(false);
+    setVerificationType('INTERNAL');
+    setVerificationTechnicianId('');
+
     // Populate existing process steps and verification steps
     const items: ProcessFormItem[] = (wo.processes || []).map((p, idx) => ({
       tempId: p.id || `proc-edit-${Date.now()}-${idx}`,
@@ -414,6 +481,7 @@ export function WorkOrdersPage() {
       technicianId: p.technicianId || '',
       sequence: p.sequence,
       isVerification: p.isVerification,
+      status: p.status,
     }));
     setProcessList(items);
     
@@ -421,7 +489,7 @@ export function WorkOrdersPage() {
     setShowEditModal(true);
   };
 
-  const handleEditSubmit = async () => {
+  const handleEditSubmit = async (isAssign = true) => {
     if (!editingWO) return;
     const errors: Record<string, string> = {};
     if (!form.doctorId) errors.doctorId = 'Doctor is required';
@@ -434,13 +502,14 @@ export function WorkOrdersPage() {
       errors.totalQuote = 'Total quote must be greater than 0';
     }
     
-    // Validate processes list
-    if (processList.length === 0) {
-      errors.processes = 'At least one process step is required';
-    } else {
-      const hasUnassignedProcess = processList.some((p) => !p.technicianId);
-      if (hasUnassignedProcess) {
-        errors.processes = 'All process steps must be assigned to a technician';
+    if (isAssign) {
+      if (processList.length === 0) {
+        errors.processes = 'At least one process step is required';
+      } else {
+        const hasUnassignedProcess = processList.some((p) => !p.technicianId && !(p.isVerification && !p.technicianId));
+        if (hasUnassignedProcess) {
+          errors.processes = 'All process steps must be assigned to a technician';
+        }
       }
     }
 
@@ -449,14 +518,7 @@ export function WorkOrdersPage() {
 
     try {
       setSaving(true);
-      const processes: CreateWorkOrderProcessPayload[] = processList.map((p) => ({
-        processName: p.processName,
-        technicianId: p.technicianId || undefined,
-        sequence: p.sequence,
-        isVerification: p.isVerification,
-      }));
-
-      const payload = {
+      const payload: any = {
         doctorId: form.doctorId,
         patient: form.patient,
         boxNumber: form.boxNumber || undefined,
@@ -465,11 +527,21 @@ export function WorkOrdersPage() {
         notes: form.notes || undefined,
         totalQuote: form.totalQuote ? parseFloat(form.totalQuote) : undefined,
         initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
-        processes,
+        status: isAssign && editingWO.status === 'CREATED' ? 'ASSIGNED' : formStatus,
       };
 
+      if (isAssign) {
+        payload.processes = processList.map((p) => ({
+          processName: p.processName,
+          technicianId: p.technicianId || undefined,
+          sequence: p.sequence,
+          isVerification: p.isVerification,
+          status: p.status || 'NOT_STARTED',
+        }));
+      }
+
       await workOrderService.update(editingWO.id, payload);
-      toast.success('Work order updated successfully!');
+      toast.success(isAssign ? 'Work order processes assigned successfully!' : 'Work order updated successfully!');
       setShowEditModal(false);
       await fetchData();
     } catch (err: any) {
@@ -611,7 +683,7 @@ export function WorkOrdersPage() {
 
           {/* Status Chips */}
           <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-            {(['ALL', 'CREATED', 'ASSIGNED', 'IN_PROGRESS', 'VERIFICATION', 'COMPLETED'] as StatusFilter[]).map((s) => (
+            {(['ALL', 'CREATED', 'ASSIGNED', 'IN_PROGRESS', 'INTERNAL_VERIFICATION', 'EXTERNAL_VERIFICATION', 'COMPLETED', 'FAILED', 'CANCELLED'] as StatusFilter[]).map((s) => (
               <button
                 key={s}
                 className={`filter-chip ${selectedStatusFilter === s ? 'filter-chip--active' : ''}`}
@@ -811,7 +883,7 @@ export function WorkOrdersPage() {
       {/* Create Modal */}
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => !saving && setShowCreateModal(false)}>
-          <div className="modal modal--lg" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
                 <h2 className="modal__title">New Work Order</h2>
@@ -826,356 +898,561 @@ export function WorkOrdersPage() {
               </button>
             </div>
 
-            <div className="modal__body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              {/* Row 1: Doctor + Patient */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="select-wo-doctor">Doctor *</label>
-                  <SearchableSelect
-                    id="select-wo-doctor"
-                    options={doctors.map((d) => ({
-                      value: d.id,
-                      label: `${d.name}${d.clinicName ? ` — ${d.clinicName}` : ''}`,
-                    }))}
-                    value={form.doctorId}
-                    onChange={(val) => handleInputChange('doctorId', val)}
-                    disabled={saving}
-                    placeholder="Select a doctor"
-                    error={!!formErrors.doctorId}
-                  />
-                  {formErrors.doctorId && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
+            {/* Modal Tabs navigation */}
+            <div style={{ padding: '0 1.75rem', marginTop: '1rem' }}>
+              <div className="modal-tabs" style={{ display: 'flex', borderBottom: '1px solid var(--border)', gap: '1.5rem' }}>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${modalTab === 'details' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setModalTab('details')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: modalTab === 'details' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: modalTab === 'details' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  1. Basic Details
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${modalTab === 'processes' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => {
+                    if (validateForm(false)) {
+                      setModalTab('processes');
+                    }
+                  }}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: modalTab === 'processes' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: modalTab === 'processes' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <span>2. Process Steps</span>
+                  {processList.length > 0 && (
+                    <span style={{
+                      fontSize: '0.75rem',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      color: 'var(--accent-primary, #3B82F6)',
+                      padding: '1px 6px',
+                      borderRadius: '10px',
+                      fontWeight: 700
+                    }}>
+                      {processList.length}
+                    </span>
                   )}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-wo-patient">Patient *</label>
-                  <input
-                    id="input-wo-patient"
-                    className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
-                    type="text"
-                    placeholder="e.g., John Doe"
-                    value={form.patient}
-                    onChange={(e) => handleInputChange('patient', e.target.value)}
-                    disabled={saving}
-                  />
-                  {formErrors.patient && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
-                  )}
-                </div>
+                </button>
               </div>
+            </div>
 
-              {/* Row 2: Folio Number + Box Number */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-wo-folio">Folio Number</label>
-                  <input
-                    id="input-wo-folio"
-                    className="form-input"
-                    type="text"
-                    value={generatedFolio || 'Generating...'}
-                    disabled
-                    style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
-                  />
-                </div>
+            <div className="modal__body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              {modalTab === 'details' ? (
+                <>
+                  {/* Row 1: Doctor + Patient */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="select-wo-doctor">Doctor *</label>
+                      <SearchableSelect
+                        id="select-wo-doctor"
+                        options={doctors.map((d) => ({
+                          value: d.id,
+                          label: `${d.name}${d.clinicName ? ` — ${d.clinicName}` : ''}`,
+                        }))}
+                        value={form.doctorId}
+                        onChange={(val) => handleInputChange('doctorId', val)}
+                        disabled={saving}
+                        placeholder="Select a doctor"
+                        error={!!formErrors.doctorId}
+                      />
+                      {formErrors.doctorId && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
+                      )}
+                    </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-wo-box">Box Number</label>
-                  <input
-                    id="input-wo-box"
-                    className="form-input"
-                    type="text"
-                    placeholder="e.g., BOX-42"
-                    value={form.boxNumber}
-                    onChange={(e) => handleInputChange('boxNumber', e.target.value)}
-                    disabled={saving}
-                  />
-                </div>
-              </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="input-wo-patient">Patient *</label>
+                      <input
+                        id="input-wo-patient"
+                        className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
+                        type="text"
+                        placeholder="e.g., John Doe"
+                        value={form.patient}
+                        onChange={(e) => handleInputChange('patient', e.target.value)}
+                        disabled={saving}
+                      />
+                      {formErrors.patient && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
+                      )}
+                    </div>
+                  </div>
 
-              {/* Row 3: Prosthesis Type */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="select-wo-prosthesis">Prosthesis Type *</label>
-                <SearchableSelect
-                  id="select-wo-prosthesis"
-                  options={prosthesisTypes.map((pt) => ({
-                    value: pt.id,
-                    label: pt.name,
-                  }))}
-                  value={form.prosthesisTypeId}
-                  onChange={handleProsthesisTypeChange}
-                  disabled={saving}
-                  placeholder="Select prosthesis type"
-                  error={!!formErrors.prosthesisTypeId}
-                />
-                {formErrors.prosthesisTypeId && (
-                  <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
-                )}
-              </div>
+                  {/* Row 2: Folio Number + Box Number */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="input-wo-folio">Folio Number</label>
+                      <input
+                        id="input-wo-folio"
+                        className="form-input"
+                        type="text"
+                        value={generatedFolio || 'Generating...'}
+                        disabled
+                        style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
+                      />
+                    </div>
 
-              {/* Specification (Admin only) */}
-              {isAdmin && (
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-wo-spec">Specification *</label>
-                  <textarea
-                    id="input-wo-spec"
-                    className={`form-input ${formErrors.specification ? 'form-input--error' : ''}`}
-                    style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                    placeholder="Color, shade, units, material details..."
-                    value={form.specification}
-                    onChange={(e) => handleInputChange('specification', e.target.value)}
-                    disabled={saving}
-                  />
-                  {formErrors.specification && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.specification}</span>
-                  )}
-                </div>
-              )}
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="input-wo-box">Box Number</label>
+                      <input
+                        id="input-wo-box"
+                        className="form-input"
+                        type="text"
+                        placeholder="e.g., BOX-42"
+                        value={form.boxNumber}
+                        onChange={(e) => handleInputChange('boxNumber', e.target.value)}
+                        disabled={saving}
+                      />
+                    </div>
+                  </div>
 
-              {/* Notes */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="input-wo-notes">Notes</label>
-                <textarea
-                  id="input-wo-notes"
-                  className="form-input"
-                  style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                  placeholder="Additional notes or instructions..."
-                  value={form.notes}
-                  onChange={(e) => handleInputChange('notes', e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-
-              {/* Row: Total Quote + Initial Payment */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-wo-quote">Total Quote (₹) *</label>
-                  <input
-                    id="input-wo-quote"
-                    className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="e.g., 5000"
-                    value={form.totalQuote}
-                    onChange={(e) => handleInputChange('totalQuote', e.target.value)}
-                    disabled={saving}
-                  />
-                  {formErrors.totalQuote && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-wo-payment">Initial Payment (₹)</label>
-                  <input
-                    id="input-wo-payment"
-                    className="form-input"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="e.g., 2000"
-                    value={form.initialPayment}
-                    onChange={(e) => handleInputChange('initialPayment', e.target.value)}
-                    disabled={saving}
-                  />
-                </div>
-              </div>
-
-              {/* Branch select (Owner only) */}
-              {isOwner && branches.length > 0 && (
-                <div className="form-group">
-                  <label className="form-label" htmlFor="select-wo-branch">Branch *</label>
-                  <SearchableSelect
-                    id="select-wo-branch"
-                    options={branches.map((b) => ({
-                      value: b.id,
-                      label: `${b.name} (${b.code})`,
-                    }))}
-                    value={form.branchId}
-                    onChange={(val) => handleInputChange('branchId', val)}
-                    disabled={saving}
-                    placeholder="Select a branch"
-                    error={!!formErrors.branchId}
-                  />
-                  {formErrors.branchId && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
-                  )}
-                </div>
-              )}
-
-              {/* Process Steps Section */}
-              <div className="wo-process-section">
-                <div className="wo-process-section__header">
-                  <h3 className="wo-process-section__title">
-                    Process Steps
-                    {processList.length > 0 && (
-                      <span className="wo-process-section__count">{processList.length}</span>
+                  {/* Row 3: Prosthesis Type */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="select-wo-prosthesis">Prosthesis Type *</label>
+                    <SearchableSelect
+                      id="select-wo-prosthesis"
+                      options={prosthesisTypes.map((pt) => ({
+                        value: pt.id,
+                        label: pt.name,
+                      }))}
+                      value={form.prosthesisTypeId}
+                      onChange={handleProsthesisTypeChange}
+                      disabled={saving}
+                      placeholder="Select prosthesis type"
+                      error={!!formErrors.prosthesisTypeId}
+                    />
+                    {formErrors.prosthesisTypeId && (
+                      <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
                     )}
-                  </h3>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm"
-                      onClick={() => setShowAddProcess(true)}
-                      disabled={saving}
-                    >
-                      <PlusCircle size={14} />
-                      <span>Add Process</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm"
-                      onClick={handleAddVerification}
-                      disabled={saving}
-                    >
-                      <ShieldPlus size={14} />
-                      <span>Add Verification</span>
-                    </button>
                   </div>
-                </div>
 
-                {formErrors.processes && (
-                  <span className="form-error" style={{ marginBottom: '0.5rem', display: 'block' }}>
-                    <AlertCircle size={12} /> {formErrors.processes}
-                  </span>
-                )}
+                  {/* Specification (Admin only) */}
+                  {isAdmin && (
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="input-wo-spec">Specification *</label>
+                      <textarea
+                        id="input-wo-spec"
+                        className={`form-input ${formErrors.specification ? 'form-input--error' : ''}`}
+                        style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
+                        placeholder="Color, shade, units, material details..."
+                        value={form.specification}
+                        onChange={(e) => handleInputChange('specification', e.target.value)}
+                        disabled={saving}
+                      />
+                      {formErrors.specification && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.specification}</span>
+                      )}
+                    </div>
+                  )}
 
-                {processList.length === 0 && !showAddProcess ? (
-                  <div className="wo-process-empty">
-                    <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                    <span>Select a prosthesis type to load process steps</span>
+                  {/* Notes */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="input-wo-notes">Notes</label>
+                    <textarea
+                      id="input-wo-notes"
+                      className="form-input"
+                      style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
+                      placeholder="Additional notes or instructions..."
+                      value={form.notes}
+                      onChange={(e) => handleInputChange('notes', e.target.value)}
+                      disabled={saving}
+                    />
                   </div>
-                ) : (
-                  <div className="wo-process-list">
-                    {processList.map((proc, idx) => (
-                      <div
-                        key={proc.tempId}
-                        className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
+
+                  {/* Row: Total Quote + Initial Payment */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="input-wo-quote">Total Quote (₹) *</label>
+                      <input
+                        id="input-wo-quote"
+                        className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g., 5000"
+                        value={form.totalQuote}
+                        onChange={(e) => handleInputChange('totalQuote', e.target.value)}
+                        disabled={saving}
+                      />
+                      {formErrors.totalQuote && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
+                      )}
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="input-wo-payment">Initial Payment (₹)</label>
+                      <input
+                        id="input-wo-payment"
+                        className="form-input"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g., 2000"
+                        value={form.initialPayment}
+                        onChange={(e) => handleInputChange('initialPayment', e.target.value)}
+                        disabled={saving}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Branch select (Owner only) */}
+                  {isOwner && branches.length > 0 && (
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="select-wo-branch">Branch *</label>
+                      <SearchableSelect
+                        id="select-wo-branch"
+                        options={branches.map((b) => ({
+                          value: b.id,
+                          label: `${b.name} (${b.code})`,
+                        }))}
+                        value={form.branchId}
+                        onChange={(val) => handleInputChange('branchId', val)}
+                        disabled={saving}
+                        placeholder="Select a branch"
+                        error={!!formErrors.branchId}
+                      />
+                      {formErrors.branchId && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Tab 2: Process assignment only */
+                <div className="wo-process-section" style={{ margin: 0, border: 'none', background: 'transparent', padding: 0 }}>
+                  <div className="wo-process-section__header" style={{ marginBottom: '1rem' }}>
+                    <h3 className="wo-process-section__title">
+                      Process Steps Assignment
+                      {processList.length > 0 && (
+                        <span className="wo-process-section__count">{processList.length}</span>
+                      )}
+                    </h3>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => {
+                          setShowAddProcess(true);
+                          setShowAddVerificationForm(false);
+                          setNewProcessId('');
+                          setNewProcessName('');
+                          setNewProcessTechnicianId('');
+                        }}
+                        disabled={saving || showAddProcess}
                       >
-                        <div className="wo-process-item__order">
-                          <span className="wo-process-item__number">{idx + 1}</span>
-                        </div>
+                        <PlusCircle size={14} />
+                        <span>Add Process</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => {
+                          setShowAddVerificationForm(true);
+                          setShowAddProcess(false);
+                          setVerificationType('INTERNAL');
+                          setVerificationTechnicianId('');
+                        }}
+                        disabled={saving || showAddVerificationForm}
+                      >
+                        <ShieldPlus size={14} />
+                        <span>Add Verification</span>
+                      </button>
+                    </div>
+                  </div>
 
-                        <div className="wo-process-item__name">
-                          <span>{proc.processName}</span>
-                          {proc.isVerification && (
-                            <span className="wo-process-item__tag">Verification</span>
-                          )}
-                        </div>
+                  {formErrors.processes && (
+                    <span className="form-error" style={{ marginBottom: '0.75rem', display: 'block' }}>
+                      <AlertCircle size={12} /> {formErrors.processes}
+                    </span>
+                  )}
 
-                        <div className="wo-process-item__technician">
+                  {processList.length === 0 && !showAddProcess && !showAddVerificationForm ? (
+                    <div className="wo-process-empty" style={{ border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                      <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                      <span>No processes loaded yet. Choose prosthesis type in details or add processes.</span>
+                    </div>
+                  ) : (
+                    <div className="wo-process-list">
+                      {processList.map((proc, idx) => (
+                        <div
+                          key={proc.tempId}
+                          className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
+                        >
+                          <div className="wo-process-item__order">
+                            <span className="wo-process-item__number">{idx + 1}</span>
+                          </div>
+
+                          <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px' }}>
+                            <span>{proc.processName}</span>
+                            {proc.isVerification && (
+                              <span className="wo-process-item__tag" style={{
+                                backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                                color: proc.technicianId ? '#8B5CF6' : '#6366F1'
+                              }}>
+                                {proc.technicianId ? 'Internal' : 'External'} Verification
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Technician Assignment */}
+                          <div className="wo-process-item__technician" style={{ width: '200px' }}>
+                            {proc.isVerification && !proc.technicianId ? (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '32px',
+                                fontSize: '0.75rem',
+                                color: 'var(--accent-primary)',
+                                fontWeight: 700,
+                                padding: '0 0.5rem',
+                                backgroundColor: 'var(--bg-muted, #F3F4F6)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border)'
+                              }}>
+                                {(() => {
+                                  const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                                  return selectedDoc ? selectedDoc.name : 'Selected Doctor';
+                                })()}
+                              </div>
+                            ) : (
+                              <SearchableSelect
+                                id={`select-proc-tech-${proc.tempId}`}
+                                options={(proc.isVerification ? admins : technicians).map((u) => ({
+                                  value: u.id,
+                                  label: `${u.firstName} ${u.lastName}`,
+                                }))}
+                                value={proc.technicianId}
+                                onChange={(val) => updateProcessTechnician(idx, val)}
+                                disabled={saving}
+                                placeholder={`Select ${proc.isVerification ? 'admin' : 'technician'}`}
+                              />
+                            )}
+                          </div>
+
+                          {/* Process Status selection */}
+                          <div className="wo-process-item__status" style={{ width: '150px' }}>
+                            <SearchableSelect
+                              id={`select-proc-status-${proc.tempId}`}
+                              options={[
+                                { value: 'NOT_STARTED', label: 'Not Started' },
+                                { value: 'IN_PROGRESS', label: 'In Progress' },
+                                { value: 'COMPLETED', label: 'Completed' },
+                                { value: 'FAILED', label: 'Failed' },
+                                { value: 'CANCELLED', label: 'Cancelled' },
+                              ]}
+                              value={proc.status || 'NOT_STARTED'}
+                              onChange={(val) => updateProcessStatus(idx, val as any)}
+                              disabled={saving}
+                              placeholder="Select status"
+                            />
+                          </div>
+
+                          <div className="wo-process-item__actions">
+                            <button
+                              type="button"
+                              className="wo-process-item__btn"
+                              onClick={() => moveProcess(idx, 'up')}
+                              disabled={idx === 0 || saving}
+                              title="Move up"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="wo-process-item__btn"
+                              onClick={() => moveProcess(idx, 'down')}
+                              disabled={idx === processList.length - 1 || saving}
+                              title="Move down"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="wo-process-item__btn wo-process-item__btn--danger"
+                              onClick={() => removeProcess(idx)}
+                              disabled={saving}
+                              title="Remove"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inline Add Process Form */}
+                  {showAddProcess && (
+                    <div className="wo-process-add" style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-muted, #F3F4F6)' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: '220px' }}>
+                          <SearchableSelect
+                            id="select-add-process-master"
+                            options={availableProcesses.map((p) => ({
+                              value: p.id,
+                              label: `${p.name} (${p.processArea})`,
+                            }))}
+                            value={newProcessId}
+                            onChange={handleAvailableProcessChange}
+                            disabled={saving}
+                            placeholder="Select process..."
+                          />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '180px' }}>
+                          <SearchableSelect
+                            id="select-add-process-tech"
+                            options={technicians.map((t) => ({
+                              value: t.id,
+                              label: `${t.firstName} ${t.lastName}`,
+                            }))}
+                            value={newProcessTechnicianId}
+                            onChange={setNewProcessTechnicianId}
+                            disabled={saving}
+                            placeholder="Select technician"
+                          />
+                        </div>
+                        <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
+                          Add
+                        </button>
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessId(''); setNewProcessName(''); setNewProcessTechnicianId(''); }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inline Add Verification Form */}
+                  {showAddVerificationForm && (
+                    <div className="wo-process-add" style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-muted, #F3F4F6)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>Add Verification Step</span>
+                        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap', alignItems: 'center' }}>
                           <select
                             className="form-input form-input--sm"
-                            value={proc.technicianId}
-                            onChange={(e) => updateProcessTechnician(idx, e.target.value)}
-                            disabled={saving || proc.isVerification}
+                            value={verificationType}
+                            onChange={(e) => setVerificationType(e.target.value as any)}
+                            style={{ flex: 1, minWidth: '120px' }}
                           >
-                            <option value="" disabled>Select technician</option>
-                            {proc.isVerification ? (
-                              <option value={user?.id || ''}>{user?.firstName} {user?.lastName} (Admin)</option>
-                            ) : (
-                              technicians.map((t) => (
-                                <option key={t.id} value={t.id}>
-                                  {t.firstName} {t.lastName}
-                                </option>
-                              ))
-                            )}
+                            <option value="INTERNAL">Internal Verification</option>
+                            <option value="EXTERNAL">External Verification</option>
                           </select>
-                        </div>
 
-                        <div className="wo-process-item__actions">
-                          <button
-                            type="button"
-                            className="wo-process-item__btn"
-                            onClick={() => moveProcess(idx, 'up')}
-                            disabled={idx === 0 || saving}
-                            title="Move up"
-                          >
-                            <ChevronUp size={14} />
+                          {verificationType === 'INTERNAL' ? (
+                            <div style={{ flex: 1, minWidth: '180px' }}>
+                              <SearchableSelect
+                                id="select-add-verification-admin"
+                                options={admins.map((a) => ({
+                                  value: a.id,
+                                  label: `${a.firstName} ${a.lastName}`,
+                                }))}
+                                value={verificationTechnicianId}
+                                onChange={setVerificationTechnicianId}
+                                disabled={saving}
+                                placeholder="Select admin"
+                              />
+                            </div>
+                          ) : (
+                            <div style={{
+                              flex: 1,
+                              minWidth: '120px',
+                              fontSize: '0.75rem',
+                              color: 'var(--text-secondary)',
+                              padding: '0 0.5rem',
+                              fontStyle: 'italic'
+                            }}>
+                              Assigned: {(() => {
+                                const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                                return selectedDoc ? `${selectedDoc.name} (Doctor)` : 'Selected Doctor';
+                              })()}
+                            </div>
+                          )}
+
+                          <button type="button" className="btn btn--primary btn--sm" onClick={handleAddVerification}>
+                            Add
                           </button>
-                          <button
-                            type="button"
-                            className="wo-process-item__btn"
-                            onClick={() => moveProcess(idx, 'down')}
-                            disabled={idx === processList.length - 1 || saving}
-                            title="Move down"
-                          >
-                            <ChevronDown size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className="wo-process-item__btn wo-process-item__btn--danger"
-                            onClick={() => removeProcess(idx)}
-                            disabled={saving}
-                            title="Remove"
-                          >
-                            <Trash2 size={14} />
+                          <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddVerificationForm(false); setVerificationTechnicianId(''); }}>
+                            Cancel
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-                {/* Inline Add Process Form */}
-                {showAddProcess && (
-                  <div className="wo-process-add">
-                    <input
-                      className="form-input form-input--sm"
-                      type="text"
-                      placeholder="Process name..."
-                      value={newProcessName}
-                      onChange={(e) => setNewProcessName(e.target.value)}
-                      autoFocus
-                    />
-                    <select
-                      className="form-input form-input--sm"
-                      value={newProcessTechnicianId}
-                      onChange={(e) => setNewProcessTechnicianId(e.target.value)}
-                    >
-                      <option value="" disabled>Select technician</option>
-                      {technicians.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.firstName} {t.lastName}
-                        </option>
-                      ))}
-                    </select>
-                    <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
-                      Add
-                    </button>
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessName(''); }}>
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer Buttons */}
-              <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  onClick={() => setShowCreateModal(false)}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {/* Footer Buttons depending on Active Tab */}
+            <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              {modalTab === 'details' ? (
+                <>
                   <button
-                    id="btn-wo-create"
                     type="button"
-                    className="btn btn--outline"
-                    onClick={() => handleSubmit('create')}
+                    className="btn btn--ghost"
+                    onClick={() => setShowCreateModal(false)}
                     disabled={saving}
                   >
-                    {saving ? (
-                      <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
-                    ) : (
-                      <span>Create</span>
-                    )}
+                    Cancel
+                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      id="btn-wo-create"
+                      type="button"
+                      className="btn btn--outline"
+                      onClick={() => handleSubmit('create')}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                      ) : (
+                        <span>Save</span>
+                      )}
+                    </button>
+                    <button
+                      id="btn-wo-create-assign"
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => {
+                        if (validateForm(false)) {
+                          setModalTab('processes');
+                        }
+                      }}
+                      disabled={saving}
+                    >
+                      <span>Save &amp; Assign</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => setModalTab('details')}
+                    disabled={saving}
+                  >
+                    Back
                   </button>
                   <button
-                    id="btn-wo-create-assign"
+                    id="btn-wo-confirm"
                     type="button"
                     className="btn btn--primary"
                     onClick={() => handleSubmit('createAndAssign')}
@@ -1184,11 +1461,11 @@ export function WorkOrdersPage() {
                     {saving ? (
                       <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
                     ) : (
-                      <span>Create &amp; Assign</span>
+                      <span>Confirm</span>
                     )}
                   </button>
-                </div>
-              </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1254,7 +1531,7 @@ export function WorkOrdersPage() {
       {/* View Modal */}
       {showViewModal && selectedWO && (
         <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
-          <div className="modal modal--lg" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header" style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', margin: 0 }}>
@@ -1315,13 +1592,13 @@ export function WorkOrdersPage() {
                     let activeIndex = 0;
                     if (selectedWO.status === 'COMPLETED') {
                       activeIndex = processes.length;
-                    } else if (selectedWO.status === 'VERIFICATION') {
+                    } else if (selectedWO.status === 'INTERNAL_VERIFICATION' || selectedWO.status === 'EXTERNAL_VERIFICATION') {
                       activeIndex = processes.length - 1;
                     } else if (selectedWO.status === 'IN_PROGRESS') {
                       activeIndex = Math.min(processes.length - 1, Math.max(0, Math.floor(processes.length / 2)));
                     } else if (selectedWO.status === 'ASSIGNED') {
                       activeIndex = 0;
-                    } else { // CREATED
+                    } else { // CREATED, FAILED, CANCELLED
                       activeIndex = -1;
                     }
 
@@ -1412,7 +1689,10 @@ export function WorkOrdersPage() {
                           ];
 
                           const statusKeys = ['CREATED', 'ASSIGNED', 'IN_PROGRESS', 'VERIFICATION', 'COMPLETED'];
-                          const currentStatusIdx = statusKeys.indexOf(selectedWO.status);
+                          const normalizedStatus = (selectedWO.status === 'INTERNAL_VERIFICATION' || selectedWO.status === 'EXTERNAL_VERIFICATION')
+                            ? 'VERIFICATION'
+                            : selectedWO.status;
+                          const currentStatusIdx = statusKeys.indexOf(normalizedStatus as any);
 
                           return (
                             <div style={{
@@ -1578,13 +1858,7 @@ export function WorkOrdersPage() {
                                 </thead>
                                 <tbody>
                                   {processes.map((proc, idx) => {
-                                    // Determine step status and realistic mocked times
-                                    let stepStatus: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED' = 'NOT_STARTED';
-                                    if (idx < activeIndex) {
-                                      stepStatus = 'COMPLETED';
-                                    } else if (idx === activeIndex) {
-                                      stepStatus = 'IN_PROGRESS';
-                                    }
+                                    const stepStatus = proc.status || 'NOT_STARTED';
 
                                     const formatDate = (dateStr: string | Date) => {
                                       return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -1622,6 +1896,14 @@ export function WorkOrdersPage() {
                                       badgeColor = 'var(--warning, #F59E0B)';
                                       badgeBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
                                       statusLabel = 'In Progress';
+                                    } else if (stepStatus === 'FAILED') {
+                                      badgeColor = '#EF4444';
+                                      badgeBg = 'rgba(239, 68, 68, 0.08)';
+                                      statusLabel = 'Failed';
+                                    } else if (stepStatus === 'CANCELLED') {
+                                      badgeColor = '#94A3B8';
+                                      badgeBg = 'rgba(148, 163, 184, 0.08)';
+                                      statusLabel = 'Cancelled';
                                     }
 
                                     return (
@@ -1639,17 +1921,20 @@ export function WorkOrdersPage() {
                                                 fontWeight: 700,
                                                 padding: '1px 5px',
                                                 borderRadius: '4px',
-                                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                                                color: '#8B5CF6'
+                                                backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                                                color: proc.technicianId ? '#8B5CF6' : '#6366F1'
                                               }}>
-                                                Verification
+                                                {proc.technicianId ? 'Internal' : 'External'} Verification
                                               </span>
                                             )}
                                           </div>
                                         </td>
-                                        {/* REMOVED AVATAR STYLE FROM ASSIGNED TECHNICIAN COLUMN */}
                                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                          {proc.technician ? (
+                                          {proc.isVerification && !proc.technicianId ? (
+                                            <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                                              {selectedWO.doctor?.name ? `${selectedWO.doctor.name} (External Doctor)` : 'External Doctor'}
+                                            </span>
+                                          ) : proc.technician ? (
                                             `${proc.technician.firstName} ${proc.technician.lastName}`
                                           ) : (
                                             <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unassigned</span>
@@ -1821,7 +2106,7 @@ export function WorkOrdersPage() {
       {/* Edit Modal */}
       {showEditModal && editingWO && (
         <div className="modal-overlay" onClick={() => !saving && setShowEditModal(false)}>
-          <div className="modal modal--lg" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
                 <h2 className="modal__title">Edit Work Order</h2>
@@ -1836,331 +2121,596 @@ export function WorkOrdersPage() {
               </button>
             </div>
 
-            <div className="modal__body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              {/* Row 1: Doctor + Patient */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-wo-doctor">Doctor *</label>
-                  <SearchableSelect
-                    id="edit-wo-doctor"
-                    options={doctors.map((d) => ({
-                      value: d.id,
-                      label: `${d.name}${d.clinicName ? ` — ${d.clinicName}` : ''}`,
-                    }))}
-                    value={form.doctorId}
-                    onChange={(val) => handleInputChange('doctorId', val)}
-                    disabled={saving}
-                    placeholder="Select a doctor"
-                    error={!!formErrors.doctorId}
-                  />
-                  {formErrors.doctorId && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
+            {/* Modal Tabs navigation */}
+            <div style={{ padding: '0 1.75rem', marginTop: '1rem' }}>
+              <div className="modal-tabs" style={{ display: 'flex', borderBottom: '1px solid var(--border)', gap: '1.5rem' }}>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${modalTab === 'details' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setModalTab('details')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: modalTab === 'details' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: modalTab === 'details' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  1. Basic Details
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${modalTab === 'processes' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => {
+                    if (validateForm(false)) {
+                      setModalTab('processes');
+                    }
+                  }}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: modalTab === 'processes' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: modalTab === 'processes' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <span>2. Process Steps</span>
+                  {processList.length > 0 && (
+                    <span style={{
+                      fontSize: '0.75rem',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      color: 'var(--accent-primary, #3B82F6)',
+                      padding: '1px 6px',
+                      borderRadius: '10px',
+                      fontWeight: 700
+                    }}>
+                      {processList.length}
+                    </span>
                   )}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-wo-patient">Patient *</label>
-                  <input
-                    id="edit-wo-patient"
-                    className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
-                    type="text"
-                    placeholder="e.g., John Doe"
-                    value={form.patient}
-                    onChange={(e) => handleInputChange('patient', e.target.value)}
-                    disabled={saving}
-                  />
-                  {formErrors.patient && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
-                  )}
-                </div>
+                </button>
               </div>
+            </div>
 
-              {/* Row 2: Folio Number + Box Number */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-wo-folio">Folio Number</label>
-                  <input
-                    id="edit-wo-folio"
-                    className="form-input"
-                    type="text"
-                    value={editingWO.folioNumber}
-                    disabled
-                    style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
-                  />
-                </div>
+            <div className="modal__body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              {modalTab === 'details' ? (
+                <>
+                  {/* Row 1: Doctor + Patient */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-doctor">Doctor *</label>
+                      <SearchableSelect
+                        id="edit-wo-doctor"
+                        options={doctors.map((d) => ({
+                          value: d.id,
+                          label: `${d.name}${d.clinicName ? ` — ${d.clinicName}` : ''}`,
+                        }))}
+                        value={form.doctorId}
+                        onChange={(val) => handleInputChange('doctorId', val)}
+                        disabled={saving}
+                        placeholder="Select a doctor"
+                        error={!!formErrors.doctorId}
+                      />
+                      {formErrors.doctorId && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
+                      )}
+                    </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-wo-box">Box Number</label>
-                  <input
-                    id="edit-wo-box"
-                    className="form-input"
-                    type="text"
-                    placeholder="e.g., BOX-42"
-                    value={form.boxNumber}
-                    onChange={(e) => handleInputChange('boxNumber', e.target.value)}
-                    disabled={saving}
-                  />
-                </div>
-              </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-patient">Patient *</label>
+                      <input
+                        id="edit-wo-patient"
+                        className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
+                        type="text"
+                        placeholder="e.g., John Doe"
+                        value={form.patient}
+                        onChange={(e) => handleInputChange('patient', e.target.value)}
+                        disabled={saving}
+                      />
+                      {formErrors.patient && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
+                      )}
+                    </div>
+                  </div>
 
-              {/* Row 3: Prosthesis Type */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="edit-wo-prosthesis">Prosthesis Type *</label>
-                <SearchableSelect
-                  id="edit-wo-prosthesis"
-                  options={prosthesisTypes.map((pt) => ({
-                    value: pt.id,
-                    label: pt.name,
-                  }))}
-                  value={form.prosthesisTypeId}
-                  onChange={handleProsthesisTypeChange}
-                  disabled={saving}
-                  placeholder="Select prosthesis type"
-                  error={!!formErrors.prosthesisTypeId}
-                />
-                {formErrors.prosthesisTypeId && (
-                  <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
-                )}
-              </div>
+                  {/* Row 2: Folio Number + Box Number */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-folio">Folio Number</label>
+                      <input
+                        id="edit-wo-folio"
+                        className="form-input"
+                        type="text"
+                        value={editingWO.folioNumber}
+                        disabled
+                        style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
+                      />
+                    </div>
 
-              {/* Specification (Admin only) */}
-              {isAdmin && (
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-wo-spec">Specification *</label>
-                  <textarea
-                    id="edit-wo-spec"
-                    className={`form-input ${formErrors.specification ? 'form-input--error' : ''}`}
-                    style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                    placeholder="Color, shade, units, material details..."
-                    value={form.specification}
-                    onChange={(e) => handleInputChange('specification', e.target.value)}
-                    disabled={saving}
-                  />
-                  {formErrors.specification && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.specification}</span>
-                  )}
-                </div>
-              )}
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-box">Box Number</label>
+                      <input
+                        id="edit-wo-box"
+                        className="form-input"
+                        type="text"
+                        placeholder="e.g., BOX-42"
+                        value={form.boxNumber}
+                        onChange={(e) => handleInputChange('boxNumber', e.target.value)}
+                        disabled={saving}
+                      />
+                    </div>
+                  </div>
 
-              {/* Notes */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="edit-wo-notes">Notes</label>
-                <textarea
-                  id="edit-wo-notes"
-                  className="form-input"
-                  style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                  placeholder="Additional notes or instructions..."
-                  value={form.notes}
-                  onChange={(e) => handleInputChange('notes', e.target.value)}
-                  disabled={saving}
-                />
-              </div>
+                  {/* Row 3: Status Dropdown Selection */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-wo-status">Work Order Status</label>
+                    <select
+                      id="edit-wo-status"
+                      className="form-input"
+                      value={formStatus}
+                      onChange={(e) => setFormStatus(e.target.value)}
+                      disabled={saving}
+                      style={{ fontWeight: 600 }}
+                    >
+                      <option value="CREATED">Created</option>
+                      <option value="ASSIGNED">Assigned</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="INTERNAL_VERIFICATION">Internal Verification</option>
+                      <option value="EXTERNAL_VERIFICATION">External Verification</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="FAILED">Failed</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </div>
 
-              {/* Row: Total Quote + Initial Payment */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-wo-quote">Total Quote (₹) *</label>
-                  <input
-                    id="edit-wo-quote"
-                    className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="e.g., 5000"
-                    value={form.totalQuote}
-                    onChange={(e) => handleInputChange('totalQuote', e.target.value)}
-                    disabled={saving}
-                  />
-                  {formErrors.totalQuote && (
-                    <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-wo-payment">Initial Payment (₹)</label>
-                  <input
-                    id="edit-wo-payment"
-                    className="form-input"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="e.g., 2000"
-                    value={form.initialPayment}
-                    onChange={(e) => handleInputChange('initialPayment', e.target.value)}
-                    disabled={saving}
-                  />
-                </div>
-              </div>
-
-              {/* Process Steps Section */}
-              <div className="wo-process-section" style={{ marginTop: '1.5rem' }}>
-                <div className="wo-process-section__header">
-                  <h3 className="wo-process-section__title">
-                    Process Steps
-                    {processList.length > 0 && (
-                      <span className="wo-process-section__count">{processList.length}</span>
+                  {/* Row 4: Prosthesis Type */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-wo-prosthesis">Prosthesis Type *</label>
+                    <SearchableSelect
+                      id="edit-wo-prosthesis"
+                      options={prosthesisTypes.map((pt) => ({
+                        value: pt.id,
+                        label: pt.name,
+                      }))}
+                      value={form.prosthesisTypeId}
+                      onChange={handleProsthesisTypeChange}
+                      disabled={saving}
+                      placeholder="Select prosthesis type"
+                      error={!!formErrors.prosthesisTypeId}
+                    />
+                    {formErrors.prosthesisTypeId && (
+                      <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
                     )}
-                  </h3>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm"
-                      onClick={() => setShowAddProcess(true)}
-                      disabled={saving}
-                    >
-                      <PlusCircle size={14} />
-                      <span>Add Process</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm"
-                      onClick={handleAddVerification}
-                      disabled={saving}
-                    >
-                      <ShieldPlus size={14} />
-                      <span>Add Verification</span>
-                    </button>
                   </div>
-                </div>
 
-                {formErrors.processes && (
-                  <span className="form-error" style={{ marginBottom: '0.5rem', display: 'block' }}>
-                    <AlertCircle size={12} /> {formErrors.processes}
-                  </span>
-                )}
+                  {/* Specification (Admin only) */}
+                  {isAdmin && (
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-spec">Specification *</label>
+                      <textarea
+                        id="edit-wo-spec"
+                        className={`form-input ${formErrors.specification ? 'form-input--error' : ''}`}
+                        style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
+                        placeholder="Color, shade, units, material details..."
+                        value={form.specification}
+                        onChange={(e) => handleInputChange('specification', e.target.value)}
+                        disabled={saving}
+                      />
+                      {formErrors.specification && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.specification}</span>
+                      )}
+                    </div>
+                  )}
 
-                {processList.length === 0 && !showAddProcess ? (
-                  <div className="wo-process-empty">
-                    <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                    <span>Select a prosthesis type to load process steps</span>
+                  {/* Notes */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-wo-notes">Notes</label>
+                    <textarea
+                      id="edit-wo-notes"
+                      className="form-input"
+                      style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
+                      placeholder="Additional notes or instructions..."
+                      value={form.notes}
+                      onChange={(e) => handleInputChange('notes', e.target.value)}
+                      disabled={saving}
+                    />
                   </div>
-                ) : (
-                  <div className="wo-process-list">
-                    {processList.map((proc, idx) => (
-                      <div
-                        key={proc.tempId}
-                        className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
+
+                  {/* Row: Total Quote + Initial Payment */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-quote">Total Quote (₹) *</label>
+                      <input
+                        id="edit-wo-quote"
+                        className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g., 5000"
+                        value={form.totalQuote}
+                        onChange={(e) => handleInputChange('totalQuote', e.target.value)}
+                        disabled={saving}
+                      />
+                      {formErrors.totalQuote && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
+                      )}
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-payment">Initial Payment (₹)</label>
+                      <input
+                        id="edit-wo-payment"
+                        className="form-input"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g., 2000"
+                        value={form.initialPayment}
+                        onChange={(e) => handleInputChange('initialPayment', e.target.value)}
+                        disabled={saving}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Branch select (Owner only) */}
+                  {isOwner && branches.length > 0 && (
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-branch">Branch *</label>
+                      <SearchableSelect
+                        id="edit-wo-branch"
+                        options={branches.map((b) => ({
+                          value: b.id,
+                          label: `${b.name} (${b.code})`,
+                        }))}
+                        value={form.branchId}
+                        onChange={(val) => handleInputChange('branchId', val)}
+                        disabled={saving}
+                        placeholder="Select a branch"
+                        error={!!formErrors.branchId}
+                      />
+                      {formErrors.branchId && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Tab 2: Process Steps Assignment */
+                <div className="wo-process-section" style={{ margin: 0, border: 'none', background: 'transparent', padding: 0 }}>
+                  <div className="wo-process-section__header" style={{ marginBottom: '1rem' }}>
+                    <h3 className="wo-process-section__title">
+                      Process Steps Assignment
+                      {processList.length > 0 && (
+                        <span className="wo-process-section__count">{processList.length}</span>
+                      )}
+                    </h3>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => {
+                          setShowAddProcess(true);
+                          setShowAddVerificationForm(false);
+                          setNewProcessId('');
+                          setNewProcessName('');
+                          setNewProcessTechnicianId('');
+                        }}
+                        disabled={saving || showAddProcess}
                       >
-                        <div className="wo-process-item__order">
-                          <span className="wo-process-item__number">{idx + 1}</span>
-                        </div>
+                        <PlusCircle size={14} />
+                        <span>Add Process</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => {
+                          setShowAddVerificationForm(true);
+                          setShowAddProcess(false);
+                          setVerificationType('INTERNAL');
+                          setVerificationTechnicianId('');
+                        }}
+                        disabled={saving || showAddVerificationForm}
+                      >
+                        <ShieldPlus size={14} />
+                        <span>Add Verification</span>
+                      </button>
+                    </div>
+                  </div>
 
-                        <div className="wo-process-item__name">
-                          <span>{proc.processName}</span>
-                          {proc.isVerification && (
-                            <span className="wo-process-item__tag">Verification</span>
-                          )}
-                        </div>
+                  {formErrors.processes && (
+                    <span className="form-error" style={{ marginBottom: '0.75rem', display: 'block' }}>
+                      <AlertCircle size={12} /> {formErrors.processes}
+                    </span>
+                  )}
 
-                        <div className="wo-process-item__technician">
+                  {processList.length === 0 && !showAddProcess && !showAddVerificationForm ? (
+                    <div className="wo-process-empty" style={{ border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                      <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                      <span>No processes loaded yet. Choose prosthesis type in details or add processes.</span>
+                    </div>
+                  ) : (
+                    <div className="wo-process-list">
+                      {processList.map((proc, idx) => (
+                        <div
+                          key={proc.tempId}
+                          className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
+                        >
+                          <div className="wo-process-item__order">
+                            <span className="wo-process-item__number">{idx + 1}</span>
+                          </div>
+
+                          <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px' }}>
+                            <span>{proc.processName}</span>
+                            {proc.isVerification && (
+                              <span className="wo-process-item__tag" style={{
+                                backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                                color: proc.technicianId ? '#8B5CF6' : '#6366F1'
+                              }}>
+                                {proc.technicianId ? 'Internal' : 'External'} Verification
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Technician Assignment */}
+                          <div className="wo-process-item__technician" style={{ width: '200px' }}>
+                            {proc.isVerification && !proc.technicianId ? (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '32px',
+                                fontSize: '0.75rem',
+                                color: 'var(--accent-primary)',
+                                fontWeight: 700,
+                                padding: '0 0.5rem',
+                                backgroundColor: 'var(--bg-muted, #F3F4F6)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border)'
+                              }}>
+                                {(() => {
+                                  const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                                  return selectedDoc ? selectedDoc.name : 'Selected Doctor';
+                                })()}
+                              </div>
+                            ) : (
+                              <SearchableSelect
+                                id={`select-edit-proc-tech-${proc.tempId}`}
+                                options={(proc.isVerification ? admins : technicians).map((u) => ({
+                                  value: u.id,
+                                  label: `${u.firstName} ${u.lastName}`,
+                                }))}
+                                value={proc.technicianId}
+                                onChange={(val) => updateProcessTechnician(idx, val)}
+                                disabled={saving}
+                                placeholder={`Select ${proc.isVerification ? 'admin' : 'technician'}`}
+                              />
+                            )}
+                          </div>
+
+                          {/* Process Status selection */}
+                          <div className="wo-process-item__status" style={{ width: '150px' }}>
+                            <SearchableSelect
+                              id={`select-edit-proc-status-${proc.tempId}`}
+                              options={[
+                                { value: 'NOT_STARTED', label: 'Not Started' },
+                                { value: 'IN_PROGRESS', label: 'In Progress' },
+                                { value: 'COMPLETED', label: 'Completed' },
+                                { value: 'FAILED', label: 'Failed' },
+                                { value: 'CANCELLED', label: 'Cancelled' },
+                              ]}
+                              value={proc.status || 'NOT_STARTED'}
+                              onChange={(val) => updateProcessStatus(idx, val as any)}
+                              disabled={saving}
+                              placeholder="Select status"
+                            />
+                          </div>
+
+                          <div className="wo-process-item__actions">
+                            <button
+                              type="button"
+                              className="wo-process-item__btn"
+                              onClick={() => moveProcess(idx, 'up')}
+                              disabled={idx === 0 || saving}
+                              title="Move up"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="wo-process-item__btn"
+                              onClick={() => moveProcess(idx, 'down')}
+                              disabled={idx === processList.length - 1 || saving}
+                              title="Move down"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="wo-process-item__btn wo-process-item__btn--danger"
+                              onClick={() => removeProcess(idx)}
+                              disabled={saving}
+                              title="Remove"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inline Add Process Form */}
+                  {showAddProcess && (
+                    <div className="wo-process-add" style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-muted, #F3F4F6)' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: '220px' }}>
+                          <SearchableSelect
+                            id="select-edit-add-process-master"
+                            options={availableProcesses.map((p) => ({
+                              value: p.id,
+                              label: `${p.name} (${p.processArea})`,
+                            }))}
+                            value={newProcessId}
+                            onChange={handleAvailableProcessChange}
+                            disabled={saving}
+                            placeholder="Select process..."
+                          />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '180px' }}>
+                          <SearchableSelect
+                            id="select-edit-add-process-tech"
+                            options={technicians.map((t) => ({
+                              value: t.id,
+                              label: `${t.firstName} ${t.lastName}`,
+                            }))}
+                            value={newProcessTechnicianId}
+                            onChange={setNewProcessTechnicianId}
+                            disabled={saving}
+                            placeholder="Select technician"
+                          />
+                        </div>
+                        <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
+                          Add
+                        </button>
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessId(''); setNewProcessName(''); setNewProcessTechnicianId(''); }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inline Add Verification Form */}
+                  {showAddVerificationForm && (
+                    <div className="wo-process-add" style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-muted, #F3F4F6)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>Add Verification Step</span>
+                        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap', alignItems: 'center' }}>
                           <select
                             className="form-input form-input--sm"
-                            value={proc.technicianId}
-                            onChange={(e) => updateProcessTechnician(idx, e.target.value)}
-                            disabled={saving || proc.isVerification}
+                            value={verificationType}
+                            onChange={(e) => setVerificationType(e.target.value as any)}
+                            style={{ flex: 1, minWidth: '120px' }}
                           >
-                            <option value="" disabled>Select technician</option>
-                            {proc.isVerification ? (
-                              <option value={user?.id || ''}>{user?.firstName} {user?.lastName} (Admin)</option>
-                            ) : (
-                              technicians.map((t) => (
-                                <option key={t.id} value={t.id}>
-                                  {t.firstName} {t.lastName}
-                                </option>
-                              ))
-                            )}
+                            <option value="INTERNAL">Internal Verification</option>
+                            <option value="EXTERNAL">External Verification</option>
                           </select>
-                        </div>
 
-                        <div className="wo-process-item__actions">
-                          <button
-                            type="button"
-                            className="wo-process-item__btn"
-                            onClick={() => moveProcess(idx, 'up')}
-                            disabled={idx === 0 || saving}
-                            title="Move up"
-                          >
-                            <ChevronUp size={14} />
+                          {verificationType === 'INTERNAL' ? (
+                            <div style={{ flex: 1, minWidth: '180px' }}>
+                              <SearchableSelect
+                                id="select-edit-add-verification-admin"
+                                options={admins.map((a) => ({
+                                  value: a.id,
+                                  label: `${a.firstName} ${a.lastName}`,
+                                }))}
+                                value={verificationTechnicianId}
+                                onChange={setVerificationTechnicianId}
+                                disabled={saving}
+                                placeholder="Select admin"
+                              />
+                            </div>
+                          ) : (
+                            <div style={{
+                              flex: 1,
+                              minWidth: '120px',
+                              fontSize: '0.75rem',
+                              color: 'var(--text-secondary)',
+                              padding: '0 0.5rem',
+                              fontStyle: 'italic'
+                            }}>
+                              Assigned: {(() => {
+                                const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                                return selectedDoc ? `${selectedDoc.name} (Doctor)` : 'Selected Doctor';
+                              })()}
+                            </div>
+                          )}
+
+                          <button type="button" className="btn btn--primary btn--sm" onClick={handleAddVerification}>
+                            Add
                           </button>
-                          <button
-                            type="button"
-                            className="wo-process-item__btn"
-                            onClick={() => moveProcess(idx, 'down')}
-                            disabled={idx === processList.length - 1 || saving}
-                            title="Move down"
-                          >
-                            <ChevronDown size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className="wo-process-item__btn wo-process-item__btn--danger"
-                            onClick={() => removeProcess(idx)}
-                            disabled={saving}
-                            title="Remove"
-                          >
-                            <Trash2 size={14} />
+                          <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddVerificationForm(false); setVerificationTechnicianId(''); }}>
+                            Cancel
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Inline Add Process Form */}
-                {showAddProcess && (
-                  <div className="wo-process-add">
-                    <input
-                      className="form-input form-input--sm"
-                      type="text"
-                      placeholder="Process name..."
-                      value={newProcessName}
-                      onChange={(e) => setNewProcessName(e.target.value)}
-                      autoFocus
-                    />
-                    <select
-                      className="form-input form-input--sm"
-                      value={newProcessTechnicianId}
-                      onChange={(e) => setNewProcessTechnicianId(e.target.value)}
-                    >
-                      <option value="" disabled>Select technician</option>
-                      {technicians.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.firstName} {t.lastName}
-                        </option>
-                      ))}
-                    </select>
-                    <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
-                      Add
-                    </button>
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessName(''); }}>
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer Buttons */}
-              <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  onClick={() => setShowEditModal(false)}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={handleEditSubmit}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
-                  ) : (
-                    <span>Save Changes</span>
+                    </div>
                   )}
-                </button>
-              </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Buttons depending on Active Tab */}
+            <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              {modalTab === 'details' ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => setShowEditModal(false)}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      id="btn-wo-edit-save"
+                      type="button"
+                      className="btn btn--outline"
+                      onClick={() => handleEditSubmit(false)}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                      ) : (
+                        <span>Save</span>
+                      )}
+                    </button>
+                    <button
+                      id="btn-wo-edit-save-assign"
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => {
+                        if (validateForm(false)) {
+                          setModalTab('processes');
+                        }
+                      }}
+                      disabled={saving}
+                    >
+                      <span>Save &amp; Assign</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => setModalTab('details')}
+                    disabled={saving}
+                  >
+                    Back
+                  </button>
+                  <button
+                    id="btn-wo-edit-confirm"
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => handleEditSubmit(true)}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                    ) : (
+                      <span>Save Changes</span>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
