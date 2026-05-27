@@ -96,11 +96,12 @@ model Branch {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users      User[]
-  doctors    Doctor[]
-  processes  Process[]
-  workOrders WorkOrder[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users           User[]
+  doctors         Doctor[]
+  prosthesisTypes ProsthesisType[]
+  processes       Process[]
+  workOrders      WorkOrder[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -198,17 +199,19 @@ model Doctor {
 model ProsthesisType {
   id          String   @id @default(uuid())
   tenantId    String   @map("tenant_id")
+  branchId    String?  @map("branch_id")
   name        String
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  processes  Process[]
-  workOrders WorkOrder[]
+  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch             Branch?                 @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  processAssignments ProsthesisTypeProcess[]
+  workOrders         WorkOrder[]
 
-  @@unique([tenantId, name])
+  @@unique([tenantId, branchId, name])
   @@map("prosthesis_types")
 }
 
@@ -221,18 +224,33 @@ model Process {
   name                String
   processArea         String   @map("process_area") // e.g. "Scanning", "Design", "Milling", "QC"
   defaultTechnicianId String   @map("default_technician_id")
-  prosthesisTypeId    String   @map("prosthesis_type_id")
-  sequence            Int      @default(0)
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch            Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  defaultTechnician User            @relation("ProcessDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: Cascade)
-  prosthesisType    ProsthesisType  @relation(fields: [prosthesisTypeId], references: [id], onDelete: Cascade)
+  tenant                    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch                    Branch?                 @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  defaultTechnician         User                    @relation("ProcessDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: Cascade)
+  prosthesisTypeAssignments ProsthesisTypeProcess[]
 
   @@map("processes")
+}
+
+// ─── Prosthesis Type ↔ Process (Junction) ────────────────
+
+model ProsthesisTypeProcess {
+  id               String   @id @default(uuid())
+  prosthesisTypeId String   @map("prosthesis_type_id")
+  processId        String   @map("process_id")
+  sequence         Int      @default(0)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relations
+  prosthesisType ProsthesisType @relation(fields: [prosthesisTypeId], references: [id], onDelete: Cascade)
+  process        Process        @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@unique([prosthesisTypeId, processId])
+  @@map("prosthesis_type_processes")
 }
 
 // ─── Work Order ──────────────────────────────────────────

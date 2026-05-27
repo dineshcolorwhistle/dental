@@ -1,5 +1,4 @@
 import api from './api';
-import { type ProsthesisTypeListItem } from './prosthesis-type.service';
 
 export interface ProcessListItem {
   id: string;
@@ -8,11 +7,8 @@ export interface ProcessListItem {
   name: string;
   processArea: string;
   defaultTechnicianId: string;
-  prosthesisTypeId: string;
-  sequence: number;
   createdAt: string;
   updatedAt: string;
-  prosthesisType: ProsthesisTypeListItem;
   branch?: {
     id: string;
     name: string;
@@ -23,13 +19,20 @@ export interface ProcessListItem {
     lastName: string;
     email: string;
   };
+  prosthesisTypeAssignments?: {
+    id: string;
+    sequence: number;
+    prosthesisType: {
+      id: string;
+      name: string;
+    };
+  }[];
 }
 
 export interface CreateProcessPayload {
   name: string;
   processArea: string;
   defaultTechnicianId: string;
-  prosthesisTypeId: string;
   branchId?: string;
 }
 
@@ -57,14 +60,6 @@ export const processService = {
 
   delete: async (id: string): Promise<{ success: boolean }> => {
     const response = await api.delete<{ success: boolean }>(`/processes/${id}`);
-    return response.data;
-  },
-
-  reorder: async (prosthesisTypeId: string, processIds: string[]): Promise<{ success: boolean }> => {
-    const response = await api.post<{ success: boolean }>('/processes/reorder', {
-      prosthesisTypeId,
-      processIds,
-    });
     return response.data;
   },
 };

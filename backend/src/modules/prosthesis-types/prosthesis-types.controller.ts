@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
   BadRequestException,
@@ -13,7 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { ProsthesisTypesService } from './prosthesis-types.service';
-import { CreateProsthesisTypeDto, UpdateProsthesisTypeDto } from './dto';
+import { CreateProsthesisTypeDto, UpdateProsthesisTypeDto, ReorderProsthesisTypeProcessesDto } from './dto';
 import { Roles, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Prosthesis Types')
@@ -29,33 +30,62 @@ export class ProsthesisTypesController {
   @ApiOperation({ summary: 'Create a new prosthesis/work type' })
   async create(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
     @Body() dto: CreateProsthesisTypeDto,
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.prosthesisTypesService.create(tenantId, dto);
+    return this.prosthesisTypesService.create(tenantId, branchIdContext, userRole, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List all prosthesis/work types' })
-  async findAll(@CurrentUser('tenantId') tenantId: string) {
+  async findAll(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+    @Query('branchId') branchIdFilter?: string,
+  ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.prosthesisTypesService.findAll(tenantId);
+
+    // For branch admin, implicitly force branch scoping
+    if (userRole === 'ADMIN') {
+      return this.prosthesisTypesService.findAll(tenantId, branchIdContext || undefined);
+    }
+
+    // For owner, use query filter if provided
+    return this.prosthesisTypesService.findAll(tenantId, branchIdFilter);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get details of a specific prosthesis type' })
   async findOne(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
     @Param('id') id: string,
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.prosthesisTypesService.findOne(tenantId, id);
+    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.prosthesisTypesService.findOne(tenantId, id, branchContext);
+  }
+
+  @Get(':id/processes')
+  @ApiOperation({ summary: 'Get processes assigned to a prosthesis type in sequence order' })
+  async getProcesses(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.prosthesisTypesService.getProcesses(tenantId, id);
   }
 
   @Patch(':id')
@@ -63,13 +93,31 @@ export class ProsthesisTypesController {
   @ApiOperation({ summary: 'Update a prosthesis type' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
     @Param('id') id: string,
     @Body() dto: UpdateProsthesisTypeDto,
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.prosthesisTypesService.update(tenantId, id, dto);
+    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.prosthesisTypesService.update(tenantId, id, dto, branchContext);
+  }
+
+  @Post(':id/reorder-processes')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reorder process sequence for a prosthesis type' })
+  async reorderProcesses(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: ReorderProsthesisTypeProcessesDto,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.prosthesisTypesService.reorderProcesses(tenantId, id, dto.processIds);
   }
 
   @Delete(':id')
@@ -78,11 +126,14 @@ export class ProsthesisTypesController {
   @ApiOperation({ summary: 'Delete a prosthesis type' })
   async remove(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
     @Param('id') id: string,
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.prosthesisTypesService.remove(tenantId, id);
+    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.prosthesisTypesService.remove(tenantId, id, branchContext);
   }
 }

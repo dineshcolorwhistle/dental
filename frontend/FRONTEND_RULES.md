@@ -41,3 +41,20 @@ Whenever styling elements, refer to the semantic variables:
     *   `@media (max-width: 480px)`: Target mobile phones. E.g., stack grid columns.
 3.  **Touch Targets:** Ensure all buttons, links, and inputs are at least `44px` tall for easy tapping on mobile devices.
 4.  **Padding & Margins:** Use responsive padding. (e.g. `padding: 1rem` on mobile, `padding: 2rem` on desktop).
+
+## 🔍 Searchable Dropdown Standard
+To ensure the application scales seamlessly when lists of entities (such as branches, doctors, prosthesis types, technicians, etc.) grow large:
+*   **Rule:** Hereafter, any newly created selection dropdown field **MUST** use the custom `SearchableSelect` component instead of standard HTML `<select>` tags, unless it is a very small static configuration with 3 or fewer choices (e.g., active/inactive statuses).
+*   **Import:** Import it via `import { SearchableSelect } from '../components';`.
+*   **Usage Example:**
+    ```tsx
+    <SearchableSelect
+      id="select-my-entity"
+      options={optionsList.map(o => ({ value: o.id, label: o.name }))}
+      value={form.entityId}
+      onChange={(val) => handleInputChange('entityId', val)}
+      placeholder="Choose an option..."
+      error={!!formErrors.entityId}
+    />
+    ```
+

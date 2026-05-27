@@ -18,7 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import { doctorService, branchService, type DoctorListItem, type BranchListItem, type CreateDoctorPayload } from '../services';
 import { useAuth } from '../context';
-import { Pagination } from '../components';
+import { Pagination, SearchableSelect } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
@@ -655,20 +655,18 @@ export function DoctorsPage() {
                   <label className="form-label" htmlFor="select-doctor-branch">
                     Assigned Branch *
                   </label>
-                  <select
+                  <SearchableSelect
                     id="select-doctor-branch"
-                    className={`form-input ${formErrors.branchId ? 'form-input--error' : ''}`}
-                    value={form.branchId}
-                    onChange={(e) => handleInputChange('branchId', e.target.value)}
+                    options={branches.map((b) => ({
+                      value: b.id,
+                      label: `${b.name} (${b.code})`,
+                    }))}
+                    value={form.branchId || ''}
+                    onChange={(val) => handleInputChange('branchId', val)}
                     disabled={saving}
-                  >
-                    <option value="" disabled>Select a branch</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.code})
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select a branch"
+                    error={!!formErrors.branchId}
+                  />
                   {formErrors.branchId && (
                     <span className="form-error">
                       <AlertCircle size={12} /> {formErrors.branchId}
@@ -815,19 +813,18 @@ export function DoctorsPage() {
                   <label className="form-label" htmlFor="select-edit-doctor-branch">
                     Assigned Branch *
                   </label>
-                  <select
+                  <SearchableSelect
                     id="select-edit-doctor-branch"
-                    className={`form-input ${formErrors.branchId ? 'form-input--error' : ''}`}
-                    value={form.branchId}
-                    onChange={(e) => handleInputChange('branchId', e.target.value)}
+                    options={branches.map((b) => ({
+                      value: b.id,
+                      label: `${b.name} (${b.code})`,
+                    }))}
+                    value={form.branchId || ''}
+                    onChange={(val) => handleInputChange('branchId', val)}
                     disabled={saving}
-                  >
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.code})
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select a branch"
+                    error={!!formErrors.branchId}
+                  />
                   {formErrors.branchId && (
                     <span className="form-error">
                       <AlertCircle size={12} /> {formErrors.branchId}

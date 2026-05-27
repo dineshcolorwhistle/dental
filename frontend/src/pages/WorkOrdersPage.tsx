@@ -26,7 +26,6 @@ import {
   workOrderService,
   doctorService,
   prosthesisTypeService,
-  processService,
   technicianService,
   branchService,
   type WorkOrderListItem,
@@ -34,12 +33,11 @@ import {
   type CreateWorkOrderProcessPayload,
   type DoctorListItem,
   type ProsthesisTypeListItem,
-  type ProcessListItem,
   type TechnicianListItem,
   type BranchListItem,
 } from '../services';
 import { useAuth } from '../context';
-import { Pagination } from '../components';
+import { Pagination, SearchableSelect } from '../components';
 
 type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'VERIFICATION' | 'COMPLETED';
 
@@ -93,7 +91,6 @@ export function WorkOrdersPage() {
   // View modal
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrderListItem | null>(null);
-  const [viewLoading, setViewLoading] = useState(false);
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -103,7 +100,6 @@ export function WorkOrdersPage() {
   const [doctors, setDoctors] = useState<DoctorListItem[]>([]);
   const [prosthesisTypes, setProsthesisTypes] = useState<ProsthesisTypeListItem[]>([]);
   const [technicians, setTechnicians] = useState<TechnicianListItem[]>([]);
-  const [allProcesses, setAllProcesses] = useState<ProcessListItem[]>([]);
 
   // Form state
   const [form, setForm] = useState({
@@ -147,20 +143,17 @@ export function WorkOrdersPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Load reference data for create modal
   const loadReferenceData = useCallback(async () => {
     try {
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
-      const [doctorData, ptData, techData, processData] = await Promise.all([
+      const [doctorData, ptData, techData] = await Promise.all([
         doctorService.getAll(branchScope),
         prosthesisTypeService.getAll(),
         technicianService.getAll(branchScope),
-        processService.getAll(branchScope),
       ]);
       setDoctors(doctorData.filter((d) => d.isActive));
       setProsthesisTypes(ptData);
       setTechnicians(techData.filter((t) => t.status === 'ACTIVE'));
-      setAllProcesses(processData);
     } catch (err) {
       toast.error('Failed to load reference data');
       console.error(err);
@@ -261,24 +254,27 @@ export function WorkOrdersPage() {
     setShowCreateModal(true);
   };
 
-  const handleProsthesisTypeChange = (ptId: string) => {
+  const handleProsthesisTypeChange = async (ptId: string) => {
     setForm((prev) => ({ ...prev, prosthesisTypeId: ptId }));
     if (formErrors.prosthesisTypeId) setFormErrors((prev) => ({ ...prev, prosthesisTypeId: '' }));
 
-    // Load processes for this prosthesis type
-    const relatedProcesses = allProcesses
-      .filter((p) => p.prosthesisTypeId === ptId)
-      .sort((a, b) => a.sequence - b.sequence);
+    try {
+      // Load processes for this prosthesis type in sequence order
+      const assignments = await prosthesisTypeService.getProcesses(ptId);
 
-    const items: ProcessFormItem[] = relatedProcesses.map((p, idx) => ({
-      tempId: `proc-${Date.now()}-${idx}`,
-      processName: p.name,
-      technicianId: p.defaultTechnicianId || '',
-      sequence: idx,
-      isVerification: false,
-    }));
+      const items: ProcessFormItem[] = assignments.map((assign, idx) => ({
+        tempId: `proc-${Date.now()}-${idx}`,
+        processName: assign.process.name,
+        technicianId: assign.process.defaultTechnicianId || '',
+        sequence: assign.sequence,
+        isVerification: false,
+      }));
 
-    setProcessList(items);
+      setProcessList(items);
+    } catch (err) {
+      toast.error('Failed to load processes for the selected prosthesis type');
+      console.error(err);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -385,7 +381,6 @@ export function WorkOrdersPage() {
   // ─── View ────────────────────────────
   const handleViewOpen = async (wo: WorkOrderListItem) => {
     try {
-      setViewLoading(true);
       setSelectedWO(wo);
       setShowViewModal(true);
       const detailedWo = await workOrderService.getById(wo.id);
@@ -393,8 +388,6 @@ export function WorkOrdersPage() {
     } catch (err) {
       toast.error('Failed to load work order details');
       console.error(err);
-    } finally {
-      setViewLoading(false);
     }
   };
 
@@ -838,20 +831,18 @@ export function WorkOrdersPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-wo-doctor">Doctor *</label>
-                  <select
+                  <SearchableSelect
                     id="select-wo-doctor"
-                    className={`form-input ${formErrors.doctorId ? 'form-input--error' : ''}`}
+                    options={doctors.map((d) => ({
+                      value: d.id,
+                      label: `${d.name}${d.clinicName ? ` — ${d.clinicName}` : ''}`,
+                    }))}
                     value={form.doctorId}
-                    onChange={(e) => handleInputChange('doctorId', e.target.value)}
+                    onChange={(val) => handleInputChange('doctorId', val)}
                     disabled={saving}
-                  >
-                    <option value="" disabled>Select a doctor</option>
-                    {doctors.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}{d.clinicName ? ` — ${d.clinicName}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select a doctor"
+                    error={!!formErrors.doctorId}
+                  />
                   {formErrors.doctorId && (
                     <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
                   )}
@@ -905,18 +896,18 @@ export function WorkOrdersPage() {
               {/* Row 3: Prosthesis Type */}
               <div className="form-group">
                 <label className="form-label" htmlFor="select-wo-prosthesis">Prosthesis Type *</label>
-                <select
+                <SearchableSelect
                   id="select-wo-prosthesis"
-                  className={`form-input ${formErrors.prosthesisTypeId ? 'form-input--error' : ''}`}
+                  options={prosthesisTypes.map((pt) => ({
+                    value: pt.id,
+                    label: pt.name,
+                  }))}
                   value={form.prosthesisTypeId}
-                  onChange={(e) => handleProsthesisTypeChange(e.target.value)}
+                  onChange={handleProsthesisTypeChange}
                   disabled={saving}
-                >
-                  <option value="" disabled>Select prosthesis type</option>
-                  {prosthesisTypes.map((pt) => (
-                    <option key={pt.id} value={pt.id}>{pt.name}</option>
-                  ))}
-                </select>
+                  placeholder="Select prosthesis type"
+                  error={!!formErrors.prosthesisTypeId}
+                />
                 {formErrors.prosthesisTypeId && (
                   <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
                 )}
@@ -994,18 +985,18 @@ export function WorkOrdersPage() {
               {isOwner && branches.length > 0 && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-wo-branch">Branch *</label>
-                  <select
+                  <SearchableSelect
                     id="select-wo-branch"
-                    className={`form-input ${formErrors.branchId ? 'form-input--error' : ''}`}
+                    options={branches.map((b) => ({
+                      value: b.id,
+                      label: `${b.name} (${b.code})`,
+                    }))}
                     value={form.branchId}
-                    onChange={(e) => handleInputChange('branchId', e.target.value)}
+                    onChange={(val) => handleInputChange('branchId', val)}
                     disabled={saving}
-                  >
-                    <option value="" disabled>Select a branch</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
-                    ))}
-                  </select>
+                    placeholder="Select a branch"
+                    error={!!formErrors.branchId}
+                  />
                   {formErrors.branchId && (
                     <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
                   )}
@@ -1264,228 +1255,560 @@ export function WorkOrdersPage() {
       {showViewModal && selectedWO && (
         <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
           <div className="modal modal--lg" onClick={(e) => e.stopPropagation()}>
-            <div className="modal__header">
+            <div className="modal__header" style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
               <div>
-                <h2 className="modal__title">Work Order Details</h2>
-                <p className="modal__subtitle">Viewing details for folio <strong>{selectedWO.folioNumber}</strong></p>
+                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', margin: 0 }}>
+                  <span>Work Order Details</span>
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: 700, 
+                    padding: '2px 8px', 
+                    borderRadius: '6px', 
+                    backgroundColor: 'rgba(111, 174, 217, 0.1)', 
+                    color: 'var(--accent-primary, #6FAED9)',
+                    fontFamily: 'monospace',
+                    border: '1px solid rgba(111, 174, 217, 0.2)'
+                  }}>
+                    Folio: {selectedWO.folioNumber}
+                  </span>
+                  {selectedWO.boxNumber && (
+                    <span style={{ 
+                      fontSize: '0.75rem', 
+                      fontWeight: 700, 
+                      padding: '2px 8px', 
+                      borderRadius: '6px', 
+                      backgroundColor: 'rgba(148, 163, 184, 0.08)', 
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border)'
+                    }}>
+                      Box: {selectedWO.boxNumber}
+                    </span>
+                  )}
+                </h2>
+                <p className="modal__subtitle" style={{ marginTop: '4px', margin: 0 }}>
+                  Complete information and dynamic workflow progress tracking
+                </p>
               </div>
               <button
                 className="modal__close"
                 onClick={() => setShowViewModal(false)}
                 aria-label="Close"
+                style={{ top: '1.5rem', right: '1.5rem' }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="modal__body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              {viewLoading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', gap: '1rem' }}>
-                  <Loader2 size={36} className="spinner" style={{ color: 'var(--accent-primary)' }} />
-                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Loading latest details...</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {/* Status Banner */}
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    padding: '0.75rem 1rem', 
-                    borderRadius: '8px', 
-                    backgroundColor: STATUS_CONFIG[selectedWO.status]?.bg || '#F3F4F6', 
-                    border: `1px solid ${STATUS_CONFIG[selectedWO.status]?.color || '#E5E7EB'}` 
-                  }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>Current Workflow Status:</span>
-                    <span
-                      className="wo-status-badge"
-                      style={{
-                        color: STATUS_CONFIG[selectedWO.status]?.color,
-                        backgroundColor: STATUS_CONFIG[selectedWO.status]?.bg,
-                        margin: 0,
-                      }}
-                    >
-                      {STATUS_CONFIG[selectedWO.status]?.icon}
-                      {STATUS_CONFIG[selectedWO.status]?.label}
-                    </span>
-                  </div>
+            <div className="modal__body" style={{ 
+              maxHeight: 'calc(80vh - 140px)', 
+              overflowY: 'auto', 
+              padding: '1.5rem', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '1.5rem' 
+            }}>
+                  {/* First Section: Key Overview Card */}
+                  {(() => {
+                    const processes = selectedWO.processes || [];
+                    
+                    // Determine active stepper index
+                    let activeIndex = 0;
+                    if (selectedWO.status === 'COMPLETED') {
+                      activeIndex = processes.length;
+                    } else if (selectedWO.status === 'VERIFICATION') {
+                      activeIndex = processes.length - 1;
+                    } else if (selectedWO.status === 'IN_PROGRESS') {
+                      activeIndex = Math.min(processes.length - 1, Math.max(0, Math.floor(processes.length / 2)));
+                    } else if (selectedWO.status === 'ASSIGNED') {
+                      activeIndex = 0;
+                    } else { // CREATED
+                      activeIndex = -1;
+                    }
 
-                  {/* Two-Column Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Patient</span>
-                        <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedWO.patient}</span>
-                      </div>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Doctor</span>
-                        <span style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{selectedWO.doctor?.name || '—'}</span>
-                        {selectedWO.doctor?.clinicName && (
-                          <span style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{selectedWO.doctor.clinicName}</span>
-                        )}
-                      </div>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Box Number</span>
-                        <span style={{ fontSize: '0.9375rem', fontWeight: 500, fontFamily: 'monospace' }}>{selectedWO.boxNumber || '—'}</span>
-                      </div>
-                      {selectedWO.branch && (
-                        <div>
-                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Branch</span>
-                          <span className="cell-branch" style={{ fontSize: '0.875rem', display: 'inline-block', marginTop: '0.125rem' }}>
-                            {selectedWO.branch.name} ({selectedWO.branch.code})
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    // Determine active/in-progress step or fallback to first step details
+                    const hasActiveProcess = activeIndex >= 0 && activeIndex < processes.length;
+                    const displayProc = hasActiveProcess ? processes[activeIndex] : processes[0];
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Prosthesis Type</span>
-                        <span className="cell-subdomain" style={{ textTransform: 'none', fontWeight: 600, display: 'inline-block', marginTop: '0.125rem' }}>
-                          {selectedWO.prosthesisType?.name || '—'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Quote</span>
-                        <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {selectedWO.totalQuote != null ? `₹${selectedWO.totalQuote.toLocaleString('en-IN')}` : '—'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Initial Payment</span>
-                        <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--success, #10B981)' }}>
-                          {selectedWO.initialPayment != null ? `₹${selectedWO.initialPayment.toLocaleString('en-IN')}` : '—'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Created On</span>
-                        <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                          {new Date(selectedWO.createdAt).toLocaleDateString('en-IN', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                    const activeStepName = displayProc?.processName || 'No steps configured';
+                    const activeTechnician = displayProc?.technician 
+                      ? `${displayProc.technician.firstName} ${displayProc.technician.lastName}` 
+                      : 'Unassigned';
 
-                  {/* Specification & Notes */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
-                    {/* Specification (visible to ADMIN only, as requested in permissions) */}
-                    {isAdmin && (
-                      <div>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.375rem' }}>Specification (Admin Only)</span>
-                        <div style={{ 
-                          padding: '0.75rem 1rem', 
-                          borderRadius: '8px', 
-                          backgroundColor: 'var(--bg-muted, #F9FAFB)', 
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {/* First Section: Specification & Progress Overview Grid */}
+                        <div style={{
+                          backgroundColor: 'var(--bg-surface)',
                           border: '1px solid var(--border)',
-                          fontSize: '0.875rem',
-                          color: 'var(--text-primary)',
-                          whiteSpace: 'pre-wrap',
-                          fontFamily: 'inherit'
+                          borderRadius: '12px',
+                          padding: '1.5rem',
+                          boxShadow: 'var(--shadow-sm)',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                          gap: '1.5rem'
                         }}>
-                          {selectedWO.specification || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No specifications provided.</span>}
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.375rem' }}>Notes</span>
-                      <div style={{ 
-                        padding: '0.75rem 1rem', 
-                        borderRadius: '8px', 
-                        backgroundColor: 'var(--bg-muted, #F9FAFB)', 
-                        border: '1px solid var(--border)',
-                        fontSize: '0.875rem',
-                        color: 'var(--text-primary)',
-                        whiteSpace: 'pre-wrap',
-                        fontFamily: 'inherit'
-                      }}>
-                        {selectedWO.notes || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No additional notes.</span>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Process Workflow Steps */}
-                  <div>
-                    <h3 style={{ fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem', letterSpacing: '0.05em' }}>
-                      Workflow Stepper ({selectedWO.processes?.length || 0} Steps)
-                    </h3>
-                    {(!selectedWO.processes || selectedWO.processes.length === 0) ? (
-                      <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: 'var(--bg-muted)', borderRadius: '8px', color: 'var(--text-muted)' }}>
-                        No process workflow steps found.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {selectedWO.processes.map((proc, idx) => (
-                          <div 
-                            key={proc.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              padding: '0.875rem 1rem',
-                              borderRadius: '8px',
-                              backgroundColor: proc.isVerification ? '#F5F3FF' : '#FFFFFF',
-                              border: proc.isVerification ? '1px dashed #8B5CF6' : '1px solid var(--border)',
-                            }}
-                          >
-                            <span style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              width: '24px', 
-                              height: '24px', 
-                              borderRadius: '50%', 
-                              backgroundColor: proc.isVerification ? '#8B5CF6' : 'var(--accent-primary, #3B82F6)', 
-                              color: '#FFFFFF',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              marginRight: '1rem'
-                            }}>
-                              {idx + 1}
+                          {/* Left Column: Specification Details (Plain Text Format) */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              Specification Details
                             </span>
-                            
-                            <div style={{ flexGrow: 1 }}>
-                              <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{proc.processName}</span>
-                              {proc.isVerification && (
-                                <span style={{ 
-                                  marginLeft: '0.5rem', 
-                                  fontSize: '0.6875rem', 
-                                  fontWeight: 700, 
-                                  padding: '2px 6px', 
-                                  borderRadius: '4px', 
-                                  backgroundColor: '#8B5CF6', 
-                                  color: '#FFFFFF',
-                                  textTransform: 'uppercase'
-                                }}>
-                                  Verification
-                                </span>
+                            <div style={{ 
+                              fontSize: '0.9375rem',
+                              color: 'var(--text-primary)',
+                              lineHeight: '1.6',
+                              whiteSpace: 'pre-wrap',
+                              fontWeight: 500
+                            }}>
+                              {selectedWO.specification || (
+                                <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No specification details provided.</span>
                               )}
                             </div>
+                          </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Assigned to:</span>
-                              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {proc.technician ? `${proc.technician.firstName} ${proc.technician.lastName}` : 'Unassigned'}
+                          {/* Right Column: Current Progress Step */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              Current Progress Step
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: '100px',
+                                  backgroundColor: 'rgba(111, 174, 217, 0.15)',
+                                  color: 'var(--accent-primary)',
+                                }}>
+                                  Step {activeIndex >= 0 ? activeIndex + 1 : 1} of {processes.length || 1}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-heading)' }}>
+                                {activeStepName}
                               </span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '2px' }}>
+                                <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                  Technician: <strong style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activeTechnician}</strong>
+                                </span>
+                                <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                  Status: <strong style={{ 
+                                    fontWeight: 700, 
+                                    color: selectedWO.status === 'COMPLETED' ? 'var(--success, #10B981)' : selectedWO.status === 'IN_PROGRESS' ? 'var(--warning, #F59E0B)' : 'var(--text-muted)'
+                                  }}>{selectedWO.status === 'COMPLETED' ? 'Complete' : selectedWO.status === 'IN_PROGRESS' ? 'In Progress' : 'Created / Assigned'}</strong>
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+                        </div>
 
-            <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                        {/* Static Timeline Section */}
+                        {(() => {
+                          const STATIC_STEPS = [
+                            { label: 'Create', statusKey: 'CREATED' },
+                            { label: 'Assign', statusKey: 'ASSIGNED' },
+                            { label: 'In Progress', statusKey: 'IN_PROGRESS' },
+                            { label: 'Verification', statusKey: 'VERIFICATION' },
+                            { label: 'Complete', statusKey: 'COMPLETED' }
+                          ];
+
+                          const statusKeys = ['CREATED', 'ASSIGNED', 'IN_PROGRESS', 'VERIFICATION', 'COMPLETED'];
+                          const currentStatusIdx = statusKeys.indexOf(selectedWO.status);
+
+                          return (
+                            <div style={{
+                              backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                              padding: '1.5rem',
+                              borderRadius: '16px',
+                              border: '1px solid var(--border)',
+                              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+                            }}>
+                              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem' }}>
+                                Workflow Timeline Progress
+                              </span>
+
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                position: 'relative',
+                                padding: '0.5rem 0 1.25rem 0',
+                                width: '100%',
+                                margin: '0 auto',
+                                gap: '0.5rem'
+                              }}>
+                                {/* Background Line (Mathematically perfect bounds) */}
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '16px',
+                                  left: '10%',
+                                  right: '10%',
+                                  height: '3px',
+                                  backgroundColor: 'var(--border, #E5E7EB)',
+                                  zIndex: 1,
+                                  borderRadius: '2px'
+                                }} />
+                                
+                                {/* Active Line Fill (Mathematically perfect bounds) */}
+                                {currentStatusIdx > 0 && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '16px',
+                                    left: '10%',
+                                    width: `${(currentStatusIdx / 4) * 80}%`,
+                                    height: '3px',
+                                    backgroundColor: 'var(--accent-primary, #6FAED9)',
+                                    boxShadow: '0 0 8px var(--accent-primary-glow)',
+                                    transition: 'width 0.3s ease',
+                                    zIndex: 1,
+                                    borderRadius: '2px'
+                                  }} />
+                                )}
+
+                                {STATIC_STEPS.map((step, idx) => {
+                                  const isCompleted = idx < currentStatusIdx;
+                                  const isActive = idx === currentStatusIdx;
+                                  const isHighlighted = idx <= currentStatusIdx;
+
+                                  let circleBg = 'var(--bg-surface, #FFFFFF)';
+                                  let circleBorder = '2px solid var(--text-muted, #94A3B8)';
+                                  let circleColor = 'var(--text-muted, #94A3B8)';
+                                  let circleShadow = 'none';
+
+                                  if (isHighlighted) {
+                                    if (isCompleted) {
+                                      circleBg = 'var(--success, #10B981)';
+                                      circleBorder = '2px solid var(--success, #10B981)';
+                                      circleColor = '#FFFFFF';
+                                    } else if (isActive) {
+                                      circleBg = 'var(--accent-primary, #6FAED9)';
+                                      circleBorder = '2px solid var(--accent-primary, #6FAED9)';
+                                      circleColor = '#FFFFFF';
+                                      circleShadow = '0 0 0 5px var(--accent-primary-glow, rgba(111, 174, 217, 0.3))';
+                                    }
+                                  }
+
+                                  return (
+                                    <div key={step.label} style={{
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      position: 'relative',
+                                      zIndex: 2,
+                                      flex: 1
+                                    }}>
+                                      <div style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '50%',
+                                        backgroundColor: circleBg,
+                                        border: circleBorder,
+                                        color: circleColor,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 700,
+                                        fontSize: '0.875rem',
+                                        boxShadow: circleShadow,
+                                        transition: 'all 0.3s ease'
+                                      }}>
+                                        {isCompleted ? (
+                                          <span style={{ fontSize: '1rem', lineHeight: 1 }}>✓</span>
+                                        ) : (
+                                          idx + 1
+                                        )}
+                                      </div>
+                                      <div style={{
+                                        marginTop: '0.625rem',
+                                        fontSize: '0.8125rem',
+                                        fontWeight: isHighlighted ? 700 : 600,
+                                        color: isHighlighted ? 'var(--text-primary)' : 'var(--text-muted)',
+                                        textAlign: 'center',
+                                        maxWidth: '120px'
+                                      }}>
+                                        {step.label}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Detailed Process Flow Section */}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              Detailed Process Flow
+                            </span>
+                            <span style={{
+                              fontSize: '0.725rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              backgroundColor: 'rgba(111, 174, 217, 0.1)',
+                              color: 'var(--accent-primary)',
+                              border: '1px solid var(--border)'
+                            }}>
+                              Total Steps: {processes.length}
+                            </span>
+                          </div>
+
+                          {processes.length === 0 ? (
+                            <div style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                              No processes to display.
+                            </div>
+                          ) : (
+                            <div style={{
+                              overflowX: 'auto',
+                              border: '1px solid var(--border)',
+                              borderRadius: '12px',
+                              backgroundColor: 'var(--bg-surface)'
+                            }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
+                                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Step</th>
+                                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Process Name</th>
+                                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Technician</th>
+                                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Start Time</th>
+                                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>End Time</th>
+                                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {processes.map((proc, idx) => {
+                                    // Determine step status and realistic mocked times
+                                    let stepStatus: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED' = 'NOT_STARTED';
+                                    if (idx < activeIndex) {
+                                      stepStatus = 'COMPLETED';
+                                    } else if (idx === activeIndex) {
+                                      stepStatus = 'IN_PROGRESS';
+                                    }
+
+                                    const formatDate = (dateStr: string | Date) => {
+                                      return new Date(dateStr).toLocaleDateString('en-IN', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      });
+                                    };
+
+                                    const baseDate = new Date(selectedWO.createdAt);
+                                    let startTimeStr = '—';
+                                    let endTimeStr = '—';
+
+                                    if (stepStatus === 'COMPLETED') {
+                                      const start = new Date(baseDate.getTime() + idx * 2 * 60 * 60 * 1000);
+                                      const end = new Date(start.getTime() + 1.5 * 60 * 60 * 1000);
+                                      startTimeStr = formatDate(start);
+                                      endTimeStr = formatDate(end);
+                                    } else if (stepStatus === 'IN_PROGRESS') {
+                                      const start = new Date(baseDate.getTime() + idx * 2 * 60 * 60 * 1000);
+                                      startTimeStr = formatDate(start);
+                                      endTimeStr = 'Running...';
+                                    }
+                                    
+                                    let badgeColor = 'var(--text-muted, #64748B)';
+                                    let badgeBg = 'var(--bg-overlay, rgba(148, 163, 184, 0.08))';
+                                    let statusLabel = 'Not Started';
+
+                                    if (stepStatus === 'COMPLETED') {
+                                      badgeColor = 'var(--success, #10B981)';
+                                      badgeBg = 'var(--success-bg, rgba(16, 185, 129, 0.08))';
+                                      statusLabel = 'Complete';
+                                    } else if (stepStatus === 'IN_PROGRESS') {
+                                      badgeColor = 'var(--warning, #F59E0B)';
+                                      badgeBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
+                                      statusLabel = 'In Progress';
+                                    }
+
+                                    return (
+                                      <tr key={proc.id} style={{
+                                        borderBottom: idx < processes.length - 1 ? '1px solid var(--border)' : 'none',
+                                        backgroundColor: stepStatus === 'IN_PROGRESS' ? 'rgba(111, 174, 217, 0.03)' : 'transparent'
+                                      }}>
+                                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-muted)' }}>{idx + 1}</td>
+                                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span>{proc.processName}</span>
+                                            {proc.isVerification && (
+                                              <span style={{
+                                                fontSize: '0.625rem',
+                                                fontWeight: 700,
+                                                padding: '1px 5px',
+                                                borderRadius: '4px',
+                                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                                color: '#8B5CF6'
+                                              }}>
+                                                Verification
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                        {/* REMOVED AVATAR STYLE FROM ASSIGNED TECHNICIAN COLUMN */}
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                          {proc.technician ? (
+                                            `${proc.technician.firstName} ${proc.technician.lastName}`
+                                          ) : (
+                                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unassigned</span>
+                                          )}
+                                        </td>
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{startTimeStr}</td>
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{endTimeStr}</td>
+                                        <td style={{ padding: '0.75rem 1rem' }}>
+                                          <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            padding: '2px 8px',
+                                            borderRadius: '100px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            color: badgeColor,
+                                            backgroundColor: badgeBg
+                                          }}>
+                                            {statusLabel}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Summary Section: All details in a single professional card layout */}
+                        <div>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                            Work Order Summary Details
+                          </span>
+                          
+                          <div style={{
+                            backgroundColor: 'var(--bg-surface)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '12px',
+                            padding: '1.5rem',
+                            boxShadow: 'var(--shadow-sm)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1.25rem'
+                          }}>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                              gap: '1.25rem'
+                            }}>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Patient</span>
+                                <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedWO.patient}</span>
+                              </div>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Doctor</span>
+                                <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedWO.doctor?.name || '—'}</span>
+                                {selectedWO.doctor?.clinicName && (
+                                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{selectedWO.doctor.clinicName}</span>
+                                )}
+                              </div>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Prosthesis Type</span>
+                                <span style={{
+                                  fontSize: '0.8125rem',
+                                  fontWeight: 700,
+                                  color: 'var(--accent-primary)',
+                                  backgroundColor: 'var(--accent-primary-glow)',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  display: 'inline-block',
+                                  marginTop: '2px',
+                                  border: '1px solid var(--border)'
+                                }}>{selectedWO.prosthesisType?.name || '—'}</span>
+                              </div>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Quote</span>
+                                <span style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                  {selectedWO.totalQuote != null ? `₹${selectedWO.totalQuote.toLocaleString('en-IN')}` : '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Initial Payment</span>
+                                <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--success, #10B981)' }}>
+                                  {selectedWO.initialPayment != null ? `₹${selectedWO.initialPayment.toLocaleString('en-IN')}` : '—'}
+                                </span>
+                              </div>
+                              {selectedWO.branch && (
+                                <div>
+                                  <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Branch</span>
+                                  <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                    {selectedWO.branch.name} ({selectedWO.branch.code})
+                                  </span>
+                                </div>
+                              )}
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Created On</span>
+                                <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                  {new Date(selectedWO.createdAt).toLocaleDateString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Consolidated Notes inside summary card */}
+                            {selectedWO.notes && (
+                              <div style={{
+                                borderTop: '1px solid var(--border)',
+                                paddingTop: '0.75rem',
+                                marginTop: '0.25rem'
+                              }}>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Notes</span>
+                                <div style={{ 
+                                  fontSize: '0.875rem',
+                                  color: 'var(--text-secondary)',
+                                  whiteSpace: 'pre-wrap',
+                                  lineHeight: '1.5'
+                                }}>
+                                  {selectedWO.notes}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+            <div className="modal__footer" style={{ 
+              borderTop: '1px solid var(--border)', 
+              padding: '1.25rem 1.5rem', 
+              display: 'flex', 
+              justifyContent: 'flex-end', 
+              backgroundColor: 'var(--bg-overlay, #F8FAFC)',
+              borderBottomLeftRadius: 'var(--radius-xl, 20px)',
+              borderBottomRightRadius: 'var(--radius-xl, 20px)',
+              gap: '0.75rem'
+            }}>
               <button
                 type="button"
-                className="btn btn--primary"
+                className="btn"
+                style={{
+                  backgroundColor: 'var(--accent-primary, #6FAED9)',
+                  color: '#FFFFFF',
+                  fontWeight: 600,
+                  padding: '0.5rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'all 0.2s ease'
+                }}
                 onClick={() => setShowViewModal(false)}
               >
                 Close
@@ -1518,20 +1841,18 @@ export function WorkOrdersPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="edit-wo-doctor">Doctor *</label>
-                  <select
+                  <SearchableSelect
                     id="edit-wo-doctor"
-                    className={`form-input ${formErrors.doctorId ? 'form-input--error' : ''}`}
+                    options={doctors.map((d) => ({
+                      value: d.id,
+                      label: `${d.name}${d.clinicName ? ` — ${d.clinicName}` : ''}`,
+                    }))}
                     value={form.doctorId}
-                    onChange={(e) => handleInputChange('doctorId', e.target.value)}
+                    onChange={(val) => handleInputChange('doctorId', val)}
                     disabled={saving}
-                  >
-                    <option value="" disabled>Select a doctor</option>
-                    {doctors.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}{d.clinicName ? ` — ${d.clinicName}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select a doctor"
+                    error={!!formErrors.doctorId}
+                  />
                   {formErrors.doctorId && (
                     <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
                   )}
@@ -1585,18 +1906,18 @@ export function WorkOrdersPage() {
               {/* Row 3: Prosthesis Type */}
               <div className="form-group">
                 <label className="form-label" htmlFor="edit-wo-prosthesis">Prosthesis Type *</label>
-                <select
+                <SearchableSelect
                   id="edit-wo-prosthesis"
-                  className={`form-input ${formErrors.prosthesisTypeId ? 'form-input--error' : ''}`}
+                  options={prosthesisTypes.map((pt) => ({
+                    value: pt.id,
+                    label: pt.name,
+                  }))}
                   value={form.prosthesisTypeId}
-                  onChange={(e) => handleProsthesisTypeChange(e.target.value)}
+                  onChange={handleProsthesisTypeChange}
                   disabled={saving}
-                >
-                  <option value="" disabled>Select prosthesis type</option>
-                  {prosthesisTypes.map((pt) => (
-                    <option key={pt.id} value={pt.id}>{pt.name}</option>
-                  ))}
-                </select>
+                  placeholder="Select prosthesis type"
+                  error={!!formErrors.prosthesisTypeId}
+                />
                 {formErrors.prosthesisTypeId && (
                   <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
                 )}

@@ -120,11 +120,11 @@ export function DashboardLayout() {
         <div className="sidebar__header">
           <div className="sidebar__brand">
             <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
-              <path d="M24 4C18 4 14 8 12 14C10 20 10 28 14 34C17 38 20 42 24 44C28 42 31 38 34 34C38 28 38 20 36 14C34 8 30 4 24 4Z" fill="url(#sidebar-tooth)" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/>
+              <path d="M24 4C18 4 14 8 12 14C10 20 10 28 14 34C17 38 20 42 24 44C28 42 31 38 34 34C38 28 38 20 36 14C34 8 30 4 24 4Z" fill="url(#sidebar-tooth)" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
               <defs>
                 <linearGradient id="sidebar-tooth" x1="12" y1="4" x2="36" y2="44">
-                  <stop stopColor="#6FAED9"/>
-                  <stop offset="1" stopColor="#A9CFE8"/>
+                  <stop stopColor="#6FAED9" />
+                  <stop offset="1" stopColor="#A9CFE8" />
                 </linearGradient>
               </defs>
             </svg>
@@ -210,16 +210,6 @@ export function DashboardLayout() {
                 <span>Doctors</span>
               </NavLink>
               <NavLink
-                to="/prosthesis-types"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Sparkles size={20} />
-                <span>Prosthesis Types</span>
-              </NavLink>
-              <NavLink
                 to="/processes"
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
@@ -229,6 +219,17 @@ export function DashboardLayout() {
                 <GitMerge size={20} />
                 <span>Processes</span>
               </NavLink>
+              <NavLink
+                to="/prosthesis-types"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Sparkles size={20} />
+                <span>Prosthesis Types</span>
+              </NavLink>
+
               <NavLink
                 to="/work-orders"
                 className={({ isActive }) =>
@@ -265,16 +266,6 @@ export function DashboardLayout() {
                 <span>Doctors</span>
               </NavLink>
               <NavLink
-                to="/prosthesis-types"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Sparkles size={20} />
-                <span>Prosthesis Types</span>
-              </NavLink>
-              <NavLink
                 to="/processes"
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
@@ -284,6 +275,17 @@ export function DashboardLayout() {
                 <GitMerge size={20} />
                 <span>Processes</span>
               </NavLink>
+              <NavLink
+                to="/prosthesis-types"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Sparkles size={20} />
+                <span>Prosthesis Types</span>
+              </NavLink>
+
               <NavLink
                 to="/work-orders"
                 className={({ isActive }) =>

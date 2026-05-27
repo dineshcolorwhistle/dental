@@ -10,7 +10,7 @@ export class ProcessesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, branchIdContext: string | null, userRole: string, dto: CreateProcessDto) {
-    const { name, processArea, defaultTechnicianId, prosthesisTypeId, branchId } = dto;
+    const { name, processArea, defaultTechnicianId, branchId } = dto;
 
     // Force branch for Administrators
     let finalBranchId = branchId;
@@ -21,15 +21,7 @@ export class ProcessesService {
       finalBranchId = branchIdContext;
     }
 
-    // 1. Verify prosthesis type belongs to tenant
-    const prosthesisType = await this.prisma.prosthesisType.findFirst({
-      where: { id: prosthesisTypeId, tenantId },
-    });
-    if (!prosthesisType) {
-      throw new NotFoundException(`Prosthesis type with ID "${prosthesisTypeId}" not found.`);
-    }
-
-    // 2. Verify branch belongs to tenant if provided
+    // 1. Verify branch belongs to tenant if provided
     if (finalBranchId) {
       const branch = await this.prisma.branch.findFirst({
         where: { id: finalBranchId, tenantId },
@@ -39,7 +31,7 @@ export class ProcessesService {
       }
     }
 
-    // 3. Verify default technician exists, has role TECHNICIAN, belongs to same tenant, and same branch
+    // 2. Verify default technician exists, has role TECHNICIAN, belongs to same tenant, and same branch
     const technician = await this.prisma.user.findFirst({
       where: {
         id: defaultTechnicianId,
@@ -55,14 +47,6 @@ export class ProcessesService {
       );
     }
 
-    // Find the current max sequence for this prosthesis type
-    const maxProcess = await this.prisma.process.findFirst({
-      where: { tenantId, prosthesisTypeId },
-      orderBy: { sequence: 'desc' },
-      select: { sequence: true },
-    });
-    const nextSequence = maxProcess ? maxProcess.sequence + 1 : 0;
-
     const process = await this.prisma.process.create({
       data: {
         tenantId,
@@ -70,16 +54,21 @@ export class ProcessesService {
         name,
         processArea,
         defaultTechnicianId,
-        prosthesisTypeId,
-        sequence: nextSequence,
       },
       include: {
-        prosthesisType: true,
         branch: {
           select: { id: true, name: true },
         },
         defaultTechnician: {
           select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        prosthesisTypeAssignments: {
+          include: {
+            prosthesisType: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: { sequence: 'asc' },
         },
       },
     });
@@ -95,17 +84,23 @@ export class ProcessesService {
         ...(branchIdFilter && branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
       },
       include: {
-        prosthesisType: true,
         branch: {
           select: { id: true, name: true },
         },
         defaultTechnician: {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
+        prosthesisTypeAssignments: {
+          include: {
+            prosthesisType: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: { sequence: 'asc' },
+        },
       },
       orderBy: [
-        { prosthesisTypeId: 'asc' },
-        { sequence: 'asc' },
+        { name: 'asc' },
         { createdAt: 'asc' },
       ],
     });
@@ -119,12 +114,19 @@ export class ProcessesService {
         ...(branchIdContext && { branchId: branchIdContext }),
       },
       include: {
-        prosthesisType: true,
         branch: {
           select: { id: true, name: true },
         },
         defaultTechnician: {
           select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        prosthesisTypeAssignments: {
+          include: {
+            prosthesisType: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: { sequence: 'asc' },
         },
       },
     });
@@ -140,21 +142,11 @@ export class ProcessesService {
     // Verify existence
     const existingProcess = await this.findOne(tenantId, id, branchIdContext);
 
-    const { name, processArea, defaultTechnicianId, prosthesisTypeId, branchId } = dto;
+    const { name, processArea, defaultTechnicianId, branchId } = dto;
 
     let finalBranchId = branchId !== undefined ? branchId : existingProcess.branchId;
 
-    // 1. Verify prosthesis type belongs to tenant if updated
-    if (prosthesisTypeId) {
-      const prosthesisType = await this.prisma.prosthesisType.findFirst({
-        where: { id: prosthesisTypeId, tenantId },
-      });
-      if (!prosthesisType) {
-        throw new NotFoundException(`Prosthesis type with ID "${prosthesisTypeId}" not found.`);
-      }
-    }
-
-    // 2. Verify branch belongs to tenant if updated
+    // 1. Verify branch belongs to tenant if updated
     if (finalBranchId) {
       const branch = await this.prisma.branch.findFirst({
         where: { id: finalBranchId, tenantId },
@@ -164,7 +156,7 @@ export class ProcessesService {
       }
     }
 
-    // 3. Verify default technician exists, has role TECHNICIAN, belongs to same tenant, and same branch
+    // 2. Verify default technician exists, has role TECHNICIAN, belongs to same tenant, and same branch
     if (defaultTechnicianId) {
       const technician = await this.prisma.user.findFirst({
         where: {
@@ -188,16 +180,22 @@ export class ProcessesService {
         ...(name && { name }),
         ...(processArea && { processArea }),
         ...(defaultTechnicianId && { defaultTechnicianId }),
-        ...(prosthesisTypeId && { prosthesisTypeId }),
         ...(branchId !== undefined && { branchId: finalBranchId || null }),
       },
       include: {
-        prosthesisType: true,
         branch: {
           select: { id: true, name: true },
         },
         defaultTechnician: {
           select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        prosthesisTypeAssignments: {
+          include: {
+            prosthesisType: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: { sequence: 'asc' },
         },
       },
     });
@@ -214,29 +212,6 @@ export class ProcessesService {
     });
 
     this.logger.log(`Process deleted: ${id} inside tenant ${tenantId}`);
-    return { success: true };
-  }
-
-  async reorder(tenantId: string, prosthesisTypeId: string, processIds: string[]) {
-    // Verify prosthesis type belongs to tenant
-    const prosthesisType = await this.prisma.prosthesisType.findFirst({
-      where: { id: prosthesisTypeId, tenantId },
-    });
-    if (!prosthesisType) {
-      throw new NotFoundException(`Prosthesis type with ID "${prosthesisTypeId}" not found.`);
-    }
-
-    // Update sequences inside a transaction
-    await this.prisma.$transaction(
-      processIds.map((id, index) =>
-        this.prisma.process.updateMany({
-          where: { id, tenantId, prosthesisTypeId },
-          data: { sequence: index },
-        }),
-      ),
-    );
-
-    this.logger.log(`Processes reordered for prosthesis type: ${prosthesisTypeId}`);
     return { success: true };
   }
 }

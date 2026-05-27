@@ -32,14 +32,6 @@ export class CreateProcessDto {
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
-    description: 'ID of the prosthesis/work type this process belongs to',
-  })
-  @IsUUID()
-  @IsNotEmpty()
-  prosthesisTypeId: string;
-
-  @ApiProperty({
-    example: '123e4567-e89b-12d3-a456-426614174000',
     description: 'Branch ID this process is assigned to (optional, auto-forced for Admin)',
     required: false,
   })

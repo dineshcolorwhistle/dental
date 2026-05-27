@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminService, branchService, type AdminListItem, type BranchListItem, type CreateAdminPayload } from '../services';
-import { Pagination } from '../components';
+import { Pagination, SearchableSelect } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
@@ -625,20 +625,18 @@ export function AdminsPage() {
                 <label className="form-label" htmlFor="select-admin-branch">
                   Assigned Branch *
                 </label>
-                <select
+                <SearchableSelect
                   id="select-admin-branch"
-                  className={`form-input ${formErrors.branchId ? 'form-input--error' : ''}`}
+                  options={branches.map((b) => ({
+                    value: b.id,
+                    label: `${b.name} (${b.code})`,
+                  }))}
                   value={form.branchId}
-                  onChange={(e) => handleInputChange('branchId', e.target.value)}
+                  onChange={(val) => handleInputChange('branchId', val)}
                   disabled={saving}
-                >
-                  <option value="" disabled>Select a branch</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select a branch"
+                  error={!!formErrors.branchId}
+                />
                 {formErrors.branchId && (
                   <span className="form-error">
                     <AlertCircle size={12} /> {formErrors.branchId}
@@ -757,19 +755,18 @@ export function AdminsPage() {
                 <label className="form-label" htmlFor="select-edit-admin-branch">
                   Assigned Branch *
                 </label>
-                <select
+                <SearchableSelect
                   id="select-edit-admin-branch"
-                  className={`form-input ${formErrors.branchId ? 'form-input--error' : ''}`}
+                  options={branches.map((b) => ({
+                    value: b.id,
+                    label: `${b.name} (${b.code})`,
+                  }))}
                   value={form.branchId}
-                  onChange={(e) => handleInputChange('branchId', e.target.value)}
+                  onChange={(val) => handleInputChange('branchId', val)}
                   disabled={saving}
-                >
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select a branch"
+                  error={!!formErrors.branchId}
+                />
                 {formErrors.branchId && (
                   <span className="form-error">
                     <AlertCircle size={12} /> {formErrors.branchId}
