@@ -182,7 +182,10 @@ export class WorkOrdersService {
       status: (p as any).status || ProcessStatus.NOT_STARTED,
     }));
 
-    const status = this.calculateWorkOrderStatus(mappedProcesses);
+    const status =
+      action === 'create'
+        ? WorkOrderStatus.CREATED
+        : this.calculateWorkOrderStatus(mappedProcesses);
 
     // 6. Strip specification if user is not ADMIN
     const finalSpecification = userRole === 'ADMIN' ? specification : undefined;
@@ -325,7 +328,7 @@ export class WorkOrdersService {
           data: { status: targetStatus },
         });
       }
-    } else if (processes) {
+    } else if (processes && mappedProcesses) {
       finalStatus = this.calculateWorkOrderStatus(mappedProcesses);
     }
 
