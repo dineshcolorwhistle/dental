@@ -1721,6 +1721,29 @@ export function WorkOrdersPage() {
                   ? `${displayProc.technician.firstName} ${displayProc.technician.lastName}` 
                   : (displayProc?.isVerification && !displayProc?.technicianId ? (selectedWO.doctor?.name || 'External Doctor') : 'Unassigned');
 
+                const stepStatus = displayProc?.status || 'NOT_STARTED';
+                const getStepStatusLabel = (status?: string) => {
+                  if (!status) return 'Not Started';
+                  switch (status) {
+                    case 'COMPLETED': return 'Completed';
+                    case 'IN_PROGRESS': return 'In Progress';
+                    case 'FAILED': return 'Failed';
+                    case 'CANCELLED': return 'Cancelled';
+                    default: return 'Not Started';
+                  }
+                };
+                const stepStatusLabel = getStepStatusLabel(stepStatus);
+                const getStepStatusColor = (status?: string) => {
+                  switch (status) {
+                    case 'COMPLETED': return 'var(--success, #10B981)';
+                    case 'IN_PROGRESS': return 'var(--warning, #F59E0B)';
+                    case 'FAILED': return '#EF4444';
+                    case 'CANCELLED': return '#94A3B8';
+                    default: return 'var(--text-muted)';
+                  }
+                };
+                const stepStatusColor = getStepStatusColor(stepStatus);
+
                 // 1. GENERAL INSTRUCTIONS TAB
                 if (viewTab === 'general') {
                   return (
@@ -1795,8 +1818,8 @@ export function WorkOrdersPage() {
                               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                                 Status: <strong style={{ 
                                   fontWeight: 700, 
-                                  color: selectedWO.status === 'COMPLETED' ? 'var(--success, #10B981)' : selectedWO.status === 'IN_PROGRESS' ? 'var(--warning, #F59E0B)' : 'var(--text-muted)'
-                                }}>{STATUS_CONFIG[selectedWO.status]?.label || selectedWO.status}</strong>
+                                  color: stepStatusColor
+                                }}>{stepStatusLabel}</strong>
                               </span>
                             </div>
                           </div>
@@ -2346,7 +2369,7 @@ export function WorkOrdersPage() {
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             Payment Transactions
                           </span>
-                          {!showAddFundForm && (
+                          {isAdmin && !showAddFundForm && (
                             <button
                               type="button"
                               className="btn btn--outline btn--sm"
@@ -2365,7 +2388,7 @@ export function WorkOrdersPage() {
                         </div>
 
                         {/* Add Fund Form Container */}
-                        {showAddFundForm && (
+                        {isAdmin && showAddFundForm && (
                           <div style={{
                             backgroundColor: 'var(--bg-overlay, #F8FAFC)',
                             border: '1px solid var(--border)',
