@@ -1,4 +1,5 @@
 import { useAuth } from '../context';
+import { TechnicianDashboardPage } from './TechnicianDashboardPage';
 import {
   Activity,
   Users,
@@ -17,6 +18,10 @@ const ROLE_GREETINGS: Record<string, string> = {
 
 export function DashboardPage() {
   const { user } = useAuth();
+
+  if (user?.role === 'TECHNICIAN') {
+    return <TechnicianDashboardPage />;
+  }
 
   const greeting = () => {
     const hour = new Date().getHours();

@@ -299,6 +299,19 @@ export function DashboardLayout() {
             </>
           )}
 
+          {user?.role === 'TECHNICIAN' && (
+            <NavLink
+              to="/tech/work-orders"
+              className={({ isActive }) =>
+                `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+              }
+              onClick={() => setSidebarOpen(false)}
+            >
+              <ClipboardList size={20} />
+              <span>My Work Orders</span>
+            </NavLink>
+          )}
+
           {user?.role === 'SUPER_ADMIN' && (
             <NavLink
               to="/tenants"

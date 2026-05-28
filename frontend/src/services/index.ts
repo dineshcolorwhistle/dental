@@ -9,6 +9,7 @@ export { prosthesisTypeService } from './prosthesis-type.service';
 export { processService } from './process.service';
 export { workOrderService } from './work-order.service';
 export { notificationService } from './notification.service';
+export { technicianPortalService } from './technician-portal.service';
 export type { LoginPayload, AuthUser, AuthResponse, UserProfile } from './auth.service';
 export type {
   CreateTenantPayload,
@@ -31,3 +32,9 @@ export type {
   UpdateWorkOrderPayload,
 } from './work-order.service';
 export type { NotificationItem } from './notification.service';
+export type {
+  TechnicianProcessItem,
+  TechnicianWorkOrderListItem,
+  TechnicianDashboardStats,
+  ProcessActivityLogItem,
+} from './technician-portal.service';

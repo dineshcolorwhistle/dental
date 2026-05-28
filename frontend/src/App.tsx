@@ -15,6 +15,7 @@ import { TechniciansPage } from './pages/TechniciansPage';
 import { ProsthesisTypesPage } from './pages/ProsthesisTypesPage';
 import { ProcessesPage } from './pages/ProcessesPage';
 import { WorkOrdersPage } from './pages/WorkOrdersPage';
+import { TechnicianWorkOrdersPage } from './pages/TechnicianWorkOrdersPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -67,6 +68,7 @@ function App() {
             <Route path="/prosthesis-types" element={<ProsthesisTypesPage />} />
             <Route path="/processes" element={<ProcessesPage />} />
             <Route path="/work-orders" element={<WorkOrdersPage />} />
+            <Route path="/tech/work-orders" element={<TechnicianWorkOrdersPage />} />
           </Route>
 
           {/* Error pages */}

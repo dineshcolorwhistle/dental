@@ -13,6 +13,7 @@ import { ProsthesisTypesModule } from './modules/prosthesis-types/prosthesis-typ
 import { ProcessesModule } from './modules/processes/processes.module';
 import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { TechnicianPortalModule } from './modules/technician-portal/technician-portal.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -36,6 +37,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     ProcessesModule,
     WorkOrdersModule,
     NotificationsModule,
+    TechnicianPortalModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default

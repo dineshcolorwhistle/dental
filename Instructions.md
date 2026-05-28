@@ -268,6 +268,7 @@ Delivery personnel receive assigned deliveries, update pickup/transit status, an
 - **Responsive design** — mobile-friendly operational interface.
 
 ### General
+- **CRITICAL RULE — DATABASE INTEGRITY:** DO NOT reset the database (`prisma migrate reset`, `db push --force-reset`), drop tables, or run any destructive database operations without obtaining explicit, written approval from the USER. All existing development database records and details must be strictly preserved.
 - Git-based version control with feature branching.
 - Environment-based configuration (`.env` files).
 - Consistent naming conventions (camelCase TS, snake_case DB).

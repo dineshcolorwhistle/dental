@@ -43,8 +43,10 @@ export class WorkOrdersService {
       return WorkOrderStatus.COMPLETED;
     }
 
-    // 4. If any process is IN_PROGRESS
-    const inProgressProc = processes.find((p) => p.status === ProcessStatus.IN_PROGRESS);
+    // 4. If any process is IN_PROGRESS or PAUSED
+    const inProgressProc = processes.find(
+      (p) => p.status === ProcessStatus.IN_PROGRESS || p.status === ProcessStatus.PAUSED
+    );
     if (inProgressProc) {
       if (inProgressProc.isVerification) {
         return inProgressProc.technicianId

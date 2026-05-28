@@ -43,6 +43,7 @@ enum WorkOrderStatus {
 enum ProcessStatus {
   NOT_STARTED
   IN_PROGRESS
+  PAUSED
   COMPLETED
   FAILED
   CANCELLED
@@ -307,13 +308,40 @@ model WorkOrderProcess {
   sequence       Int      @default(0)
   isVerification Boolean       @default(false) @map("is_verification")
   status         ProcessStatus @default(NOT_STARTED)
+  startedAt      DateTime?     @map("started_at")
+  endedAt        DateTime?     @map("ended_at")
+  lastPausedAt   DateTime?     @map("last_paused_at")
+  pauseCount     Int           @default(0) @map("pause_count")
+  totalPauseDuration Int       @default(0) @map("total_pause_duration")
+  totalActiveDuration Int      @default(0) @map("total_active_duration")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   // Relations
-  workOrder  WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  technician User?     @relation("WoProcessTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  workOrder    WorkOrder            @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  technician   User?                @relation("WoProcessTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  activityLogs ProcessActivityLog[]
 
   @@map("work_order_processes")
+}
+
+enum ProcessActivityAction {
+  START
+  PAUSE
+  RESUME
+  END
+}
+
+model ProcessActivityLog {
+  id                 String                @id @default(uuid())
+  workOrderProcessId String                @map("work_order_process_id")
+  action             ProcessActivityAction
+  timestamp          DateTime              @default(now()) @map("timestamp")
+  notes              String?               @map("notes")
+
+  // Relations
+  workOrderProcess   WorkOrderProcess      @relation(fields: [workOrderProcessId], references: [id], onDelete: Cascade)
+
+  @@map("process_activity_logs")
 }
 
 // ─── Notification ────────────────────────────────────────
