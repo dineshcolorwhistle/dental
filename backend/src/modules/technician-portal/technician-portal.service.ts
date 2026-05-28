@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { ProcessStatus, WorkOrderStatus, ProcessActivityAction } from '@prisma/client';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { ProcessStatus, WorkOrderStatus, ProcessActivityAction, UserRole } from '@prisma/client';
 
 @Injectable()
 export class TechnicianPortalService {
@@ -15,6 +16,7 @@ export class TechnicianPortalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   /**
@@ -196,6 +198,20 @@ export class TechnicianPortalService {
       throw new BadRequestException('Cannot start process: previous process steps are not completed yet.');
     }
 
+    // Prevent duplicate active process execution
+    const activeProcesses = await this.prisma.workOrderProcess.findMany({
+      where: {
+        workOrderId: process.workOrderId,
+        status: { in: [ProcessStatus.IN_PROGRESS, ProcessStatus.PAUSED] },
+      },
+    });
+
+    if (activeProcesses.length > 0) {
+      throw new BadRequestException(
+        'Cannot start process: another step in this work order is already active or paused.',
+      );
+    }
+
     const now = new Date();
 
     const updatedProcess = await this.prisma.workOrderProcess.update({
@@ -217,6 +233,19 @@ export class TechnicianPortalService {
     });
 
     await this.updateWorkOrderStatus(process.workOrderId);
+
+    // Write Audit Log
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'PROCESS_START',
+      entityName: 'PROCESS',
+      entityId: process.id,
+      details: {
+        workOrderId: process.workOrderId,
+        processName: process.processName,
+      },
+    });
 
     this.logger.log(`Process ${processId} started by technician ${userId}`);
     return updatedProcess;
@@ -254,6 +283,19 @@ export class TechnicianPortalService {
     });
 
     await this.updateWorkOrderStatus(process.workOrderId);
+
+    // Write Audit Log
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'PROCESS_PAUSE',
+      entityName: 'PROCESS',
+      entityId: process.id,
+      details: {
+        workOrderId: process.workOrderId,
+        processName: process.processName,
+      },
+    });
 
     this.logger.log(`Process ${processId} paused by technician ${userId}`);
     return updatedProcess;
@@ -293,6 +335,20 @@ export class TechnicianPortalService {
     });
 
     await this.updateWorkOrderStatus(process.workOrderId);
+
+    // Write Audit Log
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'PROCESS_RESUME',
+      entityName: 'PROCESS',
+      entityId: process.id,
+      details: {
+        workOrderId: process.workOrderId,
+        processName: process.processName,
+        pauseDuration,
+      },
+    });
 
     this.logger.log(`Process ${processId} resumed by technician ${userId}`);
     return updatedProcess;
@@ -344,7 +400,22 @@ export class TechnicianPortalService {
       },
     });
 
-    // Automatically enable next process step and alert next technician
+    // Write Audit Log
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'PROCESS_END',
+      entityName: 'PROCESS',
+      entityId: process.id,
+      details: {
+        workOrderId: process.workOrderId,
+        processName: process.processName,
+        totalActiveDuration: totalActive,
+        totalPauseDuration: totalPause,
+      },
+    });
+
+    // Automatically enable next process step and alert next technician/admin
     const nextProcess = await this.prisma.workOrderProcess.findFirst({
       where: {
         workOrderId: process.workOrderId,
@@ -353,15 +424,107 @@ export class TechnicianPortalService {
       orderBy: { sequence: 'asc' },
     });
 
-    if (nextProcess && nextProcess.technicianId) {
-      await this.notificationsService.create({
-        tenantId,
-        userId: nextProcess.technicianId,
-        title: 'New Active Work Order Step',
-        message: `Work Order "${process.workOrder.folioNumber}" is ready for you. The previous step "${process.processName}" has been completed.`,
-        type: 'WORK_ORDER',
-        referenceId: process.workOrderId,
+    if (nextProcess) {
+      if (nextProcess.isVerification) {
+        // Verification step reached! Notify all branch admins of the tenant
+        const wo = await this.prisma.workOrder.findUnique({
+          where: { id: process.workOrderId },
+          select: { branchId: true, folioNumber: true },
+        });
+
+        if (wo) {
+          const branchAdmins = await this.prisma.user.findMany({
+            where: {
+              tenantId,
+              branchId: wo.branchId,
+              role: UserRole.ADMIN,
+              status: 'ACTIVE',
+            },
+          });
+
+          for (const admin of branchAdmins) {
+            await this.notificationsService.create({
+              tenantId,
+              userId: admin.id,
+              title: 'Verification Pending Alert',
+              message: `Work Order "${wo.folioNumber}" requires verification step "${nextProcess.processName}".`,
+              type: 'VERIFICATION_PENDING',
+              referenceId: process.workOrderId,
+            });
+
+            await this.auditLogsService.log({
+              tenantId,
+              action: 'NOTIFICATION_TRIGGERED',
+              entityName: 'NOTIFICATION',
+              entityId: process.workOrderId,
+              details: {
+                userId: admin.id,
+                title: 'Verification Pending Alert',
+              },
+            });
+          }
+        }
+      } else if (nextProcess.technicianId) {
+        // Normal technician process
+        await this.notificationsService.create({
+          tenantId,
+          userId: nextProcess.technicianId,
+          title: 'New Active Work Order Step',
+          message: `Work Order "${process.workOrder.folioNumber}" is ready for you. The previous step "${process.processName}" has been completed.`,
+          type: 'WORK_ORDER',
+          referenceId: process.workOrderId,
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          action: 'NOTIFICATION_TRIGGERED',
+          entityName: 'NOTIFICATION',
+          entityId: process.workOrderId,
+          details: {
+            userId: nextProcess.technicianId,
+            title: 'New Active Work Order Step',
+          },
+        });
+      }
+    } else {
+      // Work order has no more steps, so it is fully completed!
+      const wo = await this.prisma.workOrder.findUnique({
+        where: { id: process.workOrderId },
+        select: { branchId: true, folioNumber: true },
       });
+
+      if (wo) {
+        const branchAdmins = await this.prisma.user.findMany({
+          where: {
+            tenantId,
+            branchId: wo.branchId,
+            role: UserRole.ADMIN,
+            status: 'ACTIVE',
+          },
+        });
+
+        for (const admin of branchAdmins) {
+          await this.notificationsService.create({
+            tenantId,
+            userId: admin.id,
+            title: 'Work Order Completed',
+            message: `Work Order "${wo.folioNumber}" has been fully completed!`,
+            type: 'WORK_ORDER_COMPLETED',
+            referenceId: process.workOrderId,
+          });
+
+          await this.auditLogsService.log({
+            tenantId,
+            action: 'NOTIFICATION_TRIGGERED',
+            entityName: 'NOTIFICATION',
+            entityId: process.workOrderId,
+            details: {
+              userId: admin.id,
+              title: 'Work Order Completed',
+            },
+          });
+        }
+      }
     }
 
     await this.updateWorkOrderStatus(process.workOrderId);

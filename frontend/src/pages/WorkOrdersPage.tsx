@@ -20,6 +20,7 @@ import {
   ShieldPlus,
   Eye,
   Pencil,
+  Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -95,7 +96,7 @@ interface ProcessFormItem {
   technicianId: string;
   sequence: number;
   isVerification: boolean;
-  status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 }
 
 export function WorkOrdersPage() {
@@ -169,6 +170,8 @@ export function WorkOrdersPage() {
   // Tab Wizard States
   const [modalTab, setModalTab] = useState<'details' | 'processes'>('details');
   const [formStatus, setFormStatus] = useState<string>('CREATED');
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'CREATE_ASSIGN' | 'EDIT_ASSIGN' | null>(null);
 
   // Add process inline
   const [showAddProcess, setShowAddProcess] = useState(false);
@@ -433,9 +436,15 @@ export function WorkOrdersPage() {
   };
 
   // ─── Submit ──────────────────────────
-  const handleSubmit = async (action: 'create' | 'createAndAssign') => {
+  const handleSubmit = async (action: 'create' | 'createAndAssign', skipConfirm = false) => {
     const isAssign = action === 'createAndAssign';
     if (!validateForm(isAssign)) return;
+
+    if (isAssign && !skipConfirm) {
+      setPendingAction('CREATE_ASSIGN');
+      setShowConfirmPopup(true);
+      return;
+    }
 
     try {
       setSaving(true);
@@ -533,7 +542,7 @@ export function WorkOrdersPage() {
     setShowEditModal(true);
   };
 
-  const handleEditSubmit = async (isAssign = true) => {
+  const handleEditSubmit = async (isAssign = true, skipConfirm = false) => {
     if (!editingWO) return;
     const errors: Record<string, string> = {};
     if (!form.doctorId) errors.doctorId = 'Doctor is required';
@@ -559,6 +568,12 @@ export function WorkOrdersPage() {
 
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
+
+    if (isAssign && editingWO.status === 'CREATED' && !skipConfirm) {
+      setPendingAction('EDIT_ASSIGN');
+      setShowConfirmPopup(true);
+      return;
+    }
 
     try {
       setSaving(true);
@@ -2865,45 +2880,69 @@ export function WorkOrdersPage() {
               ) : (
                 /* Tab 2: Process Steps Assignment */
                 <div className="wo-process-section" style={{ margin: 0, border: 'none', background: 'transparent', padding: 0 }}>
-                  <div className="wo-process-section__header" style={{ marginBottom: '1rem' }}>
-                    <h3 className="wo-process-section__title">
-                      Process Steps Assignment
-                      {processList.length > 0 && (
-                        <span className="wo-process-section__count">{processList.length}</span>
-                      )}
-                    </h3>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => {
-                          setShowAddProcess(true);
-                          setShowAddVerificationForm(false);
-                          setNewProcessId('');
-                          setNewProcessName('');
-                          setNewProcessTechnicianId('');
-                        }}
-                        disabled={saving || showAddProcess}
-                      >
-                        <PlusCircle size={14} />
-                        <span>Add Process</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => {
-                          setShowAddVerificationForm(true);
-                          setShowAddProcess(false);
-                          setVerificationType('INTERNAL');
-                          setVerificationTechnicianId('');
-                        }}
-                        disabled={saving || showAddVerificationForm}
-                      >
-                        <ShieldPlus size={14} />
-                        <span>Add Verification</span>
-                      </button>
-                    </div>
-                  </div>
+                  {(() => {
+                    const isLocked = editingWO && editingWO.status !== 'CREATED';
+                    return (
+                      <>
+                        {isLocked && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            padding: '0.75rem 1rem',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            fontSize: '0.8125rem',
+                            color: 'var(--accent-primary, #3B82F6)',
+                            marginBottom: '1rem'
+                          }}>
+                            <Lock size={15} />
+                            <span><strong>Workflow Sequence Locked:</strong> This Work Order is active. You can re-assign technicians to unstarted steps, but the process sequence structure cannot be modified.</span>
+                          </div>
+                        )}
+                        <div className="wo-process-section__header" style={{ marginBottom: '1rem' }}>
+                          <h3 className="wo-process-section__title">
+                            Process Steps Assignment
+                            {processList.length > 0 && (
+                              <span className="wo-process-section__count">{processList.length}</span>
+                            )}
+                          </h3>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm"
+                              onClick={() => {
+                                setShowAddProcess(true);
+                                setShowAddVerificationForm(false);
+                                setNewProcessId('');
+                                setNewProcessName('');
+                                setNewProcessTechnicianId('');
+                              }}
+                              disabled={saving || showAddProcess || isLocked}
+                            >
+                              <PlusCircle size={14} />
+                              <span>Add Process</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm"
+                              onClick={() => {
+                                setShowAddVerificationForm(true);
+                                setShowAddProcess(false);
+                                setVerificationType('INTERNAL');
+                                setVerificationTechnicianId('');
+                              }}
+                              disabled={saving || showAddVerificationForm || isLocked}
+                            >
+                              <ShieldPlus size={14} />
+                              <span>Add Verification</span>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
 
                   {formErrors.processes && (
                     <span className="form-error" style={{ marginBottom: '0.75rem', display: 'block' }}>
@@ -2918,111 +2957,114 @@ export function WorkOrdersPage() {
                     </div>
                   ) : (
                     <div className="wo-process-list">
-                      {processList.map((proc, idx) => (
-                        <div
-                          key={proc.tempId}
-                          className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
-                        >
-                          <div className="wo-process-item__order">
-                            <span className="wo-process-item__number">{idx + 1}</span>
-                          </div>
+                      {processList.map((proc, idx) => {
+                        const isLocked = editingWO && editingWO.status !== 'CREATED';
+                        return (
+                          <div
+                            key={proc.tempId}
+                            className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
+                          >
+                            <div className="wo-process-item__order">
+                              <span className="wo-process-item__number">{idx + 1}</span>
+                            </div>
 
-                          <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px' }}>
-                            <span>{proc.processName}</span>
-                            {proc.isVerification && (
-                              <span className="wo-process-item__tag" style={{
-                                backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                                color: proc.technicianId ? '#8B5CF6' : '#6366F1'
-                              }}>
-                                {proc.technicianId ? 'Internal' : 'External'} Verification
-                              </span>
-                            )}
-                          </div>
+                            <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px' }}>
+                              <span>{proc.processName}</span>
+                              {proc.isVerification && (
+                                <span className="wo-process-item__tag" style={{
+                                  backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                                  color: proc.technicianId ? '#8B5CF6' : '#6366F1'
+                                }}>
+                                  {proc.technicianId ? 'Internal' : 'External'} Verification
+                                </span>
+                              )}
+                            </div>
 
-                          {/* Technician Assignment */}
-                          <div className="wo-process-item__technician" style={{ width: '200px' }}>
-                            {proc.isVerification && !proc.technicianId ? (
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                height: '32px',
-                                fontSize: '0.75rem',
-                                color: 'var(--accent-primary)',
-                                fontWeight: 700,
-                                padding: '0 0.5rem',
-                                backgroundColor: 'var(--bg-muted, #F3F4F6)',
-                                borderRadius: '6px',
-                                border: '1px solid var(--border)'
-                              }}>
-                                {(() => {
-                                  const selectedDoc = doctors.find((d) => d.id === form.doctorId);
-                                  return selectedDoc ? selectedDoc.name : 'Selected Doctor';
-                                })()}
-                              </div>
-                            ) : (
+                            {/* Technician Assignment */}
+                            <div className="wo-process-item__technician" style={{ width: '200px' }}>
+                              {proc.isVerification && !proc.technicianId ? (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  height: '32px',
+                                  fontSize: '0.75rem',
+                                  color: 'var(--accent-primary)',
+                                  fontWeight: 700,
+                                  padding: '0 0.5rem',
+                                  backgroundColor: 'var(--bg-muted, #F3F4F6)',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--border)'
+                                }}>
+                                  {(() => {
+                                    const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                                    return selectedDoc ? selectedDoc.name : 'Selected Doctor';
+                                  })()}
+                                </div>
+                              ) : (
+                                <SearchableSelect
+                                  id={`select-edit-proc-tech-${proc.tempId}`}
+                                  options={(proc.isVerification ? admins : technicians).map((u) => ({
+                                    value: u.id,
+                                    label: `${u.firstName} ${u.lastName}`,
+                                  }))}
+                                  value={proc.technicianId}
+                                  onChange={(val) => updateProcessTechnician(idx, val)}
+                                  disabled={saving || (isLocked && proc.status !== 'NOT_STARTED')}
+                                  placeholder={`Select ${proc.isVerification ? 'admin' : 'technician'}`}
+                                />
+                              )}
+                            </div>
+
+                            {/* Process Status selection */}
+                            <div className="wo-process-item__status" style={{ width: '150px' }}>
                               <SearchableSelect
-                                id={`select-edit-proc-tech-${proc.tempId}`}
-                                options={(proc.isVerification ? admins : technicians).map((u) => ({
-                                  value: u.id,
-                                  label: `${u.firstName} ${u.lastName}`,
-                                }))}
-                                value={proc.technicianId}
-                                onChange={(val) => updateProcessTechnician(idx, val)}
-                                disabled={saving}
-                                placeholder={`Select ${proc.isVerification ? 'admin' : 'technician'}`}
+                                id={`select-edit-proc-status-${proc.tempId}`}
+                                options={[
+                                  { value: 'NOT_STARTED', label: 'Not Started' },
+                                  { value: 'IN_PROGRESS', label: 'In Progress' },
+                                  { value: 'COMPLETED', label: 'Completed' },
+                                  { value: 'FAILED', label: 'Failed' },
+                                  { value: 'CANCELLED', label: 'Cancelled' },
+                                ]}
+                                value={proc.status || 'NOT_STARTED'}
+                                onChange={(val) => updateProcessStatus(idx, val as any)}
+                                disabled={saving || isLocked}
+                                placeholder="Select status"
                               />
-                            )}
-                          </div>
+                            </div>
 
-                          {/* Process Status selection */}
-                          <div className="wo-process-item__status" style={{ width: '150px' }}>
-                            <SearchableSelect
-                              id={`select-edit-proc-status-${proc.tempId}`}
-                              options={[
-                                { value: 'NOT_STARTED', label: 'Not Started' },
-                                { value: 'IN_PROGRESS', label: 'In Progress' },
-                                { value: 'COMPLETED', label: 'Completed' },
-                                { value: 'FAILED', label: 'Failed' },
-                                { value: 'CANCELLED', label: 'Cancelled' },
-                              ]}
-                              value={proc.status || 'NOT_STARTED'}
-                              onChange={(val) => updateProcessStatus(idx, val as any)}
-                              disabled={saving}
-                              placeholder="Select status"
-                            />
+                            <div className="wo-process-item__actions">
+                              <button
+                                type="button"
+                                className="wo-process-item__btn"
+                                onClick={() => moveProcess(idx, 'up')}
+                                disabled={idx === 0 || saving || isLocked}
+                                title="Move up"
+                              >
+                                <ChevronUp size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="wo-process-item__btn"
+                                onClick={() => moveProcess(idx, 'down')}
+                                disabled={idx === processList.length - 1 || saving || isLocked}
+                                title="Move down"
+                              >
+                                <ChevronDown size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="wo-process-item__btn wo-process-item__btn--danger"
+                                onClick={() => removeProcess(idx)}
+                                disabled={saving || isLocked}
+                                title="Remove"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
-
-                          <div className="wo-process-item__actions">
-                            <button
-                              type="button"
-                              className="wo-process-item__btn"
-                              onClick={() => moveProcess(idx, 'up')}
-                              disabled={idx === 0 || saving}
-                              title="Move up"
-                            >
-                              <ChevronUp size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              className="wo-process-item__btn"
-                              onClick={() => moveProcess(idx, 'down')}
-                              disabled={idx === processList.length - 1 || saving}
-                              title="Move down"
-                            >
-                              <ChevronDown size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              className="wo-process-item__btn wo-process-item__btn--danger"
-                              onClick={() => removeProcess(idx)}
-                              disabled={saving}
-                              title="Remove"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
@@ -3194,6 +3236,70 @@ export function WorkOrdersPage() {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Visual Confirmation Dialog for Assignment */}
+      {showConfirmPopup && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setShowConfirmPopup(false)}>
+          <div className="modal" style={{ maxWidth: '480px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-primary, #3B82F6)' }}>
+                  <ShieldCheck size={20} />
+                  <span>Confirm Assignment</span>
+                </h2>
+                <p className="modal__subtitle">Activate workflow and lock structure</p>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => setShowConfirmPopup(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '1.5rem' }}>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', lineHeight: '1.5', color: 'var(--text-primary)' }}>
+                Are you sure you want to assign these processes and activate this Work Order?
+              </p>
+              <div style={{
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+                fontSize: '0.75rem',
+                color: '#D97706',
+                lineHeight: '1.4'
+              }}>
+                <strong>Warning:</strong> Activating this Work Order locks the process sequence structure. You will not be able to add, delete, or reorder steps afterwards. The first technician in the sequence will receive an instant notification.
+              </div>
+            </div>
+            <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setShowConfirmPopup(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={async () => {
+                  setShowConfirmPopup(false);
+                  if (pendingAction === 'CREATE_ASSIGN') {
+                    await handleSubmit('createAndAssign', true);
+                  } else if (pendingAction === 'EDIT_ASSIGN') {
+                    await handleEditSubmit(true, true);
+                  }
+                  setPendingAction(null);
+                }}
+              >
+                Confirm &amp; Activate
+              </button>
             </div>
           </div>
         </div>

@@ -7,7 +7,7 @@ export interface WorkOrderProcessItem {
   technicianId: string | null;
   sequence: number;
   isVerification: boolean;
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   createdAt: string;
   technician?: {
     id: string;
@@ -62,7 +62,7 @@ export interface CreateWorkOrderProcessPayload {
   technicianId?: string;
   sequence: number;
   isVerification?: boolean;
-  status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 }
 
 export interface CreateWorkOrderPayload {
@@ -125,6 +125,21 @@ export const workOrderService = {
 
   delete: async (id: string): Promise<{ success: boolean }> => {
     const response = await api.delete<{ success: boolean }>(`/work-orders/${id}`);
+    return response.data;
+  },
+
+  getDashboardStats: async (): Promise<any> => {
+    const response = await api.get<any>('/work-orders/dashboard-stats');
+    return response.data;
+  },
+
+  startVerification: async (workOrderId: string, processId: string): Promise<any> => {
+    const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/start-verification`);
+    return response.data;
+  },
+
+  endVerification: async (workOrderId: string, processId: string, status: 'SUCCESS' | 'REWORK'): Promise<any> => {
+    const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/end-verification`, { status });
     return response.data;
   },
 };

@@ -73,6 +73,7 @@ model Tenant {
   processes       Process[]
   workOrders      WorkOrder[]
   notifications   Notification[]
+  auditLogs       AuditLog[]
 
   @@map("tenants")
 }
@@ -314,6 +315,7 @@ model WorkOrderProcess {
   pauseCount     Int           @default(0) @map("pause_count")
   totalPauseDuration Int       @default(0) @map("total_pause_duration")
   totalActiveDuration Int      @default(0) @map("total_active_duration")
+  verificationStatus String?     @map("verification_status")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   // Relations
@@ -362,4 +364,23 @@ model Notification {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+// ─── Audit Log ──────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  userId       String?  @map("user_id")
+  userEmail    String?  @map("user_email")
+  action       String
+  entityName   String   @map("entity_name")
+  entityId     String   @map("entity_id")
+  details      String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
 }

@@ -7,7 +7,6 @@ import {
   Pause,
   Clock,
   CheckCircle2,
-  Lock,
   ChevronRight,
   ClipboardList,
   AlertCircle,

@@ -103,6 +103,7 @@ export class WorkOrdersController {
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('branchId') branchIdContext: string | null,
     @CurrentUser('role') userRole: string,
+    @CurrentUser('id') userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateWorkOrderDto,
   ) {
@@ -110,7 +111,7 @@ export class WorkOrdersController {
       throw new BadRequestException('Organization context is required.');
     }
     const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.workOrdersService.update(tenantId, id, dto, branchContext);
+    return this.workOrdersService.update(tenantId, id, dto, branchContext, userId);
   }
 
   @Delete(':id')
@@ -128,5 +129,70 @@ export class WorkOrdersController {
     }
     const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
     return this.workOrdersService.remove(tenantId, id, branchContext);
+  }
+
+  @Get('dashboard-stats')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @ApiOperation({ summary: 'Get operational dashboard statistics' })
+  async getDashboardStats(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    const finalBranchId = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.workOrdersService.getDashboardStats(tenantId, finalBranchId);
+  }
+
+  @Post(':id/processes/:processId/start-verification')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Start process step verification' })
+  async startVerification(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+    @Param('processId') processId: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (userRole === 'ADMIN') {
+      const wo = await this.workOrdersService.findOne(tenantId, id, branchIdContext);
+      if (!wo) {
+        throw new BadRequestException('Work order not found in your branch context.');
+      }
+    }
+    return this.workOrdersService.startVerification(tenantId, id, processId, userId);
+  }
+
+  @Post(':id/processes/:processId/end-verification')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'End process step verification with SUCCESS or REWORK' })
+  async endVerification(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+    @Param('processId') processId: string,
+    @Body() body: { status: 'SUCCESS' | 'REWORK' },
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (!body || !body.status || !['SUCCESS', 'REWORK'].includes(body.status)) {
+      throw new BadRequestException('Outcome status must be either SUCCESS or REWORK.');
+    }
+    if (userRole === 'ADMIN') {
+      const wo = await this.workOrdersService.findOne(tenantId, id, branchIdContext);
+      if (!wo) {
+        throw new BadRequestException('Work order not found in your branch context.');
+      }
+    }
+    return this.workOrdersService.endVerification(tenantId, id, processId, body.status, userId);
   }
 }

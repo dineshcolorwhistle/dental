@@ -22,7 +22,6 @@ import {
   technicianPortalService,
   type TechnicianWorkOrderListItem,
   type TechnicianProcessItem,
-  type ProcessActivityLogItem,
 } from '../services';
 
 // Digital timer sub-component for premium visual effect
@@ -230,6 +229,14 @@ export function TechnicianWorkOrdersPage() {
     const remainingMins = mins % 60;
     return `${hrs}h ${remainingMins}m`;
   };
+
+  if (loading && workOrders.length === 0) {
+    return (
+      <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <div className="spinner" />
+      </div>
+    );
+  }
 
   return (
     <div className="work-orders-page animate-fade-in" style={{ position: 'relative' }}>
