@@ -1,5 +1,13 @@
 import api from './api';
 
+export interface ProcessActivityLogItem {
+  id: string;
+  workOrderProcessId: string;
+  action: 'START' | 'PAUSE' | 'RESUME' | 'END';
+  timestamp: string;
+  notes: string | null;
+}
+
 export interface WorkOrderProcessItem {
   id: string;
   workOrderId: string;
@@ -9,6 +17,9 @@ export interface WorkOrderProcessItem {
   isVerification: boolean;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   createdAt: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  activityLogs?: ProcessActivityLogItem[];
   technician?: {
     id: string;
     firstName: string;

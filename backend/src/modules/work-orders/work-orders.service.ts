@@ -89,6 +89,9 @@ export class WorkOrdersService {
         technician: {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
+        activityLogs: {
+          orderBy: { timestamp: 'asc' as const },
+        },
       },
     },
   };

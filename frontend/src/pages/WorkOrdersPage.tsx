@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import {
   ClipboardList,
   Plus,
@@ -21,6 +21,7 @@ import {
   Eye,
   Pencil,
   Lock,
+  History,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -139,6 +140,7 @@ export function WorkOrdersPage() {
   // View modal
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrderListItem | null>(null);
+  const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -386,7 +388,7 @@ export function WorkOrdersPage() {
     }
   };
 
-  const updateProcessStatus = (index: number, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED') => {
+  const updateProcessStatus = (index: number, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED') => {
     setProcessList((prev) =>
       prev.map((p, i) => (i === index ? { ...p, status } : p)),
     );
@@ -493,6 +495,7 @@ export function WorkOrdersPage() {
       setShowAddFundForm(false);
       setAddFundAmount('');
       setAddFundNotes('');
+      setExpandedAuditRow(null);
       setSelectedWO(wo);
       setShowViewModal(true);
       const detailedWo = await workOrderService.getById(wo.id);
@@ -1316,6 +1319,7 @@ export function WorkOrdersPage() {
                               options={[
                                 { value: 'NOT_STARTED', label: 'Not Started' },
                                 { value: 'IN_PROGRESS', label: 'In Progress' },
+                                { value: 'PAUSED', label: 'Paused' },
                                 { value: 'COMPLETED', label: 'Completed' },
                                 { value: 'FAILED', label: 'Failed' },
                                 { value: 'CANCELLED', label: 'Cancelled' },
@@ -1742,6 +1746,7 @@ export function WorkOrdersPage() {
                   switch (status) {
                     case 'COMPLETED': return 'Completed';
                     case 'IN_PROGRESS': return 'In Progress';
+                    case 'PAUSED': return 'Paused';
                     case 'FAILED': return 'Failed';
                     case 'CANCELLED': return 'Cancelled';
                     default: return 'Not Started';
@@ -1752,6 +1757,7 @@ export function WorkOrdersPage() {
                   switch (status) {
                     case 'COMPLETED': return 'var(--success, #10B981)';
                     case 'IN_PROGRESS': return 'var(--warning, #F59E0B)';
+                    case 'PAUSED': return 'var(--warning, #F59E0B)';
                     case 'FAILED': return '#EF4444';
                     case 'CANCELLED': return '#94A3B8';
                     default: return 'var(--text-muted)';
@@ -2119,6 +2125,7 @@ export function WorkOrdersPage() {
                                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Technician</th>
                                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Start Time</th>
                                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>End Time</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Time Audit</th>
                                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
                                 </tr>
                               </thead>
@@ -2135,20 +2142,8 @@ export function WorkOrdersPage() {
                                     });
                                   };
 
-                                  const baseDate = new Date(selectedWO.createdAt);
-                                  let startTimeStr = '—';
-                                  let endTimeStr = '—';
-
-                                  if (stepStatus === 'COMPLETED') {
-                                    const start = new Date(baseDate.getTime() + idx * 2 * 60 * 60 * 1000);
-                                    const end = new Date(start.getTime() + 1.5 * 60 * 60 * 1000);
-                                    startTimeStr = formatDate(start);
-                                    endTimeStr = formatDate(end);
-                                  } else if (stepStatus === 'IN_PROGRESS') {
-                                    const start = new Date(baseDate.getTime() + idx * 2 * 60 * 60 * 1000);
-                                    startTimeStr = formatDate(start);
-                                    endTimeStr = 'Running...';
-                                  }
+                                  let startTimeStr = proc.startedAt ? formatDate(proc.startedAt) : '—';
+                                  let endTimeStr = proc.endedAt ? formatDate(proc.endedAt) : (stepStatus === 'IN_PROGRESS' ? 'Running...' : stepStatus === 'PAUSED' ? 'Paused' : '—');
                                   
                                   let badgeColor = 'var(--text-muted, #64748B)';
                                   let badgeBg = 'var(--bg-overlay, rgba(148, 163, 184, 0.08))';
@@ -2162,6 +2157,10 @@ export function WorkOrdersPage() {
                                     badgeColor = 'var(--warning, #F59E0B)';
                                     badgeBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
                                     statusLabel = 'In Progress';
+                                  } else if (stepStatus === 'PAUSED') {
+                                    badgeColor = 'var(--warning, #F59E0B)';
+                                    badgeBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
+                                    statusLabel = 'Paused';
                                   } else if (stepStatus === 'FAILED') {
                                     badgeColor = '#EF4444';
                                     badgeBg = 'rgba(239, 68, 68, 0.08)';
@@ -2172,57 +2171,174 @@ export function WorkOrdersPage() {
                                     statusLabel = 'Cancelled';
                                   }
 
+                                  const hasLogs = proc.activityLogs && proc.activityLogs.length > 0;
+                                  const isExpanded = expandedAuditRow === proc.id;
+
                                   return (
-                                    <tr key={proc.id} style={{
-                                      borderBottom: idx < processes.length - 1 ? '1px solid var(--border)' : 'none',
-                                      backgroundColor: stepStatus === 'IN_PROGRESS' ? 'rgba(111, 174, 217, 0.03)' : 'transparent'
-                                    }}>
-                                      <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                      <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                          <span>{proc.processName}</span>
-                                          {proc.isVerification && (
-                                            <span style={{
-                                              fontSize: '0.625rem',
-                                              fontWeight: 700,
-                                              padding: '1px 5px',
-                                              borderRadius: '4px',
-                                              backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                                              color: proc.technicianId ? '#8B5CF6' : '#6366F1'
-                                            }}>
-                                              {proc.technicianId ? 'Internal' : 'External'} Verification
+                                    <Fragment key={proc.id}>
+                                      <tr style={{
+                                        borderBottom: idx < processes.length - 1 ? '1px solid var(--border)' : 'none',
+                                        backgroundColor: stepStatus === 'IN_PROGRESS' ? 'rgba(111, 174, 217, 0.03)' : 'transparent'
+                                      }}>
+                                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-muted)' }}>{idx + 1}</td>
+                                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span>{proc.processName}</span>
+                                            {proc.isVerification && (
+                                              <span style={{
+                                                fontSize: '0.625rem',
+                                                fontWeight: 700,
+                                                padding: '1px 5px',
+                                                borderRadius: '4px',
+                                                backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                                                color: proc.technicianId ? '#8B5CF6' : '#6366F1'
+                                              }}>
+                                                {proc.technicianId ? 'Internal' : 'External'} Verification
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                          {proc.isVerification && !proc.technicianId ? (
+                                            <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                                              {selectedWO.doctor?.name ? `${selectedWO.doctor.name} (External Doctor)` : 'External Doctor'}
                                             </span>
+                                          ) : proc.technician ? (
+                                            `${proc.technician.firstName} ${proc.technician.lastName}`
+                                          ) : (
+                                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unassigned</span>
                                           )}
-                                        </div>
-                                      </td>
-                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                        {proc.isVerification && !proc.technicianId ? (
-                                          <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                                            {selectedWO.doctor?.name ? `${selectedWO.doctor.name} (External Doctor)` : 'External Doctor'}
+                                        </td>
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{startTimeStr}</td>
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{endTimeStr}</td>
+                                        
+                                        {/* Time Audit Column */}
+                                        <td style={{ padding: '0.75rem 1rem' }}>
+                                          {hasLogs ? (
+                                            <button
+                                              type="button"
+                                              className="btn btn--ghost btn--sm"
+                                              style={{
+                                                padding: '3px 8px',
+                                                fontSize: '0.75rem',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                color: 'var(--accent-primary, #3B82F6)',
+                                                border: '1px solid var(--border)',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                backgroundColor: 'transparent'
+                                              }}
+                                              onClick={() => setExpandedAuditRow(isExpanded ? null : proc.id)}
+                                            >
+                                              <History size={12} />
+                                              <span>{isExpanded ? 'Hide Audit' : `View Audit (${proc.activityLogs?.length})`}</span>
+                                            </button>
+                                          ) : (
+                                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontStyle: 'italic' }}>No activity logs</span>
+                                          )}
+                                        </td>
+
+                                        <td style={{ padding: '0.75rem 1rem' }}>
+                                          <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            padding: '2px 8px',
+                                            borderRadius: '100px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            color: badgeColor,
+                                            backgroundColor: badgeBg
+                                          }}>
+                                            {statusLabel}
                                           </span>
-                                        ) : proc.technician ? (
-                                          `${proc.technician.firstName} ${proc.technician.lastName}`
-                                        ) : (
-                                          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unassigned</span>
-                                        )}
-                                      </td>
-                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{startTimeStr}</td>
-                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{endTimeStr}</td>
-                                      <td style={{ padding: '0.75rem 1rem' }}>
-                                        <span style={{
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          padding: '2px 8px',
-                                          borderRadius: '100px',
-                                          fontSize: '0.75rem',
-                                          fontWeight: 700,
-                                          color: badgeColor,
-                                          backgroundColor: badgeBg
-                                        }}>
-                                          {statusLabel}
-                                        </span>
-                                      </td>
-                                    </tr>
+                                        </td>
+                                      </tr>
+
+                                      {/* Collapsible Process Audit Log Timeline */}
+                                      {isExpanded && hasLogs && (
+                                        <tr style={{ backgroundColor: 'rgba(111, 174, 217, 0.02)' }}>
+                                          <td colSpan={7} style={{ padding: '0.75rem 1rem 1rem 2.5rem', borderBottom: '1px solid var(--border)' }}>
+                                            <div style={{
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              gap: '0.75rem',
+                                              padding: '1rem',
+                                              border: '1px solid var(--border)',
+                                              borderRadius: '8px',
+                                              backgroundColor: 'var(--bg-surface)',
+                                              boxShadow: 'var(--shadow-sm)'
+                                            }}>
+                                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                Process Activity History &mdash; {proc.processName}
+                                              </div>
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                {[...proc.activityLogs!].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((log: any, lidx) => {
+                                                  const getActionLabel = (act: string) => {
+                                                    switch (act) {
+                                                      case 'START': return 'Process Started';
+                                                      case 'PAUSE': return 'Process Paused';
+                                                      case 'RESUME': return 'Process Resumed';
+                                                      case 'END': return 'Process Completed';
+                                                      default: return act;
+                                                    }
+                                                  };
+
+                                                  const getActionColor = (act: string) => {
+                                                    switch (act) {
+                                                      case 'START': return 'var(--accent-primary, #3B82F6)';
+                                                      case 'PAUSE': return 'var(--warning, #F59E0B)';
+                                                      case 'RESUME': return 'var(--accent-primary, #3B82F6)';
+                                                      case 'END': return 'var(--success, #10B981)';
+                                                      default: return 'var(--text-secondary)';
+                                                    }
+                                                  };
+
+                                                  return (
+                                                    <div key={lidx} style={{
+                                                      display: 'flex',
+                                                      gap: '0.75rem',
+                                                      alignItems: 'flex-start'
+                                                    }}>
+                                                      <div style={{
+                                                        width: '8px',
+                                                        height: '8px',
+                                                        borderRadius: '50%',
+                                                        backgroundColor: getActionColor(log.action),
+                                                        marginTop: '5px',
+                                                        flexShrink: 0
+                                                      }} />
+                                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                          <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                                            <span style={{ color: getActionColor(log.action) }}>{getActionLabel(log.action)}</span>
+                                                          </span>
+                                                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                            {new Date(log.timestamp).toLocaleDateString('en-IN', {
+                                                              day: 'numeric',
+                                                              month: 'short',
+                                                              year: 'numeric',
+                                                              hour: '2-digit',
+                                                              minute: '2-digit'
+                                                            })}
+                                                          </span>
+                                                        </div>
+                                                        {log.notes && (
+                                                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '2px' }}>
+                                                            {log.notes}
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </Fragment>
                                   );
                                 })}
                               </tbody>
@@ -3022,6 +3138,7 @@ export function WorkOrdersPage() {
                                 options={[
                                   { value: 'NOT_STARTED', label: 'Not Started' },
                                   { value: 'IN_PROGRESS', label: 'In Progress' },
+                                  { value: 'PAUSED', label: 'Paused' },
                                   { value: 'COMPLETED', label: 'Completed' },
                                   { value: 'FAILED', label: 'Failed' },
                                   { value: 'CANCELLED', label: 'Cancelled' },
@@ -3164,6 +3281,7 @@ export function WorkOrdersPage() {
                       </div>
                     </div>
                   )}
+
                 </div>
               )}
             </div>
