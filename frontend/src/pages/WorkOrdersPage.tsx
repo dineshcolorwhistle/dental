@@ -2997,10 +2997,10 @@ export function WorkOrdersPage() {
                 /* Tab 2: Process Steps Assignment */
                 <div className="wo-process-section" style={{ margin: 0, border: 'none', background: 'transparent', padding: 0 }}>
                   {(() => {
-                    const isLocked = editingWO && editingWO.status !== 'CREATED';
+                    const hasStartedSteps = processList.some((p) => p.status && p.status !== 'NOT_STARTED');
                     return (
                       <>
-                        {isLocked && (
+                        {hasStartedSteps && (
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -3014,7 +3014,7 @@ export function WorkOrdersPage() {
                             marginBottom: '1rem'
                           }}>
                             <Lock size={15} />
-                            <span><strong>Workflow Sequence Locked:</strong> This Work Order is active. You can re-assign technicians to unstarted steps, but the process sequence structure cannot be modified.</span>
+                            <span><strong>Workflow Steps Locked:</strong> Some steps have already started. You cannot modify, reorder, or delete started steps, but you can still manage, reorder, delete, or assign unstarted steps, and add new ones.</span>
                           </div>
                         )}
                         <div className="wo-process-section__header" style={{ marginBottom: '1rem' }}>
@@ -3035,7 +3035,7 @@ export function WorkOrdersPage() {
                                 setNewProcessName('');
                                 setNewProcessTechnicianId('');
                               }}
-                              disabled={saving || showAddProcess || isLocked}
+                              disabled={saving || showAddProcess}
                             >
                               <PlusCircle size={14} />
                               <span>Add Process</span>
@@ -3049,7 +3049,7 @@ export function WorkOrdersPage() {
                                 setVerificationType('INTERNAL');
                                 setVerificationTechnicianId('');
                               }}
-                              disabled={saving || showAddVerificationForm || isLocked}
+                              disabled={saving || showAddVerificationForm}
                             >
                               <ShieldPlus size={14} />
                               <span>Add Verification</span>
@@ -3074,7 +3074,10 @@ export function WorkOrdersPage() {
                   ) : (
                     <div className="wo-process-list">
                       {processList.map((proc, idx) => {
-                        const isLocked = editingWO && editingWO.status !== 'CREATED';
+                        const isStepStarted = proc.status && proc.status !== 'NOT_STARTED';
+                        const canMoveUp = idx > 0 && !isStepStarted && !(processList[idx - 1].status && processList[idx - 1].status !== 'NOT_STARTED');
+                        const canMoveDown = idx < processList.length - 1 && !isStepStarted && !(processList[idx + 1].status && processList[idx + 1].status !== 'NOT_STARTED');
+                        const canRemove = !isStepStarted;
                         return (
                           <div
                             key={proc.tempId}
@@ -3125,7 +3128,7 @@ export function WorkOrdersPage() {
                                   }))}
                                   value={proc.technicianId}
                                   onChange={(val) => updateProcessTechnician(idx, val)}
-                                  disabled={saving || (isLocked && proc.status !== 'NOT_STARTED')}
+                                  disabled={saving || isStepStarted}
                                   placeholder={`Select ${proc.isVerification ? 'admin' : 'technician'}`}
                                 />
                               )}
@@ -3145,7 +3148,7 @@ export function WorkOrdersPage() {
                                 ]}
                                 value={proc.status || 'NOT_STARTED'}
                                 onChange={(val) => updateProcessStatus(idx, val as any)}
-                                disabled={saving || isLocked}
+                                disabled={saving || isStepStarted}
                                 placeholder="Select status"
                               />
                             </div>
@@ -3155,7 +3158,7 @@ export function WorkOrdersPage() {
                                 type="button"
                                 className="wo-process-item__btn"
                                 onClick={() => moveProcess(idx, 'up')}
-                                disabled={idx === 0 || saving || isLocked}
+                                disabled={saving || !canMoveUp}
                                 title="Move up"
                               >
                                 <ChevronUp size={14} />
@@ -3164,7 +3167,7 @@ export function WorkOrdersPage() {
                                 type="button"
                                 className="wo-process-item__btn"
                                 onClick={() => moveProcess(idx, 'down')}
-                                disabled={idx === processList.length - 1 || saving || isLocked}
+                                disabled={saving || !canMoveDown}
                                 title="Move down"
                               >
                                 <ChevronDown size={14} />
@@ -3173,7 +3176,7 @@ export function WorkOrdersPage() {
                                 type="button"
                                 className="wo-process-item__btn wo-process-item__btn--danger"
                                 onClick={() => removeProcess(idx)}
-                                disabled={saving || isLocked}
+                                disabled={saving || !canRemove}
                                 title="Remove"
                               >
                                 <Trash2 size={14} />

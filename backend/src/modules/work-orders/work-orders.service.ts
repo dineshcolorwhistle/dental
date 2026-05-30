@@ -325,34 +325,32 @@ export class WorkOrdersService {
     } = dto;
 
     // Strict sequential and locking validation
-    if (existing.status !== WorkOrderStatus.CREATED && processes) {
-      // 1. Verify same number of steps
-      if (processes.length !== existing.processes.length) {
-        throw new BadRequestException(
-          'Cannot add or remove process steps once the work order is assigned or active.',
-        );
-      }
-
-      // 2. Verify sequence and names match exactly
-      for (const p of processes) {
-        const ep = existing.processes.find((e) => e.sequence === p.sequence);
-        if (!ep) {
-          throw new BadRequestException('Cannot alter the sequence order of processes.');
-        }
-        if (ep.processName !== p.processName || ep.isVerification !== (p.isVerification || false)) {
-          throw new BadRequestException(
-            `Cannot alter the name or type of process step "${ep.processName}".`,
-          );
-        }
-
-        // 3. Verify already started steps are completely unmodified
+    if (processes) {
+      for (const ep of existing.processes) {
         if (ep.status !== ProcessStatus.NOT_STARTED) {
+          // This process has started. It must be present in the new processes list at the exact same sequence.
+          const p = processes.find((item) => item.sequence === ep.sequence);
+          if (!p) {
+            throw new BadRequestException(
+              `Cannot delete or reorder already started process step "${ep.processName}".`,
+            );
+          }
           if (
-            ep.technicianId !== (p.technicianId || null) ||
-            ep.status !== (p.status || ProcessStatus.NOT_STARTED)
+            p.processName !== ep.processName ||
+            (p.isVerification || false) !== ep.isVerification
           ) {
             throw new BadRequestException(
-              `Cannot modify the technician or status of already started process step "${ep.processName}".`,
+              `Cannot modify configuration of already started process step "${ep.processName}".`,
+            );
+          }
+          if ((p.technicianId || null) !== (ep.technicianId || null)) {
+            throw new BadRequestException(
+              `Cannot change assigned technician for already started process step "${ep.processName}".`,
+            );
+          }
+          if ((p.status || ProcessStatus.NOT_STARTED) !== ep.status) {
+            throw new BadRequestException(
+              `Cannot modify status of already started process step "${ep.processName}".`,
             );
           }
         }
