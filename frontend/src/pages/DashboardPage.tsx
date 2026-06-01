@@ -3,7 +3,6 @@ import { useAuth } from '../context';
 import { TechnicianDashboardPage } from './TechnicianDashboardPage';
 import {
   Activity,
-  Users,
   ClipboardList,
   ShieldCheck,
   Play,
@@ -13,9 +12,11 @@ import {
   Loader2,
   CheckCircle2,
   X,
+  Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
+import { ViewWorkOrderModal } from '../components';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -30,6 +31,8 @@ export function DashboardPage() {
   const [selectedAlert, setSelectedAlert] = useState<any>(null);
   const [showOutcomeModal, setShowOutcomeModal] = useState(false);
   const [outcomeSaving, setOutcomeSaving] = useState(false);
+  const [selectedWOId, setSelectedWOId] = useState<string | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -100,10 +103,11 @@ export function DashboardPage() {
     );
   }
 
-  const alerts = stats?.verificationAlerts || [];
+  const alerts = (stats?.verificationAlerts || []).filter((a: any) => a.status === 'NOT_STARTED');
   const statusSummary = stats?.woStatusSummary || {};
   const pendingProcs = stats?.pendingProcesses || [];
-  const techOverview = stats?.technicianActivityOverview || [];
+  const inProgressWOs = stats?.inProgressWOs || [];
+  const verificationWOs = stats?.verificationWOs || [];
 
   return (
     <div className="dashboard-page animate-fade-in" style={{ paddingBottom: '3rem' }}>
@@ -216,6 +220,16 @@ export function DashboardPage() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--border)' }}
+                      onClick={() => {
+                        setSelectedWOId(alert.workOrderId);
+                        setShowViewModal(true);
+                      }}
+                    >
+                      <Eye size={12} /> View WO
+                    </button>
                     {isNotStarted ? (
                       <button
                         className="btn btn--primary btn--sm"
@@ -284,113 +298,258 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Grid Layout for Queue and Technicians */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '2rem' }}>
-        {/* Pending Processes Queue */}
-        <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem' }}>
+      {/* Workflow Pipelines: In-Progress and Verification WOs Segregated */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem', marginBottom: '2.5rem' }}>
+        {/* In-Progress Work Orders */}
+        <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
-            <Clock size={18} style={{ color: '#F59E0B' }} />
-            Pending Processes Queue
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500, marginLeft: 'auto' }}>Ready to start</span>
+            <Activity size={18} style={{ color: 'var(--accent-primary, #3B82F6)' }} />
+            In-Progress Work Orders
+            <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--accent-primary, #3B82F6)', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>{inProgressWOs.length}</span>
           </h3>
 
-          {pendingProcs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+          {inProgressWOs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
               <CheckCircle2 size={32} style={{ color: 'var(--success)', opacity: 0.6 }} />
-              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>All steps launched!</h4>
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No Active In-Progress Orders</h4>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                There are no pending process steps awaiting technician start action.
+                Create or assign work orders to get started.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
-              {pendingProcs.map((proc: any) => (
-                <div key={proc.id} style={{
-                  padding: '0.75rem 1rem',
-                  borderRadius: '10px',
-                  backgroundColor: 'var(--bg-card, #F9FAFB)',
-                  border: '1px solid var(--border)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)' }}>
-                        {proc.folioNumber}
-                      </span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{proc.patient}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+              {inProgressWOs.map((wo: any) => {
+                const activeStep = wo.processes.find((p: any) => p.status === 'IN_PROGRESS' || p.status === 'PAUSED')
+                  || wo.processes.find((p: any) => p.status === 'NOT_STARTED')
+                  || wo.processes[wo.processes.length - 1];
+
+                const activeStepTech = activeStep?.technician
+                  ? `${activeStep.technician.firstName} ${activeStep.technician.lastName}`
+                  : 'Unassigned';
+
+                return (
+                  <div key={wo.id} style={{
+                    padding: '1rem',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-surface, #FFFFFF)',
+                    border: '1px solid var(--border)',
+                    boxShadow: 'var(--shadow-sm)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px' }}>
+                          {wo.folioNumber}
+                        </span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{wo.patient}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          padding: '2px 8px',
+                          borderRadius: '100px',
+                          backgroundColor: wo.status === 'ASSIGNED' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: wo.status === 'ASSIGNED' ? '#3B82F6' : '#F59E0B'
+                        }}>
+                          {wo.status === 'ASSIGNED' ? 'Assigned' : 'In Progress'}
+                        </span>
+                        <button
+                          className="btn-action"
+                          style={{
+                            color: 'var(--accent-primary, #3B82F6)',
+                            backgroundColor: '#EFF6FF',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            setSelectedWOId(wo.id);
+                            setShowViewModal(true);
+                          }}
+                          title="View Work Order"
+                        >
+                          <Eye size={14} />
+                        </button>
+                      </div>
                     </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Step: <strong>{proc.processName}</strong>
-                    </span>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      <div>
+                        Doctor: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
+                      </div>
+                      <div>
+                        Prosthesis: <strong style={{ color: 'var(--accent-primary)' }}>{wo.prosthesisType?.name || '—'}</strong>
+                      </div>
+                    </div>
+
+                    {activeStep && (
+                      <div style={{
+                        marginTop: '4px',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--bg-card, #F9FAFB)',
+                        border: '1px solid var(--border)',
+                        fontSize: '0.78rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <span>Active Step: <strong>{activeStep.processName}</strong></span>
+                        <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>Tech: <strong>{activeStepTech}</strong></span>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '0.7rem', display: 'block', color: 'var(--text-muted)' }}>Assigned</span>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {proc.technicianName}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Technician Activity Overview */}
-        <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem' }}>
+        {/* Work Orders in Verification */}
+        <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
-            <Users size={18} style={{ color: 'var(--accent-primary)' }} />
-            Technician Load Overview
+            <ShieldCheck size={18} style={{ color: '#8B5CF6' }} />
+            Work Orders in Verification
+            <span style={{ fontSize: '0.75rem', backgroundColor: '#8B5CF6', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>{verificationWOs.length}</span>
           </h3>
 
-          {techOverview.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-              <Users size={32} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No active technicians</h4>
+          {verificationWOs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
+              <ShieldCheck size={32} style={{ color: '#8B5CF6', opacity: 0.6 }} />
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No Orders in Verification</h4>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Add technicians or activate work orders to see activity summaries.
+                Pending verification steps will appear here for audit review.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
-              {techOverview.map((tech: any) => {
-                const isIdle = tech.activeStep === 'Idle';
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+              {verificationWOs.map((wo: any) => {
+                const activeVerification = wo.processes.find((p: any) => p.isVerification && (p.status === 'NOT_STARTED' || p.status === 'IN_PROGRESS' || p.status === 'PAUSED'));
+                const isNotStarted = activeVerification?.status === 'NOT_STARTED';
+                const evaluator = activeVerification?.technicianId && activeVerification.technician
+                  ? `${activeVerification.technician.firstName} ${activeVerification.technician.lastName}`
+                  : (wo.doctor?.name || 'External Doctor');
+
                 return (
-                  <div key={tech.id} style={{
-                    padding: '0.75rem 1rem',
-                    borderRadius: '10px',
+                  <div key={wo.id} style={{
+                    padding: '1rem',
+                    borderRadius: '12px',
                     backgroundColor: 'var(--bg-surface, #FFFFFF)',
                     border: '1px solid var(--border)',
+                    boxShadow: 'var(--shadow-sm)',
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '1rem'
+                    flexDirection: 'column',
+                    gap: '8px'
                   }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{tech.name}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                        <span style={{
-                          width: '6px',
-                          height: '6px',
-                          borderRadius: '50%',
-                          backgroundColor: isIdle ? '#9CA3AF' : 'var(--success)'
-                        }} />
-                        <span style={{ fontSize: '0.75rem', color: isIdle ? 'var(--text-muted)' : 'var(--text-primary)' }}>
-                          {tech.activeStep}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px' }}>
+                          {wo.folioNumber}
                         </span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{wo.patient}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          padding: '2px 8px',
+                          borderRadius: '100px',
+                          backgroundColor: wo.status === 'INTERNAL_VERIFICATION' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                          color: wo.status === 'INTERNAL_VERIFICATION' ? '#8B5CF6' : '#6366F1'
+                        }}>
+                          {wo.status === 'INTERNAL_VERIFICATION' ? 'Internal' : 'External'} Verification
+                        </span>
+                        <button
+                          className="btn-action"
+                          style={{
+                            color: 'var(--accent-primary, #3B82F6)',
+                            backgroundColor: '#EFF6FF',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            setSelectedWOId(wo.id);
+                            setShowViewModal(true);
+                          }}
+                          title="View Work Order"
+                        >
+                          <Eye size={14} />
+                        </button>
                       </div>
                     </div>
 
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--success)' }}>
-                        {tech.completedToday}
-                      </span>
-                      <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)' }}>
-                        Completed Today
-                      </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      <div>
+                        Doctor: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
+                      </div>
+                      <div>
+                        Prosthesis: <strong style={{ color: 'var(--accent-primary)' }}>{wo.prosthesisType?.name || '—'}</strong>
+                      </div>
                     </div>
+
+                    {activeVerification && (
+                      <div style={{
+                        marginTop: '4px',
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-card, #F9FAFB)',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            Verification: <strong>{activeVerification.processName}</strong>
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            Evaluator: <strong>{evaluator}</strong>
+                          </span>
+                        </div>
+
+                        <div>
+                          {isNotStarted ? (
+                            <button
+                              className="btn btn--primary btn--sm"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '4px 10px', fontSize: '0.725rem', fontWeight: 600 }}
+                              onClick={() => handleStartVerification(wo.id, activeVerification.id)}
+                            >
+                              <Play size={10} /> Start
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn--primary btn--sm"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', padding: '4px 10px', fontSize: '0.725rem', fontWeight: 600 }}
+                              onClick={() => triggerOutcomeSelection({
+                                id: activeVerification.id,
+                                workOrderId: wo.id,
+                                folioNumber: wo.folioNumber,
+                                patient: wo.patient,
+                                processName: activeVerification.processName
+                              })}
+                            >
+                              <Check size={10} /> End
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -398,6 +557,7 @@ export function DashboardPage() {
           )}
         </div>
       </div>
+
 
       {/* Status Summary Visual Indicator Panel */}
       <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', marginTop: '2rem' }}>
@@ -536,6 +696,16 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+
+      <ViewWorkOrderModal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedWOId(null);
+        }}
+        workOrderId={selectedWOId}
+        onUpdate={fetchDashboardData}
+      />
     </div>
   );
 }

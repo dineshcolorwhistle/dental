@@ -554,6 +554,10 @@ export class WorkOrdersService {
             patient: true,
             status: true,
             doctor: { select: { name: true } },
+            processes: {
+              orderBy: { sequence: 'asc' },
+              select: { sequence: true, status: true },
+            },
           },
         },
         technician: {
@@ -567,7 +571,14 @@ export class WorkOrdersService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const verificationAlerts = alerts.map((a) => ({
+    const readyAlerts = alerts.filter((a) => {
+      if (a.status === ProcessStatus.IN_PROGRESS) return true;
+      const sortedProcs = a.workOrder.processes || [];
+      const preceding = sortedProcs.filter((p) => p.sequence < a.sequence);
+      return preceding.every((p) => p.status === ProcessStatus.COMPLETED);
+    });
+
+    const verificationAlerts = readyAlerts.map((a) => ({
       id: a.id,
       workOrderId: a.workOrderId,
       folioNumber: a.workOrder.folioNumber,
@@ -718,6 +729,46 @@ export class WorkOrdersService {
       };
     });
 
+    // Fetch In-Progress Work Orders list
+    const inProgressWOs = await this.prisma.workOrder.findMany({
+      where: {
+        tenantId,
+        status: WorkOrderStatus.IN_PROGRESS,
+        ...(branchIdContext && { branchId: branchIdContext }),
+      },
+      include: {
+        doctor: { select: { id: true, name: true } },
+        prosthesisType: { select: { id: true, name: true } },
+        processes: {
+          orderBy: { sequence: 'asc' },
+          include: {
+            technician: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    // Fetch Verification Work Orders list
+    const verificationWOs = await this.prisma.workOrder.findMany({
+      where: {
+        tenantId,
+        status: { in: [WorkOrderStatus.INTERNAL_VERIFICATION, WorkOrderStatus.EXTERNAL_VERIFICATION] },
+        ...(branchIdContext && { branchId: branchIdContext }),
+      },
+      include: {
+        doctor: { select: { id: true, name: true } },
+        prosthesisType: { select: { id: true, name: true } },
+        processes: {
+          orderBy: { sequence: 'asc' },
+          include: {
+            technician: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
     return {
       verificationAlerts,
       woStatusSummary,
@@ -725,6 +776,8 @@ export class WorkOrdersService {
       inProgressWorkOrders,
       completedWorkOrders,
       technicianActivityOverview,
+      inProgressWOs,
+      verificationWOs,
     };
   }
 

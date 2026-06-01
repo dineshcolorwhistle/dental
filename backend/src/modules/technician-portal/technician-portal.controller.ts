@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Body,
   Param,
   Query,
   HttpCode,
@@ -112,5 +114,23 @@ export class TechnicianPortalController {
       throw new BadRequestException('Organization context is required.');
     }
     return this.portalService.endProcess(tenantId, userId, processId);
+  }
+
+  @Patch('work-orders/:id/notes')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update notes of an assigned work order by technician' })
+  async updateWorkOrderNotes(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() body: { notes: string },
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (!body || typeof body.notes !== 'string') {
+      throw new BadRequestException('Notes are required and must be a string.');
+    }
+    return this.portalService.updateWorkOrderNotes(tenantId, userId, id, body.notes);
   }
 }

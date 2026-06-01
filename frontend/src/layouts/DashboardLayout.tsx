@@ -20,6 +20,7 @@ import {
   GitMerge,
   ClipboardList,
   Check,
+  Trash2,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, type NotificationItem } from '../services';
@@ -82,6 +83,19 @@ export function DashboardLayout() {
       await notificationService.markRead(id);
       setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch {
+      // Silently fail
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    try {
+      await notificationService.delete(id);
+      const notifToDelete = notifications.find((n) => n.id === id);
+      if (notifToDelete && !notifToDelete.isRead) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
     } catch {
       // Silently fail
     }
@@ -426,6 +440,7 @@ export function DashboardLayout() {
                         <div
                           key={n.id}
                           className={`notif-dropdown__item ${!n.isRead ? 'notif-dropdown__item--unread' : ''}`}
+                          style={{ position: 'relative', paddingRight: '2.5rem' }}
                           onClick={() => { if (!n.isRead) handleMarkRead(n.id); }}
                         >
                           <div className="notif-dropdown__item-title">{n.title}</div>
@@ -435,6 +450,34 @@ export function DashboardLayout() {
                               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                             })}
                           </div>
+                          {n.isRead && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteNotification(n.id);
+                              }}
+                              style={{
+                                position: 'absolute',
+                                right: '10px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '4px',
+                                borderRadius: '4px',
+                                opacity: 0.6,
+                                transition: 'opacity 0.2s',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+                              title="Delete notification"
+                            >
+                              <Trash2 size={13} style={{ color: '#EF4444' }} />
+                            </button>
+                          )}
                         </div>
                       ))
                     )}

@@ -81,6 +81,21 @@ export class WorkOrdersController {
     return this.workOrdersService.getNextFolioNumber(tenantId, finalBranchId);
   }
 
+  @Get('dashboard-stats')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @ApiOperation({ summary: 'Get operational dashboard statistics' })
+  async getDashboardStats(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    const finalBranchId = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.workOrdersService.getDashboardStats(tenantId, finalBranchId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get details of a specific work order' })
   async findOne(
@@ -129,21 +144,6 @@ export class WorkOrdersController {
     }
     const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
     return this.workOrdersService.remove(tenantId, id, branchContext);
-  }
-
-  @Get('dashboard-stats')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
-  @ApiOperation({ summary: 'Get operational dashboard statistics' })
-  async getDashboardStats(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('branchId') branchIdContext: string | null,
-    @CurrentUser('role') userRole: string,
-  ) {
-    if (!tenantId) {
-      throw new BadRequestException('Organization context is required.');
-    }
-    const finalBranchId = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.workOrdersService.getDashboardStats(tenantId, finalBranchId);
   }
 
   @Post(':id/processes/:processId/start-verification')

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
   Param,
   HttpCode,
   HttpStatus,
@@ -66,5 +67,19 @@ export class NotificationsController {
       throw new BadRequestException('Organization context is required.');
     }
     return this.notificationsService.markAllAsRead(tenantId, userId);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a notification manually' })
+  async remove(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.notificationsService.remove(tenantId, userId, id);
   }
 }

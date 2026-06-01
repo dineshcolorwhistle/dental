@@ -37,6 +37,23 @@ export class NotificationsService {
    * Get all notifications for the current user (newest first).
    */
   async findAllForUser(tenantId: string, userId: string) {
+    // Automatic cleanup of read notifications older than 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    try {
+      await this.prisma.notification.deleteMany({
+        where: {
+          tenantId,
+          userId,
+          isRead: true,
+          createdAt: { lt: sevenDaysAgo },
+        },
+      });
+    } catch (err) {
+      this.logger.error(`Failed to clean up old read notifications for user ${userId}`, err);
+    }
+
     return this.prisma.notification.findMany({
       where: { tenantId, userId },
       orderBy: { createdAt: 'desc' },
@@ -72,6 +89,16 @@ export class NotificationsService {
     await this.prisma.notification.updateMany({
       where: { tenantId, userId, isRead: false },
       data: { isRead: true },
+    });
+    return { success: true };
+  }
+
+  /**
+   * Manually delete a notification.
+   */
+  async remove(tenantId: string, userId: string, id: string) {
+    await this.prisma.notification.deleteMany({
+      where: { id, tenantId, userId },
     });
     return { success: true };
   }

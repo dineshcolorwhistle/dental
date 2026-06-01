@@ -32,4 +32,9 @@ export const notificationService = {
     const response = await api.patch<{ success: boolean }>('/notifications/read-all');
     return response.data;
   },
+
+  delete: async (id: string): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>(`/notifications/${id}`);
+    return response.data;
+  },
 };

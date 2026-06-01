@@ -69,4 +69,9 @@ export const technicianPortalService = {
     const response = await api.post<TechnicianProcessItem>(`/technician-portal/processes/${processId}/end`);
     return response.data;
   },
+
+  updateNotes: async (id: string, notes: string): Promise<{ success: boolean; notes: string }> => {
+    const response = await api.patch<{ success: boolean; notes: string }>(`/technician-portal/work-orders/${id}/notes`, { notes });
+    return response.data;
+  },
 };

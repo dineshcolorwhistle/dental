@@ -594,4 +594,41 @@ export class TechnicianPortalService {
 
     return WorkOrderStatus.IN_PROGRESS;
   }
+
+  /**
+   * Securely update notes for a work order assigned to a technician.
+   */
+  async updateWorkOrderNotes(tenantId: string, userId: string, id: string, notes: string) {
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: {
+        id,
+        tenantId,
+        processes: {
+          some: { technicianId: userId },
+        },
+      },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException(`Work order with ID "${id}" not found or unauthorized.`);
+    }
+
+    const updated = await this.prisma.workOrder.update({
+      where: { id },
+      data: { notes },
+    });
+
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'TECHNICIAN_UPDATE_NOTES',
+      entityName: 'WORK_ORDER',
+      entityId: id,
+      details: {
+        notes,
+      },
+    });
+
+    return { success: true, notes: updated.notes };
+  }
 }
