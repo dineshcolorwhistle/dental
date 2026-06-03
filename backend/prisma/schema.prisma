@@ -282,6 +282,7 @@ model WorkOrder {
   notes            String?
   totalQuote       Float?          @map("total_quote")
   initialPayment   Float?          @map("initial_payment")
+  qrToken          String          @unique @default(uuid()) @map("qr_token")
   status           WorkOrderStatus @default(CREATED)
   createdById      String          @map("created_by_id")
   createdAt        DateTime        @default(now()) @map("created_at")

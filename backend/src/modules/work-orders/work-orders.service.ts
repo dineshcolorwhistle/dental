@@ -284,7 +284,7 @@ export class WorkOrdersService {
     });
   }
 
-  async findOne(tenantId: string, id: string, branchIdContext?: string | null) {
+  async findOne(tenantId: string, id: string, branchIdContext?: string | null, userRole?: string) {
     const workOrder = await this.prisma.workOrder.findFirst({
       where: {
         id,
@@ -296,6 +296,43 @@ export class WorkOrdersService {
 
     if (!workOrder) {
       throw new NotFoundException(`Work order with ID "${id}" not found.`);
+    }
+
+    // Sanitize financial details for technicians and delivery staff
+    if (userRole === 'TECHNICIAN' || userRole === 'DELIVERY') {
+      const { totalQuote, initialPayment, ...sanitized } = workOrder;
+      return {
+        ...sanitized,
+        totalQuote: null,
+        initialPayment: null,
+      } as any;
+    }
+
+    return workOrder;
+  }
+
+  async findOneByQrToken(tenantId: string, qrToken: string, branchIdContext?: string | null, userRole?: string) {
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: {
+        qrToken,
+        tenantId,
+        ...(branchIdContext && { branchId: branchIdContext }),
+      },
+      include: this.fullInclude,
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException(`Work order with QR token not found.`);
+    }
+
+    // Sanitize financial details for technicians, delivery, or general QR scans
+    if (userRole === 'TECHNICIAN' || userRole === 'DELIVERY') {
+      const { totalQuote, initialPayment, ...sanitized } = workOrder;
+      return {
+        ...sanitized,
+        totalQuote: null,
+        initialPayment: null,
+      } as any;
     }
 
     return workOrder;

@@ -96,7 +96,24 @@ export class WorkOrdersController {
     return this.workOrdersService.getDashboardStats(tenantId, finalBranchId);
   }
 
+  @Get('qr/:token')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN, UserRole.DELIVERY)
+  @ApiOperation({ summary: 'Get details of a specific work order by QR token' })
+  async findOneByQrToken(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+    @Param('token') token: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    const branchContext = (userRole === 'ADMIN' || userRole === 'TECHNICIAN' || userRole === 'DELIVERY') ? branchIdContext : null;
+    return this.workOrdersService.findOneByQrToken(tenantId, token, branchContext, userRole);
+  }
+
   @Get(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN, UserRole.DELIVERY)
   @ApiOperation({ summary: 'Get details of a specific work order' })
   async findOne(
     @CurrentUser('tenantId') tenantId: string,
@@ -107,8 +124,8 @@ export class WorkOrdersController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.workOrdersService.findOne(tenantId, id, branchContext);
+    const branchContext = (userRole === 'ADMIN' || userRole === 'TECHNICIAN' || userRole === 'DELIVERY') ? branchIdContext : null;
+    return this.workOrdersService.findOne(tenantId, id, branchContext, userRole);
   }
 
   @Patch(':id')

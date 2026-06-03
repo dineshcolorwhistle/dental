@@ -21,6 +21,7 @@ import {
   Eye,
   Pencil,
   Lock,
+  QrCode,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -42,7 +43,7 @@ import {
   type AdminListItem,
 } from '../services';
 import { useAuth } from '../context';
-import { Pagination, SearchableSelect, ViewWorkOrderModal } from '../components';
+import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal } from '../components';
 
 type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
@@ -135,6 +136,10 @@ export function WorkOrdersPage() {
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingWO, setEditingWO] = useState<WorkOrderListItem | null>(null);
+
+  // QR modal
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrWO, setQrWO] = useState<WorkOrderListItem | null>(null);
 
   // Reference data for create form
   const [doctors, setDoctors] = useState<DoctorListItem[]>([]);
@@ -888,6 +893,17 @@ export function WorkOrdersPage() {
                           title="View Work Order"
                         >
                           <Eye size={15} />
+                        </button>
+                        <button
+                          className="btn-action"
+                          style={{ color: 'var(--text-heading, #1E293B)', backgroundColor: 'var(--bg-overlay, #F1F5F9)' }}
+                          onClick={() => {
+                            setQrWO(wo);
+                            setShowQrModal(true);
+                          }}
+                          title="Print QR Label"
+                        >
+                          <QrCode size={15} />
                         </button>
                         {isAdmin && (
                           <>
@@ -2307,6 +2323,16 @@ export function WorkOrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Printable QR Modal */}
+      <QRLabelModal
+        isOpen={showQrModal}
+        onClose={() => {
+          setShowQrModal(false);
+          setQrWO(null);
+        }}
+        workOrder={qrWO}
+      />
     </div>
   );
 }

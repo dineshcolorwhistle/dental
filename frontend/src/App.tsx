@@ -19,6 +19,8 @@ import { TechnicianWorkOrdersPage } from './pages/TechnicianWorkOrdersPage';
 import { FinancePage } from './pages/FinancePage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { QRRedirectPage } from './pages/QRRedirectPage';
+import { WorkOrderDetailPage } from './pages/WorkOrderDetailPage';
 
 function App() {
   return (
@@ -69,6 +71,7 @@ function App() {
             <Route path="/prosthesis-types" element={<ProsthesisTypesPage />} />
             <Route path="/processes" element={<ProcessesPage />} />
             <Route path="/work-orders" element={<WorkOrdersPage />} />
+            <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
             <Route path="/tech/work-orders" element={<TechnicianWorkOrdersPage />} />
             <Route
               path="/finance"
@@ -79,6 +82,16 @@ function App() {
               }
             />
           </Route>
+
+          {/* QR redirection route — clean fullscreen protected route */}
+          <Route
+            path="/qr/:token"
+            element={
+              <ProtectedRoute>
+                <QRRedirectPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Error pages */}
           <Route path="/unauthorized" element={<UnauthorizedPage />} />

@@ -19,6 +19,7 @@ import {
   Edit3,
   FileText,
   Save,
+  QrCode,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -26,6 +27,7 @@ import {
   type TechnicianWorkOrderListItem,
   type TechnicianProcessItem,
 } from '../services';
+import { QRLabelModal } from '../components';
 
 // Digital timer sub-component for premium visual effect
 function ProcessTimer({ startedAt, lastPausedAt, totalPauseDuration, status }: {
@@ -104,6 +106,8 @@ export function TechnicianWorkOrdersPage() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrWO, setQrWO] = useState<any>(null);
 
   // Editable notes state
   const [notesText, setNotesText] = useState('');
@@ -352,9 +356,26 @@ export function TechnicianWorkOrdersPage() {
                         </span>
                         <h4 style={{ display: 'inline', fontWeight: 600, fontSize: '0.9rem' }}>{wo.patient}</h4>
                       </div>
-                      <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                        {new Date(wo.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      </span>
+                      <button
+                        type="button"
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          color: 'var(--text-muted)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '2px',
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQrWO(wo);
+                          setShowQrModal(true);
+                        }}
+                        title="Print QR Label"
+                      >
+                        <QrCode size={16} />
+                      </button>
                     </div>
 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '0.75rem' }}>
@@ -390,8 +411,13 @@ export function TechnicianWorkOrdersPage() {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem', fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 600, alignItems: 'center', gap: '2px' }}>
-                      View Details & Stepper <ChevronRight size={12} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
+                      <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                        Created: {new Date(wo.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                        View Details & Stepper <ChevronRight size={12} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -425,6 +451,27 @@ export function TechnicianWorkOrdersPage() {
                   }}>
                     Folio: {selectedOrder.folioNumber}
                   </span>
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '0.7rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      borderRadius: '6px',
+                      height: '24px'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQrWO(selectedOrder);
+                      setShowQrModal(true);
+                    }}
+                  >
+                    <QrCode size={12} />
+                    <span>Print QR</span>
+                  </button>
                 </h2>
                 <p className="modal__subtitle" style={{ marginTop: '4px' }}>
                   Work Order Details, Interactive Stepper & Processing Timer
@@ -857,6 +904,15 @@ export function TechnicianWorkOrdersPage() {
           </div>
         </div>
       )}
+
+      <QRLabelModal
+        isOpen={showQrModal}
+        onClose={() => {
+          setShowQrModal(false);
+          setQrWO(null);
+        }}
+        workOrder={qrWO}
+      />
     </div>
   );
 }

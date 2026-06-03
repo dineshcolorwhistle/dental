@@ -274,6 +274,7 @@ Delivery personnel receive assigned deliveries, update pickup/transit status, an
 - Consistent naming conventions (camelCase TS, snake_case DB).
 - Comprehensive error logging.
 - **Testing Scripts:** Do not commit temporary test/scratch scripts (e.g., `test*.js`, `inspect*.js`, `get-token.js`) to the repository. If you create temporary files for testing, they must be removed immediately after the test is completed.
+- **Browser Testing Credentials:** If testing in the browser, always check the active, correct credentials defined in Section 13 (Login Credential) of this file rather than assuming default/fallback logins.
 
 ---
 
@@ -406,5 +407,24 @@ These decisions should be finalized at the start of each phase:
 - [ ] **Monorepo vs. Separate Repos:** Single repo with workspaces vs. separate frontend/backend repos
 
 ---
+
+## 13. Login Credential
+
+Super admin:
+ admin@dental.com
+ Admin@123456
+
+Owner:
+ dinesh02121990@gmail.com
+ Dinesh@#12312
+
+admin:
+ dinesh.colorwhistle@gmail.com
+ Dinesh@#12312
+
+Technician:
+ dinesh@colorwhistle.com
+ Dinesh@#12312
+------
 
 *This document is the single source of truth for the Dental Lab Management System. It will be updated as decisions are made and phases are completed.*

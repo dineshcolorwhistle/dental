@@ -41,6 +41,7 @@ export interface WorkOrderListItem {
   notes: string | null;
   totalQuote: number | null;
   initialPayment: number | null;
+  qrToken: string;
   status: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   createdById: string;
   createdAt: string;
@@ -151,6 +152,11 @@ export const workOrderService = {
 
   endVerification: async (workOrderId: string, processId: string, status: 'SUCCESS' | 'REWORK'): Promise<any> => {
     const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/end-verification`, { status });
+    return response.data;
+  },
+
+  getByQrToken: async (token: string): Promise<WorkOrderListItem> => {
+    const response = await api.get<WorkOrderListItem>(`/work-orders/qr/${token}`);
     return response.data;
   },
 };
