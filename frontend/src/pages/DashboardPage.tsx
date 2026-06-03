@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context';
 import { TechnicianDashboardPage } from './TechnicianDashboardPage';
+import { OwnerDashboardPage } from './OwnerDashboardPage';
 import {
   Activity,
   ClipboardList,
@@ -24,6 +25,10 @@ export function DashboardPage() {
 
   if (user?.role === 'TECHNICIAN') {
     return <TechnicianDashboardPage />;
+  }
+
+  if (user?.role === 'OWNER') {
+    return <OwnerDashboardPage />;
   }
 
   const [stats, setStats] = useState<any>(null);

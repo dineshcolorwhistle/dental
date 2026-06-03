@@ -10,6 +10,7 @@ export { processService } from './process.service';
 export { workOrderService } from './work-order.service';
 export { notificationService } from './notification.service';
 export { technicianPortalService } from './technician-portal.service';
+export { financeService } from './finance.service';
 export type { LoginPayload, AuthUser, AuthResponse, UserProfile } from './auth.service';
 export type {
   CreateTenantPayload,
@@ -38,3 +39,10 @@ export type {
   TechnicianDashboardStats,
   ProcessActivityLogItem,
 } from './technician-portal.service';
+export type {
+  FinanceStats,
+  PendingPaymentWorkOrder,
+  PendingPaymentsResponse,
+  GetFinanceParams,
+  GetPendingPaymentsParams,
+} from './finance.service';

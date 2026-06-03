@@ -21,6 +21,7 @@ import {
   ClipboardList,
   Check,
   Trash2,
+  DollarSign,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, type NotificationItem } from '../services';
@@ -183,6 +184,16 @@ export function DashboardLayout() {
 
           {user?.role === 'OWNER' && (
             <>
+              <NavLink
+                to="/finance"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <DollarSign size={20} />
+                <span>Finance</span>
+              </NavLink>
               <NavLink
                 to="/branches"
                 className={({ isActive }) =>

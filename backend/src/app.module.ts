@@ -15,6 +15,7 @@ import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { TechnicianPortalModule } from './modules/technician-portal/technician-portal.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -42,6 +43,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     WorkOrdersModule,
     NotificationsModule,
     TechnicianPortalModule,
+    FinanceModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default
