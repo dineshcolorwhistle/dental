@@ -231,7 +231,7 @@ export class WorkOrdersService {
           tenantId,
           userId: firstProcess.technicianId,
           title: 'New Work Order Assigned',
-          message: `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient}).`,
+          message: `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
           type: 'WORK_ORDER',
           referenceId: workOrder.id,
         });
@@ -246,7 +246,7 @@ export class WorkOrdersService {
           details: {
             userId: firstProcess.technicianId,
             title: 'New Work Order Assigned',
-            message: `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient}).`,
+            message: `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
           },
         });
       }
@@ -497,7 +497,7 @@ export class WorkOrdersService {
           tenantId,
           userId: firstProcess.technicianId,
           title: 'New Work Order Assigned',
-          message: `You have been assigned to "${firstProcess.processName}" for work order ${updated.folioNumber} (Patient: ${updated.patient}).`,
+          message: `You have been assigned to "${firstProcess.processName}" for work order ${updated.folioNumber} (Patient: ${updated.patient})${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''}.`,
           type: 'WORK_ORDER',
           referenceId: updated.id,
         });
@@ -976,7 +976,7 @@ export class WorkOrdersService {
               tenantId,
               userId: admin.id,
               title: 'Verification Pending Alert',
-              message: `Work Order "${process.workOrder.folioNumber}" requires verification step "${nextProcess.processName}".`,
+              message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} requires verification step "${nextProcess.processName}".`,
               type: 'VERIFICATION_PENDING',
               referenceId: workOrderId,
             });
@@ -998,7 +998,7 @@ export class WorkOrdersService {
             tenantId,
             userId: nextProcess.technicianId,
             title: 'New Active Work Order Step',
-            message: `Work Order "${process.workOrder.folioNumber}" is ready for you. The previous verification step has been completed.`,
+            message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} is ready for you. The previous verification step has been completed.`,
             type: 'WORK_ORDER',
             referenceId: workOrderId,
           });
@@ -1030,7 +1030,7 @@ export class WorkOrdersService {
             tenantId,
             userId: admin.id,
             title: 'Work Order Completed',
-            message: `Work Order "${process.workOrder.folioNumber}" has been fully completed!`,
+            message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} has been fully completed!`,
             type: 'WORK_ORDER_COMPLETED',
             referenceId: workOrderId,
           });

@@ -429,7 +429,7 @@ export class TechnicianPortalService {
         // Verification step reached! Notify all branch admins of the tenant
         const wo = await this.prisma.workOrder.findUnique({
           where: { id: process.workOrderId },
-          select: { branchId: true, folioNumber: true },
+          select: { branchId: true, folioNumber: true, boxNumber: true },
         });
 
         if (wo) {
@@ -447,7 +447,7 @@ export class TechnicianPortalService {
               tenantId,
               userId: admin.id,
               title: 'Verification Pending Alert',
-              message: `Work Order "${wo.folioNumber}" requires verification step "${nextProcess.processName}".`,
+              message: `Work Order "${wo.folioNumber}"${wo.boxNumber ? ` (Box: ${wo.boxNumber})` : ''} requires verification step "${nextProcess.processName}".`,
               type: 'VERIFICATION_PENDING',
               referenceId: process.workOrderId,
             });
@@ -470,7 +470,7 @@ export class TechnicianPortalService {
           tenantId,
           userId: nextProcess.technicianId,
           title: 'New Active Work Order Step',
-          message: `Work Order "${process.workOrder.folioNumber}" is ready for you. The previous step "${process.processName}" has been completed.`,
+          message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} is ready for you. The previous step "${process.processName}" has been completed.`,
           type: 'WORK_ORDER',
           referenceId: process.workOrderId,
         });
@@ -490,7 +490,7 @@ export class TechnicianPortalService {
       // Work order has no more steps, so it is fully completed!
       const wo = await this.prisma.workOrder.findUnique({
         where: { id: process.workOrderId },
-        select: { branchId: true, folioNumber: true },
+        select: { branchId: true, folioNumber: true, boxNumber: true },
       });
 
       if (wo) {
@@ -508,7 +508,7 @@ export class TechnicianPortalService {
             tenantId,
             userId: admin.id,
             title: 'Work Order Completed',
-            message: `Work Order "${wo.folioNumber}" has been fully completed!`,
+            message: `Work Order "${wo.folioNumber}"${wo.boxNumber ? ` (Box: ${wo.boxNumber})` : ''} has been fully completed!`,
             type: 'WORK_ORDER_COMPLETED',
             referenceId: process.workOrderId,
           });
