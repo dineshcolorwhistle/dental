@@ -19,15 +19,15 @@ The **Dental Lab Management System** is a modern, SaaS-ready operational workflo
 
 ## 2. Technology Stack
 
-| Layer | Technology | Notes |
-|---|---|---|
-| **Frontend** | React + TypeScript (Vite) | SPA with role-based dashboards, responsive design |
-| **Backend** | NestJS (TypeScript) | Modular, REST-first, event-driven architecture |
-| **Database** | PostgreSQL | Multi-tenant relational schema, Prisma ORM |
-| **Cache & Queue** | Redis + BullMQ | Notifications, background jobs, scheduled tasks |
-| **Real-Time** | Socket.IO | Live dashboard sync, technician queue updates, notifications |
-| **API Docs** | Swagger / OpenAPI | Auto-generated from NestJS decorators |
-| **Deployment** | VPS (Nginx reverse proxy) | Initial target; containerization as future enhancement |
+| Layer | Technology | Status / Plan | Notes |
+|---|---|---|---|
+| **Frontend** | React + TypeScript (Vite) | Active | SPA with role-based dashboards, responsive design |
+| **Backend** | NestJS (TypeScript) | Active | Modular, REST-first, event-driven architecture |
+| **Database** | PostgreSQL | Active | Multi-tenant relational schema, Prisma ORM |
+| **Cache & Queue** | Redis + BullMQ | **Planned (Phase 2)** | Background jobs and notifications (Current: Local Sync) |
+| **Real-Time / Sync** | Socket.IO (WebSockets) | **Planned (Phase 2)** | Live dashboard sync, technician queue (Current: HTTP Polling) |
+| **API Docs** | Swagger / OpenAPI | Active | Auto-generated from NestJS decorators |
+| **Deployment** | VPS (Nginx reverse proxy) | Active | Initial target; containerization as future enhancement |
 
 ---
 
@@ -54,10 +54,17 @@ The platform supports tenant-controlled releases without requiring separate depl
 
 ### 3.3 Backend Architecture Pattern
 
+#### Current Architecture (HTTP Polling)
 ```
-Controller → Service → Repository (Prisma) → PostgreSQL
-                ↓
-         Event Emitter → BullMQ Queue → Redis Pub/Sub → Socket.IO → React UI
+React UI ──► (HTTP Polling: 15s/30s) ──► Controller ──► Service ──► DB Update ──► UI Refresh
+```
+
+#### Next Phase Architecture (Socket.IO + Redis + BullMQ)
+```
+Controller ──► Service ──► Repository (Prisma) ──► PostgreSQL
+                 │
+                 ▼
+          Event Emitter ──► BullMQ Queue ──► Redis Pub/Sub ──► Socket.IO ──► React UI
 ```
 
 ### 3.3 Frontend Architecture Pattern
@@ -168,7 +175,7 @@ Created → Assigned → In Progress → Ready → Delivered
 - Live operational monitoring: active WOs, technician activity, delayed jobs, delivery tracking.
 - Branch workload distribution.
 - Production metrics and KPIs.
-- WebSocket-powered instant updates.
+- HTTP Polling-powered updates (15s intervals; Socket.IO integration planned for Phase 2).
 
 ---
 
@@ -264,7 +271,7 @@ Delivery personnel receive assigned deliveries, update pickup/transit status, an
 - **Role-based layouts** — different dashboard views per role.
 - **Centralized API layer** — Axios instance with interceptors for auth/tenant headers.
 - **State management** — React Context or Zustand (to be decided in Phase 1).
-- **Real-time updates** — Socket.IO client integration.
+- **Real-time updates** — Client-side HTTP Polling (15s/30s intervals; Socket.IO client integration planned for Phase 2).
 - **Responsive design** — mobile-friendly operational interface.
 
 ### General
@@ -317,16 +324,16 @@ Delivery personnel receive assigned deliveries, update pickup/transit status, an
 | 1.18 | Admin Dashboard | Lab Admin operational overview: active WOs, today's queue, work order status summary, branch summary. |
 | 1.19 | Super Admin Dashboard | Tenant list, basic system monitoring, tenant creation flow. |
 
-### Phase 2 — Real-Time, Notifications & QR
-> **Goal:** Add real-time capabilities, notification system, background job processing, and QR code workflow.
+### Phase 2 — Real-Time, Notifications & QR (Planned for Next Phase)
+> **Goal:** Upgrade system with real-time WebSocket capabilities, background job processing queues, and real-time notifications (currently running on HTTP polling fallback).
 
 | # | Task | Details |
 |---|---|---|
 | 2.1 | Real-Time Infrastructure | Socket.IO server setup, room management (per tenant/branch), event broadcasting. |
-| 2.2 | Real-Time Dashboard Updates | Live WO status changes, technician activity feed, delayed job alerts across all dashboards. |
-| 2.3 | Notification System | In-app notifications: creation, storage, read/unread, real-time delivery. Email notifications for critical events. |
-| 2.4 | BullMQ Job Processing | Background job queues for notifications, email sending, scheduled tasks. |
-| 2.5 | QR Code Workflow | QR generation at WO creation. Scan-to-view current status. Scan-to-update for technicians. |
+| 2.2 | Real-Time Dashboard Updates | Upgrade dashboards to receive live WO status changes and technician activity feeds without polling. |
+| 2.3 | Notification System | Multi-channel in-app notifications and email notifications powered by background queues. |
+| 2.4 | BullMQ Job Processing | Background job queues (Redis + BullMQ) for processing notifications, email sending, and scheduled tasks. |
+| 2.5 | QR Code Workflow | Verify QR generation at WO creation, scan-to-view, and scan-to-update workflows. |
 
 ### Phase 3 — Delivery, Analytics & Polish
 > **Goal:** Complete the delivery module, add analytics/reporting, owner dashboard, and polish the UX.
