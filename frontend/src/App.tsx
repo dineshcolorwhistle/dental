@@ -76,7 +76,7 @@ function App() {
             <Route
               path="/finance"
               element={
-                <ProtectedRoute allowedRoles={['OWNER']}>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <FinancePage />
                 </ProtectedRoute>
               }

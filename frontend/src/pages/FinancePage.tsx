@@ -14,6 +14,7 @@ import {
 import toast from 'react-hot-toast';
 import { financeService, branchService } from '../services';
 import type { FinanceStats, PendingPaymentWorkOrder } from '../services';
+import { useAuth } from '../context';
 
 interface BranchItem {
   id: string;
@@ -24,6 +25,7 @@ interface BranchItem {
 type DateRangeType = 'current-month' | 'previous-month' | 'last-3-months' | 'last-6-months' | 'current-year' | 'custom';
 
 export function FinancePage() {
+  const { user } = useAuth();
   // --- State Variables ---
   const [branches, setBranches] = useState<BranchItem[]>([]);
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]); // Empty means ALL
@@ -455,120 +457,122 @@ export function FinancePage() {
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           
           {/* Branch Filter Dropdown */}
-          <div ref={branchDropdownRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setBranchFilterOpen(!branchFilterOpen)}
-              className="btn btn--secondary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '0.5rem 1rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-              }}
-            >
-              <Building2 size={16} />
-              <span>
-                {selectedBranches.length === 0
-                  ? 'All Branches'
-                  : selectedBranches.length === 1
-                  ? branches.find(b => b.id === selectedBranches[0])?.name || '1 Branch'
-                  : `${selectedBranches.length} Branches`}
-              </span>
-              {selectedBranches.length > 0 && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    clearBranchFilter();
-                  }}
-                  style={{
-                    marginLeft: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '2px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    color: 'var(--danger)',
-                  }}
-                  title="Clear branch filter"
-                >
-                  <X size={12} />
-                </span>
-              )}
-            </button>
-
-            {branchFilterOpen && (
-              <div
+          {user?.role === 'OWNER' && (
+            <div ref={branchDropdownRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setBranchFilterOpen(!branchFilterOpen)}
+                className="btn btn--secondary"
                 style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '6px',
-                  minWidth: '220px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
                   backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border)',
-                  borderRadius: '12px',
-                  boxShadow: 'var(--shadow-lg)',
-                  padding: '0.5rem',
-                  zIndex: 40,
+                  borderRadius: '8px',
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
                 }}
               >
-                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <button
-                    onClick={() => {
+                <Building2 size={16} />
+                <span>
+                  {selectedBranches.length === 0
+                    ? 'All Branches'
+                    : selectedBranches.length === 1
+                    ? branches.find(b => b.id === selectedBranches[0])?.name || '1 Branch'
+                    : `${selectedBranches.length} Branches`}
+                </span>
+                {selectedBranches.length > 0 && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
                       clearBranchFilter();
-                      setBranchFilterOpen(false);
                     }}
                     style={{
-                      width: '100%',
-                      padding: '0.5rem 0.75rem',
-                      textAlign: 'left',
-                      border: 'none',
-                      backgroundColor: selectedBranches.length === 0 ? 'rgba(111, 174, 217, 0.1)' : 'transparent',
-                      color: selectedBranches.length === 0 ? 'var(--accent-primary)' : 'var(--text-primary)',
-                      fontWeight: selectedBranches.length === 0 ? 700 : 500,
-                      borderRadius: '6px',
-                      cursor: 'pointer',
+                      marginLeft: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: 'var(--danger)',
                     }}
+                    title="Clear branch filter"
                   >
-                    All Branches
-                  </button>
-                  {branches.map((b) => {
-                    const isSel = selectedBranches.includes(b.id);
-                    return (
-                      <button
-                        key={b.id}
-                        onClick={() => handleBranchSelect(b.id)}
-                        style={{
-                          width: '100%',
-                          padding: '0.5rem 0.75rem',
-                          textAlign: 'left',
-                          border: 'none',
-                          backgroundColor: isSel ? 'rgba(111, 174, 217, 0.1)' : 'transparent',
-                          color: isSel ? 'var(--accent-primary)' : 'var(--text-primary)',
-                          fontWeight: isSel ? 700 : 500,
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'between',
-                        }}
-                      >
-                        <span style={{ flex: 1 }}>{b.name}</span>
-                        {isSel && <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>✓</span>}
-                      </button>
-                    );
-                  })}
+                    <X size={12} />
+                  </span>
+                )}
+              </button>
+
+              {branchFilterOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '6px',
+                    minWidth: '220px',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    boxShadow: 'var(--shadow-lg)',
+                    padding: '0.5rem',
+                    zIndex: 40,
+                  }}
+                >
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <button
+                      onClick={() => {
+                        clearBranchFilter();
+                        setBranchFilterOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0.75rem',
+                        textAlign: 'left',
+                        border: 'none',
+                        backgroundColor: selectedBranches.length === 0 ? 'rgba(111, 174, 217, 0.1)' : 'transparent',
+                        color: selectedBranches.length === 0 ? 'var(--accent-primary)' : 'var(--text-primary)',
+                        fontWeight: selectedBranches.length === 0 ? 700 : 500,
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      All Branches
+                    </button>
+                    {branches.map((b) => {
+                      const isSel = selectedBranches.includes(b.id);
+                      return (
+                        <button
+                          key={b.id}
+                          onClick={() => handleBranchSelect(b.id)}
+                          style={{
+                            width: '100%',
+                            padding: '0.5rem 0.75rem',
+                            textAlign: 'left',
+                            border: 'none',
+                            backgroundColor: isSel ? 'rgba(111, 174, 217, 0.1)' : 'transparent',
+                            color: isSel ? 'var(--accent-primary)' : 'var(--text-primary)',
+                            fontWeight: isSel ? 700 : 500,
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'between',
+                          }}
+                        >
+                          <span style={{ flex: 1 }}>{b.name}</span>
+                          {isSel && <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Date Range Dropdown / Toggle Buttons */}
           <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-surface)' }}>
@@ -782,38 +786,40 @@ export function FinancePage() {
           </div>
 
           {/* Card: Top Performing Branch */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '16px',
-            padding: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-          }}>
+          {user?.role === 'OWNER' && (
             <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(236, 72, 153, 0.1)',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: '#EC4899',
+              gap: '1rem',
             }}>
-              <Building2 size={24} />
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#EC4899',
+              }}>
+                <Building2 size={24} />
+              </div>
+              <div style={{ overflow: 'hidden' }}>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Branch</span>
+                <h3 style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={stats.summary.topPerformingBranch.name}>
+                  {stats.summary.topPerformingBranch.name}
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {formatCurrency(stats.summary.topPerformingBranch.revenue)}
+                </span>
+              </div>
             </div>
-            <div style={{ overflow: 'hidden' }}>
-              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Branch</span>
-              <h3 style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={stats.summary.topPerformingBranch.name}>
-                {stats.summary.topPerformingBranch.name}
-              </h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {formatCurrency(stats.summary.topPerformingBranch.revenue)}
-              </span>
-            </div>
-          </div>
+          )}
 
           {/* Card: Pending Payment Count */}
           <div style={{
@@ -1076,7 +1082,7 @@ export function FinancePage() {
           )}
 
           {/* Chart 2: Revenue by Branch (Bar Chart) */}
-          {revenueByBranchChart && (
+          {user?.role === 'OWNER' && revenueByBranchChart && (
             <div style={{
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border)',
@@ -1201,7 +1207,7 @@ export function FinancePage() {
           )}
 
           {/* Chart 3: Collection vs Outstanding Amount (Grouped Bar Chart) */}
-          {collectionVsOutstandingChart && (
+          {user?.role === 'OWNER' && collectionVsOutstandingChart && (
             <div style={{
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border)',
@@ -1471,7 +1477,7 @@ export function FinancePage() {
       ) : null}
 
       {/* Branch Performance Comparison Table */}
-      {!statsLoading && stats && stats.branchPerformance.length > 0 && (
+      {user?.role === 'OWNER' && !statsLoading && stats && stats.branchPerformance.length > 0 && (
         <div style={{
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border)',

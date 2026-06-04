@@ -12,14 +12,16 @@ import { FinanceService } from './finance.service';
 @ApiTags('Finance')
 @ApiBearerAuth()
 @Controller('finance')
-@Roles(UserRole.OWNER)
+@Roles(UserRole.OWNER, UserRole.ADMIN)
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
   @Get('stats')
-  @ApiOperation({ summary: 'Get general financial metrics and reports for Owner' })
+  @ApiOperation({ summary: 'Get general financial metrics and reports' })
   async getFinanceStats(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') userRole: UserRole,
+    @CurrentUser('branchId') branchIdContext: string | null,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('branchIds') branchIds?: string,
@@ -30,13 +32,21 @@ export class FinanceController {
     if (!startDate || !endDate) {
       throw new BadRequestException('startDate and endDate are required query parameters.');
     }
-    return this.financeService.getFinanceStats(tenantId, startDate, endDate, branchIds);
+
+    let finalBranchIds = branchIds;
+    if (userRole === UserRole.ADMIN) {
+      finalBranchIds = branchIdContext || 'NONE';
+    }
+
+    return this.financeService.getFinanceStats(tenantId, startDate, endDate, finalBranchIds);
   }
 
   @Get('pending-payments')
   @ApiOperation({ summary: 'Get a list of work orders with pending payments' })
   async getPendingPayments(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') userRole: UserRole,
+    @CurrentUser('branchId') branchIdContext: string | null,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('branchIds') branchIds?: string,
@@ -51,6 +61,11 @@ export class FinanceController {
       throw new BadRequestException('startDate and endDate are required query parameters.');
     }
 
+    let finalBranchIds = branchIds;
+    if (userRole === UserRole.ADMIN) {
+      finalBranchIds = branchIdContext || 'NONE';
+    }
+
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
 
@@ -58,7 +73,7 @@ export class FinanceController {
       tenantId,
       startDate,
       endDate,
-      branchIds,
+      finalBranchIds,
       pageNum,
       limitNum,
       search || '',

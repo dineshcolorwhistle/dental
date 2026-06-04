@@ -271,6 +271,16 @@ export function DashboardLayout() {
           {user?.role === 'ADMIN' && (
             <>
               <NavLink
+                to="/finance"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <DollarSign size={20} />
+                <span>Finance</span>
+              </NavLink>
+              <NavLink
                 to="/technicians"
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
