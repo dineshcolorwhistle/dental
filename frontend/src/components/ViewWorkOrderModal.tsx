@@ -306,7 +306,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                   const evIdx = processes.findIndex((p: any) => p.isVerification && !p.technicianId);
                   activeIndex = evIdx !== -1 ? evIdx : processes.length - 1;
                 } else if (selectedWO.status === 'IN_PROGRESS') {
-                  const ipIdx = processes.findIndex((p: any) => p.status === 'IN_PROGRESS');
+                  const ipIdx = processes.findIndex((p: any) => p.status === 'IN_PROGRESS' || p.status === 'PAUSED');
                   activeIndex = ipIdx !== -1 ? ipIdx : Math.min(processes.length - 1, Math.max(0, Math.floor(processes.length / 2)));
                 } else if (selectedWO.status === 'ASSIGNED') {
                   activeIndex = 0;
