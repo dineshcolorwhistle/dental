@@ -621,7 +621,7 @@ export function FinancePage() {
           style={{
             display: 'flex',
             gap: '1rem',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             backgroundColor: 'var(--bg-surface)',
             border: '1px solid var(--border)',
             padding: '1rem',
@@ -650,6 +650,32 @@ export function FinancePage() {
               style={{ padding: '0.375rem 0.75rem', borderRadius: '6px' }}
             />
           </div>
+          <button
+            onClick={() => {
+              setCustomStartDate('');
+              setCustomEndDate('');
+              setDateRangeType('current-month');
+            }}
+            className="btn btn--secondary"
+            style={{
+              padding: '0.375rem 0.875rem',
+              height: '38px',
+              borderRadius: '6px',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              color: 'var(--danger)',
+              backgroundColor: 'rgba(239, 68, 68, 0.05)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+            }}
+            title="Reset Date Filter"
+          >
+            <X size={14} />
+            <span>Reset</span>
+          </button>
         </div>
       )}
 
