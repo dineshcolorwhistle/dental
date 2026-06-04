@@ -134,7 +134,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
       return;
     }
     if (amount > balance) {
-      toast.error(`Amount cannot exceed the remaining balance of ₹${balance.toLocaleString('en-IN')}`);
+      toast.error(`Amount cannot exceed the remaining balance of $${balance.toLocaleString('es-MX')}`);
       return;
     }
 
@@ -1016,7 +1016,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           gap: '0.25rem'
                         }}>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Quoted Amount</span>
-                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>₹{quote.toLocaleString('en-IN')}</span>
+                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>${quote.toLocaleString('es-MX')}</span>
                         </div>
 
                         <div style={{
@@ -1030,7 +1030,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           gap: '0.25rem'
                         }}>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Paid</span>
-                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success, #10B981)' }}>₹{initialPay.toLocaleString('en-IN')}</span>
+                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success, #10B981)' }}>${initialPay.toLocaleString('es-MX')}</span>
                         </div>
 
                         <div style={{
@@ -1044,7 +1044,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           gap: '0.25rem'
                         }}>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Balance Due</span>
-                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: balance > 0 ? '#EF4444' : 'var(--text-muted)' }}>₹{balance.toLocaleString('en-IN')}</span>
+                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: balance > 0 ? '#EF4444' : 'var(--text-muted)' }}>${balance.toLocaleString('es-MX')}</span>
                         </div>
 
                         <div style={{
@@ -1115,7 +1115,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-heading)' }}>Record New Payment Fund</h4>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', alignItems: 'flex-start' }}>
                               <div className="form-group" style={{ margin: 0 }}>
-                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>Amount (₹) *</label>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>Amount ($) *</label>
                                 <input
                                   type="number"
                                   className="form-input"
@@ -1195,7 +1195,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                   })}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                  ₹{((selectedWO.initialPayment || 0) - payments.reduce((acc: number, curr: any) => acc + curr.amount, 0)).toLocaleString('en-IN')}
+                                  ${((selectedWO.initialPayment || 0) - payments.reduce((acc: number, curr: any) => acc + curr.amount, 0)).toLocaleString('es-MX')}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontWeight: 500, fontStyle: 'italic' }}>
                                   Initial payment registered at order creation
@@ -1231,7 +1231,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                     })}
                                   </td>
                                   <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                    ₹{payment.amount.toLocaleString('en-IN')}
+                                    ${payment.amount.toLocaleString('es-MX')}
                                   </td>
                                   <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                                     {payment.notes || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No notes provided</span>}

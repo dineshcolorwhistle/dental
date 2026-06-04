@@ -123,6 +123,8 @@ export function FinancePage() {
 
   // --- Fetch Initial Data ---
   useEffect(() => {
+    if (user?.role !== 'OWNER') return;
+
     branchService.getAll()
       .then((data) => {
         setBranches(data.map(b => ({ id: b.id, name: b.name, code: b.code })));
@@ -131,7 +133,7 @@ export function FinancePage() {
         console.error('Failed to load branches', err);
         toast.error('Failed to load branches');
       });
-  }, []);
+  }, [user?.role]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -200,9 +202,9 @@ export function FinancePage() {
   };
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'INR',
+      currency: 'MXN',
       maximumFractionDigits: 0,
     }).format(val);
   };

@@ -857,7 +857,7 @@ export function WorkOrdersPage() {
                     <td>
                       {wo.totalQuote != null ? (
                         <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
-                          ₹{wo.totalQuote.toLocaleString('en-IN')}
+                          ${wo.totalQuote.toLocaleString('es-MX')}
                         </span>
                       ) : (
                         <span className="text-muted">—</span>
@@ -1142,7 +1142,7 @@ export function WorkOrdersPage() {
                   {/* Row: Total Quote + Initial Payment */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-quote">Total Quote (₹) *</label>
+                      <label className="form-label" htmlFor="input-wo-quote">Total Quote ($) *</label>
                       <input
                         id="input-wo-quote"
                         className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
@@ -1159,7 +1159,7 @@ export function WorkOrdersPage() {
                       )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-payment">Initial Payment (₹)</label>
+                      <label className="form-label" htmlFor="input-wo-payment">Initial Payment ($)</label>
                       <input
                         id="input-wo-payment"
                         className="form-input"
@@ -1837,7 +1837,7 @@ export function WorkOrdersPage() {
                   {/* Row: Total Quote + Initial Payment */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-quote">Total Quote (₹) *</label>
+                      <label className="form-label" htmlFor="edit-wo-quote">Total Quote ($) *</label>
                       <input
                         id="edit-wo-quote"
                         className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
@@ -1854,7 +1854,7 @@ export function WorkOrdersPage() {
                       )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-payment">Initial Payment (₹)</label>
+                      <label className="form-label" htmlFor="edit-wo-payment">Initial Payment ($)</label>
                       <input
                         id="edit-wo-payment"
                         className="form-input"
