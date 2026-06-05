@@ -426,6 +426,39 @@ export class TechnicianPortalService {
 
     if (nextProcess) {
       if (nextProcess.isVerification) {
+        if (!nextProcess.technicianId) {
+          // Auto-start External Verification
+          const autoStartNow = new Date();
+          await this.prisma.workOrderProcess.update({
+            where: { id: nextProcess.id },
+            data: {
+              status: ProcessStatus.IN_PROGRESS,
+              startedAt: autoStartNow,
+              activityLogs: {
+                create: {
+                  action: ProcessActivityAction.START,
+                  timestamp: autoStartNow,
+                  notes: 'External verification started automatically',
+                },
+              },
+            },
+          });
+
+          await this.auditLogsService.log({
+            tenantId,
+            userId,
+            action: 'VERIFICATION_START',
+            entityName: 'PROCESS',
+            entityId: nextProcess.id,
+            details: {
+              workOrderId: process.workOrderId,
+              processName: nextProcess.processName,
+              type: 'EXTERNAL',
+              notes: 'Started automatically after previous step completion',
+            },
+          });
+        }
+
         // Verification step reached! Notify all branch admins of the tenant
         const wo = await this.prisma.workOrder.findUnique({
           where: { id: process.workOrderId },

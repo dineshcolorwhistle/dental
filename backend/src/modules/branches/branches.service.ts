@@ -1,6 +1,7 @@
-import { Injectable, ConflictException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBranchDto, UpdateBranchDto } from './dto';
+import { UserRole, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class BranchesService {
@@ -58,6 +59,15 @@ export class BranchesService {
     return this.prisma.branch.findMany({
       where: { tenantId },
       include: {
+        defaultAdmin: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            status: true,
+          },
+        },
         _count: {
           select: {
             users: true,
@@ -75,6 +85,15 @@ export class BranchesService {
     const branch = await this.prisma.branch.findFirst({
       where: { id, tenantId },
       include: {
+        defaultAdmin: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            status: true,
+          },
+        },
         _count: {
           select: {
             users: true,
@@ -97,7 +116,7 @@ export class BranchesService {
     // Verify branch exists and belongs to the tenant
     await this.findOne(tenantId, id);
 
-    const { name, address, phone, email, isActive } = dto;
+    const { name, address, phone, email, isActive, defaultAdminId } = dto;
     let code: string | undefined;
 
     if (dto.code) {
@@ -119,6 +138,41 @@ export class BranchesService {
       }
     }
 
+    if (defaultAdminId !== undefined) {
+      if (defaultAdminId === null) {
+        const activeAdminsCount = await this.prisma.user.count({
+          where: {
+            branchId: id,
+            role: UserRole.ADMIN,
+            status: UserStatus.ACTIVE,
+          },
+        });
+        if (activeAdminsCount > 0) {
+          throw new BadRequestException('Cannot remove the Default Admin when there are active administrators in the branch.');
+        }
+      } else {
+        const user = await this.prisma.user.findFirst({
+          where: { id: defaultAdminId, tenantId },
+        });
+
+        if (!user) {
+          throw new NotFoundException(`User with ID "${defaultAdminId}" not found in your organization.`);
+        }
+
+        if (user.role !== UserRole.ADMIN) {
+          throw new BadRequestException('The designated Default Admin must have the ADMIN role.');
+        }
+
+        if (user.branchId !== id) {
+          throw new BadRequestException('The designated Default Admin must belong to this branch.');
+        }
+
+        if (user.status !== UserStatus.ACTIVE) {
+          throw new BadRequestException('The designated Default Admin must be active.');
+        }
+      }
+    }
+
     const updatedBranch = await this.prisma.branch.update({
       where: { id },
       data: {
@@ -128,6 +182,7 @@ export class BranchesService {
         ...(phone !== undefined && { phone }),
         ...(email !== undefined && { email }),
         ...(isActive !== undefined && { isActive }),
+        ...(defaultAdminId !== undefined && { defaultAdminId }),
       },
     });
 

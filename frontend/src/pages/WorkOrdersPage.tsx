@@ -261,6 +261,20 @@ export function WorkOrdersPage() {
     completed: workOrders.filter((wo) => wo.status === 'COMPLETED').length,
   };
 
+  const getDefaultAdminId = () => {
+    const currentBranchId = form.branchId || user?.branchId;
+    if (!currentBranchId) return '';
+    if (isOwner) {
+      const selectedBranch = branches.find(b => b.id === currentBranchId);
+      return selectedBranch?.defaultAdminId || '';
+    } else {
+      const foundAdmin = admins.find(a => a.branchId === currentBranchId && a.branch?.defaultAdminId === a.id);
+      if (foundAdmin) return foundAdmin.id;
+      const anyAdminInBranch = admins.find(a => a.branchId === currentBranchId);
+      return anyAdminInBranch?.branch?.defaultAdminId || '';
+    }
+  };
+
   // ─── Form Handling ──────────────────────────
   const validateForm = (checkProcesses = true): boolean => {
     const errors: Record<string, string> = {};
@@ -1257,7 +1271,7 @@ export function WorkOrdersPage() {
                           setShowAddVerificationForm(true);
                           setShowAddProcess(false);
                           setVerificationType('INTERNAL');
-                          setVerificationTechnicianId('');
+                          setVerificationTechnicianId(getDefaultAdminId());
                         }}
                         disabled={saving || showAddVerificationForm}
                       >
@@ -1438,7 +1452,15 @@ export function WorkOrdersPage() {
                           <select
                             className="form-input form-input--sm"
                             value={verificationType}
-                            onChange={(e) => setVerificationType(e.target.value as any)}
+                            onChange={(e) => {
+                              const val = e.target.value as 'INTERNAL' | 'EXTERNAL';
+                              setVerificationType(val);
+                              if (val === 'INTERNAL') {
+                                setVerificationTechnicianId(getDefaultAdminId());
+                              } else {
+                                setVerificationTechnicianId('');
+                              }
+                            }}
                             style={{ flex: 1, minWidth: '120px' }}
                           >
                             <option value="INTERNAL">Internal Verification</option>
@@ -1990,7 +2012,7 @@ export function WorkOrdersPage() {
                                 setShowAddVerificationForm(true);
                                 setShowAddProcess(false);
                                 setVerificationType('INTERNAL');
-                                setVerificationTechnicianId('');
+                                setVerificationTechnicianId(getDefaultAdminId());
                               }}
                               disabled={saving || showAddVerificationForm}
                             >
@@ -2180,7 +2202,15 @@ export function WorkOrdersPage() {
                           <select
                             className="form-input form-input--sm"
                             value={verificationType}
-                            onChange={(e) => setVerificationType(e.target.value as any)}
+                            onChange={(e) => {
+                              const val = e.target.value as 'INTERNAL' | 'EXTERNAL';
+                              setVerificationType(val);
+                              if (val === 'INTERNAL') {
+                                setVerificationTechnicianId(getDefaultAdminId());
+                              } else {
+                                setVerificationTechnicianId('');
+                              }
+                            }}
                             style={{ flex: 1, minWidth: '120px' }}
                           >
                             <option value="INTERNAL">Internal Verification</option>

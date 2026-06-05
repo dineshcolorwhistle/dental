@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MaxLength, MinLength, IsBoolean } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength, IsBoolean, IsUUID } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateBranchDto {
@@ -53,4 +53,12 @@ export class UpdateBranchDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID of the default admin user for this branch',
+  })
+  @IsOptional()
+  @IsUUID()
+  defaultAdminId?: string;
 }

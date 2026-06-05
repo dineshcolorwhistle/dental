@@ -235,23 +235,42 @@ export function DashboardPage() {
                     >
                       <Eye size={12} /> View WO
                     </button>
-                    {isNotStarted ? (
-                      <button
-                        className="btn btn--primary btn--sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#8B5CF6', border: 'none' }}
-                        onClick={() => handleStartVerification(alert.workOrderId, alert.id)}
-                      >
-                        <Play size={12} /> Start Verification
-                      </button>
-                    ) : (
-                      <button
-                        className="btn btn--primary btn--sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#10B981', border: 'none' }}
-                        onClick={() => triggerOutcomeSelection(alert)}
-                      >
-                        <Check size={12} /> End Verification
-                      </button>
-                    )}
+                    {(() => {
+                      const isExternal = alert.type === 'EXTERNAL';
+                      const canCompleteExternal = !isExternal || alert.defaultAdminId === user?.id;
+
+                      if (isNotStarted) {
+                        if (isExternal) return null;
+                        return (
+                          <button
+                            className="btn btn--primary btn--sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#8B5CF6', border: 'none' }}
+                            onClick={() => handleStartVerification(alert.workOrderId, alert.id)}
+                          >
+                            <Play size={12} /> Start Verification
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button
+                          className="btn btn--primary btn--sm"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            backgroundColor: canCompleteExternal ? '#10B981' : '#94A3B8',
+                            border: 'none',
+                            cursor: canCompleteExternal ? 'pointer' : 'not-allowed',
+                          }}
+                          onClick={() => canCompleteExternal && triggerOutcomeSelection(alert)}
+                          disabled={!canCompleteExternal}
+                          title={canCompleteExternal ? undefined : "Only default branch admin can complete external verification"}
+                        >
+                          <Check size={12} /> End Verification
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -529,29 +548,51 @@ export function DashboardPage() {
                         </div>
 
                         <div>
-                          {isNotStarted ? (
-                            <button
-                              className="btn btn--primary btn--sm"
-                              style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '4px 10px', fontSize: '0.725rem', fontWeight: 600 }}
-                              onClick={() => handleStartVerification(wo.id, activeVerification.id)}
-                            >
-                              <Play size={10} /> Start
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn--primary btn--sm"
-                              style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', padding: '4px 10px', fontSize: '0.725rem', fontWeight: 600 }}
-                              onClick={() => triggerOutcomeSelection({
-                                id: activeVerification.id,
-                                workOrderId: wo.id,
-                                folioNumber: wo.folioNumber,
-                                patient: wo.patient,
-                                processName: activeVerification.processName
-                              })}
-                            >
-                              <Check size={10} /> End
-                            </button>
-                          )}
+                          {(() => {
+                            const isExternal = !activeVerification.technicianId;
+                            const canCompleteExternal = !isExternal || wo.branch?.defaultAdminId === user?.id;
+
+                            if (isNotStarted) {
+                              if (isExternal) return null;
+                              return (
+                                <button
+                                  className="btn btn--primary btn--sm"
+                                  style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '4px 10px', fontSize: '0.725rem', fontWeight: 600 }}
+                                  onClick={() => handleStartVerification(wo.id, activeVerification.id)}
+                                >
+                                  <Play size={10} /> Start
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <button
+                                className="btn btn--primary btn--sm"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  backgroundColor: canCompleteExternal ? '#10B981' : '#94A3B8',
+                                  border: 'none',
+                                  padding: '4px 10px',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 600,
+                                  cursor: canCompleteExternal ? 'pointer' : 'not-allowed',
+                                }}
+                                onClick={() => canCompleteExternal && triggerOutcomeSelection({
+                                  id: activeVerification.id,
+                                  workOrderId: wo.id,
+                                  folioNumber: wo.folioNumber,
+                                  patient: wo.patient,
+                                  processName: activeVerification.processName
+                                })}
+                                disabled={!canCompleteExternal}
+                                title={canCompleteExternal ? undefined : "Only default branch admin can complete external verification"}
+                              >
+                                <Check size={10} /> End
+                              </button>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}

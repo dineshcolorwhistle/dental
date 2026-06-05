@@ -65,6 +65,13 @@ export class AdminsService {
 
     // 4. Create user and password reset token in a transaction
     const result = await this.prisma.$transaction(async (tx) => {
+      const branchDetails = await tx.branch.findUnique({
+        where: { id: branchId },
+        select: { defaultAdminId: true },
+      });
+
+      const makeDefault = !branchDetails || !branchDetails.defaultAdminId;
+
       const admin = await tx.user.create({
         data: {
           tenantId,
@@ -87,6 +94,13 @@ export class AdminsService {
           },
         },
       });
+
+      if (makeDefault) {
+        await tx.branch.update({
+          where: { id: branchId },
+          data: { defaultAdminId: admin.id },
+        });
+      }
 
       // Create password reset token (24h expiry)
       const resetToken = uuidv4();
@@ -137,6 +151,7 @@ export class AdminsService {
             id: true,
             name: true,
             code: true,
+            defaultAdminId: true,
           },
         },
       },
@@ -160,6 +175,7 @@ export class AdminsService {
             id: true,
             name: true,
             code: true,
+            defaultAdminId: true,
           },
         },
       },
@@ -177,7 +193,7 @@ export class AdminsService {
    */
   async update(tenantId: string, id: string, dto: UpdateAdminDto) {
     // 1. Verify admin exists
-    await this.findOne(tenantId, id);
+    const currentAdmin = await this.findOne(tenantId, id);
 
     const { firstName, lastName, phone, branchId, status } = dto;
 
@@ -190,6 +206,38 @@ export class AdminsService {
       if (!branch) {
         throw new NotFoundException(
           `Branch with ID "${branchId}" does not exist in your organization.`,
+        );
+      }
+    }
+
+    // 3. Validations for Default Admin status
+    const isDefaultAdmin = currentAdmin.branch?.defaultAdminId === currentAdmin.id;
+    if (isDefaultAdmin) {
+      // If deactivating default admin
+      if (status && status !== UserStatus.ACTIVE) {
+        const otherActiveAdminsCount = await this.prisma.user.count({
+          where: {
+            branchId: currentAdmin.branchId,
+            role: UserRole.ADMIN,
+            status: UserStatus.ACTIVE,
+            id: { not: currentAdmin.id },
+          },
+        });
+        if (otherActiveAdminsCount > 0) {
+          throw new BadRequestException(
+            'Cannot deactivate the default admin. Please designate another active administrator as the default admin first.',
+          );
+        } else {
+          throw new BadRequestException(
+            'Cannot deactivate the default admin. Each branch must always have exactly one active Default Admin. Please designate another user first.',
+          );
+        }
+      }
+
+      // If changing branch of default admin
+      if (branchId && branchId !== currentAdmin.branchId) {
+        throw new BadRequestException(
+          'Cannot change the branch of the default admin. Please designate another active administrator as the default admin in the current branch first.',
         );
       }
     }
@@ -209,6 +257,7 @@ export class AdminsService {
             id: true,
             name: true,
             code: true,
+            defaultAdminId: true,
           },
         },
       },
@@ -223,7 +272,13 @@ export class AdminsService {
    */
   async remove(tenantId: string, id: string) {
     // Verify admin exists
-    await this.findOne(tenantId, id);
+    const admin = await this.findOne(tenantId, id);
+
+    if (admin.branch?.defaultAdminId === admin.id) {
+      throw new BadRequestException(
+        'Cannot delete the default admin. Please designate another active administrator as the default admin first.',
+      );
+    }
 
     await this.prisma.user.delete({
       where: { id },

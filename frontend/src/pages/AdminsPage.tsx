@@ -226,8 +226,24 @@ export function AdminsPage() {
       await adminService.update(admin.id, { status: newStatus });
       toast.success(`Admin ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}`);
       await fetchData();
-    } catch {
-      toast.error('Failed to update administrator status');
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Failed to update administrator status';
+      toast.error(Array.isArray(message) ? message[0] : message);
+    }
+  };
+
+  const handleMakeDefaultAdmin = async (admin: AdminListItem) => {
+    if (!admin.branchId) return;
+    try {
+      setLoading(true);
+      await branchService.update(admin.branchId, { defaultAdminId: admin.id });
+      toast.success(`${admin.firstName} ${admin.lastName} is now the Default Admin for ${admin.branch?.name}`);
+      await fetchData();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Failed to designate Default Admin';
+      toast.error(Array.isArray(message) ? message[0] : message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -443,6 +459,11 @@ export function AdminsPage() {
                       <div>
                         <span className="cell-primary__name">
                           {admin.firstName} {admin.lastName}
+                          {admin.branch?.defaultAdminId === admin.id && (
+                             <span className="badge badge--success" style={{ marginLeft: '8px', fontSize: '0.6875rem', padding: '2px 6px', textTransform: 'uppercase', verticalAlign: 'middle', fontWeight: 700 }}>
+                               Default Admin
+                             </span>
+                           )}
                         </span>
                         <span className="cell-primary__meta">
                           Created {new Date(admin.createdAt).toLocaleDateString('en-IN', {
@@ -492,6 +513,16 @@ export function AdminsPage() {
                         {admin.status === 'ACTIVE' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
                         <span>{admin.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</span>
                       </button>
+                      {admin.status === 'ACTIVE' && admin.branchId && admin.branch?.defaultAdminId !== admin.id && (
+                         <button
+                           className="btn-action"
+                           style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+                           onClick={() => handleMakeDefaultAdmin(admin)}
+                           title="Designate as Default Admin"
+                         >
+                           <span>Make Default</span>
+                         </button>
+                       )}
                       <button
                         className="btn-action"
                         onClick={() => handleEditOpen(admin)}

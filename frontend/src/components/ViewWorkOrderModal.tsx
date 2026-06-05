@@ -7,6 +7,7 @@ import {
   Play,
   Check,
   PlusCircle,
+  AlertCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
@@ -883,45 +884,56 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                               {statusLabel}
                                             </span>
                                             {proc.isVerification && isLabAdminOrOwner && (
-                                              <>
-                                                {stepStatus === 'NOT_STARTED' && (
-                                                  (() => {
-                                                    const precedingComplete = processes
-                                                      .filter((p: any) => p.sequence < proc.sequence)
-                                                      .every((p: any) => p.status === 'COMPLETED');
-                                                    if (precedingComplete) {
-                                                      return (
+                                              (() => {
+                                                const isExternal = proc.isVerification && !proc.technicianId;
+                                                const canCompleteExternal = !isExternal || selectedWO?.branch?.defaultAdminId === user?.id;
+
+                                                return (
+                                                  <>
+                                                    {stepStatus === 'NOT_STARTED' && !isExternal && (
+                                                      (() => {
+                                                        const precedingComplete = processes
+                                                          .filter((p: any) => p.sequence < proc.sequence)
+                                                          .every((p: any) => p.status === 'COMPLETED');
+                                                        if (precedingComplete) {
+                                                          return (
+                                                            <button
+                                                              className="btn btn--primary btn--sm"
+                                                              style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '3px 8px', fontSize: '0.7rem', marginTop: '6px', fontWeight: 600 }}
+                                                              onClick={() => handleInlineStartVerification(selectedWO.id, proc.id)}
+                                                            >
+                                                              <Play size={10} /> Start
+                                                            </button>
+                                                          );
+                                                        }
+                                                        return null;
+                                                      })()
+                                                    )}
+                                                    {(stepStatus === 'IN_PROGRESS' || stepStatus === 'PAUSED') && (
+                                                      <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
                                                         <button
                                                           className="btn btn--primary btn--sm"
-                                                          style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '3px 8px', fontSize: '0.7rem', marginTop: '6px', fontWeight: 600 }}
-                                                          onClick={() => handleInlineStartVerification(selectedWO.id, proc.id)}
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#10B981' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
+                                                          onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'SUCCESS')}
+                                                          disabled={!canCompleteExternal}
+                                                          title={canCompleteExternal ? undefined : 'Only default branch admin can complete external verification'}
                                                         >
-                                                          <Play size={10} /> Start
+                                                          <Check size={10} /> Approve
                                                         </button>
-                                                      );
-                                                    }
-                                                    return null;
-                                                  })()
-                                                )}
-                                                {(stepStatus === 'IN_PROGRESS' || stepStatus === 'PAUSED') && (
-                                                  <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
-                                                    <button
-                                                      className="btn btn--primary btn--sm"
-                                                      style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#10B981', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600 }}
-                                                      onClick={() => handleInlineEndVerification(selectedWO.id, proc.id, 'SUCCESS')}
-                                                    >
-                                                      <Check size={10} /> Approve
-                                                    </button>
-                                                    <button
-                                                      className="btn btn--primary btn--sm"
-                                                      style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#EF4444', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600 }}
-                                                      onClick={() => handleInlineEndVerification(selectedWO.id, proc.id, 'REWORK')}
-                                                    >
-                                                      Flag
-                                                    </button>
-                                                  </div>
-                                                )}
-                                              </>
+                                                        <button
+                                                          className="btn btn--primary btn--sm"
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#EF4444' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
+                                                          onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'REWORK')}
+                                                          disabled={!canCompleteExternal}
+                                                          title={canCompleteExternal ? undefined : 'Only default branch admin can complete external verification'}
+                                                        >
+                                                          <AlertCircle size={10} /> Flag
+                                                        </button>
+                                                      </div>
+                                                    )}
+                                                  </>
+                                                );
+                                              })()
                                             )}
                                           </div>
                                         </td>

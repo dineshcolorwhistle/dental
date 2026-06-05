@@ -78,7 +78,7 @@ export class WorkOrdersService {
       select: { id: true, name: true },
     },
     branch: {
-      select: { id: true, name: true, code: true },
+      select: { id: true, name: true, code: true, defaultAdminId: true },
     },
     createdBy: {
       select: { id: true, firstName: true, lastName: true, email: true },
@@ -223,9 +223,9 @@ export class WorkOrdersService {
     });
 
     // 8. If createAndAssign, notify the first process's technician
-    if (action === 'createAndAssign' && processes.length > 0) {
+    if (action === 'createAndAssign' && workOrder.processes.length > 0) {
       // Find the first process step (lowest sequence)
-      const sortedProcesses = [...processes].sort((a, b) => a.sequence - b.sequence);
+      const sortedProcesses = [...workOrder.processes].sort((a, b) => a.sequence - b.sequence);
       const firstProcess = sortedProcesses[0];
 
       if (firstProcess.technicianId) {
@@ -251,6 +251,42 @@ export class WorkOrdersService {
             message: `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
           },
         });
+      } else if (firstProcess.isVerification && !firstProcess.technicianId) {
+        // Auto-start External Verification
+        const now = new Date();
+        await this.prisma.workOrderProcess.update({
+          where: { id: firstProcess.id },
+          data: {
+            status: ProcessStatus.IN_PROGRESS,
+            startedAt: now,
+            activityLogs: {
+              create: {
+                action: ProcessActivityAction.START,
+                timestamp: now,
+                notes: 'External verification started automatically',
+              },
+            },
+          },
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'VERIFICATION_START',
+          entityName: 'PROCESS',
+          entityId: firstProcess.id,
+          details: {
+            workOrderId: workOrder.id,
+            processName: firstProcess.processName,
+            type: 'EXTERNAL',
+            notes: 'Started automatically on assignment',
+          },
+        });
+
+        await this.updateWorkOrderStatus(workOrder.id);
+
+        const updatedWO = await this.findOne(tenantId, workOrder.id, null, userRole);
+        return updatedWO;
       }
     }
 
@@ -517,6 +553,39 @@ export class WorkOrdersService {
             title: 'New Work Order Assigned',
           },
         });
+      } else if (firstProcess && firstProcess.isVerification && !firstProcess.technicianId) {
+        // Auto-start External Verification
+        const now = new Date();
+        await this.prisma.workOrderProcess.update({
+          where: { id: firstProcess.id },
+          data: {
+            status: ProcessStatus.IN_PROGRESS,
+            startedAt: now,
+            activityLogs: {
+              create: {
+                action: ProcessActivityAction.START,
+                timestamp: now,
+                notes: 'External verification started automatically',
+              },
+            },
+          },
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'VERIFICATION_START',
+          entityName: 'PROCESS',
+          entityId: firstProcess.id,
+          details: {
+            workOrderId: updated.id,
+            processName: firstProcess.processName,
+            type: 'EXTERNAL',
+            notes: 'Started automatically on assignment',
+          },
+        });
+
+        await this.updateWorkOrderStatus(updated.id);
       }
 
       await this.auditLogsService.log({
@@ -533,7 +602,7 @@ export class WorkOrdersService {
     }
 
     this.logger.log(`Work order updated: ${updated.folioNumber} (${updated.id})`);
-    return updated;
+    return this.findOne(tenantId, id, branchIdContext);
   }
 
   async getNextFolioNumber(tenantId: string, branchId: string) {
@@ -595,6 +664,7 @@ export class WorkOrdersService {
             patient: true,
             status: true,
             doctor: { select: { name: true } },
+            branch: { select: { id: true, name: true, defaultAdminId: true } },
             processes: {
               orderBy: { sequence: 'asc' },
               select: { sequence: true, status: true },
@@ -632,6 +702,7 @@ export class WorkOrdersService {
       assignedTo: a.technicianId && a.technician
         ? `${a.technician.firstName} ${a.technician.lastName}`
         : (a.workOrder.doctor ? a.workOrder.doctor.name : 'Doctor'),
+      defaultAdminId: a.workOrder.branch?.defaultAdminId || null,
     }));
 
     // 2. Fetch WO Status counts
@@ -800,6 +871,7 @@ export class WorkOrdersService {
       include: {
         doctor: { select: { id: true, name: true } },
         prosthesisType: { select: { id: true, name: true } },
+        branch: { select: { id: true, name: true, code: true, defaultAdminId: true } },
         processes: {
           orderBy: { sequence: 'asc' },
           include: {
@@ -913,6 +985,18 @@ export class WorkOrdersService {
       throw new BadRequestException('This process step is not a verification step.');
     }
 
+    if (process.isVerification && !process.technicianId) {
+      if (!process.workOrder.branchId) {
+        throw new BadRequestException('Work order is not assigned to a branch.');
+      }
+      const branch = await this.prisma.branch.findUnique({
+        where: { id: process.workOrder.branchId },
+      });
+      if (!branch || branch.defaultAdminId !== userId) {
+        throw new BadRequestException("Only the branch's Default Admin can complete this External Verification process.");
+      }
+    }
+
     if (process.status !== ProcessStatus.IN_PROGRESS && process.status !== ProcessStatus.PAUSED) {
       throw new BadRequestException('Verification is not active.');
     }
@@ -965,6 +1049,39 @@ export class WorkOrdersService {
 
       if (nextProcess) {
         if (nextProcess.isVerification) {
+          if (!nextProcess.technicianId) {
+            // Auto-start External Verification
+            const autoStartNow = new Date();
+            await this.prisma.workOrderProcess.update({
+              where: { id: nextProcess.id },
+              data: {
+                status: ProcessStatus.IN_PROGRESS,
+                startedAt: autoStartNow,
+                activityLogs: {
+                  create: {
+                    action: ProcessActivityAction.START,
+                    timestamp: autoStartNow,
+                    notes: 'External verification started automatically',
+                  },
+                },
+              },
+            });
+
+            await this.auditLogsService.log({
+              tenantId,
+              userId,
+              action: 'VERIFICATION_START',
+              entityName: 'PROCESS',
+              entityId: nextProcess.id,
+              details: {
+                workOrderId,
+                processName: nextProcess.processName,
+                type: 'EXTERNAL',
+                notes: 'Started automatically after previous step completion',
+              },
+            });
+          }
+
           // Send verification pending alerts to admins
           const branchAdmins = await this.prisma.user.findMany({
             where: {

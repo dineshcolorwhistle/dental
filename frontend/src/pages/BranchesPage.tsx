@@ -16,7 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { branchService, type BranchListItem, type CreateBranchPayload } from '../services';
+import { branchService, adminService, type BranchListItem, type CreateBranchPayload, type AdminListItem } from '../services';
 import { Pagination } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -32,6 +32,8 @@ export function BranchesPage() {
   const [saving, setSaving] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'code' | 'createdAt'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [branchAdmins, setBranchAdmins] = useState<AdminListItem[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
@@ -47,13 +49,14 @@ export function BranchesPage() {
   const [deleting, setDeleting] = useState(false);
 
   // Form states
-  const [form, setForm] = useState<CreateBranchPayload>({
+  const [form, setForm] = useState<CreateBranchPayload & { defaultAdminId?: string | null }>({
     name: '',
     code: '',
     address: '',
     phone: '',
     email: '',
     isActive: true,
+    defaultAdminId: '',
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateBranchPayload, string>>>({});
 
@@ -146,12 +149,13 @@ export function BranchesPage() {
       phone: '',
       email: '',
       isActive: true,
+      defaultAdminId: '',
     });
     setFormErrors({});
     setShowCreateModal(true);
   };
 
-  const handleEditOpen = (branch: BranchListItem) => {
+  const handleEditOpen = async (branch: BranchListItem) => {
     setSelectedBranch(branch);
     setForm({
       name: branch.name,
@@ -160,9 +164,20 @@ export function BranchesPage() {
       phone: branch.phone || '',
       email: branch.email || '',
       isActive: branch.isActive,
+      defaultAdminId: branch.defaultAdminId || '',
     });
     setFormErrors({});
     setShowEditModal(true);
+
+    try {
+      setLoadingAdmins(true);
+      const admins = await adminService.getAll(branch.id);
+      setBranchAdmins(admins.filter((a) => a.status === 'ACTIVE'));
+    } catch (err) {
+      console.error('Failed to load branch admins', err);
+    } finally {
+      setLoadingAdmins(false);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -189,7 +204,15 @@ export function BranchesPage() {
 
     try {
       setSaving(true);
-      await branchService.update(selectedBranch.id, form);
+      await branchService.update(selectedBranch.id, {
+        name: form.name,
+        code: form.code,
+        address: form.address,
+        phone: form.phone,
+        email: form.email,
+        isActive: form.isActive,
+        defaultAdminId: form.defaultAdminId || null,
+      });
       toast.success('Branch updated successfully!');
       setShowEditModal(false);
       await fetchBranches();
@@ -385,6 +408,7 @@ export function BranchesPage() {
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
+                <th>Default Admin</th>
                 <th>Contact Info</th>
                 <th>Address</th>
                 <th>Status</th>
@@ -411,6 +435,23 @@ export function BranchesPage() {
                     <span className="cell-subdomain" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
                       {branch.code}
                     </span>
+                  </td>
+                  <td>
+                    {branch.defaultAdmin ? (
+                      <div className="cell-primary" style={{ gap: '0.25rem' }}>
+                        <Users size={12} style={{ color: 'var(--accent-primary)' }} />
+                        <div>
+                          <span className="cell-branch" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                            {branch.defaultAdmin.firstName} {branch.defaultAdmin.lastName}
+                          </span>
+                          <span className="cell-user__email" style={{ fontSize: '0.75rem', display: 'block' }}>
+                            {branch.defaultAdmin.email}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted" style={{ fontSize: '0.8125rem', fontStyle: 'italic' }}>Not Assigned</span>
+                    )}
                   </td>
                   <td>
                     <div className="cell-user">
@@ -730,6 +771,37 @@ export function BranchesPage() {
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   disabled={saving}
                 />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="select-edit-branch-admin">
+                  Default Admin
+                </label>
+                {loadingAdmins ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    <Loader2 size={16} className="spinner" />
+                    <span>Loading administrators...</span>
+                  </div>
+                ) : branchAdmins.length === 0 ? (
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '4px 0' }}>
+                    No active administrators found in this branch. To assign a Default Admin, first add or activate an administrator for this branch.
+                  </div>
+                ) : (
+                  <select
+                    id="select-edit-branch-admin"
+                    className="form-input"
+                    value={form.defaultAdminId || ''}
+                    onChange={(e) => handleInputChange('defaultAdminId', e.target.value || null)}
+                    disabled={saving}
+                  >
+                    <option value="">Select Default Admin...</option>
+                    {branchAdmins.map((admin) => (
+                      <option key={admin.id} value={admin.id}>
+                        {admin.firstName} {admin.lastName} ({admin.email})
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="modal__footer">

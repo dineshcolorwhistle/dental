@@ -26,6 +26,7 @@ export interface AdminListItem {
     id: string;
     name: string;
     code: string;
+    defaultAdminId?: string | null;
   } | null;
 }
 
