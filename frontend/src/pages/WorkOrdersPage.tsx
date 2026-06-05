@@ -155,6 +155,7 @@ export function WorkOrdersPage() {
     boxNumber: '',
     prosthesisTypeId: '',
     specification: '',
+    color: '',
     notes: '',
     totalQuote: '',
     initialPayment: '',
@@ -268,6 +269,7 @@ export function WorkOrdersPage() {
     if (!form.prosthesisTypeId) errors.prosthesisTypeId = 'Prosthesis type is required';
     if (!isAdmin && branches.length > 0 && !form.branchId) errors.branchId = 'Branch is required';
     if (!form.specification.trim()) errors.specification = 'Specification is required';
+    if (!form.color.trim()) errors.color = 'Color is required';
     if (!form.totalQuote.trim()) {
       errors.totalQuote = 'Total quote is required';
     } else if (parseFloat(form.totalQuote) <= 0) {
@@ -296,6 +298,7 @@ export function WorkOrdersPage() {
       boxNumber: '',
       prosthesisTypeId: '',
       specification: '',
+      color: '',
       notes: '',
       totalQuote: '',
       initialPayment: '',
@@ -461,6 +464,7 @@ export function WorkOrdersPage() {
         boxNumber: form.boxNumber || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
         specification: isAdmin ? form.specification || undefined : undefined,
+        color: form.color,
         notes: form.notes || undefined,
         totalQuote: form.totalQuote ? parseFloat(form.totalQuote) : undefined,
         initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
@@ -502,6 +506,7 @@ export function WorkOrdersPage() {
       boxNumber: wo.boxNumber || '',
       prosthesisTypeId: wo.prosthesisTypeId,
       specification: wo.specification || '',
+      color: wo.color || '',
       notes: userNotes,
       totalQuote: wo.totalQuote != null ? wo.totalQuote.toString() : '',
       initialPayment: wo.initialPayment != null ? wo.initialPayment.toString() : '',
@@ -537,6 +542,7 @@ export function WorkOrdersPage() {
     if (!form.patient.trim()) errors.patient = 'Patient name is required';
     if (!form.prosthesisTypeId) errors.prosthesisTypeId = 'Prosthesis type is required';
     if (!form.specification.trim()) errors.specification = 'Specification is required';
+    if (!form.color.trim()) errors.color = 'Color is required';
     if (!form.totalQuote.trim()) {
       errors.totalQuote = 'Total quote is required';
     } else if (parseFloat(form.totalQuote) <= 0) {
@@ -573,6 +579,7 @@ export function WorkOrdersPage() {
         boxNumber: form.boxNumber || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
         specification: form.specification || undefined,
+        color: form.color || undefined,
         notes: updatedNotes || undefined,
         totalQuote: form.totalQuote ? parseFloat(form.totalQuote) : undefined,
         initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
@@ -788,6 +795,7 @@ export function WorkOrdersPage() {
                 </th>
                 <th>Doctor</th>
                 <th>Prosthesis Type</th>
+                <th>Color</th>
                 {isOwner && <th>Branch</th>}
                 <th>Quote</th>
                 <th>Status</th>
@@ -842,6 +850,9 @@ export function WorkOrdersPage() {
                       ) : (
                         <span className="text-muted">—</span>
                       )}
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{wo.color}</span>
                     </td>
                     {isOwner && (
                       <td>
@@ -1124,6 +1135,23 @@ export function WorkOrdersPage() {
                       )}
                     </div>
                   )}
+
+                  {/* Color (Mandatory) */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="input-wo-color">Color *</label>
+                    <input
+                      id="input-wo-color"
+                      className={`form-input ${formErrors.color ? 'form-input--error' : ''}`}
+                      type="text"
+                      placeholder="e.g., A1, A2, B1..."
+                      value={form.color}
+                      onChange={(e) => handleInputChange('color', e.target.value)}
+                      disabled={saving}
+                    />
+                    {formErrors.color && (
+                      <span className="form-error"><AlertCircle size={12} /> {formErrors.color}</span>
+                    )}
+                  </div>
 
                   {/* Notes */}
                   <div className="form-group">
@@ -1819,6 +1847,23 @@ export function WorkOrdersPage() {
                       )}
                     </div>
                   )}
+
+                  {/* Color (Mandatory) */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-wo-color">Color *</label>
+                    <input
+                      id="edit-wo-color"
+                      className={`form-input ${formErrors.color ? 'form-input--error' : ''}`}
+                      type="text"
+                      placeholder="e.g., A1, A2, B1..."
+                      value={form.color}
+                      onChange={(e) => handleInputChange('color', e.target.value)}
+                      disabled={saving}
+                    />
+                    {formErrors.color && (
+                      <span className="form-error"><AlertCircle size={12} /> {formErrors.color}</span>
+                    )}
+                  </div>
 
                   {/* Notes */}
                   <div className="form-group">

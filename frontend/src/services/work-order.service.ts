@@ -38,6 +38,7 @@ export interface WorkOrderListItem {
   boxNumber: string | null;
   prosthesisTypeId: string;
   specification: string | null;
+  color: string;
   notes: string | null;
   totalQuote: number | null;
   initialPayment: number | null;
@@ -83,6 +84,7 @@ export interface CreateWorkOrderPayload {
   boxNumber?: string;
   prosthesisTypeId: string;
   specification?: string;
+  color: string;
   notes?: string;
   totalQuote?: number;
   initialPayment?: number;
@@ -97,6 +99,7 @@ export interface UpdateWorkOrderPayload {
   boxNumber?: string;
   prosthesisTypeId?: string;
   specification?: string;
+  color?: string;
   notes?: string;
   totalQuote?: number;
   initialPayment?: number;

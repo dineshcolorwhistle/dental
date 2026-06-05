@@ -385,6 +385,30 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           </div>
                         </div>
 
+                        {/* Color Details */}
+                        <div style={{
+                          backgroundColor: 'var(--bg-surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '12px',
+                          padding: '1.5rem',
+                          boxShadow: 'var(--shadow-sm)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem'
+                        }}>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Color
+                          </span>
+                          <div style={{ 
+                            fontSize: '0.9375rem',
+                            color: 'var(--text-primary)',
+                            lineHeight: '1.6',
+                            fontWeight: 700
+                          }}>
+                            {selectedWO.color}
+                          </div>
+                        </div>
+
                         {/* Current Progress Step */}
                         <div style={{
                           backgroundColor: 'var(--bg-surface)',
@@ -475,6 +499,16 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                 marginTop: '2px',
                                 border: '1px solid var(--border)'
                               }}>{selectedWO.prosthesisType?.name || '—'}</span>
+                            </div>
+                            <div>
+                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Color</span>
+                              <span style={{
+                                fontSize: '0.8125rem',
+                                fontWeight: 700,
+                                color: 'var(--text-primary)',
+                                display: 'inline-block',
+                                marginTop: '2px'
+                              }}>{selectedWO.color}</span>
                             </div>
                             {selectedWO.branch && (
                               <div>

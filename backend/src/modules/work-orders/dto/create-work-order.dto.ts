@@ -84,6 +84,11 @@ export class CreateWorkOrderDto {
   @IsNotEmpty()
   specification: string;
 
+  @ApiProperty({ description: 'Color details' })
+  @IsString()
+  @IsNotEmpty()
+  color: string;
+
   @ApiProperty({ description: 'Additional notes', required: false })
   @IsString()
   @IsOptional()

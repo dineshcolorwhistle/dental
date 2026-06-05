@@ -279,6 +279,7 @@ model WorkOrder {
   boxNumber        String?         @map("box_number")
   prosthesisTypeId String          @map("prosthesis_type_id")
   specification    String?
+  color            String          @default("A1")
   notes            String?
   totalQuote       Float?          @map("total_quote")
   initialPayment   Float?          @map("initial_payment")

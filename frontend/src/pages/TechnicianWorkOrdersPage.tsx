@@ -550,6 +550,19 @@ export function TechnicianWorkOrdersPage() {
                           <span>{selectedOrder.doctor?.name} ({selectedOrder.doctor?.clinicName || 'Clinic'})</span>
                         </div>
                       </div>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Color</span>
+                        <span style={{
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'rgba(111, 174, 217, 0.1)',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border)',
+                          display: 'inline-block'
+                        }}>{selectedOrder.color}</span>
+                      </div>
                       {selectedOrder.boxNumber && (
                         <div>
                           <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Box Number</span>

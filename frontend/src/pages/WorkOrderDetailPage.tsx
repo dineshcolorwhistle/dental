@@ -201,6 +201,10 @@ export function WorkOrderDetailPage() {
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}><Sparkles size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Prosthesis Type</span>
               <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--accent-primary)' }}>{workOrder.prosthesisType?.name || '—'}</span>
             </div>
+            <div>
+              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}><CircleDot size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Color</span>
+              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{workOrder.color}</span>
+            </div>
             {workOrder.branch && (
               <div>
                 <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}><Building2 size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Branch</span>
