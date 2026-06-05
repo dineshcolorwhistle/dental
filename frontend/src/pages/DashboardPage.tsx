@@ -579,7 +579,7 @@ export function DashboardPage() {
             EXTERNAL_VERIFICATION: { label: 'External Verification', color: '#6366F1', bg: '#EEF2FF' },
             COMPLETED: { label: 'Completed', color: '#10B981', bg: '#ECFDF5' },
             FAILED: { label: 'Failed', color: '#EF4444', bg: '#FEF2F2' },
-            CANCELLED: { label: 'Cancelled', color: '#94A3B8', bg: '#F8FAFC' },
+            CANCELLED: { label: 'Cancelled', color: '#F97316', bg: '#FFF3E0' },
           }).map(([key, value]) => {
             const count = statusSummary[key] || 0;
             return (

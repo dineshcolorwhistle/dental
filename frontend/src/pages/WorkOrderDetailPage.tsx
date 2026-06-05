@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   EXTERNAL_VERIFICATION: { label: 'External Verification', color: '#6366F1', bg: '#EEF2FF', icon: <CheckCircle2 size={12} /> },
   COMPLETED: { label: 'Completed', color: '#10B981', bg: '#ECFDF5', icon: <CheckCircle2 size={12} /> },
   FAILED: { label: 'Failed', color: '#EF4444', bg: '#FEF2F2', icon: <AlertCircle size={12} /> },
-  CANCELLED: { label: 'Cancelled', color: '#94A3B8', bg: '#F8FAFC', icon: <X size={12} /> },
+  CANCELLED: { label: 'Cancelled', color: '#F97316', bg: '#FFF3E0', icon: <X size={12} /> },
 };
 
 const parseNotesAndPayments = (notesString: string | null): { userNotes: string } => {
@@ -94,20 +94,24 @@ export function WorkOrderDetailPage() {
   const processes = workOrder.processes || [];
   const { userNotes } = parseNotesAndPayments(workOrder.notes);
 
-  // Determine active stepper index
-  const statusKeys = ['CREATED', 'ASSIGNED', 'IN_PROGRESS', 'INTERNAL_VERIFICATION', 'EXTERNAL_VERIFICATION', 'COMPLETED', 'FAILED', 'CANCELLED'];
-  const currentStatusIdx = statusKeys.indexOf(workOrder.status);
+  // Determine active stepper index dynamically based on 6 stages
+  let finalStep = { label: 'Completed', statusKey: 'COMPLETED' };
+  if (workOrder.status === 'FAILED') {
+    finalStep = { label: 'Failed', statusKey: 'FAILED' };
+  } else if (workOrder.status === 'CANCELLED') {
+    finalStep = { label: 'Cancelled', statusKey: 'CANCELLED' };
+  }
 
-  const STATIC_STEPS = [
+  const steps = [
     { label: 'Created', statusKey: 'CREATED' },
     { label: 'Assigned', statusKey: 'ASSIGNED' },
     { label: 'In Progress', statusKey: 'IN_PROGRESS' },
     { label: 'Internal Verification', statusKey: 'INTERNAL_VERIFICATION' },
     { label: 'External Verification', statusKey: 'EXTERNAL_VERIFICATION' },
-    { label: 'Completed', statusKey: 'COMPLETED' },
-    { label: 'Failed', statusKey: 'FAILED' },
-    { label: 'Cancelled', statusKey: 'CANCELLED' }
+    finalStep
   ];
+
+  const currentStatusIdx = steps.findIndex(s => s.statusKey === workOrder.status);
 
   return (
     <div className="work-order-detail-page" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto', padding: '1rem 0' }}>
@@ -285,8 +289,8 @@ export function WorkOrderDetailPage() {
           <div style={{
             position: 'absolute',
             top: '14.5px',
-            left: 'calc((100% / 8) / 2)',
-            right: 'calc((100% / 8) / 2)',
+            left: 'calc((100% / 6) / 2)',
+            right: 'calc((100% / 6) / 2)',
             height: '3px',
             backgroundColor: 'var(--border, #E5E7EB)',
             zIndex: 1,
@@ -298,18 +302,18 @@ export function WorkOrderDetailPage() {
             <div style={{
               position: 'absolute',
               top: '14.5px',
-              left: 'calc((100% / 8) / 2)',
-              width: `calc(${currentStatusIdx} * (100% / 8))`,
+              left: 'calc((100% / 6) / 2)',
+              width: `calc(${currentStatusIdx} * (100% / 6))`,
               height: '3px',
-              backgroundColor: workOrder.status === 'FAILED' ? '#EF4444' : workOrder.status === 'CANCELLED' ? '#94A3B8' : 'var(--accent-primary, #6FAED9)',
-              boxShadow: `0 0 8px ${workOrder.status === 'FAILED' ? 'rgba(239, 68, 68, 0.4)' : workOrder.status === 'CANCELLED' ? 'rgba(148, 163, 184, 0.4)' : 'var(--accent-primary-glow)'}`,
+              backgroundColor: workOrder.status === 'COMPLETED' ? 'var(--success, #10B981)' : workOrder.status === 'FAILED' ? '#EF4444' : workOrder.status === 'CANCELLED' ? '#F97316' : 'var(--accent-primary, #6FAED9)',
+              boxShadow: `0 0 8px ${workOrder.status === 'COMPLETED' ? 'rgba(16, 185, 129, 0.4)' : workOrder.status === 'FAILED' ? 'rgba(239, 68, 68, 0.4)' : workOrder.status === 'CANCELLED' ? 'rgba(249, 115, 22, 0.4)' : 'var(--accent-primary-glow)'}`,
               transition: 'all 0.3s ease',
               zIndex: 1,
               borderRadius: '2px'
             }} />
           )}
 
-          {STATIC_STEPS.map((step, idx) => {
+          {steps.map((step, idx) => {
             const isCompleted = idx < currentStatusIdx;
             const isActive = idx === currentStatusIdx;
             const isHighlighted = idx <= currentStatusIdx;
@@ -327,18 +331,24 @@ export function WorkOrderDetailPage() {
                 circleColor = '#FFFFFF';
                 symbol = '✓';
               } else if (isActive) {
-                if (workOrder.status === 'FAILED') {
+                if (workOrder.status === 'COMPLETED') {
+                  circleBg = 'var(--success, #10B981)';
+                  circleBorder = '2px solid var(--success, #10B981)';
+                  circleColor = '#FFFFFF';
+                  symbol = '✓';
+                  circleShadow = '0 0 0 5px rgba(16, 185, 129, 0.2)';
+                } else if (workOrder.status === 'FAILED') {
                   circleBg = '#EF4444';
                   circleBorder = '2px solid #EF4444';
                   circleColor = '#FFFFFF';
                   symbol = '✕';
                   circleShadow = '0 0 0 5px rgba(239, 68, 68, 0.2)';
                 } else if (workOrder.status === 'CANCELLED') {
-                  circleBg = '#94A3B8';
-                  circleBorder = '2px solid #94A3B8';
+                  circleBg = '#F97316';
+                  circleBorder = '2px solid #F97316';
                   circleColor = '#FFFFFF';
                   symbol = '✕';
-                  circleShadow = '0 0 0 5px rgba(148, 163, 184, 0.2)';
+                  circleShadow = '0 0 0 5px rgba(249, 115, 22, 0.2)';
                 } else {
                   circleBg = 'var(--accent-primary, #6FAED9)';
                   circleBorder = '2px solid var(--accent-primary, #6FAED9)';
@@ -378,7 +388,7 @@ export function WorkOrderDetailPage() {
                   marginTop: '0.625rem',
                   fontSize: '0.75rem',
                   fontWeight: isActive ? 800 : isHighlighted ? 700 : 500,
-                  color: isActive ? (workOrder.status === 'FAILED' ? '#EF4444' : workOrder.status === 'CANCELLED' ? '#64748B' : 'var(--accent-primary)') : isHighlighted ? 'var(--text-primary)' : 'var(--text-muted)',
+                  color: isActive ? (workOrder.status === 'COMPLETED' ? 'var(--success, #10B981)' : workOrder.status === 'FAILED' ? '#EF4444' : workOrder.status === 'CANCELLED' ? '#F97316' : 'var(--accent-primary)') : isHighlighted ? 'var(--text-primary)' : 'var(--text-muted)',
                   textAlign: 'center',
                   maxWidth: '96px',
                   lineHeight: '1.2'

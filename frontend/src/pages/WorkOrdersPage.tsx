@@ -55,7 +55,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   EXTERNAL_VERIFICATION: { label: 'External Verification', color: '#6366F1', bg: '#EEF2FF', icon: <ShieldCheck size={12} /> },
   COMPLETED: { label: 'Completed', color: '#10B981', bg: '#ECFDF5', icon: <CheckCircle2 size={12} /> },
   FAILED: { label: 'Failed', color: '#EF4444', bg: '#FEF2F2', icon: <AlertCircle size={12} /> },
-  CANCELLED: { label: 'Cancelled', color: '#94A3B8', bg: '#F8FAFC', icon: <X size={12} /> },
+  CANCELLED: { label: 'Cancelled', color: '#F97316', bg: '#FFF3E0', icon: <X size={12} /> },
 };
 
 interface PaymentHistoryItem {
