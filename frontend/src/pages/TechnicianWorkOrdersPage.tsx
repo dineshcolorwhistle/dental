@@ -109,6 +109,8 @@ export function TechnicianWorkOrdersPage() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrWO, setQrWO] = useState<any>(null);
 
+  const [detailTab, setDetailTab] = useState<'general' | 'process'>('general');
+
   // Editable notes state
   const [notesText, setNotesText] = useState('');
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -123,6 +125,7 @@ export function TechnicianWorkOrdersPage() {
     } else {
       setNotesText('');
       setIsEditingNotes(false);
+      setDetailTab('general');
     }
   }, [selectedOrder, isEditingNotes]);
 
@@ -172,6 +175,7 @@ export function TechnicianWorkOrdersPage() {
   const handleSelectOrder = async (order: TechnicianWorkOrderListItem) => {
     try {
       setLoading(true);
+      setDetailTab('general');
       const detail = await technicianPortalService.getWorkOrderDetail(order.id);
       setSelectedOrder(detail);
     } catch {
@@ -486,420 +490,468 @@ export function TechnicianWorkOrdersPage() {
               </button>
             </div>
 
-            <div className="modal__body" style={{ padding: '1.75rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* General Specs Block */}
-              <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Created On</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                      <Calendar size={14} style={{ color: 'var(--accent-primary)' }} />
-                      <span>{new Date(selectedOrder.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Doctor</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                      <User size={14} style={{ color: 'var(--accent-primary)' }} />
-                      <span>{selectedOrder.doctor?.name} ({selectedOrder.doctor?.clinicName || 'Clinic'})</span>
-                    </div>
-                  </div>
-                  {selectedOrder.boxNumber && (
-                    <div>
-                      <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Box Number</span>
-                      <span style={{
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        color: 'var(--text-primary)',
-                        backgroundColor: 'rgba(148, 163, 184, 0.08)',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border)',
-                        display: 'inline-block'
-                      }}>{selectedOrder.boxNumber}</span>
-                    </div>
-                  )}
-                </div>
-                {selectedOrder.specification && (
-                  <div style={{
-                    marginTop: '1rem',
-                    padding: '0.75rem 1rem',
-                    backgroundColor: 'var(--bg-card)',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    border: '1px solid var(--border)',
-                    lineHeight: '1.5',
-                    color: 'var(--text-primary)'
-                  }}>
-                    <strong style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Dental Spec/Shade Instructions</strong>
-                    {selectedOrder.specification}
-                  </div>
-                )}
+            {/* Modal Tabs navigation */}
+            <div style={{ padding: '0 1.75rem', marginTop: '1rem', borderBottom: '1px solid var(--border)' }}>
+              <div className="modal-tabs" style={{ display: 'flex', gap: '1.5rem' }}>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${detailTab === 'general' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setDetailTab('general')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: detailTab === 'general' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: detailTab === 'general' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  General Information
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${detailTab === 'process' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setDetailTab('process')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: detailTab === 'process' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: detailTab === 'process' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Process & Audit
+                </button>
               </div>
+            </div>
 
-              {/* Premium Editable Work Order Notes Section */}
-              <div style={{
-                borderBottom: '1px solid var(--border)',
-                paddingBottom: '1.25rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: 'var(--text-muted)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    margin: 0,
+            <div className="modal__body" style={{ padding: '1.75rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {detailTab === 'general' && (
+                <>
+                  {/* General Specs Block */}
+                  <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Created On</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                          <Calendar size={14} style={{ color: 'var(--accent-primary)' }} />
+                          <span>{new Date(selectedOrder.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Doctor</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                          <User size={14} style={{ color: 'var(--accent-primary)' }} />
+                          <span>{selectedOrder.doctor?.name} ({selectedOrder.doctor?.clinicName || 'Clinic'})</span>
+                        </div>
+                      </div>
+                      {selectedOrder.boxNumber && (
+                        <div>
+                          <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Box Number</span>
+                          <span style={{
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            backgroundColor: 'rgba(148, 163, 184, 0.08)',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border)',
+                            display: 'inline-block'
+                          }}>{selectedOrder.boxNumber}</span>
+                        </div>
+                      )}
+                    </div>
+                    {selectedOrder.specification && (
+                      <div style={{
+                        marginTop: '1rem',
+                        padding: '0.75rem 1rem',
+                        backgroundColor: 'var(--bg-card)',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        border: '1px solid var(--border)',
+                        lineHeight: '1.5',
+                        color: 'var(--text-primary)'
+                      }}>
+                        <strong style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Dental Spec/Shade Instructions</strong>
+                        {selectedOrder.specification}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Premium Editable Work Order Notes Section */}
+                  <div style={{
+                    borderBottom: '1px solid var(--border)',
+                    paddingBottom: '1.25rem',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
+                    flexDirection: 'column',
+                    gap: '0.75rem'
                   }}>
-                    <FileText size={14} /> Work Order Notes
-                  </h4>
-                  {!isEditingNotes && (
-                    <button
-                      onClick={() => setIsEditingNotes(true)}
-                      className="btn btn--outline btn--sm"
-                      style={{
-                        padding: '2px 8px',
-                        fontSize: '0.7rem',
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        margin: 0,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        borderRadius: '6px'
-                      }}
-                    >
-                      <Edit3 size={11} /> Edit Notes
-                    </button>
-                  )}
-                </div>
-
-                {isEditingNotes ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <textarea
-                      value={notesText}
-                      onChange={(e) => setNotesText(e.target.value)}
-                      placeholder="Enter process notes, special requirements, or updates for this work order..."
-                      style={{
-                        width: '100%',
-                        minHeight: '90px',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--accent-primary)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.8rem',
-                        lineHeight: '1.4',
-                        resize: 'vertical',
-                        outline: 'none',
-                        boxShadow: '0 0 0 2px rgba(111,174,217,0.1)'
-                      }}
-                    />
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <button
-                        onClick={() => {
-                          setIsEditingNotes(false);
-                          setNotesText(selectedOrder.notes || '');
-                        }}
-                        disabled={savingNotes}
-                        className="btn btn--outline btn--sm"
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px' }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSaveNotes}
-                        disabled={savingNotes}
-                        className="btn btn--primary btn--sm"
-                        style={{
-                          padding: '4px 10px',
-                          fontSize: '0.75rem',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        <Save size={12} /> {savingNotes ? 'Saving...' : 'Save'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{
-                    padding: '0.75rem',
-                    backgroundColor: 'var(--bg-card)',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                    fontSize: '0.78rem',
-                    lineHeight: '1.5',
-                    color: selectedOrder.notes ? 'var(--text-primary)' : 'var(--text-muted)',
-                    fontStyle: selectedOrder.notes ? 'normal' : 'italic'
-                  }}>
-                    {selectedOrder.notes || 'No work order notes recorded yet. Click edit to add notes.'}
-                  </div>
-                )}
-              </div>
-
-              {/* Stepper Timeline Tracker */}
-              <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
-                <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Activity size={14} /> Workflow Stepper Sequence
-                </h4>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {selectedOrder.processes.map((proc, index) => {
-                    const isCompleted = proc.status === 'COMPLETED';
-                    const isActive = proc.status === 'IN_PROGRESS';
-                    const isPaused = proc.status === 'PAUSED';
-                    const isAssignedToMe = proc.technicianId === user?.id;
-                    const isReady = proc.status === 'NOT_STARTED' && isPrecedingStepCompleted(proc, selectedOrder.processes);
-                    const isBlocked = proc.status === 'NOT_STARTED' && !isReady;
-
-                    return (
-                      <div
-                        key={proc.id}
-                        style={{
-                          display: 'flex',
-                          gap: '12px',
-                          alignItems: 'center',
-                          position: 'relative'
-                        }}
-                      >
-                        {/* Vertically linking timeline lines */}
-                        {index < selectedOrder.processes.length - 1 && (
-                          <div style={{
-                            position: 'absolute',
-                            left: '11px',
-                            top: '24px',
-                            bottom: '-12px',
-                            width: '2px',
-                            backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)',
-                            zIndex: 1
-                          }} />
-                        )}
-
-                        {/* Timeline Dot/Icon */}
-                        <div
+                        gap: '6px'
+                      }}>
+                        <FileText size={14} /> Work Order Notes
+                      </h4>
+                      {!isEditingNotes && (
+                        <button
+                          onClick={() => setIsEditingNotes(true)}
+                          className="btn btn--outline btn--sm"
                           style={{
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
+                            padding: '2px 8px',
+                            fontSize: '0.7rem',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 2,
-                            backgroundColor: isCompleted
-                              ? 'var(--success)'
-                              : isPaused
-                                ? 'var(--warning)'
-                                : isActive
-                                  ? 'var(--accent-primary)'
-                                  : isBlocked
-                                    ? 'var(--border)'
-                                    : 'var(--bg-card)',
-                            border: `1.5px solid ${isCompleted ? 'var(--success)' : isPaused ? 'var(--warning)' : isActive ? 'var(--accent-primary)' : 'var(--text-muted)'}`,
-                            color: '#fff',
+                            gap: '4px',
+                            borderRadius: '6px'
                           }}
-                          className={isActive ? 'animate-pulse' : ''}
                         >
-                          {isCompleted ? (
-                            <CheckCircle2 size={13} />
-                          ) : isBlocked ? (
-                            <Lock size={10} style={{ color: 'var(--text-muted)' }} />
-                          ) : (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isActive || isPaused ? '#fff' : 'var(--text-secondary)' }}>
-                              {proc.sequence + 1}
-                            </span>
-                          )}
-                        </div>
+                          <Edit3 size={11} /> Edit Notes
+                        </button>
+                      )}
+                    </div>
 
-                        {/* Process Card Item Details */}
-                        <div style={{
-                          flex: 1,
-                          padding: '0.6rem 0.75rem',
-                          borderRadius: '8px',
-                          backgroundColor: (isActive || isPaused) ? 'var(--bg-card)' : 'var(--bg-surface)',
-                          border: `1px solid ${(isActive || isPaused) ? 'var(--accent-primary)' : 'var(--border)'}`,
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: (isActive || isPaused) ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
-                                {proc.processName}
-                              </span>
-                              {isAssignedToMe && (
-                                <span style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--success)', backgroundColor: 'rgba(46,204,113,0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(46,204,113,0.2)' }}>
-                                  Assigned To Me
+                    {isEditingNotes ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <textarea
+                          value={notesText}
+                          onChange={(e) => setNotesText(e.target.value)}
+                          placeholder="Enter process notes, special requirements, or updates for this work order..."
+                          style={{
+                            width: '100%',
+                            minHeight: '90px',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--accent-primary)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.8rem',
+                            lineHeight: '1.4',
+                            resize: 'vertical',
+                            outline: 'none',
+                            boxShadow: '0 0 0 2px rgba(111,174,217,0.1)'
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => {
+                              setIsEditingNotes(false);
+                              setNotesText(selectedOrder.notes || '');
+                            }}
+                            disabled={savingNotes}
+                            className="btn btn--outline btn--sm"
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px' }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveNotes}
+                            disabled={savingNotes}
+                            className="btn btn--primary btn--sm"
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '0.75rem',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Save size={12} /> {savingNotes ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{
+                        padding: '0.75rem',
+                        backgroundColor: 'var(--bg-card)',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        fontSize: '0.78rem',
+                        lineHeight: '1.5',
+                        color: selectedOrder.notes ? 'var(--text-primary)' : 'var(--text-muted)',
+                        fontStyle: selectedOrder.notes ? 'normal' : 'italic'
+                      }}>
+                        {selectedOrder.notes || 'No work order notes recorded yet. Click edit to add notes.'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {detailTab === 'process' && (
+                <>
+                  {/* Stepper Timeline Tracker */}
+                  <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
+                    <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Activity size={14} /> Workflow Stepper Sequence
+                    </h4>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {selectedOrder.processes.map((proc, index) => {
+                        const isCompleted = proc.status === 'COMPLETED';
+                        const isActive = proc.status === 'IN_PROGRESS';
+                        const isPaused = proc.status === 'PAUSED';
+                        const isAssignedToMe = proc.technicianId === user?.id;
+                        const isReady = proc.status === 'NOT_STARTED' && isPrecedingStepCompleted(proc, selectedOrder.processes);
+                        const isBlocked = proc.status === 'NOT_STARTED' && !isReady;
+
+                        return (
+                          <div
+                            key={proc.id}
+                            style={{
+                              display: 'flex',
+                              gap: '12px',
+                              alignItems: 'center',
+                              position: 'relative'
+                            }}
+                          >
+                            {/* Vertically linking timeline lines */}
+                            {index < selectedOrder.processes.length - 1 && (
+                              <div style={{
+                                position: 'absolute',
+                                left: '11px',
+                                top: '24px',
+                                bottom: '-12px',
+                                width: '2px',
+                                backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)',
+                                zIndex: 1
+                              }} />
+                            )}
+
+                            {/* Timeline Dot/Icon */}
+                            <div
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 2,
+                                backgroundColor: isCompleted
+                                  ? 'var(--success)'
+                                  : isPaused
+                                    ? 'var(--warning)'
+                                    : isActive
+                                      ? 'var(--accent-primary)'
+                                      : isBlocked
+                                        ? 'var(--border)'
+                                        : 'var(--bg-card)',
+                                border: `1.5px solid ${isCompleted ? 'var(--success)' : isPaused ? 'var(--warning)' : isActive ? 'var(--accent-primary)' : 'var(--text-muted)'}`,
+                                color: '#fff',
+                              }}
+                              className={isActive ? 'animate-pulse' : ''}
+                            >
+                              {isCompleted ? (
+                                <CheckCircle2 size={13} />
+                              ) : isBlocked ? (
+                                <Lock size={10} style={{ color: 'var(--text-muted)' }} />
+                              ) : (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isActive || isPaused ? '#fff' : 'var(--text-secondary)' }}>
+                                  {proc.sequence + 1}
                                 </span>
                               )}
                             </div>
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                              Tech: {proc.technician ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` : 'Unassigned'}
-                            </span>
+
+                            {/* Process Card Item Details */}
+                            <div style={{
+                              flex: 1,
+                              padding: '0.6rem 0.75rem',
+                              borderRadius: '8px',
+                              backgroundColor: (isActive || isPaused) ? 'var(--bg-card)' : 'var(--bg-surface)',
+                              border: `1px solid ${(isActive || isPaused) ? 'var(--accent-primary)' : 'var(--border)'}`,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: (isActive || isPaused) ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                                    {proc.processName}
+                                  </span>
+                                  {isAssignedToMe && (
+                                    <span style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--success)', backgroundColor: 'rgba(46,204,113,0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(46,204,113,0.2)' }}>
+                                      Assigned To Me
+                                    </span>
+                                  )}
+                                </div>
+                                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                                  Tech: {proc.technician ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` : 'Unassigned'}
+                                </span>
+                              </div>
+
+                              {proc.totalActiveDuration > 0 && isCompleted && (
+                                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <ShieldCheck size={11} style={{ color: 'var(--success)' }} />
+                                  {formatDurationString(proc.totalActiveDuration)}
+                                </span>
+                              )}
+                            </div>
                           </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                          {proc.totalActiveDuration > 0 && isCompleted && (
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                              <ShieldCheck size={11} style={{ color: 'var(--success)' }} />
-                              {formatDurationString(proc.totalActiveDuration)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                  {/* Real-time active job controls */}
+                  {(() => {
+                    const myStep = getMyStep(selectedOrder);
+                    if (!myStep) return null;
 
-              {/* Real-time active job controls */}
-              {(() => {
-                const myStep = getMyStep(selectedOrder);
-                if (!myStep) return null;
+                    const isCompleted = myStep.status === 'COMPLETED';
+                    const isActive = myStep.status === 'IN_PROGRESS';
+                    const isPaused = myStep.status === 'PAUSED';
+                    const isReady = myStep.status === 'NOT_STARTED' && isPrecedingStepCompleted(myStep, selectedOrder.processes);
+                    const isBlocked = myStep.status === 'NOT_STARTED' && !isReady;
 
-                const isCompleted = myStep.status === 'COMPLETED';
-                const isActive = myStep.status === 'IN_PROGRESS';
-                const isPaused = myStep.status === 'PAUSED';
-                const isReady = myStep.status === 'NOT_STARTED' && isPrecedingStepCompleted(myStep, selectedOrder.processes);
-                const isBlocked = myStep.status === 'NOT_STARTED' && !isReady;
+                    return (
+                      <div style={{
+                        backgroundColor: 'var(--bg-card)',
+                        padding: '1.25rem',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        marginBottom: '1.5rem',
+                        marginTop: '1.5rem'
+                      }}>
+                        <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
+                          Process Timing Control Panel
+                        </h4>
 
-                return (
-                  <div style={{
-                    backgroundColor: 'var(--bg-card)',
-                    padding: '1.25rem',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border)',
-                    marginBottom: '1.5rem',
-                    marginTop: '1.5rem'
-                  }}>
-                    <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
-                      Process Timing Control Panel
-                    </h4>
-
-                    {isBlocked && (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.75rem', backgroundColor: 'rgba(231,76,60,0.05)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(231,76,60,0.1)' }}>
-                        <AlertTriangle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '1px' }} />
-                        <span>You cannot start your assigned step because preceding steps in the sequence have not been completed.</span>
-                      </div>
-                    )}
-
-                    {!isBlocked && !isCompleted && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {(isActive || isPaused) && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Active Time Elapsed:</span>
-                            <ProcessTimer
-                              startedAt={myStep.startedAt}
-                              lastPausedAt={myStep.lastPausedAt}
-                              totalPauseDuration={myStep.totalPauseDuration}
-                              status={myStep.status}
-                            />
+                        {isBlocked && (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.75rem', backgroundColor: 'rgba(231,76,60,0.05)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(231,76,60,0.1)' }}>
+                            <AlertTriangle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '1px' }} />
+                            <span>You cannot start your assigned step because preceding steps in the sequence have not been completed.</span>
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {myStep.status === 'NOT_STARTED' && (
-                            <button
-                              className="btn btn--primary"
-                              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                              onClick={() => handleAction(myStep.id, 'start')}
-                            >
-                              <Play size={16} /> Start Process
-                            </button>
-                          )}
+                        {!isBlocked && !isCompleted && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {(isActive || isPaused) && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Active Time Elapsed:</span>
+                                <ProcessTimer
+                                  startedAt={myStep.startedAt}
+                                  lastPausedAt={myStep.lastPausedAt}
+                                  totalPauseDuration={myStep.totalPauseDuration}
+                                  status={myStep.status}
+                                />
+                              </div>
+                            )}
 
-                          {isActive && (
-                            <button
-                              className="btn btn--warning"
-                              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                              onClick={() => handleAction(myStep.id, 'pause')}
-                            >
-                              <Pause size={16} /> Pause Process
-                            </button>
-                          )}
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {myStep.status === 'NOT_STARTED' && (
+                                <button
+                                  className="btn btn--primary"
+                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                  onClick={() => handleAction(myStep.id, 'start')}
+                                >
+                                  <Play size={16} /> Start Process
+                                </button>
+                              )}
 
-                          {isPaused && (
-                            <button
-                              className="btn btn--success"
-                              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#fff' }}
-                              onClick={() => handleAction(myStep.id, 'resume')}
-                            >
-                              <Play size={16} /> Resume Process
-                            </button>
-                          )}
+                              {isActive && (
+                                <button
+                                  className="btn btn--warning"
+                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                  onClick={() => handleAction(myStep.id, 'pause')}
+                                >
+                                  <Pause size={16} /> Pause Process
+                                </button>
+                              )}
 
-                          {(isActive || isPaused) && (
-                            <button
-                              className="btn btn--primary"
-                              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                              onClick={() => handleAction(myStep.id, 'end')}
-                            >
-                              <CheckCircle2 size={16} /> End Process
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                              {isPaused && (
+                                <button
+                                  className="btn btn--success"
+                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#fff' }}
+                                  onClick={() => handleAction(myStep.id, 'resume')}
+                                >
+                                  <Play size={16} /> Resume Process
+                                </button>
+                              )}
 
-                    {isCompleted && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>
-                        <CheckCircle2 size={18} />
-                        <span>Completed! Total Active Time: {formatDurationString(myStep.totalActiveDuration)}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Audit Trail Timeline Logs */}
-              {(() => {
-                const myStep = getMyStep(selectedOrder);
-                const logs = myStep?.activityLogs || [];
-
-                if (logs.length === 0) return null;
-
-                return (
-                  <div style={{ marginTop: '1.5rem' }}>
-                    <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <History size={14} /> Process Log Audit Trail
-                    </h4>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
-                      {logs.map((log) => (
-                        <div key={log.id} style={{ position: 'relative', fontSize: '0.75rem', display: 'flex', flexDirection: 'column' }}>
-                          {/* Dot marker */}
-                          <div style={{
-                            position: 'absolute',
-                            left: '-13px',
-                            top: '4px',
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            backgroundColor: log.action === 'END' ? 'var(--success)' : log.action === 'PAUSE' ? 'var(--warning)' : 'var(--accent-primary)'
-                          }} />
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                            <span style={{ color: log.action === 'END' ? 'var(--success)' : log.action === 'PAUSE' ? 'var(--warning)' : 'var(--text-primary)' }}>
-                              {log.action} Action
-                            </span>
-                            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
-                              {formatActivityTime(log.timestamp)}
-                            </span>
+                              {(isActive || isPaused) && (
+                                <button
+                                  className="btn btn--primary"
+                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                  onClick={() => handleAction(myStep.id, 'end')}
+                                >
+                                  <CheckCircle2 size={16} /> End Process
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {log.notes && (
-                            <span style={{ color: 'var(--text-secondary)', marginTop: '2px', fontSize: '0.7rem' }}>
-                              {log.notes}
-                            </span>
-                          )}
+                        )}
+
+                        {isCompleted && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>
+                            <CheckCircle2 size={18} />
+                            <span>Completed! Total Active Time: {formatDurationString(myStep.totalActiveDuration)}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Audit Trail Timeline Logs */}
+                  {(() => {
+                    const myStep = getMyStep(selectedOrder);
+                    const logs = myStep?.activityLogs || [];
+
+                    if (logs.length === 0) return null;
+
+                    return (
+                      <div style={{ marginTop: '1.5rem' }}>
+                        <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <History size={14} /> Process Log Audit Trail
+                        </h4>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
+                          {logs.map((log) => (
+                            <div key={log.id} style={{ position: 'relative', fontSize: '0.75rem', display: 'flex', flexDirection: 'column' }}>
+                              {/* Dot marker */}
+                              <div style={{
+                                position: 'absolute',
+                                left: '-13px',
+                                top: '4px',
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: log.action === 'END' ? 'var(--success)' : log.action === 'PAUSE' ? 'var(--warning)' : 'var(--accent-primary)'
+                              }} />
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                                <span style={{ color: log.action === 'END' ? 'var(--success)' : log.action === 'PAUSE' ? 'var(--warning)' : 'var(--text-primary)' }}>
+                                  {log.action} Action
+                                </span>
+                                <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+                                  {formatActivityTime(log.timestamp)}
+                                </span>
+                              </div>
+                              {log.notes && (
+                                <span style={{ color: 'var(--text-secondary)', marginTop: '2px', fontSize: '0.7rem' }}>
+                                  {log.notes}
+                                </span>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
             </div>
           </div>
         </div>
