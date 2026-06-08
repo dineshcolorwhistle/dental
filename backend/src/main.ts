@@ -89,4 +89,4 @@ async function bootstrap() {
 
 bootstrap();
 
-// Trigger restart: Prisma client regenerated
+// Trigger restart: Prisma client regenerated - reload

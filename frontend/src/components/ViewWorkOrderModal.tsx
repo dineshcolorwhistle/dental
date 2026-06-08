@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context';
 import {
   X,
@@ -53,13 +54,14 @@ const stringifyNotesAndPayments = (userNotes: string, payments: PaymentHistoryIt
 };
 
 export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: ViewWorkOrderModalProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const isLabAdminOrOwner = user?.role === 'ADMIN' || user?.role === 'OWNER';
 
   const [selectedWO, setSelectedWO] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [viewTab, setViewTab] = useState<'general' | 'process' | 'payment'>('general');
+  const [viewTab, setViewTab] = useState<'general' | 'process' | 'rework' | 'repetition' | 'payment'>('general');
   const [showAddFundForm, setShowAddFundForm] = useState(false);
   const [addFundAmount, setAddFundAmount] = useState('');
   const [addFundNotes, setAddFundNotes] = useState('');
@@ -108,14 +110,19 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
     }
   };
 
-  const handleInlineEndVerification = async (woId: string, processId: string, outcome: 'SUCCESS' | 'REWORK') => {
+  const handleInlineEndVerification = async (woId: string, processId: string, outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
     const loadingToast = toast.loading(`Completing verification as ${outcome}...`);
     try {
       await workOrderService.endVerification(woId, processId, outcome);
       toast.success(`Verification completed as ${outcome}!`, { id: loadingToast });
-      const detailedWo = await workOrderService.getById(woId);
-      setSelectedWO(detailedWo);
-      if (onUpdate) onUpdate(detailedWo);
+      if (outcome === 'REWORK') {
+        onClose();
+        navigate('/work-orders', { state: { editWorkOrderId: woId, activeTab: 'processes' } });
+      } else {
+        const detailedWo = await workOrderService.getById(woId);
+        setSelectedWO(detailedWo);
+        if (onUpdate) onUpdate(detailedWo);
+      }
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || 'Failed to complete verification.';
       toast.error(errMsg, { id: loadingToast });
@@ -261,6 +268,40 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                   }}
                 >
                   Process
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${viewTab === 'rework' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setViewTab('rework')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: viewTab === 'rework' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: viewTab === 'rework' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Rework History
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${viewTab === 'repetition' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setViewTab('repetition')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: viewTab === 'repetition' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: viewTab === 'repetition' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Repetition History
                 </button>
                 {isLabAdminOrOwner && (
                   <button
@@ -910,7 +951,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                       })()
                                                     )}
                                                     {(stepStatus === 'IN_PROGRESS' || stepStatus === 'PAUSED') && (
-                                                      <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                                                      <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
                                                         <button
                                                           className="btn btn--primary btn--sm"
                                                           style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#10B981' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
@@ -927,7 +968,16 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                           disabled={!canCompleteExternal}
                                                           title={canCompleteExternal ? undefined : 'Only default branch admin can complete external verification'}
                                                         >
-                                                          <AlertCircle size={10} /> Flag
+                                                          <AlertCircle size={10} /> Rework
+                                                        </button>
+                                                        <button
+                                                          className="btn btn--primary btn--sm"
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#D946EF' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
+                                                          onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'REPETITION')}
+                                                          disabled={!canCompleteExternal}
+                                                          title={canCompleteExternal ? undefined : 'Only default branch admin can complete external verification'}
+                                                        >
+                                                          <History size={10} /> Repetition
                                                         </button>
                                                       </div>
                                                     )}
@@ -1312,6 +1362,222 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             </tbody>
                           </table>
                         </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (viewTab === 'rework') {
+                  const logs = selectedWO.reworkLogs || [];
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Rework Cycle Audit Trail
+                          </span>
+                          <span style={{
+                            fontSize: '0.725rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            color: '#EF4444',
+                            border: '1px solid var(--border)'
+                          }}>
+                            Total Rework Cycles: {logs.length}
+                          </span>
+                        </div>
+
+                        {logs.length === 0 ? (
+                          <div style={{ padding: '3rem 1.5rem', textAlign: 'center', border: '1.5px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                            <History size={32} style={{ opacity: 0.5 }} />
+                            <h4 style={{ fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>No Rework Cycles Recorded</h4>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                              This work order has not undergone any rework.
+                            </p>
+                          </div>
+                        ) : (
+                          <div style={{
+                            overflowX: 'auto',
+                            border: '1px solid var(--border)',
+                            borderRadius: '12px',
+                            backgroundColor: 'var(--bg-surface)'
+                          }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239, 68, 68, 0.02)' }}>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Process Step</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Rework Count</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Initiated By</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Initiation Date/Time</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Triggering Stage</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Tech</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Completion Date/Time</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Approval Date/Time</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {logs.map((log: any) => {
+                                  const formatDate = (dateStr: string | null) => {
+                                    if (!dateStr) return '—';
+                                    return new Date(dateStr).toLocaleString('en-IN', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    });
+                                  };
+
+                                  let statusColor = '#6B7280';
+                                  let statusBg = 'rgba(107, 114, 128, 0.08)';
+                                  if (log.status === 'Approved') {
+                                    statusColor = 'var(--success, #10B981)';
+                                    statusBg = 'var(--success-bg, rgba(16, 185, 129, 0.08))';
+                                  } else if (log.status === 'In Progress') {
+                                    statusColor = 'var(--warning, #F59E0B)';
+                                    statusBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
+                                  } else if (log.status === 'Completed') {
+                                    statusColor = 'var(--accent-primary, #3B82F6)';
+                                    statusBg = 'rgba(59, 130, 246, 0.08)';
+                                  }
+
+                                  return (
+                                    <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                      <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {log.processName}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                        {log.reworkCount}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                        {log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : 'System'}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                        {formatDate(log.initiatedAt)}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                        {log.verificationStage}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                        {log.technician ? `${log.technician.firstName} ${log.technician.lastName}` : 'Unassigned'}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                        {formatDate(log.completedAt)}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                        {formatDate(log.approvedAt)}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem' }}>
+                                        <span style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          padding: '2px 8px',
+                                          borderRadius: '100px',
+                                          fontSize: '0.75rem',
+                                          fontWeight: 700,
+                                          color: statusColor,
+                                          backgroundColor: statusBg
+                                        }}>
+                                          {log.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (viewTab === 'repetition') {
+                  const logs = selectedWO.repetitionLogs || [];
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Repetition Cycle Audit Trail
+                          </span>
+                          <span style={{
+                            fontSize: '0.725rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            color: '#EF4444',
+                            border: '1px solid var(--border)'
+                          }}>
+                            Total Repetition Cycles: {logs.length}
+                          </span>
+                        </div>
+
+                        {logs.length === 0 ? (
+                          <div style={{ padding: '3rem 1.5rem', textAlign: 'center', border: '1.5px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                            <History size={32} style={{ opacity: 0.5 }} />
+                            <h4 style={{ fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>No Repetition Cycles Recorded</h4>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                              This work order has not undergone any repetition.
+                            </p>
+                          </div>
+                        ) : (
+                          <div style={{
+                            overflowX: 'auto',
+                            border: '1px solid var(--border)',
+                            borderRadius: '12px',
+                            backgroundColor: 'var(--bg-surface)'
+                          }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239, 68, 68, 0.02)' }}>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Repetition Cycle</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Triggering Stage</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Initiated By</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Initiation Date/Time</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Previous Completed Steps</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {logs.map((log: any) => {
+                                  const formatDate = (dateStr: string | null) => {
+                                    if (!dateStr) return '—';
+                                    return new Date(dateStr).toLocaleString('en-IN', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    });
+                                  };
+
+                                  return (
+                                    <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                      <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        Cycle #{log.repetitionCount}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                                        {log.verificationStage}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                        {log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : 'System'}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                        {formatDate(log.initiatedAt)}
+                                      </td>
+                                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                        {log.completedSteps}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

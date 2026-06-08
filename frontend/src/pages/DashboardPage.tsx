@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context';
 import { TechnicianDashboardPage } from './TechnicianDashboardPage';
 import { OwnerDashboardPage } from './OwnerDashboardPage';
@@ -14,12 +15,14 @@ import {
   CheckCircle2,
   X,
   Eye,
+  History,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
 import { ViewWorkOrderModal } from '../components';
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
 
@@ -74,7 +77,7 @@ export function DashboardPage() {
     setShowOutcomeModal(true);
   };
 
-  const handleEndVerification = async (outcome: 'SUCCESS' | 'REWORK') => {
+  const handleEndVerification = async (outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
     if (!selectedAlert) return;
     setOutcomeSaving(true);
     const loadingToast = toast.loading(`Completing verification as ${outcome}...`);
@@ -82,8 +85,12 @@ export function DashboardPage() {
       await workOrderService.endVerification(selectedAlert.workOrderId, selectedAlert.id, outcome);
       toast.success(`Verification completed! Status logged as ${outcome}.`, { id: loadingToast });
       setShowOutcomeModal(false);
+      const targetWoId = selectedAlert.workOrderId;
       setSelectedAlert(null);
       fetchDashboardData();
+      if (outcome === 'REWORK') {
+        navigate('/work-orders', { state: { editWorkOrderId: targetWoId, activeTab: 'processes' } });
+      }
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || 'Failed to complete verification.';
       toast.error(errMsg, { id: loadingToast });
@@ -727,6 +734,30 @@ export function DashboardPage() {
                 onClick={() => handleEndVerification('REWORK')}
               >
                 <AlertCircle size={18} /> Flag (Rework Needed)
+              </button>
+
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  backgroundColor: '#FDF4FF',
+                  color: '#D946EF',
+                  border: '1px solid rgba(217, 70, 239, 0.25)',
+                  padding: '0.75rem',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  width: '100%',
+                  borderRadius: '8px',
+                  cursor: outcomeSaving ? 'not-allowed' : 'pointer'
+                }}
+                disabled={outcomeSaving}
+                onClick={() => handleEndVerification('REPETITION')}
+              >
+                <History size={18} /> Flag (Repetition Needed)
               </button>
             </div>
             <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end' }}>

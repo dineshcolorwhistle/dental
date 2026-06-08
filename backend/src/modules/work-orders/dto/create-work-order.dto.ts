@@ -48,6 +48,11 @@ export class WorkOrderProcessItemDto {
   @IsEnum(['NOT_STARTED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'FAILED', 'CANCELLED'])
   @IsOptional()
   status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
+  @ApiProperty({ example: false, description: 'Whether this process is being flagged for rework', required: false })
+  @IsBoolean()
+  @IsOptional()
+  rework?: boolean;
 }
 
 export class CreateWorkOrderDto {

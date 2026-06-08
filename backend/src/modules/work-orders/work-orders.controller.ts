@@ -188,7 +188,7 @@ export class WorkOrdersController {
 
   @Post(':id/processes/:processId/end-verification')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'End process step verification with SUCCESS or REWORK' })
+  @ApiOperation({ summary: 'End process step verification with SUCCESS, REWORK, or REPETITION' })
   async endVerification(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('branchId') branchIdContext: string | null,
@@ -196,13 +196,13 @@ export class WorkOrdersController {
     @CurrentUser('role') userRole: string,
     @Param('id') id: string,
     @Param('processId') processId: string,
-    @Body() body: { status: 'SUCCESS' | 'REWORK' },
+    @Body() body: { status: 'SUCCESS' | 'REWORK' | 'REPETITION' },
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    if (!body || !body.status || !['SUCCESS', 'REWORK'].includes(body.status)) {
-      throw new BadRequestException('Outcome status must be either SUCCESS or REWORK.');
+    if (!body || !body.status || !['SUCCESS', 'REWORK', 'REPETITION'].includes(body.status)) {
+      throw new BadRequestException('Outcome status must be SUCCESS, REWORK, or REPETITION.');
     }
     if (userRole === 'ADMIN') {
       const wo = await this.workOrdersService.findOne(tenantId, id, branchIdContext);

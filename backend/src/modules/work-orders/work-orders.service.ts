@@ -94,6 +94,25 @@ export class WorkOrdersService {
         },
       },
     },
+    reworkLogs: {
+      orderBy: { initiatedAt: 'desc' as const },
+      include: {
+        initiatedBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+        technician: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    },
+    repetitionLogs: {
+      orderBy: { initiatedAt: 'desc' as const },
+      include: {
+        initiatedBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    },
   };
 
   /**
@@ -424,7 +443,8 @@ export class WorkOrdersService {
               `Cannot change assigned technician for already started process step "${ep.processName}".`,
             );
           }
-          if ((p.status || ProcessStatus.NOT_STARTED) !== ep.status) {
+          const isReworkingThisStep = p.rework === true && ep.status === ProcessStatus.COMPLETED && (p.status === ProcessStatus.NOT_STARTED || !p.status);
+          if ((p.status || ProcessStatus.NOT_STARTED) !== ep.status && !isReworkingThisStep) {
             throw new BadRequestException(
               `Cannot modify status of already started process step "${ep.processName}".`,
             );
@@ -454,16 +474,60 @@ export class WorkOrdersService {
     }
 
     let finalStatus = status;
-    let mappedProcesses = processes
-      ? processes.map((p) => ({
+    let minReworkSeq = Infinity;
+    let mappedProcesses = undefined;
+
+    if (processes) {
+      // Find reworked steps
+      const reworkedItems = processes.filter((p) => p.rework === true);
+      if (reworkedItems.length > 0) {
+        minReworkSeq = Math.min(...reworkedItems.map((p) => p.sequence));
+      }
+
+      mappedProcesses = processes.map((p) => {
+        const ep = existing.processes.find((item: any) => item.sequence === p.sequence);
+        const isReworked = p.rework === true && ep && ep.status === ProcessStatus.COMPLETED && !ep.reworkActive;
+
+        let statusVal = (p as any).status || ProcessStatus.NOT_STARTED;
+        let startedAt = ep ? ep.startedAt : null;
+        let endedAt = ep ? ep.endedAt : null;
+        let verificationStatus = ep ? ep.verificationStatus : null;
+        let reworkCount = ep ? (ep as any).reworkCount : 0;
+        let reworkActive = ep ? (ep as any).reworkActive : false;
+
+        if (isReworked) {
+          statusVal = ProcessStatus.NOT_STARTED;
+          startedAt = null;
+          endedAt = null;
+          verificationStatus = null;
+          reworkCount = reworkCount + 1;
+          reworkActive = true;
+        } else if (p.isVerification && p.sequence > minReworkSeq) {
+          statusVal = ProcessStatus.NOT_STARTED;
+          startedAt = null;
+          endedAt = null;
+          verificationStatus = null;
+          reworkActive = false;
+        } else if (p.rework === false && ep && ep.reworkActive === true) {
+          reworkActive = false;
+        }
+
+        return {
+          id: ep?.id || null, // Preserve ID if it exists
           processName: p.processName,
           technicianId: p.technicianId || null,
           sequence: p.sequence,
           isVerification: p.isVerification || false,
-          status: (p as any).status || ProcessStatus.NOT_STARTED,
-          verificationStatus: (p as any).verificationStatus || null,
-        }))
-      : undefined;
+          status: statusVal,
+          startedAt,
+          endedAt,
+          verificationStatus,
+          reworkCount,
+          reworkActive,
+          isReworked,
+        };
+      });
+    }
 
     if (finalStatus === WorkOrderStatus.FAILED || finalStatus === WorkOrderStatus.CANCELLED) {
       const targetStatus =
@@ -477,7 +541,7 @@ export class WorkOrdersService {
         });
       }
     } else if (processes && mappedProcesses) {
-      finalStatus = this.calculateWorkOrderStatus(mappedProcesses);
+      finalStatus = this.calculateWorkOrderStatus(mappedProcesses as any);
     }
 
     // Transition from CREATED to ASSIGNED triggers assignment logic
@@ -486,32 +550,151 @@ export class WorkOrdersService {
       (finalStatus === WorkOrderStatus.ASSIGNED ||
         (mappedProcesses &&
           finalStatus === undefined &&
-          this.calculateWorkOrderStatus(mappedProcesses) === WorkOrderStatus.ASSIGNED));
+          this.calculateWorkOrderStatus(mappedProcesses as any) === WorkOrderStatus.ASSIGNED));
 
     const actualFinalStatus = isTransitioningToAssigned ? WorkOrderStatus.ASSIGNED : (finalStatus || existing.status);
 
-    const updated = await this.prisma.workOrder.update({
-      where: { id },
-      data: {
-        ...(doctorId && { doctorId }),
-        ...(patient && { patient }),
-        ...(boxNumber !== undefined && { boxNumber: boxNumber || null }),
-        ...(prosthesisTypeId && { prosthesisTypeId }),
-        ...(specification !== undefined && { specification: specification || null }),
-        ...(color !== undefined && { color }),
-        ...(notes !== undefined && { notes: notes || null }),
-        ...(totalQuote !== undefined && { totalQuote }),
-        ...(initialPayment !== undefined && { initialPayment }),
-        status: actualFinalStatus,
-        ...(mappedProcesses && {
-          processes: {
-            deleteMany: {},
-            create: mappedProcesses,
-          },
-        }),
-      },
-      include: this.fullInclude,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // 1. Delete processes that are not in incoming mappedProcesses list (only if NOT_STARTED)
+      if (mappedProcesses) {
+        const incomingSequences = mappedProcesses.map((p) => p.sequence);
+        const toDelete = existing.processes.filter((ep: any) => !incomingSequences.includes(ep.sequence));
+        for (const ep of toDelete) {
+          await tx.workOrderProcess.delete({
+            where: { id: ep.id },
+          });
+        }
+
+        // 2. Update existing and create new processes
+        for (const p of mappedProcesses) {
+          if (p.id) {
+            await tx.workOrderProcess.update({
+              where: { id: p.id },
+              data: {
+                technicianId: p.technicianId,
+                sequence: p.sequence,
+                isVerification: p.isVerification,
+                status: p.status,
+                startedAt: p.startedAt,
+                endedAt: p.endedAt,
+                verificationStatus: p.verificationStatus,
+                reworkCount: p.reworkCount,
+                reworkActive: p.reworkActive,
+              },
+            });
+
+            if (p.isReworked) {
+              const triggeringVerification = existing.processes
+                .filter((ep: any) => ep.isVerification && ep.sequence > p.sequence)
+                .sort((a: any, b: any) => a.sequence - b.sequence)[0];
+              const verificationStage = triggeringVerification ? triggeringVerification.processName : 'Verification';
+
+              await tx.reworkLog.create({
+                data: {
+                  workOrderId: id,
+                  processName: p.processName,
+                  reworkCount: p.reworkCount,
+                  initiatedById: userId || '',
+                  verificationStage,
+                  technicianId: p.technicianId,
+                  status: 'Pending',
+                },
+              });
+            }
+          } else {
+            await tx.workOrderProcess.create({
+              data: {
+                workOrderId: id,
+                processName: p.processName,
+                technicianId: p.technicianId,
+                sequence: p.sequence,
+                isVerification: p.isVerification,
+                status: p.status,
+                startedAt: p.startedAt,
+                endedAt: p.endedAt,
+                verificationStatus: p.verificationStatus,
+                reworkCount: p.reworkCount,
+                reworkActive: p.reworkActive,
+              },
+            });
+          }
+        }
+      } else if (finalStatus === WorkOrderStatus.FAILED || finalStatus === WorkOrderStatus.CANCELLED) {
+        const targetStatus =
+          finalStatus === WorkOrderStatus.FAILED ? ProcessStatus.FAILED : ProcessStatus.CANCELLED;
+        await tx.workOrderProcess.updateMany({
+          where: { workOrderId: id },
+          data: { status: targetStatus },
+        });
+      }
+
+      // 3. Update work order details and status
+      return tx.workOrder.update({
+        where: { id },
+        data: {
+          ...(doctorId && { doctorId }),
+          ...(patient && { patient }),
+          ...(boxNumber !== undefined && { boxNumber: boxNumber || null }),
+          ...(prosthesisTypeId && { prosthesisTypeId }),
+          ...(specification !== undefined && { specification: specification || null }),
+          ...(color !== undefined && { color }),
+          ...(notes !== undefined && { notes: notes || null }),
+          ...(totalQuote !== undefined && { totalQuote }),
+          ...(initialPayment !== undefined && { initialPayment }),
+          status: actualFinalStatus,
+        },
+        include: this.fullInclude,
+      });
     });
+
+    // Write Rework Audit Logs and Trigger Notifications
+    if (minReworkSeq !== Infinity && mappedProcesses) {
+      const sortedReworked = mappedProcesses
+        .filter((p) => p.isReworked)
+        .sort((a, b) => a.sequence - b.sequence);
+      const firstReworked = sortedReworked[0];
+
+      if (firstReworked && firstReworked.technicianId) {
+        await this.notificationsService.create({
+          tenantId,
+          userId: firstReworked.technicianId,
+          title: 'Work Order Flagged for Rework',
+          message: `Work Order "${updated.folioNumber}" has been flagged for rework. Please review step "${firstReworked.processName}".`,
+          type: 'WORK_ORDER',
+          referenceId: updated.id,
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'NOTIFICATION_TRIGGERED',
+          entityName: 'NOTIFICATION',
+          entityId: updated.id,
+          details: {
+            userId: firstReworked.technicianId,
+            title: 'Work Order Flagged for Rework',
+          },
+        });
+      }
+
+      for (const p of sortedReworked) {
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'REWORK_TRIGGERED',
+          entityName: 'PROCESS',
+          entityId: p.id || updated.id,
+          details: {
+            workOrderId: updated.id,
+            processName: p.processName,
+            initiatedBy: userId,
+            reworkCount: p.reworkCount,
+            previousStatus: 'COMPLETED',
+            updatedStatus: 'NOT_STARTED',
+          },
+        });
+      }
+    }
 
     // Write Audit Log for update
     await this.auditLogsService.log({
@@ -969,7 +1152,7 @@ export class WorkOrdersService {
     tenantId: string,
     workOrderId: string,
     processId: string,
-    outcome: 'SUCCESS' | 'REWORK',
+    outcome: 'SUCCESS' | 'REWORK' | 'REPETITION',
     userId: string,
   ) {
     const process = await this.prisma.workOrderProcess.findFirst({
@@ -1008,15 +1191,17 @@ export class WorkOrdersService {
     const updated = await this.prisma.workOrderProcess.update({
       where: { id: processId },
       data: {
-        status: ProcessStatus.COMPLETED,
-        endedAt: now,
-        totalActiveDuration: totalActive,
+        status: outcome === 'REWORK' ? ProcessStatus.IN_PROGRESS : ProcessStatus.COMPLETED,
+        endedAt: outcome === 'REWORK' ? null : now,
+        totalActiveDuration: outcome === 'REWORK' ? undefined : totalActive,
         verificationStatus: outcome,
         activityLogs: {
           create: {
-            action: ProcessActivityAction.END,
+            action: outcome === 'REWORK' ? ProcessActivityAction.PAUSE : ProcessActivityAction.END,
             timestamp: now,
-            notes: `Verification ended with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`,
+            notes: outcome === 'REWORK'
+              ? `Verification flagged for rework, pending step assignment.`
+              : `Verification ended with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`,
           },
         },
       },
@@ -1037,7 +1222,155 @@ export class WorkOrdersService {
       },
     });
 
+    if (outcome === 'REPETITION') {
+      const allProcs = await this.prisma.workOrderProcess.findMany({
+        where: { workOrderId },
+        orderBy: { sequence: 'asc' },
+      });
+
+      // Track completed steps (excluding the triggering verification itself) before resetting
+      const completedProcs = allProcs.filter((p) => p.status === ProcessStatus.COMPLETED && p.id !== processId);
+      const completedStepsStr = completedProcs.map((p) => p.processName).join(', ');
+
+      // 1. Reset all processes to NOT_STARTED, clear dates and tracking flags
+      for (const p of allProcs) {
+        await this.prisma.workOrderProcess.update({
+          where: { id: p.id },
+          data: {
+            status: ProcessStatus.NOT_STARTED,
+            startedAt: null,
+            endedAt: null,
+            verificationStatus: null,
+            lastPausedAt: null,
+            pauseCount: 0,
+            totalPauseDuration: 0,
+            totalActiveDuration: 0,
+            reworkActive: false,
+          },
+        });
+
+        // Log repetition reset for each completed process step (excluding the triggering verification itself)
+        if (p.id !== processId && p.status === ProcessStatus.COMPLETED) {
+          await this.auditLogsService.log({
+            tenantId,
+            userId,
+            action: 'PROCESS_REPETITION_RESET',
+            entityName: 'PROCESS',
+            entityId: p.id,
+            details: {
+              processName: p.processName,
+              previousStatus: 'COMPLETED',
+              updatedStatus: 'REPETITION',
+              status: 'REPETITION',
+            },
+          });
+        }
+      }
+
+      // 2. Increment repetitionCount on the WorkOrder
+      const updatedWO = await this.prisma.workOrder.update({
+        where: { id: workOrderId },
+        data: {
+          repetitionCount: { increment: 1 },
+        },
+      });
+
+      // Write repetition log to database
+      await this.prisma.repetitionLog.create({
+        data: {
+          workOrderId,
+          repetitionCount: updatedWO.repetitionCount,
+          initiatedById: userId,
+          verificationStage: process.processName,
+          completedSteps: completedStepsStr || 'None',
+        },
+      });
+
+      // 3. Notify first process's technician
+      const firstProcess = allProcs[0];
+      if (firstProcess && firstProcess.technicianId) {
+        await this.notificationsService.create({
+          tenantId,
+          userId: firstProcess.technicianId,
+          title: 'Work Order Repetition Triggered',
+          message: `Work Order "${process.workOrder.folioNumber}" has been restarted due to a repetition request from verification step "${process.processName}". Please restart step "${firstProcess.processName}".`,
+          type: 'WORK_ORDER',
+          referenceId: workOrderId,
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'NOTIFICATION_TRIGGERED',
+          entityName: 'NOTIFICATION',
+          entityId: workOrderId,
+          details: {
+            userId: firstProcess.technicianId,
+            title: 'Work Order Repetition Triggered',
+          },
+        });
+      }
+
+      // 4. Log overall repetition event
+      await this.auditLogsService.log({
+        tenantId,
+        userId,
+        action: 'REPETITION_TRIGGERED',
+        entityName: 'WORK_ORDER',
+        entityId: workOrderId,
+        details: {
+          initiatedBy: userId,
+          verificationStage: process.processName,
+          repetitionCount: updatedWO.repetitionCount,
+          affectedCompletedProcesses: completedProcs.map((p) => p.processName),
+        },
+      });
+    }
+
     if (outcome === 'SUCCESS') {
+      // Find preceding processes with active rework flags
+      const activeReworks = await this.prisma.workOrderProcess.findMany({
+        where: {
+          workOrderId,
+          reworkActive: true,
+        },
+      });
+
+      if (activeReworks.length > 0) {
+        await this.prisma.workOrderProcess.updateMany({
+          where: {
+            id: { in: activeReworks.map((p) => p.id) },
+          },
+          data: {
+            reworkActive: false,
+          },
+        });
+
+        await this.prisma.reworkLog.updateMany({
+          where: {
+            workOrderId,
+            processName: { in: activeReworks.map((p) => p.processName) },
+            approvedAt: null,
+          },
+          data: {
+            status: 'Approved',
+            approvedAt: now,
+          },
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'REWORK_COMPLETED',
+          entityName: 'WORK_ORDER',
+          entityId: workOrderId,
+          details: {
+            clearedProcesses: activeReworks.map((p) => p.processName),
+            completedAtVerificationStep: process.processName,
+          },
+        });
+      }
+
       // Find and activate next step
       const nextProcess = await this.prisma.workOrderProcess.findFirst({
         where: {

@@ -144,6 +144,17 @@ export class TechnicianPortalService {
             activityLogs: { orderBy: { timestamp: 'desc' } },
           },
         },
+        reworkLogs: {
+          orderBy: { initiatedAt: 'desc' as const },
+          include: {
+            initiatedBy: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+            technician: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
       },
     });
 
@@ -231,6 +242,19 @@ export class TechnicianPortalService {
         activityLogs: { orderBy: { timestamp: 'desc' } },
       },
     });
+
+    if (process.reworkActive) {
+      await this.prisma.reworkLog.updateMany({
+        where: {
+          workOrderId: process.workOrderId,
+          processName: process.processName,
+          status: 'Pending',
+        },
+        data: {
+          status: 'In Progress',
+        },
+      });
+    }
 
     await this.updateWorkOrderStatus(process.workOrderId);
 
@@ -399,6 +423,20 @@ export class TechnicianPortalService {
         activityLogs: { orderBy: { timestamp: 'desc' } },
       },
     });
+
+    if (process.reworkActive) {
+      await this.prisma.reworkLog.updateMany({
+        where: {
+          workOrderId: process.workOrderId,
+          processName: process.processName,
+          status: { in: ['Pending', 'In Progress'] },
+        },
+        data: {
+          status: 'Completed',
+          completedAt: now,
+        },
+      });
+    }
 
     // Write Audit Log
     await this.auditLogsService.log({

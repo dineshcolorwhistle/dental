@@ -222,7 +222,24 @@ export function TechnicianWorkOrdersPage() {
   );
 
   const getMyStep = (wo: TechnicianWorkOrderListItem) => {
-    return wo.processes.find((p) => p.technicianId === user?.id);
+    // 1. Try to find an active step (IN_PROGRESS or PAUSED) assigned to the technician
+    const activeStep = wo.processes.find(
+      (p) => p.technicianId === user?.id && (p.status === 'IN_PROGRESS' || p.status === 'PAUSED')
+    );
+    if (activeStep) return activeStep;
+
+    // 2. Try to find a pending step (NOT_STARTED) assigned to the technician
+    const pendingStep = wo.processes.find(
+      (p) => p.technicianId === user?.id && p.status === 'NOT_STARTED'
+    );
+    if (pendingStep) return pendingStep;
+
+    // 3. Fallback to the last completed step or any step assigned to the technician
+    const mySteps = wo.processes.filter((p) => p.technicianId === user?.id);
+    if (mySteps.length > 0) {
+      return mySteps[mySteps.length - 1];
+    }
+    return undefined;
   };
 
   const getActionBadgeColor = (status: string) => {

@@ -151,6 +151,9 @@ model User {
   createdWorkOrders   WorkOrder[]          @relation("WorkOrderCreatedBy")
   assignedWoProcesses WorkOrderProcess[]   @relation("WoProcessTechnician")
   notifications       Notification[]
+  initiatedReworks    ReworkLog[]          @relation("ReworkInitiator")
+  technicianReworks   ReworkLog[]          @relation("ReworkTechnician")
+  initiatedRepetitions RepetitionLog[]     @relation("RepetitionInitiator")
 
   @@unique([email, tenantId])
   @@map("users")
@@ -288,6 +291,7 @@ model WorkOrder {
   initialPayment   Float?          @map("initial_payment")
   qrToken          String          @unique @default(uuid()) @map("qr_token")
   status           WorkOrderStatus @default(CREATED)
+  repetitionCount  Int             @default(0) @map("repetition_count")
   createdById      String          @map("created_by_id")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
@@ -299,6 +303,8 @@ model WorkOrder {
   prosthesisType ProsthesisType     @relation(fields: [prosthesisTypeId], references: [id], onDelete: Cascade)
   createdBy      User               @relation("WorkOrderCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   processes      WorkOrderProcess[]
+  reworkLogs     ReworkLog[]
+  repetitionLogs RepetitionLog[]
 
   @@unique([tenantId, folioNumber])
   @@map("work_orders")
@@ -321,6 +327,8 @@ model WorkOrderProcess {
   totalPauseDuration Int       @default(0) @map("total_pause_duration")
   totalActiveDuration Int      @default(0) @map("total_active_duration")
   verificationStatus String?     @map("verification_status")
+  reworkCount    Int           @default(0) @map("rework_count")
+  reworkActive   Boolean       @default(false) @map("rework_active")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   // Relations
@@ -388,4 +396,43 @@ model AuditLog {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("audit_logs")
+}
+
+model ReworkLog {
+  id                 String    @id @default(uuid())
+  workOrderId        String    @map("work_order_id")
+  processName        String    @map("process_name")
+  reworkCount        Int       @map("rework_count")
+  initiatedById      String    @map("initiated_by_id")
+  initiatedAt        DateTime  @default(now()) @map("initiated_at")
+  verificationStage  String    @map("verification_stage")
+  technicianId       String?   @map("technician_id")
+  completedAt        DateTime? @map("completed_at")
+  approvedAt         DateTime? @map("approved_at")
+  status             String    @default("Pending") // "Pending", "In Progress", "Completed", "Approved"
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  workOrder          WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  initiatedBy        User      @relation("ReworkInitiator", fields: [initiatedById], references: [id])
+  technician         User?     @relation("ReworkTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+
+  @@map("rework_logs")
+}
+
+model RepetitionLog {
+  id                 String    @id @default(uuid())
+  workOrderId        String    @map("work_order_id")
+  repetitionCount    Int       @map("repetition_count")
+  initiatedById      String    @map("initiated_by_id")
+  initiatedAt        DateTime  @default(now()) @map("initiated_at")
+  verificationStage  String    @map("verification_stage")
+  completedSteps     String    @map("completed_steps")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  workOrder          WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  initiatedBy        User      @relation("RepetitionInitiator", fields: [initiatedById], references: [id])
+
+  @@map("repetition_logs")
 }

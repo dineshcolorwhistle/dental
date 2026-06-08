@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ClipboardList,
   Plus,
@@ -98,10 +99,15 @@ interface ProcessFormItem {
   sequence: number;
   isVerification: boolean;
   status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  rework?: boolean;
+  reworkCount?: number;
+  reworkActive?: boolean;
 }
 
 export function WorkOrdersPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER';
   const canCreate = isAdmin || isOwner;
@@ -202,6 +208,31 @@ export function WorkOrdersPage() {
   }, [isAdmin, user?.branchId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (location.state?.editWorkOrderId) {
+      const targetWoId = location.state.editWorkOrderId;
+      const targetTab = location.state.activeTab || 'details';
+      
+      const openEditFromState = async () => {
+        try {
+          const wo = await workOrderService.getById(targetWoId);
+          if (wo) {
+            await handleEditOpen(wo);
+            if (targetTab === 'processes') {
+              setModalTab('processes');
+            }
+          }
+        } catch (e) {
+          console.error('Failed to auto-open edit modal from state', e);
+        }
+        // Clear state so it doesn't trigger on reload
+        navigate(location.pathname, { replace: true, state: {} });
+      };
+
+      openEditFromState();
+    }
+  }, [location.state, navigate]);
 
 
 
@@ -542,6 +573,9 @@ export function WorkOrdersPage() {
       sequence: p.sequence,
       isVerification: p.isVerification,
       status: p.status,
+      rework: (p as any).reworkActive || false,
+      reworkCount: (p as any).reworkCount || 0,
+      reworkActive: (p as any).reworkActive || false,
     }));
     setProcessList(items);
     
@@ -607,6 +641,7 @@ export function WorkOrdersPage() {
           sequence: p.sequence,
           isVerification: p.isVerification,
           status: p.status || 'NOT_STARTED',
+          rework: p.rework || false,
         }));
       }
 
@@ -2052,7 +2087,7 @@ export function WorkOrdersPage() {
                               <span className="wo-process-item__number">{idx + 1}</span>
                             </div>
 
-                            <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px' }}>
+                            <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                               <span>{proc.processName}</span>
                               {proc.isVerification && (
                                 <span className="wo-process-item__tag" style={{
@@ -2061,6 +2096,40 @@ export function WorkOrdersPage() {
                                 }}>
                                   {proc.technicianId ? 'Internal' : 'External'} Verification
                                 </span>
+                              )}
+                              {formStatus !== 'COMPLETED' && (proc.status === 'COMPLETED' || proc.reworkActive) && !proc.isVerification && (
+                                <label style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.375rem',
+                                  fontSize: '0.75rem',
+                                  color: '#EF4444',
+                                  cursor: 'pointer',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  border: '1px solid rgba(239, 68, 68, 0.15)',
+                                  marginLeft: 'auto',
+                                  fontWeight: 700
+                                }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!proc.rework}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setProcessList((prev) =>
+                                        prev.map((p, i) => (i === idx ? { ...p, rework: checked } : p))
+                                      );
+                                    }}
+                                    style={{
+                                      width: '13px',
+                                      height: '13px',
+                                      cursor: 'pointer',
+                                      accentColor: '#EF4444'
+                                    }}
+                                  />
+                                  <span>Rework</span>
+                                </label>
                               )}
                             </div>
 

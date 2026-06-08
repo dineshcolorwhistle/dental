@@ -26,6 +26,32 @@ export interface WorkOrderProcessItem {
     lastName: string;
     email: string;
   } | null;
+  reworkCount?: number;
+  reworkActive?: boolean;
+}
+
+export interface ReworkLogItem {
+  id: string;
+  workOrderId: string;
+  processName: string;
+  reworkCount: number;
+  initiatedById: string;
+  initiatedAt: string;
+  verificationStage: string;
+  technicianId: string | null;
+  completedAt: string | null;
+  approvedAt: string | null;
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Approved';
+  initiatedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  technician?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 }
 
 export interface WorkOrderListItem {
@@ -44,6 +70,7 @@ export interface WorkOrderListItem {
   initialPayment: number | null;
   qrToken: string;
   status: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  repetitionCount?: number;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -68,6 +95,7 @@ export interface WorkOrderListItem {
     email: string;
   };
   processes: WorkOrderProcessItem[];
+  reworkLogs?: ReworkLogItem[];
 }
 
 export interface CreateWorkOrderProcessPayload {
@@ -76,6 +104,7 @@ export interface CreateWorkOrderProcessPayload {
   sequence: number;
   isVerification?: boolean;
   status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  rework?: boolean;
 }
 
 export interface CreateWorkOrderPayload {
@@ -153,7 +182,7 @@ export const workOrderService = {
     return response.data;
   },
 
-  endVerification: async (workOrderId: string, processId: string, status: 'SUCCESS' | 'REWORK'): Promise<any> => {
+  endVerification: async (workOrderId: string, processId: string, status: 'SUCCESS' | 'REWORK' | 'REPETITION'): Promise<any> => {
     const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/end-verification`, { status });
     return response.data;
   },
