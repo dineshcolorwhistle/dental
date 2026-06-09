@@ -53,6 +53,92 @@ const stringifyNotesAndPayments = (userNotes: string, payments: PaymentHistoryIt
   return `${cleanedNotes}\n\n<!-- PAYMENTS_START -->${JSON.stringify(payments)}<!-- PAYMENTS_END -->`;
 };
 
+const getCombinedProcessLogs = (proc: any, workOrder: any) => {
+  const logs: Array<{
+    id: string;
+    action: string;
+    timestamp: string;
+    notes: string | null;
+  }> = [];
+
+  // 1. Add process activity logs
+  if (proc.activityLogs) {
+    proc.activityLogs.forEach((log: any) => {
+      logs.push({
+        id: log.id,
+        action: log.action,
+        timestamp: log.timestamp,
+        notes: log.notes,
+      });
+    });
+  }
+
+  // 2. Add ReworkLog logs for this process step
+  if (workOrder && workOrder.reworkLogs) {
+    const reworkLogsForStep = workOrder.reworkLogs.filter(
+      (log: any) => log.processName === proc.processName
+    );
+    reworkLogsForStep.forEach((log: any) => {
+      // Rework initiation
+      logs.push({
+        id: `rework-init-${log.id}`,
+        action: 'REWORK_ASSIGNED',
+        timestamp: log.initiatedAt,
+        notes: `Rework cycle #${log.reworkCount} initiated by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''} (Flagged at verification step: "${log.verificationStage}")`,
+      });
+
+      // Rework completion
+      if (log.completedAt) {
+        logs.push({
+          id: `rework-comp-${log.id}`,
+          action: 'REWORK_COMPLETED',
+          timestamp: log.completedAt,
+          notes: `Rework cycle #${log.reworkCount} completed by technician.`,
+        });
+      }
+
+      // Rework approval
+      if (log.approvedAt) {
+        logs.push({
+          id: `rework-appr-${log.id}`,
+          action: 'REWORK_APPROVED',
+          timestamp: log.approvedAt,
+          notes: `Rework cycle #${log.reworkCount} approved at verification step.`,
+        });
+      }
+    });
+  }
+
+  // 3. Add RepetitionLog logs where this process was affected
+  if (workOrder && workOrder.repetitionLogs) {
+    workOrder.repetitionLogs.forEach((log: any) => {
+      // Check if this step was reset due to this repetition
+      const wasReset = log.completedSteps && log.completedSteps.split(', ').map((s: string) => s.trim()).includes(proc.processName);
+      if (wasReset) {
+        logs.push({
+          id: `rep-reset-${log.id}`,
+          action: 'REPETITION_RESET',
+          timestamp: log.initiatedAt,
+          notes: `Process repeated (Cycle #${log.repetitionCount}). Step reset due to repetition request from verification step "${log.verificationStage}" by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}.`,
+        });
+      }
+
+      // Check if this step was the one that triggered the repetition
+      if (log.verificationStage === proc.processName) {
+        logs.push({
+          id: `rep-trig-${log.id}`,
+          action: 'REPETITION_TRIGGERED',
+          timestamp: log.initiatedAt,
+          notes: `Repetition cycle #${log.repetitionCount} triggered by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}. All preceding completed steps have been reset.`,
+        });
+      }
+    });
+  }
+
+  // Sort logs by timestamp descending
+  return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+};
+
 export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: ViewWorkOrderModalProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -841,8 +927,14 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                     statusLabel = 'Cancelled';
                                   }
 
-                                  const hasLogs = proc.activityLogs && proc.activityLogs.length > 0;
+                                  const combinedLogs = getCombinedProcessLogs(proc, selectedWO);
+                                  const hasLogs = combinedLogs.length > 0;
                                   const isExpanded = expandedAuditRow === proc.id;
+
+                                  const repetitionsForStep = (selectedWO?.repetitionLogs || []).filter((r: any) =>
+                                    r.verificationStage === proc.processName ||
+                                    (r.completedSteps && r.completedSteps.split(', ').map((s: string) => s.trim()).includes(proc.processName))
+                                  );
 
                                   return (
                                     <Fragment key={proc.id}>
@@ -852,7 +944,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                       }}>
                                         <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-muted)' }}>{idx + 1}</td>
                                         <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             <span>{proc.processName}</span>
                                             {proc.isVerification && (
                                               <span style={{
@@ -864,6 +956,42 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                 color: proc.technicianId ? '#8B5CF6' : '#6366F1'
                                               }}>
                                                 {proc.technicianId ? 'Internal' : 'External'} Verification
+                                              </span>
+                                            )}
+                                            {proc.reworkActive && (
+                                              <span style={{
+                                                fontSize: '0.625rem',
+                                                fontWeight: 700,
+                                                padding: '1px 5px',
+                                                borderRadius: '4px',
+                                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                                color: '#EF4444'
+                                              }}>
+                                                Rework Active
+                                              </span>
+                                            )}
+                                            {!proc.reworkActive && proc.reworkCount > 0 && (
+                                              <span style={{
+                                                fontSize: '0.625rem',
+                                                fontWeight: 700,
+                                                padding: '1px 5px',
+                                                borderRadius: '4px',
+                                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                                color: '#D97706'
+                                              }}>
+                                                Reworked ({proc.reworkCount})
+                                              </span>
+                                            )}
+                                            {repetitionsForStep.length > 0 && (
+                                              <span style={{
+                                                fontSize: '0.625rem',
+                                                fontWeight: 700,
+                                                padding: '1px 5px',
+                                                borderRadius: '4px',
+                                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                                color: '#8B5CF6'
+                                              }} title={`Step repeated in ${repetitionsForStep.length} cycle(s)`}>
+                                                Repeated ({repetitionsForStep.length})
                                               </span>
                                             )}
                                           </div>
@@ -903,7 +1031,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                               onClick={() => setExpandedAuditRow(isExpanded ? null : proc.id)}
                                             >
                                               <History size={12} />
-                                              <span>{isExpanded ? 'Hide Audit' : `View Audit (${proc.activityLogs?.length})`}</span>
+                                              <span>{isExpanded ? 'Hide Audit' : `View Audit (${combinedLogs.length})`}</span>
                                             </button>
                                           ) : (
                                             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontStyle: 'italic' }}>No activity logs</span>
@@ -1007,14 +1135,19 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                 Process Activity History &mdash; {proc.processName}
                                               </div>
                                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                                {[...proc.activityLogs!].sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((log: any, lidx: number) => {
+                                                {combinedLogs.map((log: any, lidx: number) => {
                                                   const getActionLabel = (act: string) => {
                                                     switch (act) {
                                                       case 'START': return 'Process Started';
                                                       case 'PAUSE': return 'Process Paused';
                                                       case 'RESUME': return 'Process Resumed';
                                                       case 'END': return 'Process Completed';
-                                                      default: return act;
+                                                      case 'REWORK_ASSIGNED': return 'Rework Assigned';
+                                                      case 'REWORK_COMPLETED': return 'Rework Completed';
+                                                      case 'REWORK_APPROVED': return 'Rework Approved';
+                                                      case 'REPETITION_RESET': return 'Process Repeated (Reset)';
+                                                      case 'REPETITION_TRIGGERED': return 'Repetition Triggered';
+                                                      default: return act.replace('_', ' ');
                                                     }
                                                   };
 
@@ -1024,6 +1157,11 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                       case 'PAUSE': return 'var(--warning, #F59E0B)';
                                                       case 'RESUME': return 'var(--accent-primary, #3B82F6)';
                                                       case 'END': return 'var(--success, #10B981)';
+                                                      case 'REWORK_ASSIGNED': return '#EF4444';
+                                                      case 'REWORK_COMPLETED': return '#10B981';
+                                                      case 'REWORK_APPROVED': return '#8B5CF6';
+                                                      case 'REPETITION_RESET': return '#F97316';
+                                                      case 'REPETITION_TRIGGERED': return '#EC4899';
                                                       default: return 'var(--text-secondary)';
                                                     }
                                                   };

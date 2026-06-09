@@ -99,6 +99,92 @@ function ProcessTimer({ startedAt, lastPausedAt, totalPauseDuration, status }: {
   );
 }
 
+const getCombinedProcessLogs = (proc: any, workOrder: any) => {
+  const logs: Array<{
+    id: string;
+    action: string;
+    timestamp: string;
+    notes: string | null;
+  }> = [];
+
+  // 1. Add process activity logs
+  if (proc.activityLogs) {
+    proc.activityLogs.forEach((log: any) => {
+      logs.push({
+        id: log.id,
+        action: log.action,
+        timestamp: log.timestamp,
+        notes: log.notes,
+      });
+    });
+  }
+
+  // 2. Add ReworkLog logs for this process step
+  if (workOrder && workOrder.reworkLogs) {
+    const reworkLogsForStep = workOrder.reworkLogs.filter(
+      (log: any) => log.processName === proc.processName
+    );
+    reworkLogsForStep.forEach((log: any) => {
+      // Rework initiation
+      logs.push({
+        id: `rework-init-${log.id}`,
+        action: 'REWORK_ASSIGNED',
+        timestamp: log.initiatedAt,
+        notes: `Rework cycle #${log.reworkCount} initiated by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''} (Flagged at verification step: "${log.verificationStage}")`,
+      });
+
+      // Rework completion
+      if (log.completedAt) {
+        logs.push({
+          id: `rework-comp-${log.id}`,
+          action: 'REWORK_COMPLETED',
+          timestamp: log.completedAt,
+          notes: `Rework cycle #${log.reworkCount} completed by technician.`,
+        });
+      }
+
+      // Rework approval
+      if (log.approvedAt) {
+        logs.push({
+          id: `rework-appr-${log.id}`,
+          action: 'REWORK_APPROVED',
+          timestamp: log.approvedAt,
+          notes: `Rework cycle #${log.reworkCount} approved at verification step.`,
+        });
+      }
+    });
+  }
+
+  // 3. Add RepetitionLog logs where this process was affected
+  if (workOrder && workOrder.repetitionLogs) {
+    workOrder.repetitionLogs.forEach((log: any) => {
+      // Check if this step was reset due to this repetition
+      const wasReset = log.completedSteps && log.completedSteps.split(', ').map((s: string) => s.trim()).includes(proc.processName);
+      if (wasReset) {
+        logs.push({
+          id: `rep-reset-${log.id}`,
+          action: 'REPETITION_RESET',
+          timestamp: log.initiatedAt,
+          notes: `Process repeated (Cycle #${log.repetitionCount}). Step reset due to repetition request from verification step "${log.verificationStage}" by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}.`,
+        });
+      }
+
+      // Check if this step was the one that triggered the repetition
+      if (log.verificationStage === proc.processName) {
+        logs.push({
+          id: `rep-trig-${log.id}`,
+          action: 'REPETITION_TRIGGERED',
+          timestamp: log.initiatedAt,
+          notes: `Repetition cycle #${log.repetitionCount} triggered by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}. All preceding completed steps have been reset.`,
+        });
+      }
+    });
+  }
+
+  // Sort logs by timestamp descending
+  return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+};
+
 export function TechnicianWorkOrdersPage() {
   const { user } = useAuth();
   const [workOrders, setWorkOrders] = useState<TechnicianWorkOrderListItem[]>([]);
@@ -417,9 +503,29 @@ export function TechnicianWorkOrdersPage() {
                       alignItems: 'center',
                       border: '1px solid var(--border)'
                     }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)' }}>My Step Assignment</span>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{myStep.processName}</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span>{myStep.processName}</span>
+                          {myStep.reworkActive && (
+                            <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>Rework</span>
+                          )}
+                          {!myStep.reworkActive && (myStep.reworkCount || 0) > 0 && (
+                            <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#D97706' }}>Reworked ({myStep.reworkCount})</span>
+                          )}
+                          {(() => {
+                            const repetitions = (wo.repetitionLogs || []).filter((r: any) =>
+                              r.verificationStage === myStep.processName ||
+                              (r.completedSteps && r.completedSteps.split(', ').map((s: string) => s.trim()).includes(myStep.processName))
+                            );
+                            if (repetitions.length > 0) {
+                              return (
+                                <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(139, 92, 246, 0.1)', color: '#8B5CF6' }}>Repeated ({repetitions.length})</span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </span>
                       </div>
                       <span style={{
                         fontSize: '0.7rem',
@@ -808,7 +914,7 @@ export function TechnicianWorkOrdersPage() {
                               alignItems: 'center'
                             }}>
                               <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: (isActive || isPaused) ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
                                     {proc.processName}
                                   </span>
@@ -817,6 +923,30 @@ export function TechnicianWorkOrdersPage() {
                                       Assigned To Me
                                     </span>
                                   )}
+                                  {proc.reworkActive && (
+                                    <span style={{ fontSize: '0.58rem', fontWeight: 700, color: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                      Rework Active
+                                    </span>
+                                  )}
+                                  {!proc.reworkActive && (proc.reworkCount || 0) > 0 && (
+                                    <span style={{ fontSize: '0.58rem', fontWeight: 700, color: '#D97706', backgroundColor: 'rgba(245, 158, 11, 0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                                      Reworked ({proc.reworkCount})
+                                    </span>
+                                  )}
+                                  {(() => {
+                                    const repetitions = (selectedOrder?.repetitionLogs || []).filter((r: any) =>
+                                      r.verificationStage === proc.processName ||
+                                      (r.completedSteps && r.completedSteps.split(', ').map((s: string) => s.trim()).includes(proc.processName))
+                                    );
+                                    if (repetitions.length > 0) {
+                                      return (
+                                        <span style={{ fontSize: '0.58rem', fontWeight: 700, color: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(139, 92, 246, 0.2)' }} title={`Repeated in ${repetitions.length} cycle(s)`}>
+                                          Repeated ({repetitions.length})
+                                        </span>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                                 <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
                                   Tech: {proc.technician ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` : 'Unassigned'}
@@ -847,6 +977,14 @@ export function TechnicianWorkOrdersPage() {
                     const isReady = myStep.status === 'NOT_STARTED' && isPrecedingStepCompleted(myStep, selectedOrder.processes);
                     const isBlocked = myStep.status === 'NOT_STARTED' && !isReady;
 
+                    const activeRework = (selectedOrder.reworkLogs || []).find(
+                      (r: any) => r.processName === myStep.processName && (r.status === 'Pending' || r.status === 'In Progress')
+                    );
+
+                    const latestRepetition = (selectedOrder.repetitionLogs || []).find((r: any) =>
+                      r.completedSteps && r.completedSteps.split(', ').map((s: string) => s.trim()).includes(myStep.processName)
+                    );
+
                     return (
                       <div style={{
                         backgroundColor: 'var(--bg-card)',
@@ -859,6 +997,52 @@ export function TechnicianWorkOrdersPage() {
                         <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
                           Process Timing Control Panel
                         </h4>
+
+                        {myStep.reworkActive && activeRework && (
+                          <div style={{
+                            display: 'flex',
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                            backgroundColor: 'rgba(231,76,60,0.06)',
+                            border: '1px solid rgba(231,76,60,0.18)',
+                            borderRadius: '8px',
+                            padding: '0.75rem 1rem',
+                            marginBottom: '1rem',
+                            fontSize: '0.8rem',
+                            color: 'var(--text-primary)'
+                          }}>
+                            <AlertTriangle size={16} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '2px' }} />
+                            <div>
+                              <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '2px', fontSize: '0.85rem' }}>
+                                ⚠️ Assigned for Rework (Cycle #{activeRework.reworkCount})
+                              </strong>
+                              This step was flagged for rework by <strong>{activeRework.initiatedBy?.firstName} {activeRework.initiatedBy?.lastName}</strong> from verification step <strong>"{activeRework.verificationStage}"</strong> on {new Date(activeRework.initiatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}. Please review specs, apply corrections, and complete this task.
+                            </div>
+                          </div>
+                        )}
+
+                        {!myStep.reworkActive && latestRepetition && !isCompleted && (
+                          <div style={{
+                            display: 'flex',
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                            backgroundColor: 'rgba(139, 92, 246, 0.06)',
+                            border: '1px solid rgba(139, 92, 246, 0.18)',
+                            borderRadius: '8px',
+                            padding: '0.75rem 1rem',
+                            marginBottom: '1rem',
+                            fontSize: '0.8rem',
+                            color: 'var(--text-primary)'
+                          }}>
+                            <History size={16} style={{ color: '#8B5CF6', flexShrink: 0, marginTop: '2px' }} />
+                            <div>
+                              <strong style={{ color: '#8B5CF6', display: 'block', marginBottom: '2px', fontSize: '0.85rem' }}>
+                                🔄 Part of Repetition Cycle #{latestRepetition.repetitionCount}
+                              </strong>
+                              This step is being repeated because verification step <strong>"{latestRepetition.verificationStage}"</strong> failed quality checks, requiring a repeat of the workflow. Triggered by <strong>{latestRepetition.initiatedBy?.firstName} {latestRepetition.initiatedBy?.lastName}</strong>. Please restart processing this step.
+                            </div>
+                          </div>
+                        )}
 
                         {isBlocked && (
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.75rem', backgroundColor: 'rgba(231,76,60,0.05)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(231,76,60,0.1)' }}>
@@ -938,9 +1122,40 @@ export function TechnicianWorkOrdersPage() {
                   {/* Audit Trail Timeline Logs */}
                   {(() => {
                     const myStep = getMyStep(selectedOrder);
-                    const logs = myStep?.activityLogs || [];
+                    if (!myStep) return null;
 
-                    if (logs.length === 0) return null;
+                    const combinedLogs = getCombinedProcessLogs(myStep, selectedOrder);
+                    if (combinedLogs.length === 0) return null;
+
+                    const getActionLabel = (act: string) => {
+                      switch (act) {
+                        case 'START': return 'Process Started';
+                        case 'PAUSE': return 'Process Paused';
+                        case 'RESUME': return 'Process Resumed';
+                        case 'END': return 'Process Completed';
+                        case 'REWORK_ASSIGNED': return 'Rework Assigned';
+                        case 'REWORK_COMPLETED': return 'Rework Completed';
+                        case 'REWORK_APPROVED': return 'Rework Approved';
+                        case 'REPETITION_RESET': return 'Process Repeated (Reset)';
+                        case 'REPETITION_TRIGGERED': return 'Repetition Triggered';
+                        default: return act.replace('_', ' ');
+                      }
+                    };
+
+                    const getActionColor = (act: string) => {
+                      switch (act) {
+                        case 'START': return 'var(--accent-primary, #3B82F6)';
+                        case 'PAUSE': return 'var(--warning, #F59E0B)';
+                        case 'RESUME': return 'var(--accent-primary, #3B82F6)';
+                        case 'END': return 'var(--success, #10B981)';
+                        case 'REWORK_ASSIGNED': return '#EF4444';
+                        case 'REWORK_COMPLETED': return '#10B981';
+                        case 'REWORK_APPROVED': return '#8B5CF6';
+                        case 'REPETITION_RESET': return '#F97316';
+                        case 'REPETITION_TRIGGERED': return '#EC4899';
+                        default: return 'var(--text-secondary)';
+                      }
+                    };
 
                     return (
                       <div style={{ marginTop: '1.5rem' }}>
@@ -949,7 +1164,7 @@ export function TechnicianWorkOrdersPage() {
                         </h4>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
-                          {logs.map((log) => (
+                          {combinedLogs.map((log) => (
                             <div key={log.id} style={{ position: 'relative', fontSize: '0.75rem', display: 'flex', flexDirection: 'column' }}>
                               {/* Dot marker */}
                               <div style={{
@@ -959,11 +1174,11 @@ export function TechnicianWorkOrdersPage() {
                                 width: '8px',
                                 height: '8px',
                                 borderRadius: '50%',
-                                backgroundColor: log.action === 'END' ? 'var(--success)' : log.action === 'PAUSE' ? 'var(--warning)' : 'var(--accent-primary)'
+                                backgroundColor: getActionColor(log.action)
                               }} />
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                                <span style={{ color: log.action === 'END' ? 'var(--success)' : log.action === 'PAUSE' ? 'var(--warning)' : 'var(--text-primary)' }}>
-                                  {log.action} Action
+                                <span style={{ color: getActionColor(log.action) }}>
+                                  {getActionLabel(log.action)}
                                 </span>
                                 <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
                                   {formatActivityTime(log.timestamp)}

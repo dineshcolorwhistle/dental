@@ -116,6 +116,25 @@ export class TechnicianPortalService {
             technician: { select: { id: true, firstName: true, lastName: true, email: true } },
           },
         },
+        reworkLogs: {
+          orderBy: { initiatedAt: 'desc' as const },
+          include: {
+            initiatedBy: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+            technician: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
+        repetitionLogs: {
+          orderBy: { initiatedAt: 'desc' as const },
+          include: {
+            initiatedBy: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -151,6 +170,14 @@ export class TechnicianPortalService {
               select: { id: true, firstName: true, lastName: true },
             },
             technician: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
+        repetitionLogs: {
+          orderBy: { initiatedAt: 'desc' as const },
+          include: {
+            initiatedBy: {
               select: { id: true, firstName: true, lastName: true },
             },
           },

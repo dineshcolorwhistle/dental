@@ -54,6 +54,22 @@ export interface ReworkLogItem {
   } | null;
 }
 
+export interface RepetitionLogItem {
+  id: string;
+  workOrderId: string;
+  repetitionCount: number;
+  initiatedById: string;
+  initiatedAt: string;
+  verificationStage: string;
+  completedSteps: string;
+  createdAt: string;
+  initiatedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+}
+
 export interface WorkOrderListItem {
   id: string;
   tenantId: string;
@@ -96,6 +112,7 @@ export interface WorkOrderListItem {
   };
   processes: WorkOrderProcessItem[];
   reworkLogs?: ReworkLogItem[];
+  repetitionLogs?: RepetitionLogItem[];
 }
 
 export interface CreateWorkOrderProcessPayload {
