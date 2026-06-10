@@ -10,7 +10,7 @@ validate:
 name: Validate and Build
 runs-on: ubuntu-latest
 
-```
+
 steps:
   - name: Checkout Repository
     uses: actions/checkout@v4
@@ -45,7 +45,7 @@ steps:
   - name: Build Frontend
     working-directory: frontend
     run: npm run build
-```
+
 
 deploy:
 name: Deploy to VPS
@@ -53,7 +53,7 @@ needs: validate
 runs-on: ubuntu-latest
 environment: Staging
 
-```
+
 steps:
   - name: Deploy Application
     uses: appleboy/ssh-action@v1.0.3
@@ -123,4 +123,4 @@ steps:
         npm run build
 
         echo "✅ Deployment completed successfully."
-```
+
