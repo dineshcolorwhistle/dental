@@ -1,0 +1,86 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validate and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install & Validate Backend
+        run: |
+          cd backend
+          npm ci
+          npm run lint
+          npm run build
+
+      - name: Install & Validate Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+  deploy:
+    name: Deploy to VPS
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: Staging
+
+    steps:
+      - name: SSH and Deploy to Staging
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            echo "🚀 Deployment started..."
+            
+            # Go to app directory
+            cd /home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental
+            
+            # Pull latest changes
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Setup Backend
+            echo "🔧 Setting up backend..."
+            cd backend
+            npm install
+            npx prisma migrate deploy
+            
+            # Run seed with flag to seed ONLY Super Admin credentials
+            echo "🌱 Running database migrations and seeds..."
+            SEED_ONLY_SUPER_ADMIN=true npm run seed
+            
+            # Build backend
+            npm run build
+            
+            # Restart/Reload PM2 process
+            echo "♻️ Reloading PM2 backend application..."
+            pm2 reload dental-backend || pm2 start dist/main.js --name "dental-backend"
+            
+            # Setup Frontend
+            echo "🔧 Setting up frontend..."
+            cd ../frontend
+            npm install
+            npm run build
+            
+            echo "✅ Deployment successful!"

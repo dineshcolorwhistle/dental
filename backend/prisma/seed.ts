@@ -11,11 +11,15 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('🌱 Starting database seed...');
 
-  const passwordHash = await bcrypt.hash('Admin@123456', 12);
+  const saEmail = process.env.SUPER_ADMIN_EMAIL || 'admin@dental.com';
+  const saPassword = process.env.SUPER_ADMIN_PASSWORD || 'Admin@123456';
+  const saFirstName = process.env.SUPER_ADMIN_FIRST_NAME || 'Super';
+  const saLastName = process.env.SUPER_ADMIN_LAST_NAME || 'Admin';
+
+  const passwordHash = await bcrypt.hash(saPassword, 12);
   const dineshPasswordHash = await bcrypt.hash('Dinesh@#12312', 12);
 
   // 1. Create Super Admin
-  const saEmail = 'admin@dental.com';
   const existingSuperAdmin = await prisma.user.findFirst({
     where: { email: saEmail },
   });
@@ -25,8 +29,8 @@ async function main() {
       data: {
         email: saEmail,
         passwordHash,
-        firstName: 'Super',
-        lastName: 'Admin',
+        firstName: saFirstName,
+        lastName: saLastName,
         role: UserRole.SUPER_ADMIN,
         status: UserStatus.ACTIVE,
         tenantId: null,
@@ -36,6 +40,13 @@ async function main() {
     console.log(`✅ Super Admin created: ${saEmail}`);
   } else {
     console.log('ℹ️ Super Admin already exists.');
+  }
+
+  // Check if we only want to seed the Super Admin (e.g. for production/staging)
+  if (process.env.SEED_ONLY_SUPER_ADMIN === 'true') {
+    console.log('⚠️ SEED_ONLY_SUPER_ADMIN is true. Skipping tenant, branch, owner, technician, and other seeds.');
+    console.log('🌱 Seed completed successfully!');
+    return;
   }
 
   // 2. Create Default Tenant
