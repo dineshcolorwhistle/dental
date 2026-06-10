@@ -43,9 +43,10 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isAuthRequest = originalRequest?.url?.includes('/auth/login') || originalRequest?.url?.includes('/auth/refresh');
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthRequest) {
+      if (originalRequest) originalRequest._retry = true;
 
       if (isRefreshing) {
         // Queue the request until the token is refreshed

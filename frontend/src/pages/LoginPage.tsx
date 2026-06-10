@@ -52,6 +52,14 @@ export function LoginPage() {
     if (parts.length === 2 && parts[1] === 'localhost') {
       return parts[0];
     }
+
+    // For staging/dev domains like dental.agentwhistle.com or smile.dental.agentwhistle.com
+    if (hostname.endsWith('.agentwhistle.com')) {
+      if (parts.length >= 4) {
+        return parts[0];
+      }
+      return undefined;
+    }
     
     // For standard domains like subdomain.dental.com
     if (parts.length >= 3) {
