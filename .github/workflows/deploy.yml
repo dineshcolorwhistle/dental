@@ -1,126 +1,110 @@
 name: Deploy to Staging
 
 on:
-push:
-branches:
-- main
+  push:
+    branches:
+      - main
 
 jobs:
-validate:
-name: Validate and Build
-runs-on: ubuntu-latest
+  validate:
+    name: Validate and Build
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-steps:
-  - name: Checkout Repository
-    uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
 
-  - name: Setup Node.js
-    uses: actions/setup-node@v4
-    with:
-      node-version: 22
-      cache: npm
-      cache-dependency-path: |
-        backend/package-lock.json
-        frontend/package-lock.json
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm install
 
-  # Backend Validation
-  - name: Install Backend Dependencies
-    working-directory: backend
-    run: npm ci
+      - name: Lint Backend
+        working-directory: backend
+        run: npm run lint
 
-  - name: Lint Backend
-    working-directory: backend
-    run: npm run lint
+      - name: Build Backend
+        working-directory: backend
+        run: npm run build
 
-  - name: Build Backend
-    working-directory: backend
-    run: npm run build
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm install
 
-  # Frontend Validation
-  - name: Install Frontend Dependencies
-    working-directory: frontend
-    run: npm ci
+      - name: Build Frontend
+        working-directory: frontend
+        run: npm run build
 
-  - name: Build Frontend
-    working-directory: frontend
-    run: npm run build
+  deploy:
+    name: Deploy to VPS
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: Staging
 
+    steps:
+      - name: Deploy Application
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
 
-deploy:
-name: Deploy to VPS
-needs: validate
-runs-on: ubuntu-latest
-environment: Staging
+            echo "🚀 Starting deployment..."
 
+            APP_DIR=/home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental
 
-steps:
-  - name: Deploy Application
-    uses: appleboy/ssh-action@v1.0.3
-    with:
-      host: ${{ secrets.SSH_HOST }}
-      username: ${{ secrets.SSH_USER }}
-      key: ${{ secrets.SSH_KEY }}
-      port: ${{ secrets.SSH_PORT }}
-      script: |
-        set -e
+            cd $APP_DIR
 
-        echo "🚀 Starting deployment..."
+            echo "📥 Pull latest code..."
+            git fetch origin
+            git reset --hard origin/main
 
-        APP_DIR=/home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental
+            echo "🔧 Backend deployment..."
 
-        cd $APP_DIR
+            cd backend
 
-        echo "📥 Pull latest code..."
-        git fetch origin
-        git reset --hard origin/main
+            rm -rf dist
 
-        #################################################
-        # Backend
-        #################################################
+            npm install
 
-        echo "🔧 Backend deployment..."
+            npx prisma generate
 
-        cd backend
+            npx prisma migrate deploy
 
-        rm -rf dist
+            echo "🌱 Running seed..."
+            SEED_ONLY_SUPER_ADMIN=true npm run seed
 
-        npm install
+            echo "🏗️ Building backend..."
+            npm run build
 
-        npx prisma generate
+            echo "♻️ Restarting backend..."
 
-        npx prisma migrate deploy
+            if pm2 describe dental-backend > /dev/null; then
+              pm2 reload dental-backend
+            else
+              pm2 start dist/main.js --name dental-backend
+            fi
 
-        echo "🌱 Running seed..."
-        SEED_ONLY_SUPER_ADMIN=true npm run seed
+            pm2 save
 
-        echo "🏗️ Building backend..."
-        npm run build
+            echo "🔧 Frontend deployment..."
 
-        echo "♻️ Restarting backend..."
+            cd ../frontend
 
-        pm2 describe dental-backend > /dev/null
+            npm install
 
-        if [ $? -eq 0 ]; then
-          pm2 reload dental-backend
-        else
-          pm2 start dist/main.js --name dental-backend
-        fi
+            echo "🏗️ Building frontend..."
+            npm run build
 
-        pm2 save
-
-        #################################################
-        # Frontend
-        #################################################
-
-        echo "🔧 Frontend deployment..."
-
-        cd ../frontend
-
-        npm install
-
-        echo "🏗️ Building frontend..."
-        npm run build
-
-        echo "✅ Deployment completed successfully."
-
+            echo "✅ Deployment completed successfully."
