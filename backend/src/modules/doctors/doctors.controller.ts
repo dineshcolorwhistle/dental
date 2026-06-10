@@ -54,7 +54,10 @@ export class DoctorsController {
 
     // For branch admin, implicitly force branch scoping
     if (userRole === 'ADMIN') {
-      return this.doctorsService.findAll(tenantId, branchIdContext || undefined);
+      return this.doctorsService.findAll(
+        tenantId,
+        branchIdContext || undefined,
+      );
     }
 
     // For owner, use query filter if provided
@@ -73,12 +76,16 @@ export class DoctorsController {
       throw new BadRequestException('Organization context is required.');
     }
     const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.doctorsService.findOne(tenantId, id, branchContext || undefined);
+    return this.doctorsService.findOne(
+      tenantId,
+      id,
+      branchContext || undefined,
+    );
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update a specific doctor/clinic\'s details' })
+  @ApiOperation({ summary: "Update a specific doctor/clinic's details" })
   async update(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('branchId') branchIdContext: string | null,
@@ -90,7 +97,12 @@ export class DoctorsController {
       throw new BadRequestException('Organization context is required.');
     }
     const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.doctorsService.update(tenantId, id, dto, branchContext || undefined);
+    return this.doctorsService.update(
+      tenantId,
+      id,
+      dto,
+      branchContext || undefined,
+    );
   }
 
   @Delete(':id')

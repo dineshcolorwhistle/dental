@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -13,7 +19,11 @@ export class LoginDto {
   @MinLength(6)
   password: string;
 
-  @ApiProperty({ example: 'smilelab', required: false, description: 'Subdomain for tenant resolution (optional for super admin)' })
+  @ApiProperty({
+    example: 'smilelab',
+    required: false,
+    description: 'Subdomain for tenant resolution (optional for super admin)',
+  })
   @IsOptional()
   @IsString()
   subdomain?: string;

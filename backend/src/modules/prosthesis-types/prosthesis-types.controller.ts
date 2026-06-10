@@ -14,7 +14,11 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { ProsthesisTypesService } from './prosthesis-types.service';
-import { CreateProsthesisTypeDto, UpdateProsthesisTypeDto, ReorderProsthesisTypeProcessesDto } from './dto';
+import {
+  CreateProsthesisTypeDto,
+  UpdateProsthesisTypeDto,
+  ReorderProsthesisTypeProcessesDto,
+} from './dto';
 import { Roles, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Prosthesis Types')
@@ -22,7 +26,9 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @Controller('prosthesis-types')
 @Roles(UserRole.ADMIN, UserRole.OWNER)
 export class ProsthesisTypesController {
-  constructor(private readonly prosthesisTypesService: ProsthesisTypesService) {}
+  constructor(
+    private readonly prosthesisTypesService: ProsthesisTypesService,
+  ) {}
 
   @Post()
   @Roles(UserRole.ADMIN)
@@ -37,7 +43,12 @@ export class ProsthesisTypesController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.prosthesisTypesService.create(tenantId, branchIdContext, userRole, dto);
+    return this.prosthesisTypesService.create(
+      tenantId,
+      branchIdContext,
+      userRole,
+      dto,
+    );
   }
 
   @Get()
@@ -54,7 +65,10 @@ export class ProsthesisTypesController {
 
     // For branch admin, implicitly force branch scoping
     if (userRole === 'ADMIN') {
-      return this.prosthesisTypesService.findAll(tenantId, branchIdContext || undefined);
+      return this.prosthesisTypesService.findAll(
+        tenantId,
+        branchIdContext || undefined,
+      );
     }
 
     // For owner, use query filter if provided
@@ -77,7 +91,9 @@ export class ProsthesisTypesController {
   }
 
   @Get(':id/processes')
-  @ApiOperation({ summary: 'Get processes assigned to a prosthesis type in sequence order' })
+  @ApiOperation({
+    summary: 'Get processes assigned to a prosthesis type in sequence order',
+  })
   async getProcesses(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') id: string,
@@ -117,7 +133,11 @@ export class ProsthesisTypesController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.prosthesisTypesService.reorderProcesses(tenantId, id, dto.processIds);
+    return this.prosthesisTypesService.reorderProcesses(
+      tenantId,
+      id,
+      dto.processIds,
+    );
   }
 
   @Delete(':id')

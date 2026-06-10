@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProcessDto, UpdateProcessDto } from './dto';
 import { UserRole } from '@prisma/client';
@@ -9,14 +14,21 @@ export class ProcessesService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(tenantId: string, branchIdContext: string | null, userRole: string, dto: CreateProcessDto) {
+  async create(
+    tenantId: string,
+    branchIdContext: string | null,
+    userRole: string,
+    dto: CreateProcessDto,
+  ) {
     const { name, processArea, defaultTechnicianId, branchId } = dto;
 
     // Force branch for Administrators
     let finalBranchId = branchId;
     if (userRole === 'ADMIN') {
       if (!branchIdContext) {
-        throw new BadRequestException('Branch context is required for administrators.');
+        throw new BadRequestException(
+          'Branch context is required for administrators.',
+        );
       }
       finalBranchId = branchIdContext;
     }
@@ -27,7 +39,9 @@ export class ProcessesService {
         where: { id: finalBranchId, tenantId },
       });
       if (!branch) {
-        throw new NotFoundException(`Branch with ID "${finalBranchId}" does not exist in your organization.`);
+        throw new NotFoundException(
+          `Branch with ID "${finalBranchId}" does not exist in your organization.`,
+        );
       }
     }
 
@@ -73,7 +87,9 @@ export class ProcessesService {
       },
     });
 
-    this.logger.log(`Process created: ${process.name} (${process.id}) for tenant ${tenantId}`);
+    this.logger.log(
+      `Process created: ${process.name} (${process.id}) for tenant ${tenantId}`,
+    );
     return process;
   }
 
@@ -81,7 +97,8 @@ export class ProcessesService {
     return this.prisma.process.findMany({
       where: {
         tenantId,
-        ...(branchIdFilter && branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
+        ...(branchIdFilter &&
+          branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
       },
       include: {
         branch: {
@@ -99,10 +116,7 @@ export class ProcessesService {
           orderBy: { sequence: 'asc' },
         },
       },
-      orderBy: [
-        { name: 'asc' },
-        { createdAt: 'asc' },
-      ],
+      orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
     });
   }
 
@@ -138,13 +152,19 @@ export class ProcessesService {
     return process;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateProcessDto, branchIdContext?: string | null) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateProcessDto,
+    branchIdContext?: string | null,
+  ) {
     // Verify existence
     const existingProcess = await this.findOne(tenantId, id, branchIdContext);
 
     const { name, processArea, defaultTechnicianId, branchId } = dto;
 
-    let finalBranchId = branchId !== undefined ? branchId : existingProcess.branchId;
+    const finalBranchId =
+      branchId !== undefined ? branchId : existingProcess.branchId;
 
     // 1. Verify branch belongs to tenant if updated
     if (finalBranchId) {
@@ -152,7 +172,9 @@ export class ProcessesService {
         where: { id: finalBranchId, tenantId },
       });
       if (!branch) {
-        throw new NotFoundException(`Branch with ID "${finalBranchId}" does not exist in your organization.`);
+        throw new NotFoundException(
+          `Branch with ID "${finalBranchId}" does not exist in your organization.`,
+        );
       }
     }
 

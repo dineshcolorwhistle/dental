@@ -24,14 +24,21 @@ export class TechniciansService {
   /**
    * Create (invite) a new technician user.
    */
-  async create(tenantId: string, branchIdContext: string | null, userRole: string, dto: CreateTechnicianDto) {
+  async create(
+    tenantId: string,
+    branchIdContext: string | null,
+    userRole: string,
+    dto: CreateTechnicianDto,
+  ) {
     const { email, firstName, lastName, phone, branchId } = dto;
 
     // If logged in as ADMIN, force their branch context
     let finalBranchId = branchId;
     if (userRole === 'ADMIN') {
       if (!branchIdContext) {
-        throw new BadRequestException('Branch context is required for administrators.');
+        throw new BadRequestException(
+          'Branch context is required for administrators.',
+        );
       }
       finalBranchId = branchIdContext;
     }
@@ -138,7 +145,8 @@ export class TechniciansService {
       where: {
         tenantId,
         role: UserRole.TECHNICIAN,
-        ...(branchIdFilter && branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
+        ...(branchIdFilter &&
+          branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
       },
       include: {
         branch: {
@@ -185,7 +193,12 @@ export class TechniciansService {
   /**
    * Update technician details.
    */
-  async update(tenantId: string, id: string, dto: UpdateTechnicianDto, branchIdContext?: string | null) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateTechnicianDto,
+    branchIdContext?: string | null,
+  ) {
     // 1. Verify technician exists
     await this.findOne(tenantId, id, branchIdContext);
 

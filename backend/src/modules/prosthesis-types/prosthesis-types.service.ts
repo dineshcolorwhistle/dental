@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProsthesisTypeDto, UpdateProsthesisTypeDto } from './dto';
 
@@ -19,7 +25,12 @@ export class ProsthesisTypesService {
         process: {
           include: {
             defaultTechnician: {
-              select: { id: true, firstName: true, lastName: true, email: true },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
             },
             branch: {
               select: { id: true, name: true },
@@ -30,14 +41,21 @@ export class ProsthesisTypesService {
     },
   };
 
-  async create(tenantId: string, branchIdContext: string | null, userRole: string, dto: CreateProsthesisTypeDto) {
+  async create(
+    tenantId: string,
+    branchIdContext: string | null,
+    userRole: string,
+    dto: CreateProsthesisTypeDto,
+  ) {
     const { name, description, branchId, processIds } = dto;
 
     // Force branch for Administrators
     let finalBranchId = branchId;
     if (userRole === 'ADMIN') {
       if (!branchIdContext) {
-        throw new BadRequestException('Branch context is required for administrators.');
+        throw new BadRequestException(
+          'Branch context is required for administrators.',
+        );
       }
       finalBranchId = branchIdContext;
     }
@@ -48,7 +66,9 @@ export class ProsthesisTypesService {
         where: { id: finalBranchId, tenantId },
       });
       if (!branch) {
-        throw new NotFoundException(`Branch with ID "${finalBranchId}" does not exist in your organization.`);
+        throw new NotFoundException(
+          `Branch with ID "${finalBranchId}" does not exist in your organization.`,
+        );
       }
     }
 
@@ -62,7 +82,9 @@ export class ProsthesisTypesService {
     });
 
     if (existing) {
-      throw new ConflictException(`A prosthesis type with the name "${name}" already exists.`);
+      throw new ConflictException(
+        `A prosthesis type with the name "${name}" already exists.`,
+      );
     }
 
     // Verify all processIds belong to the same tenant if provided
@@ -74,7 +96,9 @@ export class ProsthesisTypesService {
       const validIds = new Set(validProcesses.map((p) => p.id));
       const invalidIds = processIds.filter((id) => !validIds.has(id));
       if (invalidIds.length > 0) {
-        throw new NotFoundException(`Process(es) not found: ${invalidIds.join(', ')}`);
+        throw new NotFoundException(
+          `Process(es) not found: ${invalidIds.join(', ')}`,
+        );
       }
     }
 
@@ -84,19 +108,22 @@ export class ProsthesisTypesService {
         branchId: finalBranchId || null,
         name,
         description,
-        ...(processIds && processIds.length > 0 && {
-          processAssignments: {
-            create: processIds.map((processId, index) => ({
-              processId,
-              sequence: index,
-            })),
-          },
-        }),
+        ...(processIds &&
+          processIds.length > 0 && {
+            processAssignments: {
+              create: processIds.map((processId, index) => ({
+                processId,
+                sequence: index,
+              })),
+            },
+          }),
       },
       include: this.fullInclude,
     });
 
-    this.logger.log(`Prosthesis type created: ${type.name} (${type.id}) for tenant ${tenantId}`);
+    this.logger.log(
+      `Prosthesis type created: ${type.name} (${type.id}) for tenant ${tenantId}`,
+    );
     return type;
   }
 
@@ -104,7 +131,8 @@ export class ProsthesisTypesService {
     return this.prisma.prosthesisType.findMany({
       where: {
         tenantId,
-        ...(branchIdFilter && branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
+        ...(branchIdFilter &&
+          branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
       },
       include: this.fullInclude,
       orderBy: { name: 'asc' },
@@ -128,7 +156,12 @@ export class ProsthesisTypesService {
     return type;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateProsthesisTypeDto, branchIdContext?: string | null) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateProsthesisTypeDto,
+    branchIdContext?: string | null,
+  ) {
     // Verify existence
     await this.findOne(tenantId, id, branchIdContext);
 
@@ -150,7 +183,9 @@ export class ProsthesisTypesService {
       });
 
       if (existing) {
-        throw new ConflictException(`A prosthesis type with the name "${name}" already exists.`);
+        throw new ConflictException(
+          `A prosthesis type with the name "${name}" already exists.`,
+        );
       }
     }
 
@@ -163,7 +198,9 @@ export class ProsthesisTypesService {
       const validIds = new Set(validProcesses.map((p) => p.id));
       const invalidIds = processIds.filter((pid) => !validIds.has(pid));
       if (invalidIds.length > 0) {
-        throw new NotFoundException(`Process(es) not found: ${invalidIds.join(', ')}`);
+        throw new NotFoundException(
+          `Process(es) not found: ${invalidIds.join(', ')}`,
+        );
       }
     }
 
@@ -205,13 +242,19 @@ export class ProsthesisTypesService {
     return { success: true };
   }
 
-  async reorderProcesses(tenantId: string, prosthesisTypeId: string, processIds: string[]) {
+  async reorderProcesses(
+    tenantId: string,
+    prosthesisTypeId: string,
+    processIds: string[],
+  ) {
     // Verify prosthesis type belongs to tenant
     const prosthesisType = await this.prisma.prosthesisType.findFirst({
       where: { id: prosthesisTypeId, tenantId },
     });
     if (!prosthesisType) {
-      throw new NotFoundException(`Prosthesis type with ID "${prosthesisTypeId}" not found.`);
+      throw new NotFoundException(
+        `Prosthesis type with ID "${prosthesisTypeId}" not found.`,
+      );
     }
 
     // Update sequences inside a transaction — delete existing and re-create with new order
@@ -229,7 +272,9 @@ export class ProsthesisTypesService {
       });
     });
 
-    this.logger.log(`Processes reordered for prosthesis type: ${prosthesisTypeId}`);
+    this.logger.log(
+      `Processes reordered for prosthesis type: ${prosthesisTypeId}`,
+    );
     return { success: true };
   }
 
@@ -239,7 +284,9 @@ export class ProsthesisTypesService {
       where: { id: prosthesisTypeId, tenantId },
     });
     if (!prosthesisType) {
-      throw new NotFoundException(`Prosthesis type with ID "${prosthesisTypeId}" not found.`);
+      throw new NotFoundException(
+        `Prosthesis type with ID "${prosthesisTypeId}" not found.`,
+      );
     }
 
     const assignments = await this.prisma.prosthesisTypeProcess.findMany({
@@ -249,7 +296,12 @@ export class ProsthesisTypesService {
         process: {
           include: {
             defaultTechnician: {
-              select: { id: true, firstName: true, lastName: true, email: true },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
             },
             branch: {
               select: { id: true, name: true },

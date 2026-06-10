@@ -8,7 +8,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { CreateWorkOrderDto, UpdateWorkOrderDto } from './dto';
-import { WorkOrderStatus, UserRole, ProcessStatus, ProcessActivityAction } from '@prisma/client';
+import {
+  WorkOrderStatus,
+  UserRole,
+  ProcessStatus,
+  ProcessActivityAction,
+} from '@prisma/client';
 
 @Injectable()
 export class WorkOrdersService {
@@ -24,7 +29,11 @@ export class WorkOrdersService {
    * Helper to calculate overall Work Order status from underlying processes.
    */
   private calculateWorkOrderStatus(
-    processes: { isVerification: boolean; technicianId: string | null; status: ProcessStatus }[]
+    processes: {
+      isVerification: boolean;
+      technicianId: string | null;
+      status: ProcessStatus;
+    }[],
   ): WorkOrderStatus {
     if (processes.length === 0) {
       return WorkOrderStatus.CREATED;
@@ -47,7 +56,9 @@ export class WorkOrdersService {
 
     // 4. If any process is IN_PROGRESS or PAUSED
     const inProgressProc = processes.find(
-      (p) => p.status === ProcessStatus.IN_PROGRESS || p.status === ProcessStatus.PAUSED
+      (p) =>
+        p.status === ProcessStatus.IN_PROGRESS ||
+        p.status === ProcessStatus.PAUSED,
     );
     if (inProgressProc) {
       if (inProgressProc.isVerification) {
@@ -59,10 +70,14 @@ export class WorkOrdersService {
     }
 
     // 5. Otherwise, check assignments
-    const allNotStarted = processes.every((p) => p.status === ProcessStatus.NOT_STARTED);
+    const allNotStarted = processes.every(
+      (p) => p.status === ProcessStatus.NOT_STARTED,
+    );
     if (allNotStarted) {
       const hasAnyTechnician = processes.some((p) => p.technicianId !== null);
-      return hasAnyTechnician ? WorkOrderStatus.ASSIGNED : WorkOrderStatus.CREATED;
+      return hasAnyTechnician
+        ? WorkOrderStatus.ASSIGNED
+        : WorkOrderStatus.CREATED;
     }
 
     // Default fallback
@@ -119,7 +134,10 @@ export class WorkOrdersService {
    * Generate the next folio number for a branch.
    * Format: <BranchCode><4-digit sequential> e.g. BRN0001
    */
-  private async generateFolioNumber(tenantId: string, branchId: string): Promise<string> {
+  private async generateFolioNumber(
+    tenantId: string,
+    branchId: string,
+  ): Promise<string> {
     const branch = await this.prisma.branch.findFirst({
       where: { id: branchId, tenantId },
       select: { code: true },
@@ -164,13 +182,17 @@ export class WorkOrdersService {
     let finalBranchId = branchId;
     if (userRole === 'ADMIN') {
       if (!branchIdContext) {
-        throw new BadRequestException('Branch context is required for administrators.');
+        throw new BadRequestException(
+          'Branch context is required for administrators.',
+        );
       }
       finalBranchId = branchIdContext;
     }
 
     if (!finalBranchId) {
-      throw new BadRequestException('Branch is required to create a work order.');
+      throw new BadRequestException(
+        'Branch is required to create a work order.',
+      );
     }
 
     // 1. Verify branch belongs to tenant
@@ -178,7 +200,9 @@ export class WorkOrdersService {
       where: { id: finalBranchId, tenantId },
     });
     if (!branchRecord) {
-      throw new NotFoundException(`Branch with ID "${finalBranchId}" does not exist in your organization.`);
+      throw new NotFoundException(
+        `Branch with ID "${finalBranchId}" does not exist in your organization.`,
+      );
     }
 
     // 2. Verify doctor belongs to tenant
@@ -194,7 +218,9 @@ export class WorkOrdersService {
       where: { id: prosthesisTypeId, tenantId },
     });
     if (!prosthesisType) {
-      throw new NotFoundException(`Prosthesis type with ID "${prosthesisTypeId}" not found.`);
+      throw new NotFoundException(
+        `Prosthesis type with ID "${prosthesisTypeId}" not found.`,
+      );
     }
 
     // 4. Generate folio number
@@ -244,7 +270,9 @@ export class WorkOrdersService {
     // 8. If createAndAssign, notify the first process's technician
     if (action === 'createAndAssign' && workOrder.processes.length > 0) {
       // Find the first process step (lowest sequence)
-      const sortedProcesses = [...workOrder.processes].sort((a, b) => a.sequence - b.sequence);
+      const sortedProcesses = [...workOrder.processes].sort(
+        (a, b) => a.sequence - b.sequence,
+      );
       const firstProcess = sortedProcesses[0];
 
       if (firstProcess.technicianId) {
@@ -304,7 +332,12 @@ export class WorkOrdersService {
 
         await this.updateWorkOrderStatus(workOrder.id);
 
-        const updatedWO = await this.findOne(tenantId, workOrder.id, null, userRole);
+        const updatedWO = await this.findOne(
+          tenantId,
+          workOrder.id,
+          null,
+          userRole,
+        );
         return updatedWO;
       }
     }
@@ -325,23 +358,38 @@ export class WorkOrdersService {
       },
     });
 
-    this.logger.log(`Work order created: ${folioNumber} (${workOrder.id}) for tenant ${tenantId}`);
+    this.logger.log(
+      `Work order created: ${folioNumber} (${workOrder.id}) for tenant ${tenantId}`,
+    );
     return workOrder;
   }
 
-  async findAll(tenantId: string, branchIdFilter?: string, statusFilter?: string) {
+  async findAll(
+    tenantId: string,
+    branchIdFilter?: string,
+    statusFilter?: string,
+  ) {
     return this.prisma.workOrder.findMany({
       where: {
         tenantId,
-        ...(branchIdFilter && branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
-        ...(statusFilter && statusFilter !== 'ALL' && { status: statusFilter as WorkOrderStatus }),
+        ...(branchIdFilter &&
+          branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
+        ...(statusFilter &&
+          statusFilter !== 'ALL' && {
+            status: statusFilter as WorkOrderStatus,
+          }),
       },
       include: this.fullInclude,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(tenantId: string, id: string, branchIdContext?: string | null, userRole?: string) {
+  async findOne(
+    tenantId: string,
+    id: string,
+    branchIdContext?: string | null,
+    userRole?: string,
+  ) {
     const workOrder = await this.prisma.workOrder.findFirst({
       where: {
         id,
@@ -368,7 +416,12 @@ export class WorkOrdersService {
     return workOrder;
   }
 
-  async findOneByQrToken(tenantId: string, qrToken: string, branchIdContext?: string | null, userRole?: string) {
+  async findOneByQrToken(
+    tenantId: string,
+    qrToken: string,
+    branchIdContext?: string | null,
+    userRole?: string,
+  ) {
     const workOrder = await this.prisma.workOrder.findFirst({
       where: {
         qrToken,
@@ -443,8 +496,14 @@ export class WorkOrdersService {
               `Cannot change assigned technician for already started process step "${ep.processName}".`,
             );
           }
-          const isReworkingThisStep = p.rework === true && ep.status === ProcessStatus.COMPLETED && (p.status === ProcessStatus.NOT_STARTED || !p.status);
-          if ((p.status || ProcessStatus.NOT_STARTED) !== ep.status && !isReworkingThisStep) {
+          const isReworkingThisStep =
+            p.rework === true &&
+            ep.status === ProcessStatus.COMPLETED &&
+            (p.status === ProcessStatus.NOT_STARTED || !p.status);
+          if (
+            (p.status || ProcessStatus.NOT_STARTED) !== ep.status &&
+            !isReworkingThisStep
+          ) {
             throw new BadRequestException(
               `Cannot modify status of already started process step "${ep.processName}".`,
             );
@@ -469,7 +528,9 @@ export class WorkOrdersService {
         where: { id: prosthesisTypeId, tenantId },
       });
       if (!pt) {
-        throw new NotFoundException(`Prosthesis type with ID "${prosthesisTypeId}" not found.`);
+        throw new NotFoundException(
+          `Prosthesis type with ID "${prosthesisTypeId}" not found.`,
+        );
       }
     }
 
@@ -485,15 +546,21 @@ export class WorkOrdersService {
       }
 
       mappedProcesses = processes.map((p) => {
-        const ep = existing.processes.find((item: any) => item.sequence === p.sequence);
-        const isReworked = p.rework === true && ep && ep.status === ProcessStatus.COMPLETED && !ep.reworkActive;
+        const ep = existing.processes.find(
+          (item: any) => item.sequence === p.sequence,
+        );
+        const isReworked =
+          p.rework === true &&
+          ep &&
+          ep.status === ProcessStatus.COMPLETED &&
+          !ep.reworkActive;
 
         let statusVal = (p as any).status || ProcessStatus.NOT_STARTED;
         let startedAt = ep ? ep.startedAt : null;
         let endedAt = ep ? ep.endedAt : null;
         let verificationStatus = ep ? ep.verificationStatus : null;
-        let reworkCount = ep ? (ep as any).reworkCount : 0;
-        let reworkActive = ep ? (ep as any).reworkActive : false;
+        let reworkCount = ep ? ep.reworkCount : 0;
+        let reworkActive = ep ? ep.reworkActive : false;
 
         if (isReworked) {
           statusVal = ProcessStatus.NOT_STARTED;
@@ -529,11 +596,19 @@ export class WorkOrdersService {
       });
     }
 
-    if (finalStatus === WorkOrderStatus.FAILED || finalStatus === WorkOrderStatus.CANCELLED) {
+    if (
+      finalStatus === WorkOrderStatus.FAILED ||
+      finalStatus === WorkOrderStatus.CANCELLED
+    ) {
       const targetStatus =
-        finalStatus === WorkOrderStatus.FAILED ? ProcessStatus.FAILED : ProcessStatus.CANCELLED;
+        finalStatus === WorkOrderStatus.FAILED
+          ? ProcessStatus.FAILED
+          : ProcessStatus.CANCELLED;
       if (mappedProcesses) {
-        mappedProcesses = mappedProcesses.map((p) => ({ ...p, status: targetStatus }));
+        mappedProcesses = mappedProcesses.map((p) => ({
+          ...p,
+          status: targetStatus,
+        }));
       } else {
         await this.prisma.workOrderProcess.updateMany({
           where: { workOrderId: id },
@@ -541,7 +616,7 @@ export class WorkOrdersService {
         });
       }
     } else if (processes && mappedProcesses) {
-      finalStatus = this.calculateWorkOrderStatus(mappedProcesses as any);
+      finalStatus = this.calculateWorkOrderStatus(mappedProcesses);
     }
 
     // Transition from CREATED to ASSIGNED triggers assignment logic
@@ -550,15 +625,20 @@ export class WorkOrdersService {
       (finalStatus === WorkOrderStatus.ASSIGNED ||
         (mappedProcesses &&
           finalStatus === undefined &&
-          this.calculateWorkOrderStatus(mappedProcesses as any) === WorkOrderStatus.ASSIGNED));
+          this.calculateWorkOrderStatus(mappedProcesses) ===
+            WorkOrderStatus.ASSIGNED));
 
-    const actualFinalStatus = isTransitioningToAssigned ? WorkOrderStatus.ASSIGNED : (finalStatus || existing.status);
+    const actualFinalStatus = isTransitioningToAssigned
+      ? WorkOrderStatus.ASSIGNED
+      : finalStatus || existing.status;
 
     const updated = await this.prisma.$transaction(async (tx) => {
       // 1. Delete processes that are not in incoming mappedProcesses list (only if NOT_STARTED)
       if (mappedProcesses) {
         const incomingSequences = mappedProcesses.map((p) => p.sequence);
-        const toDelete = existing.processes.filter((ep: any) => !incomingSequences.includes(ep.sequence));
+        const toDelete = existing.processes.filter(
+          (ep: any) => !incomingSequences.includes(ep.sequence),
+        );
         for (const ep of toDelete) {
           await tx.workOrderProcess.delete({
             where: { id: ep.id },
@@ -585,9 +665,13 @@ export class WorkOrdersService {
 
             if (p.isReworked) {
               const triggeringVerification = existing.processes
-                .filter((ep: any) => ep.isVerification && ep.sequence > p.sequence)
+                .filter(
+                  (ep: any) => ep.isVerification && ep.sequence > p.sequence,
+                )
                 .sort((a: any, b: any) => a.sequence - b.sequence)[0];
-              const verificationStage = triggeringVerification ? triggeringVerification.processName : 'Verification';
+              const verificationStage = triggeringVerification
+                ? triggeringVerification.processName
+                : 'Verification';
 
               await tx.reworkLog.create({
                 data: {
@@ -619,9 +703,14 @@ export class WorkOrdersService {
             });
           }
         }
-      } else if (finalStatus === WorkOrderStatus.FAILED || finalStatus === WorkOrderStatus.CANCELLED) {
+      } else if (
+        finalStatus === WorkOrderStatus.FAILED ||
+        finalStatus === WorkOrderStatus.CANCELLED
+      ) {
         const targetStatus =
-          finalStatus === WorkOrderStatus.FAILED ? ProcessStatus.FAILED : ProcessStatus.CANCELLED;
+          finalStatus === WorkOrderStatus.FAILED
+            ? ProcessStatus.FAILED
+            : ProcessStatus.CANCELLED;
         await tx.workOrderProcess.updateMany({
           where: { workOrderId: id },
           data: { status: targetStatus },
@@ -636,7 +725,9 @@ export class WorkOrdersService {
           ...(patient && { patient }),
           ...(boxNumber !== undefined && { boxNumber: boxNumber || null }),
           ...(prosthesisTypeId && { prosthesisTypeId }),
-          ...(specification !== undefined && { specification: specification || null }),
+          ...(specification !== undefined && {
+            specification: specification || null,
+          }),
           ...(color !== undefined && { color }),
           ...(notes !== undefined && { notes: notes || null }),
           ...(totalQuote !== undefined && { totalQuote }),
@@ -712,7 +803,9 @@ export class WorkOrdersService {
 
     // If transitioned to ASSIGNED, notify the first process technician
     if (isTransitioningToAssigned) {
-      const sorted = [...updated.processes].sort((a, b) => a.sequence - b.sequence);
+      const sorted = [...updated.processes].sort(
+        (a, b) => a.sequence - b.sequence,
+      );
       const firstProcess = sorted[0];
 
       if (firstProcess && firstProcess.technicianId) {
@@ -736,7 +829,11 @@ export class WorkOrdersService {
             title: 'New Work Order Assigned',
           },
         });
-      } else if (firstProcess && firstProcess.isVerification && !firstProcess.technicianId) {
+      } else if (
+        firstProcess &&
+        firstProcess.isVerification &&
+        !firstProcess.technicianId
+      ) {
         // Auto-start External Verification
         const now = new Date();
         await this.prisma.workOrderProcess.update({
@@ -784,7 +881,9 @@ export class WorkOrdersService {
       });
     }
 
-    this.logger.log(`Work order updated: ${updated.folioNumber} (${updated.id})`);
+    this.logger.log(
+      `Work order updated: ${updated.folioNumber} (${updated.id})`,
+    );
     return this.findOne(tenantId, id, branchIdContext);
   }
 
@@ -882,9 +981,12 @@ export class WorkOrdersService {
       type: a.technicianId ? 'INTERNAL' : 'EXTERNAL',
       status: a.status,
       startedAt: a.startedAt,
-      assignedTo: a.technicianId && a.technician
-        ? `${a.technician.firstName} ${a.technician.lastName}`
-        : (a.workOrder.doctor ? a.workOrder.doctor.name : 'Doctor'),
+      assignedTo:
+        a.technicianId && a.technician
+          ? `${a.technician.firstName} ${a.technician.lastName}`
+          : a.workOrder.doctor
+            ? a.workOrder.doctor.name
+            : 'Doctor',
       defaultAdminId: a.workOrder.branch?.defaultAdminId || null,
     }));
 
@@ -922,7 +1024,9 @@ export class WorkOrdersService {
         isVerification: false,
         workOrder: {
           tenantId,
-          status: { in: [WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS] },
+          status: {
+            in: [WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS],
+          },
           ...(branchIdContext && { branchId: branchIdContext }),
         },
       },
@@ -956,7 +1060,9 @@ export class WorkOrdersService {
       folioNumber: p.workOrder.folioNumber,
       patient: p.workOrder.patient,
       processName: p.processName,
-      technicianName: p.technician ? `${p.technician.firstName} ${p.technician.lastName}` : 'Unassigned',
+      technicianName: p.technician
+        ? `${p.technician.firstName} ${p.technician.lastName}`
+        : 'Unassigned',
     }));
 
     // 4. In Progress WO count
@@ -1010,16 +1116,23 @@ export class WorkOrdersService {
 
     const technicianActivityOverview = techniciansInBranch.map((tech) => {
       const activeStep = tech.assignedWoProcesses.find(
-        (p) => p.status === ProcessStatus.IN_PROGRESS || p.status === ProcessStatus.PAUSED,
+        (p) =>
+          p.status === ProcessStatus.IN_PROGRESS ||
+          p.status === ProcessStatus.PAUSED,
       );
       const completedToday = tech.assignedWoProcesses.filter(
-        (p) => p.status === ProcessStatus.COMPLETED && p.endedAt && p.endedAt >= startOfToday,
+        (p) =>
+          p.status === ProcessStatus.COMPLETED &&
+          p.endedAt &&
+          p.endedAt >= startOfToday,
       ).length;
 
       return {
         id: tech.id,
         name: `${tech.firstName} ${tech.lastName}`,
-        activeStep: activeStep ? `${activeStep.processName} (${activeStep.workOrder.folioNumber})` : 'Idle',
+        activeStep: activeStep
+          ? `${activeStep.processName} (${activeStep.workOrder.folioNumber})`
+          : 'Idle',
         completedToday,
       };
     });
@@ -1037,7 +1150,9 @@ export class WorkOrdersService {
         processes: {
           orderBy: { sequence: 'asc' },
           include: {
-            technician: { select: { id: true, firstName: true, lastName: true } },
+            technician: {
+              select: { id: true, firstName: true, lastName: true },
+            },
           },
         },
       },
@@ -1048,17 +1163,26 @@ export class WorkOrdersService {
     const verificationWOs = await this.prisma.workOrder.findMany({
       where: {
         tenantId,
-        status: { in: [WorkOrderStatus.INTERNAL_VERIFICATION, WorkOrderStatus.EXTERNAL_VERIFICATION] },
+        status: {
+          in: [
+            WorkOrderStatus.INTERNAL_VERIFICATION,
+            WorkOrderStatus.EXTERNAL_VERIFICATION,
+          ],
+        },
         ...(branchIdContext && { branchId: branchIdContext }),
       },
       include: {
         doctor: { select: { id: true, name: true } },
         prosthesisType: { select: { id: true, name: true } },
-        branch: { select: { id: true, name: true, code: true, defaultAdminId: true } },
+        branch: {
+          select: { id: true, name: true, code: true, defaultAdminId: true },
+        },
         processes: {
           orderBy: { sequence: 'asc' },
           include: {
-            technician: { select: { id: true, firstName: true, lastName: true } },
+            technician: {
+              select: { id: true, firstName: true, lastName: true },
+            },
           },
         },
       },
@@ -1080,7 +1204,12 @@ export class WorkOrdersService {
   /**
    * Start a verification process.
    */
-  async startVerification(tenantId: string, workOrderId: string, processId: string, userId: string) {
+  async startVerification(
+    tenantId: string,
+    workOrderId: string,
+    processId: string,
+    userId: string,
+  ) {
     const process = await this.prisma.workOrderProcess.findFirst({
       where: { id: processId, workOrderId },
       include: { workOrder: true },
@@ -1091,11 +1220,15 @@ export class WorkOrdersService {
     }
 
     if (!process.isVerification) {
-      throw new BadRequestException('This process step is not a verification step.');
+      throw new BadRequestException(
+        'This process step is not a verification step.',
+      );
     }
 
     if (process.status !== ProcessStatus.NOT_STARTED) {
-      throw new BadRequestException(`Verification has already been started or completed.`);
+      throw new BadRequestException(
+        `Verification has already been started or completed.`,
+      );
     }
 
     // Verify sequence: previous steps completed
@@ -1107,7 +1240,9 @@ export class WorkOrdersService {
     });
 
     if (precedingProcesses.some((p) => p.status !== ProcessStatus.COMPLETED)) {
-      throw new BadRequestException('Cannot start verification: previous process steps are not completed.');
+      throw new BadRequestException(
+        'Cannot start verification: previous process steps are not completed.',
+      );
     }
 
     const now = new Date();
@@ -1165,43 +1300,62 @@ export class WorkOrdersService {
     }
 
     if (!process.isVerification) {
-      throw new BadRequestException('This process step is not a verification step.');
+      throw new BadRequestException(
+        'This process step is not a verification step.',
+      );
     }
 
     if (process.isVerification && !process.technicianId) {
       if (!process.workOrder.branchId) {
-        throw new BadRequestException('Work order is not assigned to a branch.');
+        throw new BadRequestException(
+          'Work order is not assigned to a branch.',
+        );
       }
       const branch = await this.prisma.branch.findUnique({
         where: { id: process.workOrder.branchId },
       });
       if (!branch || branch.defaultAdminId !== userId) {
-        throw new BadRequestException("Only the branch's Default Admin can complete this External Verification process.");
+        throw new BadRequestException(
+          "Only the branch's Default Admin can complete this External Verification process.",
+        );
       }
     }
 
-    if (process.status !== ProcessStatus.IN_PROGRESS && process.status !== ProcessStatus.PAUSED) {
+    if (
+      process.status !== ProcessStatus.IN_PROGRESS &&
+      process.status !== ProcessStatus.PAUSED
+    ) {
       throw new BadRequestException('Verification is not active.');
     }
 
     const now = new Date();
     const startedAt = process.startedAt || now;
-    const totalActive = Math.max(0, Math.round((now.getTime() - startedAt.getTime()) / 1000));
+    const totalActive = Math.max(
+      0,
+      Math.round((now.getTime() - startedAt.getTime()) / 1000),
+    );
 
     const updated = await this.prisma.workOrderProcess.update({
       where: { id: processId },
       data: {
-        status: outcome === 'REWORK' ? ProcessStatus.IN_PROGRESS : ProcessStatus.COMPLETED,
+        status:
+          outcome === 'REWORK'
+            ? ProcessStatus.IN_PROGRESS
+            : ProcessStatus.COMPLETED,
         endedAt: outcome === 'REWORK' ? null : now,
         totalActiveDuration: outcome === 'REWORK' ? undefined : totalActive,
         verificationStatus: outcome,
         activityLogs: {
           create: {
-            action: outcome === 'REWORK' ? ProcessActivityAction.PAUSE : ProcessActivityAction.END,
+            action:
+              outcome === 'REWORK'
+                ? ProcessActivityAction.PAUSE
+                : ProcessActivityAction.END,
             timestamp: now,
-            notes: outcome === 'REWORK'
-              ? `Verification flagged for rework, pending step assignment.`
-              : `Verification ended with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`,
+            notes:
+              outcome === 'REWORK'
+                ? `Verification flagged for rework, pending step assignment.`
+                : `Verification ended with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`,
           },
         },
       },
@@ -1229,8 +1383,12 @@ export class WorkOrdersService {
       });
 
       // Track completed steps (excluding the triggering verification itself) before resetting
-      const completedProcs = allProcs.filter((p) => p.status === ProcessStatus.COMPLETED && p.id !== processId);
-      const completedStepsStr = completedProcs.map((p) => p.processName).join(', ');
+      const completedProcs = allProcs.filter(
+        (p) => p.status === ProcessStatus.COMPLETED && p.id !== processId,
+      );
+      const completedStepsStr = completedProcs
+        .map((p) => p.processName)
+        .join(', ');
 
       // 1. Reset all processes to NOT_STARTED, clear dates and tracking flags
       for (const p of allProcs) {

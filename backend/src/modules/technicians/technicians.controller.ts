@@ -37,7 +37,12 @@ export class TechniciansController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.techniciansService.create(tenantId, branchIdContext, userRole, dto);
+    return this.techniciansService.create(
+      tenantId,
+      branchIdContext,
+      userRole,
+      dto,
+    );
   }
 
   @Get()
@@ -54,7 +59,10 @@ export class TechniciansController {
 
     // For branch admin, implicitly force branch scoping
     if (userRole === 'ADMIN') {
-      return this.techniciansService.findAll(tenantId, branchIdContext || undefined);
+      return this.techniciansService.findAll(
+        tenantId,
+        branchIdContext || undefined,
+      );
     }
 
     // For owner, use query filter if provided
@@ -78,7 +86,7 @@ export class TechniciansController {
 
   @Patch(':id')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update a specific technician\'s details' })
+  @ApiOperation({ summary: "Update a specific technician's details" })
   async update(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('branchId') branchIdContext: string | null,

@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBranchDto, UpdateBranchDto } from './dto';
 import { UserRole, UserStatus } from '@prisma/client';
@@ -103,7 +109,9 @@ export class BranchesService {
     });
 
     if (!branch) {
-      throw new NotFoundException(`Branch not found or you do not have permission.`);
+      throw new NotFoundException(
+        `Branch not found or you do not have permission.`,
+      );
     }
 
     return branch;
@@ -148,7 +156,9 @@ export class BranchesService {
           },
         });
         if (activeAdminsCount > 0) {
-          throw new BadRequestException('Cannot remove the Default Admin when there are active administrators in the branch.');
+          throw new BadRequestException(
+            'Cannot remove the Default Admin when there are active administrators in the branch.',
+          );
         }
       } else {
         const user = await this.prisma.user.findFirst({
@@ -156,19 +166,27 @@ export class BranchesService {
         });
 
         if (!user) {
-          throw new NotFoundException(`User with ID "${defaultAdminId}" not found in your organization.`);
+          throw new NotFoundException(
+            `User with ID "${defaultAdminId}" not found in your organization.`,
+          );
         }
 
         if (user.role !== UserRole.ADMIN) {
-          throw new BadRequestException('The designated Default Admin must have the ADMIN role.');
+          throw new BadRequestException(
+            'The designated Default Admin must have the ADMIN role.',
+          );
         }
 
         if (user.branchId !== id) {
-          throw new BadRequestException('The designated Default Admin must belong to this branch.');
+          throw new BadRequestException(
+            'The designated Default Admin must belong to this branch.',
+          );
         }
 
         if (user.status !== UserStatus.ACTIVE) {
-          throw new BadRequestException('The designated Default Admin must be active.');
+          throw new BadRequestException(
+            'The designated Default Admin must be active.',
+          );
         }
       }
     }
@@ -186,7 +204,9 @@ export class BranchesService {
       },
     });
 
-    this.logger.log(`Branch updated: ${updatedBranch.name} (${updatedBranch.id})`);
+    this.logger.log(
+      `Branch updated: ${updatedBranch.name} (${updatedBranch.id})`,
+    );
     return updatedBranch;
   }
 

@@ -21,7 +21,10 @@ async function bootstrap() {
   // CORS
   const corsOrigin = configService.get('CORS_ORIGIN', 'http://localhost:5173');
   app.enableCors({
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       // Allow requests with no origin (like mobile apps, node-fetch, postman)
       if (!origin) {
         callback(null, true);
@@ -41,7 +44,10 @@ async function bootstrap() {
         // Allow configured CORS_ORIGIN domain and its subdomains
         const baseOriginUrl = new URL(corsOrigin);
         const baseHostname = baseOriginUrl.hostname;
-        if (hostname === baseHostname || hostname.endsWith('.' + baseHostname)) {
+        if (
+          hostname === baseHostname ||
+          hostname.endsWith('.' + baseHostname)
+        ) {
           callback(null, true);
           return;
         }

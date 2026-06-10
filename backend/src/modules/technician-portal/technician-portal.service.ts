@@ -7,7 +7,12 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
-import { ProcessStatus, WorkOrderStatus, ProcessActivityAction, UserRole } from '@prisma/client';
+import {
+  ProcessStatus,
+  WorkOrderStatus,
+  ProcessActivityAction,
+  UserRole,
+} from '@prisma/client';
 
 @Injectable()
 export class TechnicianPortalService {
@@ -26,37 +31,38 @@ export class TechnicianPortalService {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const [pendingCount, activeCount, pausedCount, completedTodayCount] = await Promise.all([
-      this.prisma.workOrderProcess.count({
-        where: {
-          technicianId,
-          status: ProcessStatus.NOT_STARTED,
-          workOrder: { tenantId },
-        },
-      }),
-      this.prisma.workOrderProcess.count({
-        where: {
-          technicianId,
-          status: ProcessStatus.IN_PROGRESS,
-          workOrder: { tenantId },
-        },
-      }),
-      this.prisma.workOrderProcess.count({
-        where: {
-          technicianId,
-          status: ProcessStatus.PAUSED,
-          workOrder: { tenantId },
-        },
-      }),
-      this.prisma.workOrderProcess.count({
-        where: {
-          technicianId,
-          status: ProcessStatus.COMPLETED,
-          endedAt: { gte: startOfToday },
-          workOrder: { tenantId },
-        },
-      }),
-    ]);
+    const [pendingCount, activeCount, pausedCount, completedTodayCount] =
+      await Promise.all([
+        this.prisma.workOrderProcess.count({
+          where: {
+            technicianId,
+            status: ProcessStatus.NOT_STARTED,
+            workOrder: { tenantId },
+          },
+        }),
+        this.prisma.workOrderProcess.count({
+          where: {
+            technicianId,
+            status: ProcessStatus.IN_PROGRESS,
+            workOrder: { tenantId },
+          },
+        }),
+        this.prisma.workOrderProcess.count({
+          where: {
+            technicianId,
+            status: ProcessStatus.PAUSED,
+            workOrder: { tenantId },
+          },
+        }),
+        this.prisma.workOrderProcess.count({
+          where: {
+            technicianId,
+            status: ProcessStatus.COMPLETED,
+            endedAt: { gte: startOfToday },
+            workOrder: { tenantId },
+          },
+        }),
+      ]);
 
     return {
       pendingCount,
@@ -69,7 +75,11 @@ export class TechnicianPortalService {
   /**
    * Fetches work orders where this technician has assigned steps, applying filter context.
    */
-  async getAssignedWorkOrders(tenantId: string, userId: string, statusFilter?: string) {
+  async getAssignedWorkOrders(
+    tenantId: string,
+    userId: string,
+    statusFilter?: string,
+  ) {
     const whereClause: any = {
       tenantId,
       processes: {
@@ -113,7 +123,14 @@ export class TechnicianPortalService {
         processes: {
           orderBy: { sequence: 'asc' },
           include: {
-            technician: { select: { id: true, firstName: true, lastName: true, email: true } },
+            technician: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
           },
         },
         reworkLogs: {
@@ -159,7 +176,14 @@ export class TechnicianPortalService {
         processes: {
           orderBy: { sequence: 'asc' },
           include: {
-            technician: { select: { id: true, firstName: true, lastName: true, email: true } },
+            technician: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
             activityLogs: { orderBy: { timestamp: 'desc' } },
           },
         },
@@ -186,7 +210,9 @@ export class TechnicianPortalService {
     });
 
     if (!workOrder) {
-      throw new NotFoundException(`Work order with ID "${id}" not found or unauthorized.`);
+      throw new NotFoundException(
+        `Work order with ID "${id}" not found or unauthorized.`,
+      );
     }
 
     return workOrder;
@@ -195,7 +221,11 @@ export class TechnicianPortalService {
   /**
    * Helper to retrieve a process step and verify it belongs to the user and tenant.
    */
-  private async getVerifiedProcess(tenantId: string, userId: string, processId: string) {
+  private async getVerifiedProcess(
+    tenantId: string,
+    userId: string,
+    processId: string,
+  ) {
     const process = await this.prisma.workOrderProcess.findUnique({
       where: { id: processId },
       include: {
@@ -204,11 +234,15 @@ export class TechnicianPortalService {
     });
 
     if (!process || process.workOrder.tenantId !== tenantId) {
-      throw new NotFoundException(`Process step with ID "${processId}" not found.`);
+      throw new NotFoundException(
+        `Process step with ID "${processId}" not found.`,
+      );
     }
 
     if (process.technicianId !== userId) {
-      throw new BadRequestException('You are not assigned to this process step.');
+      throw new BadRequestException(
+        'You are not assigned to this process step.',
+      );
     }
 
     return process;
@@ -221,7 +255,9 @@ export class TechnicianPortalService {
     const process = await this.getVerifiedProcess(tenantId, userId, processId);
 
     if (process.status !== ProcessStatus.NOT_STARTED) {
-      throw new BadRequestException(`Cannot start process: current status is ${process.status}.`);
+      throw new BadRequestException(
+        `Cannot start process: current status is ${process.status}.`,
+      );
     }
 
     // Strict sequential execution check
@@ -233,7 +269,9 @@ export class TechnicianPortalService {
     });
 
     if (precedingProcesses.some((p) => p.status !== ProcessStatus.COMPLETED)) {
-      throw new BadRequestException('Cannot start process: previous process steps are not completed yet.');
+      throw new BadRequestException(
+        'Cannot start process: previous process steps are not completed yet.',
+      );
     }
 
     // Prevent duplicate active process execution
@@ -309,7 +347,9 @@ export class TechnicianPortalService {
     const process = await this.getVerifiedProcess(tenantId, userId, processId);
 
     if (process.status !== ProcessStatus.IN_PROGRESS) {
-      throw new BadRequestException('Cannot pause process: process is not in progress.');
+      throw new BadRequestException(
+        'Cannot pause process: process is not in progress.',
+      );
     }
 
     const now = new Date();
@@ -359,12 +399,16 @@ export class TechnicianPortalService {
     const process = await this.getVerifiedProcess(tenantId, userId, processId);
 
     if (process.status !== ProcessStatus.PAUSED) {
-      throw new BadRequestException('Cannot resume process: process is not paused.');
+      throw new BadRequestException(
+        'Cannot resume process: process is not paused.',
+      );
     }
 
     const now = new Date();
     const lastPaused = process.lastPausedAt || now;
-    const pauseDuration = Math.round((now.getTime() - lastPaused.getTime()) / 1000);
+    const pauseDuration = Math.round(
+      (now.getTime() - lastPaused.getTime()) / 1000,
+    );
 
     const updatedProcess = await this.prisma.workOrderProcess.update({
       where: { id: processId },
@@ -415,14 +459,18 @@ export class TechnicianPortalService {
       process.status !== ProcessStatus.IN_PROGRESS &&
       process.status !== ProcessStatus.PAUSED
     ) {
-      throw new BadRequestException('Cannot end process: process is not active.');
+      throw new BadRequestException(
+        'Cannot end process: process is not active.',
+      );
     }
 
     const now = new Date();
     let totalPause = process.totalPauseDuration;
 
     if (process.status === ProcessStatus.PAUSED && process.lastPausedAt) {
-      const pauseDuration = Math.round((now.getTime() - process.lastPausedAt.getTime()) / 1000);
+      const pauseDuration = Math.round(
+        (now.getTime() - process.lastPausedAt.getTime()) / 1000,
+      );
       totalPause += pauseDuration;
     }
 
@@ -654,7 +702,11 @@ export class TechnicianPortalService {
   }
 
   private calculateWorkOrderStatus(
-    processes: { isVerification: boolean; technicianId: string | null; status: ProcessStatus }[]
+    processes: {
+      isVerification: boolean;
+      technicianId: string | null;
+      status: ProcessStatus;
+    }[],
   ): WorkOrderStatus {
     if (processes.length === 0) {
       return WorkOrderStatus.CREATED;
@@ -673,7 +725,9 @@ export class TechnicianPortalService {
     }
 
     const inProgressProc = processes.find(
-      (p) => p.status === ProcessStatus.IN_PROGRESS || p.status === ProcessStatus.PAUSED
+      (p) =>
+        p.status === ProcessStatus.IN_PROGRESS ||
+        p.status === ProcessStatus.PAUSED,
     );
     if (inProgressProc) {
       if (inProgressProc.isVerification) {
@@ -684,10 +738,14 @@ export class TechnicianPortalService {
       return WorkOrderStatus.IN_PROGRESS;
     }
 
-    const allNotStarted = processes.every((p) => p.status === ProcessStatus.NOT_STARTED);
+    const allNotStarted = processes.every(
+      (p) => p.status === ProcessStatus.NOT_STARTED,
+    );
     if (allNotStarted) {
       const hasAnyTechnician = processes.some((p) => p.technicianId !== null);
-      return hasAnyTechnician ? WorkOrderStatus.ASSIGNED : WorkOrderStatus.CREATED;
+      return hasAnyTechnician
+        ? WorkOrderStatus.ASSIGNED
+        : WorkOrderStatus.CREATED;
     }
 
     return WorkOrderStatus.IN_PROGRESS;
@@ -696,7 +754,12 @@ export class TechnicianPortalService {
   /**
    * Securely update notes for a work order assigned to a technician.
    */
-  async updateWorkOrderNotes(tenantId: string, userId: string, id: string, notes: string) {
+  async updateWorkOrderNotes(
+    tenantId: string,
+    userId: string,
+    id: string,
+    notes: string,
+  ) {
     const workOrder = await this.prisma.workOrder.findFirst({
       where: {
         id,
@@ -708,7 +771,9 @@ export class TechnicianPortalService {
     });
 
     if (!workOrder) {
-      throw new NotFoundException(`Work order with ID "${id}" not found or unauthorized.`);
+      throw new NotFoundException(
+        `Work order with ID "${id}" not found or unauthorized.`,
+      );
     }
 
     const updated = await this.prisma.workOrder.update({

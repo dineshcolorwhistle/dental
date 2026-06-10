@@ -21,7 +21,10 @@ import { MailService } from './mail.service';
           },
         },
         defaults: {
-          from: configService.get('SMTP_FROM', '"Dental Lab" <noreply@dental.com>'),
+          from: configService.get(
+            'SMTP_FROM',
+            '"Dental Lab" <noreply@dental.com>',
+          ),
         },
         template: {
           dir: join(__dirname, 'templates'),

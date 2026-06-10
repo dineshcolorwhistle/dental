@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles, CurrentUser } from '../../common/decorators';
@@ -30,7 +25,9 @@ export class FinanceController {
       throw new BadRequestException('Organization context is required.');
     }
     if (!startDate || !endDate) {
-      throw new BadRequestException('startDate and endDate are required query parameters.');
+      throw new BadRequestException(
+        'startDate and endDate are required query parameters.',
+      );
     }
 
     let finalBranchIds = branchIds;
@@ -38,7 +35,12 @@ export class FinanceController {
       finalBranchIds = branchIdContext || 'NONE';
     }
 
-    return this.financeService.getFinanceStats(tenantId, startDate, endDate, finalBranchIds);
+    return this.financeService.getFinanceStats(
+      tenantId,
+      startDate,
+      endDate,
+      finalBranchIds,
+    );
   }
 
   @Get('pending-payments')
@@ -58,7 +60,9 @@ export class FinanceController {
       throw new BadRequestException('Organization context is required.');
     }
     if (!startDate || !endDate) {
-      throw new BadRequestException('startDate and endDate are required query parameters.');
+      throw new BadRequestException(
+        'startDate and endDate are required query parameters.',
+      );
     }
 
     let finalBranchIds = branchIds;

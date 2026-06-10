@@ -12,7 +12,11 @@ interface PaymentHistoryItem {
 export class FinanceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private parsePaymentsFromNotes(notes: string | null, createdAt: Date, initialPayment: number): { amount: number; date: Date }[] {
+  private parsePaymentsFromNotes(
+    notes: string | null,
+    createdAt: Date,
+    initialPayment: number,
+  ): { amount: number; date: Date }[] {
     const list: { amount: number; date: Date }[] = [];
     if (notes) {
       const startTag = '<!-- PAYMENTS_START -->';
@@ -20,7 +24,9 @@ export class FinanceService {
       const startIndex = notes.indexOf(startTag);
       const endIndex = notes.indexOf(endTag);
       if (startIndex !== -1 && endIndex !== -1) {
-        const jsonStr = notes.substring(startIndex + startTag.length, endIndex).trim();
+        const jsonStr = notes
+          .substring(startIndex + startTag.length, endIndex)
+          .trim();
         try {
           const parsed = JSON.parse(jsonStr);
           if (Array.isArray(parsed)) {
@@ -82,7 +88,10 @@ export class FinanceService {
 
     let branchIdList: string[] = [];
     if (branchIdsFilter && branchIdsFilter !== 'ALL') {
-      branchIdList = branchIdsFilter.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
+      branchIdList = branchIdsFilter
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
     }
 
     // 1. Fetch all work orders for branch/tenant
@@ -108,9 +117,19 @@ export class FinanceService {
     });
 
     // 3. Reconstruct payment history
-    const reconstructedPayments: { amount: number; date: Date; branchId: string | null; branchName: string; workOrder: any }[] = [];
+    const reconstructedPayments: {
+      amount: number;
+      date: Date;
+      branchId: string | null;
+      branchName: string;
+      workOrder: any;
+    }[] = [];
     for (const wo of workOrders) {
-      const pms = this.parsePaymentsFromNotes(wo.notes, wo.createdAt, wo.initialPayment || 0);
+      const pms = this.parsePaymentsFromNotes(
+        wo.notes,
+        wo.createdAt,
+        wo.initialPayment || 0,
+      );
       for (const p of pms) {
         reconstructedPayments.push({
           amount: p.amount,
@@ -131,40 +150,59 @@ export class FinanceService {
     );
 
     // 5. Calculate global metrics
-    const totalQuotedAmount = workOrdersInRange.reduce((sum, wo) => sum + (wo.totalQuote || 0), 0);
-    const totalPaidAmount = paymentsInRange.reduce((sum, p) => sum + p.amount, 0);
+    const totalQuotedAmount = workOrdersInRange.reduce(
+      (sum, wo) => sum + (wo.totalQuote || 0),
+      0,
+    );
+    const totalPaidAmount = paymentsInRange.reduce(
+      (sum, p) => sum + p.amount,
+      0,
+    );
 
     // Cumulative outstanding: Outstanding = totalQuote - initialPayment (for active work orders created up to endDate)
-    const activeWorkOrdersUpToDate = workOrders.filter((wo) => wo.createdAt <= endDate);
-    const totalOutstandingAmount = activeWorkOrdersUpToDate.reduce((sum, wo) => {
-      const balance = (wo.totalQuote || 0) - (wo.initialPayment || 0);
-      return sum + (balance > 0 ? balance : 0);
-    }, 0);
+    const activeWorkOrdersUpToDate = workOrders.filter(
+      (wo) => wo.createdAt <= endDate,
+    );
+    const totalOutstandingAmount = activeWorkOrdersUpToDate.reduce(
+      (sum, wo) => {
+        const balance = (wo.totalQuote || 0) - (wo.initialPayment || 0);
+        return sum + (balance > 0 ? balance : 0);
+      },
+      0,
+    );
 
     const paidWorkOrdersCount = workOrdersInRange.filter(
-      (wo) => (wo.totalQuote || 0) > 0 && (wo.initialPayment || 0) >= (wo.totalQuote || 0),
+      (wo) =>
+        (wo.totalQuote || 0) > 0 &&
+        (wo.initialPayment || 0) >= (wo.totalQuote || 0),
     ).length;
 
     const pendingPaymentWorkOrdersCount = workOrdersInRange.filter(
-      (wo) => (wo.totalQuote || 0) > 0 && (wo.initialPayment || 0) < (wo.totalQuote || 0),
+      (wo) =>
+        (wo.totalQuote || 0) > 0 &&
+        (wo.initialPayment || 0) < (wo.totalQuote || 0),
     ).length;
 
-    const collectionPercentage = totalQuotedAmount > 0 ? (totalPaidAmount / totalQuotedAmount) * 100 : 0;
+    const collectionPercentage =
+      totalQuotedAmount > 0 ? (totalPaidAmount / totalQuotedAmount) * 100 : 0;
 
     const monthsList = this.getMonthsInRange(startDate, endDate);
     const numMonths = Math.max(1, monthsList.length);
     const averageMonthlyRevenue = totalQuotedAmount / numMonths;
 
     // 6. Branch performance aggregation
-    const branchStatsMap = new Map<string, {
-      branchId: string | null;
-      branchName: string;
-      quotedAmount: number;
-      paidAmount: number;
-      outstandingAmount: number;
-      paidWorkOrdersCount: number;
-      pendingPaymentWorkOrdersCount: number;
-    }>();
+    const branchStatsMap = new Map<
+      string,
+      {
+        branchId: string | null;
+        branchName: string;
+        quotedAmount: number;
+        paidAmount: number;
+        outstandingAmount: number;
+        paidWorkOrdersCount: number;
+        pendingPaymentWorkOrdersCount: number;
+      }
+    >();
 
     // Initialize map with all active branches
     for (const b of allBranches) {
@@ -210,9 +248,15 @@ export class FinanceService {
         branchStatsMap.set(key, stat);
       }
       stat.quotedAmount += wo.totalQuote || 0;
-      if ((wo.totalQuote || 0) > 0 && (wo.initialPayment || 0) >= (wo.totalQuote || 0)) {
+      if (
+        (wo.totalQuote || 0) > 0 &&
+        (wo.initialPayment || 0) >= (wo.totalQuote || 0)
+      ) {
         stat.paidWorkOrdersCount++;
-      } else if ((wo.totalQuote || 0) > 0 && (wo.initialPayment || 0) < (wo.totalQuote || 0)) {
+      } else if (
+        (wo.totalQuote || 0) > 0 &&
+        (wo.initialPayment || 0) < (wo.totalQuote || 0)
+      ) {
         stat.pendingPaymentWorkOrdersCount++;
       }
     }
@@ -256,10 +300,15 @@ export class FinanceService {
       stat.outstandingAmount += balance > 0 ? balance : 0;
     }
 
-    const branchPerformance = Array.from(branchStatsMap.values()).map((stat) => ({
-      ...stat,
-      collectionPercentage: stat.quotedAmount > 0 ? (stat.paidAmount / stat.quotedAmount) * 100 : 0,
-    }));
+    const branchPerformance = Array.from(branchStatsMap.values()).map(
+      (stat) => ({
+        ...stat,
+        collectionPercentage:
+          stat.quotedAmount > 0
+            ? (stat.paidAmount / stat.quotedAmount) * 100
+            : 0,
+      }),
+    );
 
     // Find top performing branch
     let topBranchName = 'N/A';
@@ -286,12 +335,18 @@ export class FinanceService {
         return pMonth === m;
       });
 
-      const quoted = wosInMonth.reduce((sum, wo) => sum + (wo.totalQuote || 0), 0);
+      const quoted = wosInMonth.reduce(
+        (sum, wo) => sum + (wo.totalQuote || 0),
+        0,
+      );
       const paid = paymentsInMonth.reduce((sum, p) => sum + p.amount, 0);
 
       const [year, month] = m.split('-');
       const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
-      const label = dateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const label = dateObj.toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric',
+      });
 
       return {
         month: m,
@@ -339,7 +394,10 @@ export class FinanceService {
 
     let branchIdList: string[] = [];
     if (branchIdsFilter && branchIdsFilter !== 'ALL') {
-      branchIdList = branchIdsFilter.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
+      branchIdList = branchIdsFilter
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
     }
 
     const whereClause: any = {
@@ -382,8 +440,10 @@ export class FinanceService {
       const quote = wo.totalQuote || 0;
       const paid = wo.initialPayment || 0;
       const outstanding = quote - paid;
-      
-      const dueDate = new Date(wo.createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      const dueDate = new Date(
+        wo.createdAt.getTime() + 7 * 24 * 60 * 60 * 1000,
+      );
 
       return {
         id: wo.id,

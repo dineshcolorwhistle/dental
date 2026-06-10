@@ -38,7 +38,13 @@ export class WorkOrdersController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.workOrdersService.create(tenantId, branchIdContext, userId, userRole, dto);
+    return this.workOrdersService.create(
+      tenantId,
+      branchIdContext,
+      userId,
+      userRole,
+      dto,
+    );
   }
 
   @Get()
@@ -56,15 +62,25 @@ export class WorkOrdersController {
 
     // For branch admin, force branch scoping
     if (userRole === 'ADMIN') {
-      return this.workOrdersService.findAll(tenantId, branchIdContext || undefined, statusFilter);
+      return this.workOrdersService.findAll(
+        tenantId,
+        branchIdContext || undefined,
+        statusFilter,
+      );
     }
 
     // For owner, use query filter if provided
-    return this.workOrdersService.findAll(tenantId, branchIdFilter, statusFilter);
+    return this.workOrdersService.findAll(
+      tenantId,
+      branchIdFilter,
+      statusFilter,
+    );
   }
 
   @Get('next-folio')
-  @ApiOperation({ summary: 'Get the next auto-generated folio number for a branch' })
+  @ApiOperation({
+    summary: 'Get the next auto-generated folio number for a branch',
+  })
   async getNextFolio(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('branchId') branchIdContext: string | null,
@@ -74,7 +90,8 @@ export class WorkOrdersController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    const finalBranchId = userRole === 'ADMIN' ? branchIdContext : branchIdQuery;
+    const finalBranchId =
+      userRole === 'ADMIN' ? branchIdContext : branchIdQuery;
     if (!finalBranchId) {
       throw new BadRequestException('Branch ID is required.');
     }
@@ -97,7 +114,13 @@ export class WorkOrdersController {
   }
 
   @Get('qr/:token')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN, UserRole.DELIVERY)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.OWNER,
+    UserRole.ADMIN,
+    UserRole.TECHNICIAN,
+    UserRole.DELIVERY,
+  )
   @ApiOperation({ summary: 'Get details of a specific work order by QR token' })
   async findOneByQrToken(
     @CurrentUser('tenantId') tenantId: string,
@@ -108,12 +131,28 @@ export class WorkOrdersController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    const branchContext = (userRole === 'ADMIN' || userRole === 'TECHNICIAN' || userRole === 'DELIVERY') ? branchIdContext : null;
-    return this.workOrdersService.findOneByQrToken(tenantId, token, branchContext, userRole);
+    const branchContext =
+      userRole === 'ADMIN' ||
+      userRole === 'TECHNICIAN' ||
+      userRole === 'DELIVERY'
+        ? branchIdContext
+        : null;
+    return this.workOrdersService.findOneByQrToken(
+      tenantId,
+      token,
+      branchContext,
+      userRole,
+    );
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN, UserRole.DELIVERY)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.OWNER,
+    UserRole.ADMIN,
+    UserRole.TECHNICIAN,
+    UserRole.DELIVERY,
+  )
   @ApiOperation({ summary: 'Get details of a specific work order' })
   async findOne(
     @CurrentUser('tenantId') tenantId: string,
@@ -124,8 +163,18 @@ export class WorkOrdersController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    const branchContext = (userRole === 'ADMIN' || userRole === 'TECHNICIAN' || userRole === 'DELIVERY') ? branchIdContext : null;
-    return this.workOrdersService.findOne(tenantId, id, branchContext, userRole);
+    const branchContext =
+      userRole === 'ADMIN' ||
+      userRole === 'TECHNICIAN' ||
+      userRole === 'DELIVERY'
+        ? branchIdContext
+        : null;
+    return this.workOrdersService.findOne(
+      tenantId,
+      id,
+      branchContext,
+      userRole,
+    );
   }
 
   @Patch(':id')
@@ -143,7 +192,13 @@ export class WorkOrdersController {
       throw new BadRequestException('Organization context is required.');
     }
     const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.workOrdersService.update(tenantId, id, dto, branchContext, userId);
+    return this.workOrdersService.update(
+      tenantId,
+      id,
+      dto,
+      branchContext,
+      userId,
+    );
   }
 
   @Delete(':id')
@@ -178,17 +233,31 @@ export class WorkOrdersController {
       throw new BadRequestException('Organization context is required.');
     }
     if (userRole === 'ADMIN') {
-      const wo = await this.workOrdersService.findOne(tenantId, id, branchIdContext);
+      const wo = await this.workOrdersService.findOne(
+        tenantId,
+        id,
+        branchIdContext,
+      );
       if (!wo) {
-        throw new BadRequestException('Work order not found in your branch context.');
+        throw new BadRequestException(
+          'Work order not found in your branch context.',
+        );
       }
     }
-    return this.workOrdersService.startVerification(tenantId, id, processId, userId);
+    return this.workOrdersService.startVerification(
+      tenantId,
+      id,
+      processId,
+      userId,
+    );
   }
 
   @Post(':id/processes/:processId/end-verification')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'End process step verification with SUCCESS, REWORK, or REPETITION' })
+  @ApiOperation({
+    summary:
+      'End process step verification with SUCCESS, REWORK, or REPETITION',
+  })
   async endVerification(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('branchId') branchIdContext: string | null,
@@ -201,15 +270,33 @@ export class WorkOrdersController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    if (!body || !body.status || !['SUCCESS', 'REWORK', 'REPETITION'].includes(body.status)) {
-      throw new BadRequestException('Outcome status must be SUCCESS, REWORK, or REPETITION.');
+    if (
+      !body ||
+      !body.status ||
+      !['SUCCESS', 'REWORK', 'REPETITION'].includes(body.status)
+    ) {
+      throw new BadRequestException(
+        'Outcome status must be SUCCESS, REWORK, or REPETITION.',
+      );
     }
     if (userRole === 'ADMIN') {
-      const wo = await this.workOrdersService.findOne(tenantId, id, branchIdContext);
+      const wo = await this.workOrdersService.findOne(
+        tenantId,
+        id,
+        branchIdContext,
+      );
       if (!wo) {
-        throw new BadRequestException('Work order not found in your branch context.');
+        throw new BadRequestException(
+          'Work order not found in your branch context.',
+        );
       }
     }
-    return this.workOrdersService.endVerification(tenantId, id, processId, body.status, userId);
+    return this.workOrdersService.endVerification(
+      tenantId,
+      id,
+      processId,
+      body.status,
+      userId,
+    );
   }
 }

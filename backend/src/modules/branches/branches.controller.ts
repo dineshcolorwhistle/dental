@@ -25,7 +25,7 @@ export class BranchesController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a new branch in the owner\'s organization' })
+  @ApiOperation({ summary: "Create a new branch in the owner's organization" })
   async create(
     @CurrentUser('tenantId') tenantId: string,
     @Body() dto: CreateBranchDto,
@@ -37,7 +37,7 @@ export class BranchesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all branches in the owner\'s organization' })
+  @ApiOperation({ summary: "List all branches in the owner's organization" })
   async findAll(@CurrentUser('tenantId') tenantId: string) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
@@ -58,7 +58,7 @@ export class BranchesController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a specific branch\'s details' })
+  @ApiOperation({ summary: "Update a specific branch's details" })
   async update(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') id: string,

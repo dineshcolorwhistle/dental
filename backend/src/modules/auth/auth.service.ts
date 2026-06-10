@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -67,7 +63,9 @@ export class AuthService {
           const singleUser = matchingUsers[0];
           if (singleUser.tenant) {
             if (singleUser.tenant.status !== 'ACTIVE') {
-              throw new UnauthorizedException('Tenant is inactive or suspended');
+              throw new UnauthorizedException(
+                'Tenant is inactive or suspended',
+              );
             }
             user = singleUser;
           }

@@ -44,7 +44,11 @@ export class TechnicianPortalController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.portalService.getAssignedWorkOrders(tenantId, userId, statusFilter);
+    return this.portalService.getAssignedWorkOrders(
+      tenantId,
+      userId,
+      statusFilter,
+    );
   }
 
   @Get('work-orders/:id')
@@ -118,7 +122,9 @@ export class TechnicianPortalController {
 
   @Patch('work-orders/:id/notes')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Update notes of an assigned work order by technician' })
+  @ApiOperation({
+    summary: 'Update notes of an assigned work order by technician',
+  })
   async updateWorkOrderNotes(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('id') userId: string,
@@ -131,6 +137,11 @@ export class TechnicianPortalController {
     if (!body || typeof body.notes !== 'string') {
       throw new BadRequestException('Notes are required and must be a string.');
     }
-    return this.portalService.updateWorkOrderNotes(tenantId, userId, id, body.notes);
+    return this.portalService.updateWorkOrderNotes(
+      tenantId,
+      userId,
+      id,
+      body.notes,
+    );
   }
 }

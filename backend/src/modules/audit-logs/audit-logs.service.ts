@@ -20,9 +20,10 @@ export class AuditLogsService {
     details: any;
   }) {
     try {
-      const detailsStr = typeof data.details === 'string' 
-        ? data.details 
-        : JSON.stringify(data.details);
+      const detailsStr =
+        typeof data.details === 'string'
+          ? data.details
+          : JSON.stringify(data.details);
 
       const logEntry = await this.prisma.auditLog.create({
         data: {
@@ -36,10 +37,15 @@ export class AuditLogsService {
         },
       });
 
-      this.logger.log(`Audit log written: [${data.action}] for ${data.entityName} (${data.entityId})`);
+      this.logger.log(
+        `Audit log written: [${data.action}] for ${data.entityName} (${data.entityId})`,
+      );
       return logEntry;
     } catch (error) {
-      this.logger.error(`Failed to write audit log: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to write audit log: ${error.message}`,
+        error.stack,
+      );
     }
   }
 }

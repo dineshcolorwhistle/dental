@@ -29,7 +29,9 @@ export class NotificationsService {
       },
     });
 
-    this.logger.log(`Notification created for user ${data.userId}: ${data.title}`);
+    this.logger.log(
+      `Notification created for user ${data.userId}: ${data.title}`,
+    );
     return notification;
   }
 
@@ -51,7 +53,10 @@ export class NotificationsService {
         },
       });
     } catch (err) {
-      this.logger.error(`Failed to clean up old read notifications for user ${userId}`, err);
+      this.logger.error(
+        `Failed to clean up old read notifications for user ${userId}`,
+        err,
+      );
     }
 
     return this.prisma.notification.findMany({

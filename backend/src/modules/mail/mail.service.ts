@@ -109,7 +109,10 @@ export class MailService {
 
       this.logger.log(`Technician invite email sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send technician invite email to ${email}`, error);
+      this.logger.error(
+        `Failed to send technician invite email to ${email}`,
+        error,
+      );
       // Don't throw — user creation should still succeed even if email fails
     }
   }
@@ -141,4 +144,3 @@ export class MailService {
     }
   }
 }
-

@@ -15,7 +15,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class WorkOrderProcessItemDto {
-  @ApiProperty({ example: 'CAD Design', description: 'Name of the process step' })
+  @ApiProperty({
+    example: 'CAD Design',
+    description: 'Name of the process step',
+  })
   @IsString()
   @IsNotEmpty()
   processName: string;
@@ -29,27 +32,58 @@ export class WorkOrderProcessItemDto {
   @IsOptional()
   technicianId?: string;
 
-  @ApiProperty({ example: 0, description: 'Sequence/order of this process step' })
+  @ApiProperty({
+    example: 0,
+    description: 'Sequence/order of this process step',
+  })
   @IsNumber()
   @Min(0)
   sequence: number;
 
-  @ApiProperty({ example: false, description: 'Whether this is a verification step', required: false })
+  @ApiProperty({
+    example: false,
+    description: 'Whether this is a verification step',
+    required: false,
+  })
   @IsBoolean()
   @IsOptional()
   isVerification?: boolean;
 
   @ApiProperty({
-    enum: ['NOT_STARTED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'FAILED', 'CANCELLED'],
+    enum: [
+      'NOT_STARTED',
+      'IN_PROGRESS',
+      'PAUSED',
+      'COMPLETED',
+      'FAILED',
+      'CANCELLED',
+    ],
     description: 'Status of this process step',
     required: false,
     default: 'NOT_STARTED',
   })
-  @IsEnum(['NOT_STARTED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'FAILED', 'CANCELLED'])
+  @IsEnum([
+    'NOT_STARTED',
+    'IN_PROGRESS',
+    'PAUSED',
+    'COMPLETED',
+    'FAILED',
+    'CANCELLED',
+  ])
   @IsOptional()
-  status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  status?:
+    | 'NOT_STARTED'
+    | 'IN_PROGRESS'
+    | 'PAUSED'
+    | 'COMPLETED'
+    | 'FAILED'
+    | 'CANCELLED';
 
-  @ApiProperty({ example: false, description: 'Whether this process is being flagged for rework', required: false })
+  @ApiProperty({
+    example: false,
+    description: 'Whether this process is being flagged for rework',
+    required: false,
+  })
   @IsBoolean()
   @IsOptional()
   rework?: boolean;
@@ -70,7 +104,11 @@ export class CreateWorkOrderDto {
   @MaxLength(200)
   patient: string;
 
-  @ApiProperty({ example: 'BOX-42', description: 'Box number', required: false })
+  @ApiProperty({
+    example: 'BOX-42',
+    description: 'Box number',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   @MaxLength(100)
@@ -105,7 +143,11 @@ export class CreateWorkOrderDto {
   @Min(0.01)
   totalQuote: number;
 
-  @ApiProperty({ example: 2000, description: 'Initial payment amount', required: false })
+  @ApiProperty({
+    example: 2000,
+    description: 'Initial payment amount',
+    required: false,
+  })
   @IsNumber()
   @IsOptional()
   @Min(0)

@@ -211,7 +211,8 @@ export class AdminsService {
     }
 
     // 3. Validations for Default Admin status
-    const isDefaultAdmin = currentAdmin.branch?.defaultAdminId === currentAdmin.id;
+    const isDefaultAdmin =
+      currentAdmin.branch?.defaultAdminId === currentAdmin.id;
     if (isDefaultAdmin) {
       // If deactivating default admin
       if (status && status !== UserStatus.ACTIVE) {

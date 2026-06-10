@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDoctorDto, UpdateDoctorDto } from './dto';
 
@@ -8,14 +13,21 @@ export class DoctorsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(tenantId: string, branchIdContext: string | null, userRole: string, dto: CreateDoctorDto) {
+  async create(
+    tenantId: string,
+    branchIdContext: string | null,
+    userRole: string,
+    dto: CreateDoctorDto,
+  ) {
     const { name, clinicName, email, phone, address, branchId } = dto;
 
     // If logged in as ADMIN, force their branch context
     let finalBranchId = branchId;
     if (userRole === 'ADMIN') {
       if (!branchIdContext) {
-        throw new BadRequestException('Branch context is required for administrators.');
+        throw new BadRequestException(
+          'Branch context is required for administrators.',
+        );
       }
       finalBranchId = branchIdContext;
     }
@@ -26,7 +38,9 @@ export class DoctorsService {
         where: { id: finalBranchId, tenantId },
       });
       if (!branch) {
-        throw new NotFoundException(`Branch with ID "${finalBranchId}" does not exist in your organization.`);
+        throw new NotFoundException(
+          `Branch with ID "${finalBranchId}" does not exist in your organization.`,
+        );
       }
     }
 
@@ -51,7 +65,9 @@ export class DoctorsService {
       },
     });
 
-    this.logger.log(`Doctor created: ${doctor.name} (${doctor.id}) for tenant ${tenantId}`);
+    this.logger.log(
+      `Doctor created: ${doctor.name} (${doctor.id}) for tenant ${tenantId}`,
+    );
     return doctor;
   }
 
@@ -59,7 +75,8 @@ export class DoctorsService {
     return this.prisma.doctor.findMany({
       where: {
         tenantId,
-        ...(branchIdFilter && branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
+        ...(branchIdFilter &&
+          branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
       },
       include: {
         branch: {
@@ -99,7 +116,12 @@ export class DoctorsService {
     return doctor;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateDoctorDto, branchIdContext?: string | null) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateDoctorDto,
+    branchIdContext?: string | null,
+  ) {
     // Verify existence
     await this.findOne(tenantId, id, branchIdContext);
 
@@ -110,7 +132,9 @@ export class DoctorsService {
         where: { id: branchId, tenantId },
       });
       if (!branch) {
-        throw new NotFoundException(`Branch with ID "${branchId}" does not exist in your organization.`);
+        throw new NotFoundException(
+          `Branch with ID "${branchId}" does not exist in your organization.`,
+        );
       }
     }
 

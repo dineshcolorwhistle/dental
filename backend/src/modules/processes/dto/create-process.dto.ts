@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength, MinLength, IsUUID } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+  IsUUID,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateProcessDto {
@@ -14,7 +21,8 @@ export class CreateProcessDto {
 
   @ApiProperty({
     example: 'Design',
-    description: 'Workflow execution category/area (e.g. Scanning, Design, Milling, QC)',
+    description:
+      'Workflow execution category/area (e.g. Scanning, Design, Milling, QC)',
   })
   @IsString()
   @IsNotEmpty()
@@ -32,7 +40,8 @@ export class CreateProcessDto {
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
-    description: 'Branch ID this process is assigned to (optional, auto-forced for Admin)',
+    description:
+      'Branch ID this process is assigned to (optional, auto-forced for Admin)',
     required: false,
   })
   @IsUUID()
