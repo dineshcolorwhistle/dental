@@ -558,8 +558,8 @@ export function AdminsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Invite Lab Administrator</h2>
-                <p className="modal__subtitle">Invite a manager or administrator and assign them to a branch</p>
+                <h2 className="modal__title">Add Lab Administrator</h2>
+                <p className="modal__subtitle">Create a manager or administrator and assign them to a branch</p>
               </div>
               <button
                 className="modal__close"
@@ -633,7 +633,7 @@ export function AdminsPage() {
                   </span>
                 )}
                 <span className="form-hint">
-                  <Mail size={12} /> An invitation email with password reset link will be sent to this address.
+                  <Mail size={12} /> A welcome email with password reset link will be sent to this address.
                 </span>
               </div>
 
@@ -693,12 +693,12 @@ export function AdminsPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Sending Invite...</span>
+                      <span>Adding Administrator...</span>
                     </>
                   ) : (
                     <>
                       <Plus size={16} />
-                      <span>Send Invitation</span>
+                      <span>Add Administrator</span>
                     </>
                   )}
                 </button>

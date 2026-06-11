@@ -148,16 +148,16 @@ export class BranchesService {
 
     if (defaultAdminId !== undefined) {
       if (defaultAdminId === null) {
-        const activeAdminsCount = await this.prisma.user.count({
+        const activeOrInvitedAdminsCount = await this.prisma.user.count({
           where: {
             branchId: id,
             role: UserRole.ADMIN,
-            status: UserStatus.ACTIVE,
+            status: { in: [UserStatus.ACTIVE, UserStatus.INVITED] },
           },
         });
-        if (activeAdminsCount > 0) {
+        if (activeOrInvitedAdminsCount > 0) {
           throw new BadRequestException(
-            'Cannot remove the Default Admin when there are active administrators in the branch.',
+            'Cannot remove the Default Admin when there are active or invited administrators in the branch.',
           );
         }
       } else {
@@ -183,9 +183,9 @@ export class BranchesService {
           );
         }
 
-        if (user.status !== UserStatus.ACTIVE) {
+        if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.INVITED) {
           throw new BadRequestException(
-            'The designated Default Admin must be active.',
+            'The designated Default Admin must be active or invited.',
           );
         }
       }

@@ -82,7 +82,7 @@ export class AdminsService {
           lastName,
           phone,
           role: UserRole.ADMIN,
-          status: UserStatus.INVITED,
+          status: UserStatus.ACTIVE,
         },
         include: {
           branch: {
@@ -228,18 +228,48 @@ export class AdminsService {
           throw new BadRequestException(
             'Cannot deactivate the default admin. Please designate another active administrator as the default admin first.',
           );
-        } else {
-          throw new BadRequestException(
-            'Cannot deactivate the default admin. Each branch must always have exactly one active Default Admin. Please designate another user first.',
-          );
+        } else if (currentAdmin.branchId) {
+          await this.prisma.branch.update({
+            where: { id: currentAdmin.branchId },
+            data: { defaultAdminId: null },
+          });
         }
       }
 
       // If changing branch of default admin
       if (branchId && branchId !== currentAdmin.branchId) {
-        throw new BadRequestException(
-          'Cannot change the branch of the default admin. Please designate another active administrator as the default admin in the current branch first.',
-        );
+        const otherActiveAdminsCount = await this.prisma.user.count({
+          where: {
+            branchId: currentAdmin.branchId,
+            role: UserRole.ADMIN,
+            status: UserStatus.ACTIVE,
+            id: { not: currentAdmin.id },
+          },
+        });
+        if (otherActiveAdminsCount > 0) {
+          throw new BadRequestException(
+            'Cannot change the branch of the default admin. Please designate another active administrator as the default admin in the current branch first.',
+          );
+        } else if (currentAdmin.branchId) {
+          await this.prisma.branch.update({
+            where: { id: currentAdmin.branchId },
+            data: { defaultAdminId: null },
+          });
+        }
+      }
+    }
+
+    // 3b. Automatic default admin assignment for the new branch if it does not have one
+    if (branchId && branchId !== currentAdmin.branchId) {
+      const newBranch = await this.prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { defaultAdminId: true },
+      });
+      if (newBranch && !newBranch.defaultAdminId) {
+        await this.prisma.branch.update({
+          where: { id: branchId },
+          data: { defaultAdminId: id },
+        });
       }
     }
 
@@ -276,9 +306,18 @@ export class AdminsService {
     const admin = await this.findOne(tenantId, id);
 
     if (admin.branch?.defaultAdminId === admin.id) {
-      throw new BadRequestException(
-        'Cannot delete the default admin. Please designate another active administrator as the default admin first.',
-      );
+      const otherAdminsCount = await this.prisma.user.count({
+        where: {
+          branchId: admin.branchId,
+          role: UserRole.ADMIN,
+          id: { not: admin.id },
+        },
+      });
+      if (otherAdminsCount > 0) {
+        throw new BadRequestException(
+          'Cannot delete the default admin. Please designate another active administrator as the default admin first.',
+        );
+      }
     }
 
     await this.prisma.user.delete({

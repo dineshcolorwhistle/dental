@@ -186,7 +186,17 @@ export function BranchesPage() {
 
     try {
       setSaving(true);
-      await branchService.create(form);
+      const { defaultAdminId, ...createPayload } = form;
+      
+      const sanitized = {
+        ...createPayload,
+        code: createPayload.code ? createPayload.code.trim() : undefined,
+        email: createPayload.email ? createPayload.email.trim() : undefined,
+        phone: createPayload.phone ? createPayload.phone.trim() : undefined,
+        address: createPayload.address ? createPayload.address.trim() : undefined,
+      };
+
+      await branchService.create(sanitized);
       toast.success('Branch created successfully!');
       setShowCreateModal(false);
       await fetchBranches();
