@@ -18,6 +18,8 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { WebsocketsModule } from './modules/websockets/websockets.module';
+import { QueuesModule } from './modules/queues/queues.module';
 
 @Module({
   imports: [
@@ -29,6 +31,10 @@ import { RolesGuard } from './common/guards/roles.guard';
 
     // Global Audit Logging
     AuditLogsModule,
+
+    // Global Websockets & Queues
+    WebsocketsModule,
+    QueuesModule,
 
     // Feature modules
     AuthModule,

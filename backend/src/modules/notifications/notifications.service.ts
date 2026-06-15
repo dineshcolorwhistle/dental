@@ -1,11 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { WebsocketsGateway } from '../websockets/websockets.gateway';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly websocketsGateway: WebsocketsGateway,
+  ) {}
 
   /**
    * Create an in-app notification for a specific user.
@@ -32,6 +36,10 @@ export class NotificationsService {
     this.logger.log(
       `Notification created for user ${data.userId}: ${data.title}`,
     );
+
+    // Broadcast in real-time
+    this.websocketsGateway.sendToUser(data.userId, 'notification_created', notification);
+
     return notification;
   }
 

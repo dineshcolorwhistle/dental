@@ -25,8 +25,8 @@ A modern, SaaS-ready operational workflow platform for dental laboratories — m
 | **Frontend** | React + TypeScript (Vite) | React + TypeScript (Vite) | Role-based dashboards, responsive UI |
 | **Backend** | NestJS (TypeScript) | NestJS (TypeScript) | REST API, modular structure |
 | **Database** | PostgreSQL | PostgreSQL | Prisma ORM |
-| **Real-Time / Sync** | HTTP Polling (15s/30s) | **Socket.IO** (WebSockets) | Dashboards & queues real-time updates |
-| **Cache & Queue** | N/A (Synchronous) | **Redis + BullMQ** | Background job queues and notifications |
+| **Real-Time / Sync** | Socket.IO (WebSockets) | Socket.IO (WebSockets) | Dashboards & queues real-time updates |
+| **Cache & Queue** | Redis + BullMQ | Redis + BullMQ | Background job queues and notifications |
 | **API Docs** | Swagger / OpenAPI | Swagger / OpenAPI | Auto-generated from NestJS decorators |
 | **Deployment** | VPS with Nginx reverse proxy | VPS with Nginx reverse proxy | Reverse proxy routing |
 
@@ -81,7 +81,7 @@ User Action ──► NestJS Event ──► BullMQ Queue ──► Redis Pub/Su
 | Phase | Focus | Status |
 |---|---|---|
 | **Phase 1** | Core Platform & Work Order Flow — Project setup, auth/RBAC, admin modules (doctors, work types, processes), work order engine, technician workflow | ✅ Completed |
-| **Phase 2** | Real-Time & Notifications — Socket.IO integration, Redis + BullMQ queues, live dashboards, notification system, QR workflow | ⏳ Planned for Next Phase (Current: HTTP Polling) |
+| **Phase 2** | Real-Time & Notifications — Socket.IO integration, Redis + BullMQ queues, live dashboards, notification system, QR workflow | ✅ Completed |
 | **Phase 3** | Delivery & Analytics — Delivery module, owner dashboard, reporting, UX polish | 🔄 In Progress (Dashboards/Finance completed) |
 | **Phase 4** | SaaS & Advanced *(Future)* — Doctor portal, billing, mobile app, AI | 🔲 Not Started |
 
@@ -150,6 +150,7 @@ npm run dev                 # Start frontend dev server
 ## 📄 Documentation
 
 - **[Instructions.md](./Instructions.md)** — Complete project specification, module details, workflow rules, database schema, and phase-by-phase development plan.
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** — Step-by-step production/staging deployment guide, covering database setup, Redis installation/configuration, PM2 manager setup, and Nginx WebSocket/API proxy configs.
 
 ---
 

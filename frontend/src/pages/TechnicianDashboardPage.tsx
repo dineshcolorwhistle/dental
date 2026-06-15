@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context';
+import { useAuth, useSocket } from '../context';
 import {
   Activity,
   Play,
@@ -40,12 +40,29 @@ export function TechnicianDashboardPage() {
     }
   }, []);
 
+  const { socket, isConnected } = useSocket();
+
   useEffect(() => {
     fetchDashboardData();
-    // Refresh stats every 15s for dynamic dashboard tracking
-    const timer = setInterval(fetchDashboardData, 15000);
-    return () => clearInterval(timer);
-  }, [fetchDashboardData]);
+
+    if (!socket) return;
+
+    // Listen to real-time events to reload dashboard stats
+    socket.on('work_order_created', fetchDashboardData);
+    socket.on('work_order_updated', fetchDashboardData);
+
+    return () => {
+      socket.off('work_order_created', fetchDashboardData);
+      socket.off('work_order_updated', fetchDashboardData);
+    };
+  }, [socket, fetchDashboardData]);
+
+  // Handle connection restore
+  useEffect(() => {
+    if (isConnected) {
+      fetchDashboardData();
+    }
+  }, [isConnected, fetchDashboardData]);
 
   const handleAction = async (
     e: React.MouseEvent,

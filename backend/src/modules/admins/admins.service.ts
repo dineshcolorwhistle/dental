@@ -8,7 +8,8 @@ import {
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MailService } from '../mail/mail.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { CreateAdminDto, UpdateAdminDto } from './dto';
 import { UserRole, UserStatus } from '@prisma/client';
 
@@ -18,7 +19,7 @@ export class AdminsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailService: MailService,
+    @InjectQueue('email-queue') private readonly emailQueue: Queue,
   ) {}
 
   /**
@@ -119,14 +120,14 @@ export class AdminsService {
     });
 
     // 5. Send invitation email (non-blocking)
-    await this.mailService.sendAdminInvite(
+    await this.emailQueue.add('send-admin-invite', {
       email,
-      `${firstName} ${lastName}`,
-      tenant.name,
-      branch.name,
-      result.resetToken,
-      tenant.subdomain,
-    );
+      adminName: `${firstName} ${lastName}`,
+      tenantName: tenant.name,
+      branchName: branch.name,
+      resetToken: result.resetToken,
+      subdomain: tenant.subdomain,
+    });
 
     this.logger.log(
       `Admin created: ${email} for branch ${branch.name} inside tenant ${tenantId}`,

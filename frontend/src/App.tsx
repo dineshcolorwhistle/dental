@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context';
+import { AuthProvider, SocketProvider } from './context';
 import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './components';
 import { AuthLayout, DashboardLayout } from './layouts';
@@ -27,7 +27,8 @@ function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <Toaster
+          <SocketProvider>
+            <Toaster
             position="top-right"
             toastOptions={{
               duration: 4000,
@@ -100,7 +101,8 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </AuthProvider>
+          </SocketProvider>
+        </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

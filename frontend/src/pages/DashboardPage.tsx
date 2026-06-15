@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context';
+import { useAuth, useSocket } from '../context';
 import { TechnicianDashboardPage } from './TechnicianDashboardPage';
 import { OwnerDashboardPage } from './OwnerDashboardPage';
 import {
@@ -53,12 +53,29 @@ export function DashboardPage() {
     }
   }, []);
 
+  const { socket, isConnected } = useSocket();
+
   useEffect(() => {
     fetchDashboardData();
-    // Auto refresh dashboard metrics every 15 seconds
-    const timer = setInterval(fetchDashboardData, 15000);
-    return () => clearInterval(timer);
-  }, [fetchDashboardData]);
+
+    if (!socket) return;
+
+    // Listen to real-time events to reload dashboard stats
+    socket.on('work_order_created', fetchDashboardData);
+    socket.on('work_order_updated', fetchDashboardData);
+
+    return () => {
+      socket.off('work_order_created', fetchDashboardData);
+      socket.off('work_order_updated', fetchDashboardData);
+    };
+  }, [socket, fetchDashboardData]);
+
+  // Handle connection restore
+  useEffect(() => {
+    if (isConnected) {
+      fetchDashboardData();
+    }
+  }, [isConnected, fetchDashboardData]);
 
   const handleStartVerification = async (workOrderId: string, processId: string) => {
     const loadingToast = toast.loading('Starting verification process...');

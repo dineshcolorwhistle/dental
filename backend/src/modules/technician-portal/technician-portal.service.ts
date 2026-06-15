@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import {
   ProcessStatus,
@@ -22,6 +23,7 @@ export class TechnicianPortalService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly websocketsGateway: WebsocketsGateway,
   ) {}
 
   /**
@@ -695,10 +697,19 @@ export class TechnicianPortalService {
     // Helper calculate status logic
     const status = this.calculateWorkOrderStatus(workOrder.processes);
 
-    await this.prisma.workOrder.update({
+    const updated = await this.prisma.workOrder.update({
       where: { id: workOrderId },
       data: { status },
     });
+
+    if (updated.branchId) {
+      this.websocketsGateway.sendToBranch(updated.tenantId, updated.branchId, 'work_order_updated', {
+        id: updated.id,
+        folioNumber: updated.folioNumber,
+        patient: updated.patient,
+        status: updated.status,
+      });
+    }
   }
 
   private calculateWorkOrderStatus(

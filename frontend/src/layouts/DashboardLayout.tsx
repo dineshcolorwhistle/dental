@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context';
+import { useAuth, useSocket } from '../context';
 import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard,
@@ -62,12 +62,36 @@ export function DashboardLayout() {
     }
   }, [user]);
 
+  const { socket, isConnected } = useSocket();
+
   useEffect(() => {
     fetchNotifications();
-    // Poll every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+
+    if (!socket) return;
+
+    // Listen for notification updates in real time
+    const handleNotificationCreated = (newNotif: NotificationItem) => {
+      setNotifications((prev) => {
+        // Prevent duplicate append if re-broadcasted
+        if (prev.some((n) => n.id === newNotif.id)) return prev;
+        return [newNotif, ...prev].slice(0, 50);
+      });
+      setUnreadCount((prev) => prev + 1);
+    };
+
+    socket.on('notification_created', handleNotificationCreated);
+
+    return () => {
+      socket.off('notification_created', handleNotificationCreated);
+    };
+  }, [socket, fetchNotifications]);
+
+  // Refetch when socket connection is established or restored
+  useEffect(() => {
+    if (isConnected) {
+      fetchNotifications();
+    }
+  }, [isConnected, fetchNotifications]);
 
   const handleMarkAllRead = async () => {
     try {

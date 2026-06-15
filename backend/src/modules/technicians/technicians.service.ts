@@ -8,7 +8,8 @@ import {
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MailService } from '../mail/mail.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { CreateTechnicianDto, UpdateTechnicianDto } from './dto';
 import { UserRole, UserStatus } from '@prisma/client';
 
@@ -18,7 +19,7 @@ export class TechniciansService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailService: MailService,
+    @InjectQueue('email-queue') private readonly emailQueue: Queue,
   ) {}
 
   /**
@@ -121,14 +122,14 @@ export class TechniciansService {
     });
 
     // 5. Send invitation email (non-blocking)
-    await this.mailService.sendTechnicianInvite(
+    await this.emailQueue.add('send-technician-invite', {
       email,
-      `${firstName} ${lastName}`,
-      tenant.name,
-      branch.name,
-      result.resetToken,
-      tenant.subdomain,
-    );
+      technicianName: `${firstName} ${lastName}`,
+      tenantName: tenant.name,
+      branchName: branch.name,
+      resetToken: result.resetToken,
+      subdomain: tenant.subdomain,
+    });
 
     this.logger.log(
       `Technician created: ${email} for branch ${branch.name} inside tenant ${tenantId}`,

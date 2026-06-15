@@ -15,7 +15,7 @@ sudo apt update && sudo apt upgrade -y
 Install common required tools:
 
 ```bash
-sudo apt install -y curl git build-essential nginx certbot python3-certbot-nginx
+sudo apt install -y curl git build-essential nginx certbot python3-certbot-nginx redis-server
 ```
 
 ### Install Node.js (v22.x LTS recommended)
@@ -86,7 +86,49 @@ By default, PostgreSQL only listens on `localhost` (127.0.0.1). Since the backen
 
 ---
 
-## 3. Application Setup & Environment Configuration
+## 3. Redis Installation & Configuration
+
+### Step 3.1: Verify Redis Installation
+
+Ensure the Redis service is active and running:
+
+```bash
+sudo systemctl status redis-server
+```
+
+If it is not running, start it:
+
+```bash
+sudo systemctl start redis-server
+sudo systemctl enable redis-server
+```
+
+### Step 3.2: Secure Redis for Production
+
+By default, Redis binds to `localhost` (`127.0.0.1` and `::1`), which is secure and correct since both NestJS and Redis run on the same server. Do not expose Redis port `6379` to the public internet.
+
+To configure a secure password:
+
+1. Open the configuration file:
+   ```bash
+   sudo nano /etc/redis/redis.conf
+   ```
+2. Find the directive `# requirepass foobared`, uncomment it, and set a strong password:
+   ```conf
+   requirepass YourSecureRedisPasswordHere
+   ```
+3. Set the supervisor to systemd:
+   ```conf
+   supervised systemd
+   ```
+4. Save and close the file, then restart Redis to apply changes:
+   ```bash
+   sudo systemctl restart redis-server
+   ```
+
+---
+
+## 4. Application Setup & Environment Configuration
 
 Assuming you have cloned the GitHub repository to `/home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental`:
 
@@ -96,7 +138,7 @@ sudo chown -R $USER:$USER /home/agentwhistle-dental/htdocs/dental.agentwhistle.c
 cd /home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental
 ```
 
-### Step 3.1: Configure Backend Environment
+### Step 4.1: Configure Backend Environment
 
 Navigate to the `backend` folder and configure the `.env` file:
 
@@ -132,7 +174,6 @@ SUPER_ADMIN_LAST_NAME="Admin"
 
 # Set this to true to ONLY seed the Super Admin (skips local mock data)
 SEED_ONLY_SUPER_ADMIN=true
-
 # SMTP (Configure for password resets and notifications)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -140,9 +181,14 @@ SMTP_SECURE=false
 SMTP_USER="your-email@gmail.com"
 SMTP_PASSWORD="your-app-password"
 SMTP_FROM="Dental Lab <your-email@gmail.com>"
+
+# Redis (Used by BullMQ for background job processing)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD="YourSecureRedisPasswordHere"
 ```
 
-### Step 3.2: Configure Frontend Environment
+### Step 4.2: Configure Frontend Environment
 
 Navigate to the `frontend` folder and configure the `.env` file:
 
@@ -161,7 +207,7 @@ VITE_IDLE_TIMEOUT=3600000
 
 ---
 
-## 4. Run Database Migrations & Seeding
+## 5. Run Database Migrations & Seeding
 
 Install dependencies and run Prisma commands on the backend:
 
@@ -178,7 +224,7 @@ npm run seed
 
 ---
 
-## 5. Process Management with PM2 (Backend)
+## 6. Process Management with PM2 (Backend)
 
 Install **PM2** globally to manage the backend Node.js process:
 
@@ -219,9 +265,9 @@ pm2 status
 
 ---
 
-## 6. Frontend Compilation & Web Server Configuration (Nginx)
+## 7. Frontend Compilation & Web Server Configuration (Nginx)
 
-### Step 6.1: Build Frontend Assets
+### Step 7.1: Build Frontend Assets
 
 Navigate to the `frontend` directory, install dependencies, and build the static assets:
 
@@ -233,7 +279,7 @@ npm run build
 
 The compiled static files are generated under `/home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental/frontend/dist`.
 
-### Step 6.2: Configure Nginx
+### Step 7.2: Configure Nginx
 
 Create a new Nginx server configuration block:
 
@@ -241,7 +287,7 @@ Create a new Nginx server configuration block:
 sudo nano /etc/nginx/sites-available/dental-lab
 ```
 
-Paste the configuration block below (replace `staging.yourdomain.com` with your domain name or staging IP address):
+Paste the configuration block below (replace `staging.yourdomain.com` with your domain name or staging IP address). Make sure to include the `location /socket.io` proxy block so real-time features work properly:
 
 ```nginx
 server {
@@ -268,6 +314,19 @@ server {
         # rewrite ^/api/(.*)$ /$1 break;
     }
 
+    # Socket.IO WebSocket Proxy (Critical for real-time dashboard events and notifications)
+    location /socket.io {
+        proxy_pass http://localhost:7500;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # Backend Swagger Docs (Optional)
     location /api-docs {
         proxy_pass http://localhost:7500/api-docs;
@@ -292,7 +351,7 @@ sudo systemctl restart nginx
 
 ---
 
-## 7. SSL Certificate Setup with Let's Encrypt
+## 8. SSL Certificate Setup with Let's Encrypt
 
 Secure the connection with HTTPS using `certbot`:
 
@@ -310,18 +369,20 @@ sudo certbot renew --dry-run
 
 ---
 
-## 8. Troubleshooting Checklist
+## 9. Troubleshooting Checklist
 
 1. **Database connection issues**: Ensure PostgreSQL is running (`sudo systemctl status postgresql`) and test access manually:
    ```bash
    psql -h localhost -U dental_user -d dental_lab
    ```
-2. **Backend logs**: Use PM2 logs to inspect errors in runtime:
+2. **Backend logs**: Use PM2 logs to inspect errors in runtime (e.g., BullMQ failing to connect to Redis):
    ```bash
    pm2 logs dental-backend
    ```
-3. **Nginx configuration errors**: Inspect Nginx access and error logs:
+3. **Redis connection issues**: Verify Redis service is running (`sudo systemctl status redis-server`). Check that the connection variables in `backend/.env` (especially `REDIS_PASSWORD`) match the password configured in `/etc/redis/redis.conf`.
+4. **Nginx configuration errors**: Inspect Nginx access and error logs:
    ```bash
    sudo tail -f /var/log/nginx/error.log
    ```
-4. **CORS issues**: Ensure the backend `.env` variables `CORS_ORIGIN` and `FRONTEND_URL` exactly match the frontend staging domain (including `https://` protocol).
+5. **CORS issues**: Ensure the backend `.env` variables `CORS_ORIGIN` and `FRONTEND_URL` exactly match the frontend staging domain (including `https://` protocol).
+6. **Socket.IO connection issues (fallback or handshake failure)**: Ensure that Nginx configuration includes the `location /socket.io` proxy block with `Connection "Upgrade"` headers. Without it, WebSocket connections will fail.

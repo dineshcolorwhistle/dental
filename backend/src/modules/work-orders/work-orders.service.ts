@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { CreateWorkOrderDto, UpdateWorkOrderDto } from './dto';
 import {
@@ -23,6 +24,7 @@ export class WorkOrdersService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly websocketsGateway: WebsocketsGateway,
   ) {}
 
   /**
@@ -361,6 +363,14 @@ export class WorkOrdersService {
     this.logger.log(
       `Work order created: ${folioNumber} (${workOrder.id}) for tenant ${tenantId}`,
     );
+
+    this.websocketsGateway.sendToBranch(tenantId, finalBranchId, 'work_order_created', {
+      id: workOrder.id,
+      folioNumber,
+      patient,
+      status: workOrder.status,
+    });
+
     return workOrder;
   }
 
@@ -884,6 +894,16 @@ export class WorkOrdersService {
     this.logger.log(
       `Work order updated: ${updated.folioNumber} (${updated.id})`,
     );
+
+    if (updated.branchId) {
+      this.websocketsGateway.sendToBranch(tenantId, updated.branchId, 'work_order_updated', {
+        id: updated.id,
+        folioNumber: updated.folioNumber,
+        patient: updated.patient,
+        status: updated.status,
+      });
+    }
+
     return this.findOne(tenantId, id, branchIdContext);
   }
 
@@ -915,10 +935,19 @@ export class WorkOrdersService {
 
     const status = this.calculateWorkOrderStatus(workOrder.processes);
 
-    await this.prisma.workOrder.update({
+    const updated = await this.prisma.workOrder.update({
       where: { id: workOrderId },
       data: { status },
     });
+
+    if (updated.branchId) {
+      this.websocketsGateway.sendToBranch(updated.tenantId, updated.branchId, 'work_order_updated', {
+        id: updated.id,
+        folioNumber: updated.folioNumber,
+        patient: updated.patient,
+        status: updated.status,
+      });
+    }
   }
 
   /**

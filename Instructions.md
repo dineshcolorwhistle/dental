@@ -24,8 +24,8 @@ The **Dental Lab Management System** is a modern, SaaS-ready operational workflo
 | **Frontend** | React + TypeScript (Vite) | Active | SPA with role-based dashboards, responsive design |
 | **Backend** | NestJS (TypeScript) | Active | Modular, REST-first, event-driven architecture |
 | **Database** | PostgreSQL | Active | Multi-tenant relational schema, Prisma ORM |
-| **Cache & Queue** | Redis + BullMQ | **Planned (Phase 2)** | Background jobs and notifications (Current: Local Sync) |
-| **Real-Time / Sync** | Socket.IO (WebSockets) | **Planned (Phase 2)** | Live dashboard sync, technician queue (Current: HTTP Polling) |
+| **Cache & Queue** | Redis + BullMQ | Active | Background jobs and notifications |
+| **Real-Time / Sync** | Socket.IO (WebSockets) | Active | Live dashboard sync, technician queue |
 | **API Docs** | Swagger / OpenAPI | Active | Auto-generated from NestJS decorators |
 | **Deployment** | VPS (Nginx reverse proxy) | Active | Initial target; containerization as future enhancement |
 
@@ -324,7 +324,7 @@ Delivery personnel receive assigned deliveries, update pickup/transit status, an
 | 1.18 | Admin Dashboard | Lab Admin operational overview: active WOs, today's queue, work order status summary, branch summary. |
 | 1.19 | Super Admin Dashboard | Tenant list, basic system monitoring, tenant creation flow. |
 
-### Phase 2 — Real-Time, Notifications & QR (Planned for Next Phase)
+### Phase 2 — Real-Time, Notifications & QR (Completed)
 > **Goal:** Upgrade system with real-time WebSocket capabilities, background job processing queues, and real-time notifications (currently running on HTTP polling fallback).
 
 | # | Task | Details |
@@ -397,6 +397,21 @@ When a Super Admin creates a new tenant:
                    │ PostgreSQL │        │   Redis   │
                    └────────────┘        └───────────┘
 ```
+
+### 11.1 Redis Live Server Configuration
+
+Redis functions as the caching and queueing backbone for BullMQ (`email-queue`).
+- **Installation:** Must be installed as a system service on the production host (e.g., `redis-server` package).
+- **Security:** Must bind to localhost (`127.0.0.1`) and use a strong password set via `requirepass` in `/etc/redis/redis.conf`.
+- **Backend Connection:** Connected via `.env` credentials (`REDIS_HOST`, `REDIS_PORT`, and `REDIS_PASSWORD`).
+
+### 11.2 Socket.IO (WebSockets) Reverse Proxy Setup
+
+Socket.IO manages real-time updates for dashboards and notifications.
+- **Nginx Config:** Nginx must be configured to upgrade connections from HTTP to WebSocket protocol.
+- **Proxy Location Block:** A `location /socket.io` block must be defined in the Nginx host file, proxying to the backend application (port `7500`) with appropriate headers (`Upgrade`, `Connection`).
+
+> For step-by-step instructions, commands, and Nginx blocks, refer to [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ---
 

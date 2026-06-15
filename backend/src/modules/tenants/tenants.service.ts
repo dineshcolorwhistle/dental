@@ -8,7 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MailService } from '../mail/mail.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
 import { TenantStatus, UserRole, UserStatus } from '@prisma/client';
 
@@ -18,7 +19,7 @@ export class TenantsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailService: MailService,
+    @InjectQueue('email-queue') private readonly emailQueue: Queue,
     private readonly configService: ConfigService,
   ) {}
 
@@ -115,13 +116,13 @@ export class TenantsService {
     });
 
     // 5. Send invite email (outside transaction — non-blocking)
-    await this.mailService.sendOwnerInvite(
-      ownerEmail,
-      `${firstName} ${lastName}`,
+    await this.emailQueue.add('send-owner-invite', {
+      email: ownerEmail,
+      ownerName: `${firstName} ${lastName}`,
       tenantName,
-      result.resetToken,
+      resetToken: result.resetToken,
       subdomain,
-    );
+    });
 
     this.logger.log(
       `Tenant created: ${tenantName} (${subdomain}) with owner ${ownerEmail}`,
