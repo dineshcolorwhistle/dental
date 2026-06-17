@@ -16,6 +16,9 @@ import {
   X,
   Eye,
   History,
+  Wrench,
+  RotateCcw,
+  UserCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
@@ -41,6 +44,10 @@ export function DashboardPage() {
   const [outcomeSaving, setOutcomeSaving] = useState(false);
   const [selectedWOId, setSelectedWOId] = useState<string | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [hoveredTechId, setHoveredTechId] = useState<string | null>(null);
+  const [hoveredType, setHoveredType] = useState<'rework' | 'repetition' | null>(null);
+  const [activeModalTech, setActiveModalTech] = useState<any | null>(null);
+  const [activeModalType, setActiveModalType] = useState<'rework' | 'repetition' | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -137,6 +144,8 @@ export function DashboardPage() {
   const pendingProcs = stats?.pendingProcesses || [];
   const inProgressWOs = stats?.inProgressWOs || [];
   const verificationWOs = stats?.verificationWOs || [];
+  const repetitionLogs = stats?.repetitionLogs || [];
+  const technicianActivityOverview = stats?.technicianActivityOverview || [];
 
   return (
     <div className="dashboard-page animate-fade-in" style={{ paddingBottom: '3rem' }}>
@@ -628,6 +637,285 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* Technician Activity and Repetition Lists */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem', marginBottom: '2.5rem', marginTop: '2rem' }}>
+        
+        {/* Technician Activity & Performance Overview */}
+        <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
+            <Wrench size={18} style={{ color: 'var(--accent-primary, #3B82F6)' }} />
+            Technician Activity & Involvement
+          </h3>
+
+          {technicianActivityOverview.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
+              <UserCheck size={32} style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No Active Technicians</h4>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto', flex: 1 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '8px 12px', fontWeight: 600 }}>Technician</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>Completed</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>Reworks</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>Repetitions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {technicianActivityOverview.map((tech: any) => (
+                    <tr key={tech.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 12px', fontWeight: 600, color: 'var(--text-primary)' }}>{tech.name}</td>
+                      <td style={{ padding: '12px 12px', textAlign: 'center', fontWeight: 700 }}>{tech.completedToday}</td>
+                      <td style={{ padding: '12px 12px', textAlign: 'center', position: 'relative' }}>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveModalTech(tech);
+                              setActiveModalType('rework');
+                            }}
+                            onMouseEnter={() => {
+                              setHoveredTechId(tech.id);
+                              setHoveredType('rework');
+                            }}
+                            onMouseLeave={() => {
+                              setHoveredTechId(null);
+                              setHoveredType(null);
+                            }}
+                            style={{
+                              padding: '2px 10px',
+                              borderRadius: '100px',
+                              backgroundColor: tech.reworkCount > 0 ? '#FEF2F2' : 'var(--bg-overlay)',
+                              color: tech.reworkCount > 0 ? '#EF4444' : 'var(--text-muted)',
+                              border: tech.reworkCount > 0 ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid transparent',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              outline: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '28px'
+                            }}
+                          >
+                            {tech.reworkCount}
+                          </button>
+                          {hoveredTechId === tech.id && hoveredType === 'rework' && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '100%',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              marginTop: '8px',
+                              zIndex: 100,
+                              width: '280px',
+                              backgroundColor: 'var(--bg-surface)',
+                              border: '1px solid var(--border)',
+                              borderRadius: '8px',
+                              boxShadow: 'var(--shadow-lg)',
+                              padding: '0.75rem',
+                              fontSize: '0.75rem',
+                              textAlign: 'left',
+                              pointerEvents: 'none'
+                            }}>
+                              <h4 style={{ fontWeight: 700, marginBottom: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '4px', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <AlertCircle size={12} style={{ color: '#EF4444' }} />
+                                Rework Processes ({tech.reworkCount})
+                              </h4>
+                              {tech.reworkDetails.length === 0 ? (
+                                <div style={{ color: 'var(--text-muted)' }}>No reworks</div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                                  {tech.reworkDetails.map((detail: any, idx: number) => (
+                                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', borderBottom: idx < tech.reworkDetails.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: idx < tech.reworkDetails.length - 1 ? '4px' : 0 }}>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{detail.processName} ({detail.folioNumber})</span>
+                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>Rework #{detail.reworkCount} • {detail.status}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 12px', textAlign: 'center', position: 'relative' }}>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveModalTech(tech);
+                              setActiveModalType('repetition');
+                            }}
+                            onMouseEnter={() => {
+                              setHoveredTechId(tech.id);
+                              setHoveredType('repetition');
+                            }}
+                            onMouseLeave={() => {
+                              setHoveredTechId(null);
+                              setHoveredType(null);
+                            }}
+                            style={{
+                              padding: '2px 10px',
+                              borderRadius: '100px',
+                              backgroundColor: tech.repetitionCount > 0 ? '#FDF4FF' : 'var(--bg-overlay)',
+                              color: tech.repetitionCount > 0 ? '#D946EF' : 'var(--text-muted)',
+                              border: tech.repetitionCount > 0 ? '1px solid rgba(217, 70, 239, 0.2)' : '1px solid transparent',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              outline: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '28px'
+                            }}
+                          >
+                            {tech.repetitionCount}
+                          </button>
+                          {hoveredTechId === tech.id && hoveredType === 'repetition' && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '100%',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              marginTop: '8px',
+                              zIndex: 100,
+                              width: '280px',
+                              backgroundColor: 'var(--bg-surface)',
+                              border: '1px solid var(--border)',
+                              borderRadius: '8px',
+                              boxShadow: 'var(--shadow-lg)',
+                              padding: '0.75rem',
+                              fontSize: '0.75rem',
+                              textAlign: 'left',
+                              pointerEvents: 'none'
+                            }}>
+                              <h4 style={{ fontWeight: 700, marginBottom: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '4px', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <RotateCcw size={12} style={{ color: '#D946EF' }} />
+                                Repetition Work Orders ({tech.repetitionCount})
+                              </h4>
+                              {tech.repetitionDetails.length === 0 ? (
+                                <div style={{ color: 'var(--text-muted)' }}>No repetitions</div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                                  {tech.repetitionDetails.map((detail: any, idx: number) => (
+                                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', borderBottom: idx < tech.repetitionDetails.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: idx < tech.repetitionDetails.length - 1 ? '4px' : 0 }}>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{detail.folioNumber} ({detail.patient})</span>
+                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>Total repetitions: {detail.repetitionCount}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Repetition Work Orders List */}
+        <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
+            <History size={18} style={{ color: '#8B5CF6' }} />
+            Repetition Work Orders (WO)
+            <span style={{ fontSize: '0.75rem', backgroundColor: '#8B5CF6', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>{repetitionLogs.length}</span>
+          </h3>
+
+          {repetitionLogs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
+              <History size={32} style={{ color: '#8B5CF6', opacity: 0.6 }} />
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No Repetitions Triggered</h4>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Orders flagged for repetition will be displayed here.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+              {repetitionLogs.map((log: any) => (
+                <div key={log.id} style={{
+                  padding: '1rem',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--bg-surface, #FFFFFF)',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow-sm)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px' }}>
+                        {log.workOrder.folioNumber}
+                      </span>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{log.workOrder.patient}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        padding: '2px 8px',
+                        borderRadius: '100px',
+                        backgroundColor: 'rgba(217, 70, 239, 0.1)',
+                        color: '#D946EF'
+                      }}>
+                        Repetition #{log.repetitionCount}
+                      </span>
+                      <button
+                        className="btn-action"
+                        style={{
+                          color: 'var(--accent-primary, #3B82F6)',
+                          backgroundColor: '#EFF6FF',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => {
+                          setSelectedWOId(log.workOrder.id);
+                          setShowViewModal(true);
+                        }}
+                        title="View Work Order"
+                      >
+                        <Eye size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <div>
+                      Triggered By: <strong style={{ color: 'var(--text-primary)' }}>{log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : 'System'}</strong>
+                    </div>
+                    <div>
+                      Triggered At: <strong style={{ color: 'var(--text-primary)' }}>{new Date(log.initiatedAt).toLocaleString()}</strong>
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-card, #F9FAFB)',
+                    border: '1px solid var(--border)',
+                    fontSize: '0.78rem'
+                  }}>
+                    Stage: <strong>{log.verificationStage}</strong> • Reset Steps: <strong>{log.completedSteps}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Status Summary Visual Indicator Panel */}
       <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', marginTop: '2rem' }}>
@@ -800,6 +1088,184 @@ export function DashboardPage() {
         workOrderId={selectedWOId}
         onUpdate={fetchDashboardData}
       />
+
+      {/* Rework Involvement Modal */}
+      {activeModalTech && activeModalType === 'rework' && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setActiveModalTech(null)}>
+          <div className="modal" style={{ maxWidth: '600px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertCircle size={20} style={{ color: '#EF4444' }} />
+                  <span>Rework Involvement: {activeModalTech.name}</span>
+                </h2>
+                <p className="modal__subtitle">Processes reworked by technician</p>
+              </div>
+              <button className="modal__close" onClick={() => setActiveModalTech(null)} aria-label="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+              {activeModalTech.reworkDetails.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  No rework processes recorded.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {activeModalTech.reworkDetails.map((rework: any) => (
+                    <div key={rework.id} style={{
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--bg-overlay)',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span 
+                            style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => {
+                              setSelectedWOId(rework.workOrderId);
+                              setShowViewModal(true);
+                              setActiveModalTech(null);
+                            }}
+                            title="Click to view Work Order"
+                          >
+                            {rework.folioNumber}
+                          </span>
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{rework.patient}</span>
+                        </div>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          Process: <strong>{rework.processName}</strong> • Rework Count: <strong>{rework.reworkCount}</strong>
+                        </span>
+                        <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                          Flagged in: <strong>{rework.verificationStage}</strong> • {new Date(rework.initiatedAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '100px',
+                          backgroundColor: rework.status === 'Approved' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: rework.status === 'Approved' ? '#10B981' : '#F59E0B'
+                        }}>
+                          {rework.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn--ghost btn--sm" onClick={() => setActiveModalTech(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Repetition Involvement Modal */}
+      {activeModalTech && activeModalType === 'repetition' && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setActiveModalTech(null)}>
+          <div className="modal" style={{ maxWidth: '600px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <RotateCcw size={20} style={{ color: '#D946EF' }} />
+                  <span>Repetition Involvement: {activeModalTech.name}</span>
+                </h2>
+                <p className="modal__subtitle">Repetition Work Orders in which the technician was involved</p>
+              </div>
+              <button className="modal__close" onClick={() => setActiveModalTech(null)} aria-label="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+              {activeModalTech.repetitionDetails.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  No repetition involvement recorded.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {activeModalTech.repetitionDetails.map((wo: any) => (
+                    <div key={wo.id} style={{
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--bg-overlay)',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span 
+                            style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => {
+                              setSelectedWOId(wo.id);
+                              setShowViewModal(true);
+                              setActiveModalTech(null);
+                            }}
+                            title="Click to view Work Order"
+                          >
+                            {wo.folioNumber}
+                          </span>
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{wo.patient}</span>
+                        </div>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(217, 70, 239, 0.1)',
+                          color: '#D946EF',
+                          padding: '2px 8px',
+                          borderRadius: '100px'
+                        }}>
+                          {wo.repetitionCount} Repetitions
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', borderTop: '1px dashed var(--border)', paddingTop: '6px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Triggered Repetition Events:</span>
+                        {wo.repetitionLogs.map((log: any) => (
+                          <div key={log.id} style={{
+                            fontSize: '0.725rem',
+                            color: 'var(--text-muted)',
+                            backgroundColor: 'var(--bg-surface)',
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '4px'
+                          }}>
+                            <span>Stage: <strong>{log.verificationStage}</strong> (by {log.initiatedBy})</span>
+                            <span>{new Date(log.initiatedAt).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn--ghost btn--sm" onClick={() => setActiveModalTech(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

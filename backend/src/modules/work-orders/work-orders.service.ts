@@ -1137,7 +1137,45 @@ export class WorkOrdersService {
             workOrder: { tenantId },
           },
           include: {
-            workOrder: { select: { folioNumber: true } },
+            workOrder: {
+              select: {
+                id: true,
+                folioNumber: true,
+                patient: true,
+                repetitionCount: true,
+                repetitionLogs: {
+                  select: {
+                    id: true,
+                    repetitionCount: true,
+                    initiatedAt: true,
+                    verificationStage: true,
+                    initiatedBy: {
+                      select: {
+                        firstName: true,
+                        lastName: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        technicianReworks: {
+          select: {
+            id: true,
+            processName: true,
+            reworkCount: true,
+            status: true,
+            initiatedAt: true,
+            verificationStage: true,
+            workOrder: {
+              select: {
+                id: true,
+                folioNumber: true,
+                patient: true,
+              },
+            },
           },
         },
       },
@@ -1156,6 +1194,47 @@ export class WorkOrdersService {
           p.endedAt >= startOfToday,
       ).length;
 
+      // Calculate Rework metrics
+      const reworkCount = tech.technicianReworks.length;
+      const reworkDetails = tech.technicianReworks.map((r) => ({
+        id: r.id,
+        workOrderId: r.workOrder.id,
+        folioNumber: r.workOrder.folioNumber,
+        patient: r.workOrder.patient,
+        processName: r.processName,
+        reworkCount: r.reworkCount,
+        status: r.status,
+        initiatedAt: r.initiatedAt,
+        verificationStage: r.verificationStage,
+      }));
+
+      // Calculate Repetition metrics
+      const uniqueRepetitionWOsMap = new Map<string, any>();
+      tech.assignedWoProcesses.forEach((p) => {
+        const wo = p.workOrder;
+        if (wo.repetitionCount > 0) {
+          if (!uniqueRepetitionWOsMap.has(wo.id)) {
+            uniqueRepetitionWOsMap.set(wo.id, {
+              id: wo.id,
+              folioNumber: wo.folioNumber,
+              patient: wo.patient,
+              repetitionCount: wo.repetitionCount,
+              repetitionLogs: wo.repetitionLogs.map((log) => ({
+                id: log.id,
+                repetitionCount: log.repetitionCount,
+                initiatedAt: log.initiatedAt,
+                verificationStage: log.verificationStage,
+                initiatedBy: log.initiatedBy
+                  ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}`
+                  : 'System',
+              })),
+            });
+          }
+        }
+      });
+      const repetitionDetails = Array.from(uniqueRepetitionWOsMap.values());
+      const repetitionCount = repetitionDetails.length;
+
       return {
         id: tech.id,
         name: `${tech.firstName} ${tech.lastName}`,
@@ -1163,6 +1242,10 @@ export class WorkOrdersService {
           ? `${activeStep.processName} (${activeStep.workOrder.folioNumber})`
           : 'Idle',
         completedToday,
+        reworkCount,
+        reworkDetails,
+        repetitionCount,
+        repetitionDetails,
       };
     });
 
@@ -1218,6 +1301,33 @@ export class WorkOrdersService {
       orderBy: { updatedAt: 'desc' },
     });
 
+    // Fetch repetition logs for dashboard
+    const repetitionLogs = await this.prisma.repetitionLog.findMany({
+      where: {
+        workOrder: {
+          tenantId,
+          ...(branchIdContext && { branchId: branchIdContext }),
+        },
+      },
+      include: {
+        workOrder: {
+          select: {
+            id: true,
+            folioNumber: true,
+            patient: true,
+          },
+        },
+        initiatedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: { initiatedAt: 'desc' },
+    });
+
     return {
       verificationAlerts,
       woStatusSummary,
@@ -1227,6 +1337,7 @@ export class WorkOrdersService {
       technicianActivityOverview,
       inProgressWOs,
       verificationWOs,
+      repetitionLogs,
     };
   }
 
