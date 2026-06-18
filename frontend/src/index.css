@@ -2267,3 +2267,68 @@ a:hover { color: var(--accent-primary-hover); }
   color: var(--text-muted);
 }
 
+/* ─── Push Notification Banner inside Dropdown ──────────────── */
+.push-banner {
+  padding: 0.75rem 1rem;
+  background: var(--bg-overlay);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.push-banner__text {
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.push-banner__btn {
+  background: var(--accent-primary);
+  color: #fff;
+  border: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-family);
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.push-banner__btn:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+}
+
+.push-banner__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.push-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: var(--bg-overlay);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.push-status-bar__toggle {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.6875rem;
+  font-family: var(--font-family);
+}
+
+.push-status-bar__toggle:hover {
+  text-decoration: underline;
+}
+
+

@@ -1,9 +1,11 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
+  Body,
   HttpCode,
   HttpStatus,
   BadRequestException,
@@ -11,6 +13,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../../common/decorators';
+import { PushSubscriptionDto } from './dto/push-subscription.dto';
 
 @ApiTags('Notifications')
 @ApiBearerAuth()
@@ -81,5 +84,38 @@ export class NotificationsController {
       throw new BadRequestException('Organization context is required.');
     }
     return this.notificationsService.remove(tenantId, userId, id);
+  }
+
+  @Get('push-public-key')
+  @ApiOperation({ summary: 'Get VAPID public key for push notifications' })
+  async getPushPublicKey() {
+    return this.notificationsService.getVapidPublicKey();
+  }
+
+  @Post('push-subscribe')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Subscribe to web push notifications' })
+  async subscribePush(
+    @CurrentUser('id') userId: string,
+    @Body() dto: PushSubscriptionDto,
+  ) {
+    return this.notificationsService.saveSubscription(userId, {
+      endpoint: dto.endpoint,
+      auth: dto.keys.auth,
+      p256dh: dto.keys.p256dh,
+    });
+  }
+
+  @Post('push-unsubscribe')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unsubscribe from web push notifications' })
+  async unsubscribePush(
+    @CurrentUser('id') userId: string,
+    @Body('endpoint') endpoint: string,
+  ) {
+    if (!endpoint) {
+      throw new BadRequestException('Endpoint is required.');
+    }
+    return this.notificationsService.deleteSubscription(userId, endpoint);
   }
 }

@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, type NotificationItem } from '../services';
+import { usePushNotifications } from '../hooks/usePushNotifications';
+import toast from 'react-hot-toast';
 
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
@@ -43,6 +45,41 @@ export function DashboardLayout() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  // Push notifications hook integration
+  const {
+    isSupported: isPushSupported,
+    isSubscribed: isPushSubscribed,
+    loading: pushLoading,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+  } = usePushNotifications();
+
+  const handleEnablePush = async () => {
+    try {
+      const success = await subscribePush();
+      if (success) {
+        toast.success('Push notifications enabled successfully!');
+      } else {
+        toast.error('Permission denied or failed to enable push notifications.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to enable push notifications.');
+    }
+  };
+
+  const handleDisablePush = async () => {
+    try {
+      const success = await unsubscribePush();
+      if (success) {
+        toast.success('Push notifications disabled.');
+      } else {
+        toast.error('Failed to disable push notifications.');
+      }
+    } catch {
+      toast.error('Failed to disable push notifications.');
+    }
+  };
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -474,6 +511,35 @@ export function DashboardLayout() {
                       </button>
                     )}
                   </div>
+                  {isPushSupported && (
+                    <>
+                      {!isPushSubscribed ? (
+                        <div className="push-banner">
+                          <span className="push-banner__text">
+                            Enable desktop push notifications to get alerts when your work orders update.
+                          </span>
+                          <button
+                            className="push-banner__btn"
+                            onClick={handleEnablePush}
+                            disabled={pushLoading}
+                          >
+                            {pushLoading ? 'Enabling...' : 'Enable Notifications'}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="push-status-bar">
+                          <span>Push notifications active</span>
+                          <button
+                            className="push-status-bar__toggle"
+                            onClick={handleDisablePush}
+                            disabled={pushLoading}
+                          >
+                            Disable
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div className="notif-dropdown__list">
                     {notifications.length === 0 ? (
                       <div className="notif-dropdown__empty">

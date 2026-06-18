@@ -154,6 +154,7 @@ model User {
   initiatedReworks    ReworkLog[]          @relation("ReworkInitiator")
   technicianReworks   ReworkLog[]          @relation("ReworkTechnician")
   initiatedRepetitions RepetitionLog[]     @relation("RepetitionInitiator")
+  pushSubscriptions   PushSubscription[]
 
   @@unique([email, tenantId])
   @@map("users")
@@ -435,4 +436,17 @@ model RepetitionLog {
   initiatedBy        User      @relation("RepetitionInitiator", fields: [initiatedById], references: [id])
 
   @@map("repetition_logs")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  endpoint  String   @unique
+  auth      String
+  p256dh    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
 }

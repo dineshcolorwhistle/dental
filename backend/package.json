@@ -22,6 +22,7 @@
     "db:migrate": "npx prisma migrate dev",
     "db:push": "npx prisma db push",
     "db:studio": "npx prisma studio",
+    "vapid:generate": "web-push generate-vapid-keys",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -58,7 +59,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -90,7 +92,8 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
+    "typescript-eslint": "^8.20.0",
+    "@types/web-push": "^3.3.2"
   },
   "jest": {
     "moduleFileExtensions": [

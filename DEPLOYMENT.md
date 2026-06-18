@@ -186,6 +186,11 @@ SMTP_FROM="Dental Lab <your-email@gmail.com>"
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD="YourSecureRedisPasswordHere"
+
+# VAPID Keys for Web Push Notifications
+VAPID_PUBLIC_KEY="YOUR_GENERATED_PUBLIC_KEY"
+VAPID_PRIVATE_KEY="YOUR_GENERATED_PRIVATE_KEY"
+VAPID_SUBJECT="mailto:your-email@yourdomain.com"
 ```
 
 ### Step 4.2: Configure Frontend Environment
@@ -198,12 +203,45 @@ cp .env.example .env
 nano .env
 ```
 
-Ensure the backend API URL matches the production staging domain:
+Ensure the backend API URL matches the production staging domain, and optionally set the fallback public VAPID key:
 
 ```env
 VITE_API_URL="https://staging.yourdomain.com/api"
 VITE_IDLE_TIMEOUT=3600000
+VITE_VAPID_PUBLIC_KEY="YOUR_GENERATED_PUBLIC_KEY"
 ```
+
+### Step 4.3: Generate and Configure VAPID Keys
+
+Web Push notifications require a VAPID keypair (public and private key) to authenticate your application server with push notification service providers.
+
+1. **Generate the Keys**:
+   You can generate a new VAPID keypair using one of the following methods:
+
+   * **Option A: Using the project's custom npm script (Recommended)**
+     ```bash
+     cd /home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental/backend
+     npm run vapid:generate
+     ```
+   * **Option B: Using `npx web-push` directly**
+     ```bash
+     npx web-push generate-vapid-keys
+     ```
+   
+   Either command will output a `Public Key` and a `Private Key` printed to the console.
+
+2. **Insert into `.env`**:
+   Add the public key, private key, and a contact email/website URL (`VAPID_SUBJECT`) to your backend `.env` file, and optionally the public key to your frontend `.env` file.
+
+3. **Verify Configuration**:
+   When you start/restart the backend, check the logs to verify VAPID initialization:
+   ```bash
+   pm2 logs dental-backend
+   ```
+   Look for the log output:
+   `VAPID details configured successfully.`
+
+
 
 ---
 

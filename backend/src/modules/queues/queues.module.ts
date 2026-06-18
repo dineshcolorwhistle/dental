@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailModule } from '../mail/mail.module';
 import { EmailQueueProcessor } from './email-queue.processor';
+import { PushNotificationQueueProcessor } from './push-notification-queue.processor';
 
 @Global()
 @Module({
@@ -22,8 +23,11 @@ import { EmailQueueProcessor } from './email-queue.processor';
     BullModule.registerQueue({
       name: 'email-queue',
     }),
+    BullModule.registerQueue({
+      name: 'push-notification-queue',
+    }),
   ],
-  providers: [EmailQueueProcessor],
+  providers: [EmailQueueProcessor, PushNotificationQueueProcessor],
   exports: [BullModule],
 })
 export class QueuesModule {}
