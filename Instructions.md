@@ -276,6 +276,7 @@ Delivery personnel receive assigned deliveries, update pickup/transit status, an
 
 ### General
 - **CRITICAL RULE — DATABASE INTEGRITY:** DO NOT reset the database (`prisma migrate reset`, `db push --force-reset`), drop tables, or run any destructive database operations without obtaining explicit, written approval from the USER. All existing development database records and details must be strictly preserved.
+- **CRITICAL RULE — DATABASE SCHEMA CHANGES & MIGRATIONS:** Whenever you create, update, or delete database tables or models in `schema.prisma`, you **must** generate a corresponding migration file locally using `npx prisma migrate dev --name <migration_name>` and commit it to Git. Do not rely solely on `prisma db push` for local changes, as the server deployment relies on the committed migration history (`prisma migrate deploy`) to update the production/staging databases. This prevents schema drift and missing tables on the server.
 - Git-based version control with feature branching.
 - Environment-based configuration (`.env` files).
 - Consistent naming conventions (camelCase TS, snake_case DB).
