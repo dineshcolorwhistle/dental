@@ -41,11 +41,18 @@ export class AuthService {
         throw new UnauthorizedException('Tenant is inactive or suspended');
       }
 
-      user = await this.prisma.user.findUnique({
-        where: {
-          email_tenantId: { email, tenantId: tenant.id },
-        },
+      // Check if global Super Admin is logging in
+      user = await this.prisma.user.findFirst({
+        where: { email, tenantId: null, role: 'SUPER_ADMIN' },
       });
+
+      if (!user) {
+        user = await this.prisma.user.findUnique({
+          where: {
+            email_tenantId: { email, tenantId: tenant.id },
+          },
+        });
+      }
     } else {
       // Super admin login (tenantId is null)
       user = await this.prisma.user.findFirst({

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
 import { TechnicianDashboardPage } from './TechnicianDashboardPage';
 import { OwnerDashboardPage } from './OwnerDashboardPage';
@@ -28,6 +28,10 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+
+  if (user?.role === 'SUPER_ADMIN') {
+    return <Navigate to="/tenants" replace />;
+  }
 
   if (user?.role === 'TECHNICIAN') {
     return <TechnicianDashboardPage />;
