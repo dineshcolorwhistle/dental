@@ -350,6 +350,60 @@ export class AuthService {
     };
   }
 
+  /**
+   * Request a limit increase for the current tenant.
+   */
+  async requestLimitUpgrade(tenantId: string, userId: string, message: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true },
+    });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true, email: true },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const tenantName = tenant.name;
+    const userName = user ? `${user.firstName} ${user.lastName}` : 'Owner';
+
+    // 1. Log in Audit Logs
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        userEmail: user?.email || null,
+        action: 'LIMITS_UPGRADE_REQUESTED',
+        entityName: 'TENANT',
+        entityId: tenantId,
+        details: `Limits upgrade requested: ${message || 'No details provided'}`,
+      },
+    });
+
+    // 2. Create system notification for all Super Admins
+    const superAdmins = await this.prisma.user.findMany({
+      where: { role: UserRole.SUPER_ADMIN },
+    });
+
+    for (const admin of superAdmins) {
+      await this.prisma.notification.create({
+        data: {
+          tenantId,
+          userId: admin.id,
+          title: 'Limit Upgrade Request',
+          message: `Owner ${userName} (${tenantName}) requested a limits upgrade: ${message || 'No details provided'}`,
+          type: 'SYSTEM',
+        },
+      });
+    }
+
+    return { message: 'Upgrade request submitted successfully.' };
+  }
+
   // ─── Private Helpers ──────────────────────────────────
 
   private async generateTokens(user: {

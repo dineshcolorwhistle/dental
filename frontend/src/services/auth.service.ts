@@ -84,4 +84,8 @@ export const authService = {
     const { data } = await api.get<TenantLimitsResponse>('/auth/tenant-limits');
     return data;
   },
+
+  requestTenantLimitIncrease: async (message: string): Promise<void> => {
+    await api.post('/auth/tenant-limits/request', { message });
+  },
 };

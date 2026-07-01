@@ -5,6 +5,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -60,5 +61,19 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current tenant user limits and counts' })
   async getTenantLimits(@CurrentUser('tenantId') tenantId: string | null) {
     return this.authService.getTenantLimits(tenantId);
+  }
+
+  @Post('tenant-limits/request')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Request a limit upgrade for the current tenant' })
+  async requestLimitUpgrade(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
+    @Body('message') message: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.authService.requestLimitUpgrade(tenantId, userId, message);
   }
 }
