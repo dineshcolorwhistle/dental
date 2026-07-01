@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto, ResetPasswordDto } from './dto';
 import { JwtPayload } from './strategies/jwt.strategy';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -106,12 +107,16 @@ export class AuthService {
 
     // Fetch tenant name if tenantId exists
     let tenantName: string | null = null;
+    let maxAdmins: number | null = null;
+    let maxTechnicians: number | null = null;
     if (user.tenantId) {
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: user.tenantId },
-        select: { name: true },
+        select: { name: true, maxAdmins: true, maxTechnicians: true },
       });
       tenantName = tenant?.name || null;
+      maxAdmins = tenant?.maxAdmins || null;
+      maxTechnicians = tenant?.maxTechnicians || null;
     }
 
     // Fetch branch name if branchId exists
@@ -140,6 +145,8 @@ export class AuthService {
         tenantName,
         branchId: user.branchId,
         branchName,
+        maxAdmins,
+        maxTechnicians,
       },
       ...tokens,
     };
@@ -281,6 +288,8 @@ export class AuthService {
             id: true,
             name: true,
             subdomain: true,
+            maxAdmins: true,
+            maxTechnicians: true,
           },
         },
         branch: {
@@ -298,6 +307,47 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  /**
+   * Get limits and current counts of users for a tenant.
+   */
+  async getTenantLimits(tenantId: string | null) {
+    if (!tenantId) {
+      return {
+        maxAdmins: 0,
+        currentAdmins: 0,
+        maxTechnicians: 0,
+        currentTechnicians: 0,
+      };
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        maxAdmins: true,
+        maxTechnicians: true,
+      },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const currentAdmins = await this.prisma.user.count({
+      where: { tenantId, role: UserRole.ADMIN },
+    });
+
+    const currentTechnicians = await this.prisma.user.count({
+      where: { tenantId, role: UserRole.TECHNICIAN },
+    });
+
+    return {
+      maxAdmins: tenant.maxAdmins,
+      currentAdmins,
+      maxTechnicians: tenant.maxTechnicians,
+      currentTechnicians,
+    };
   }
 
   // ─── Private Helpers ──────────────────────────────────

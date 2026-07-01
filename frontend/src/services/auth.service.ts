@@ -16,6 +16,8 @@ export interface AuthUser {
   tenantName?: string | null;
   branchId: string | null;
   branchName?: string | null;
+  maxAdmins?: number | null;
+  maxTechnicians?: number | null;
 }
 
 export interface AuthResponse {
@@ -34,12 +36,21 @@ export interface UserProfile extends AuthUser {
     id: string;
     name: string;
     subdomain: string;
+    maxAdmins?: number;
+    maxTechnicians?: number;
   } | null;
   branch: {
     id: string;
     name: string;
     code: string;
   } | null;
+}
+
+export interface TenantLimitsResponse {
+  maxAdmins: number;
+  currentAdmins: number;
+  maxTechnicians: number;
+  currentTechnicians: number;
 }
 
 export const authService = {
@@ -66,6 +77,11 @@ export const authService = {
 
   getProfile: async (): Promise<UserProfile> => {
     const { data } = await api.get<UserProfile>('/auth/profile');
+    return data;
+  },
+
+  getTenantLimits: async (): Promise<TenantLimitsResponse> => {
+    const { data } = await api.get<TenantLimitsResponse>('/auth/tenant-limits');
     return data;
   },
 };

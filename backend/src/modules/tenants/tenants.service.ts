@@ -27,7 +27,7 @@ export class TenantsService {
    * Create a new tenant with owner, default branch, settings, and send invite email.
    */
   async create(dto: CreateTenantDto) {
-    const { tenantName, ownerName, ownerEmail } = dto;
+    const { tenantName, ownerName, ownerEmail, maxOwners, maxAdmins, maxTechnicians } = dto;
 
     // Generate subdomain from tenant name (slugify)
     const subdomain = this.generateSubdomain(tenantName);
@@ -70,6 +70,9 @@ export class TenantsService {
           subdomain,
           status: TenantStatus.ACTIVE,
           contactEmail: ownerEmail,
+          maxOwners,
+          maxAdmins,
+          maxTechnicians,
         },
       });
 
@@ -196,6 +199,9 @@ export class TenantsService {
       owner: tenant.users[0] ?? null,
       primaryBranch: tenant.branches[0] ?? null,
       settings: tenant.settings,
+      maxOwners: tenant.maxOwners,
+      maxAdmins: tenant.maxAdmins,
+      maxTechnicians: tenant.maxTechnicians,
     }));
   }
 

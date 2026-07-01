@@ -15,7 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { technicianService, branchService, type TechnicianListItem, type BranchListItem, type CreateTechnicianPayload, type UpdateTechnicianPayload } from '../services';
+import { technicianService, branchService, authService, type TechnicianListItem, type BranchListItem, type CreateTechnicianPayload, type UpdateTechnicianPayload, type TenantLimitsResponse } from '../services';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect } from '../components';
 
@@ -63,16 +63,20 @@ export function TechniciansPage() {
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateTechnicianPayload, string>>>({});
 
+  const [tenantLimits, setTenantLimits] = useState<TenantLimitsResponse | null>(null);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
-      const [technicianData, branchData] = await Promise.all([
+      const [technicianData, branchData, limitsData] = await Promise.all([
         technicianService.getAll(branchScope),
         isAdmin ? Promise.resolve([]) : branchService.getAll(),
+        authService.getTenantLimits(),
       ]);
       setTechnicians(technicianData);
       setBranches(branchData.filter((b) => b.isActive));
+      setTenantLimits(limitsData);
     } catch (err) {
       toast.error('Failed to load technicians or branches');
       console.error(err);
@@ -289,6 +293,10 @@ export function TechniciansPage() {
     );
   };
 
+  const isLimitReached = tenantLimits
+    ? tenantLimits.currentTechnicians >= tenantLimits.maxTechnicians
+    : false;
+
   return (
     <div className="admins-page">
       {/* Page Header */}
@@ -302,12 +310,25 @@ export function TechniciansPage() {
             id="btn-add-technician"
             className="btn btn--primary"
             onClick={handleCreateOpen}
+            disabled={isLimitReached}
           >
             <Plus size={18} />
             <span>Invite Technician</span>
           </button>
         )}
       </div>
+
+      {isLimitReached && (
+        <div className="alert alert--danger" style={{ display: 'flex', gap: '0.75rem', padding: '1rem', borderRadius: '12px', border: '1px solid var(--danger)', background: 'var(--bg-base)', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+          <AlertCircle size={20} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+          <div>
+            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>Technician Limit Reached</h4>
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              Your organization has reached the limit of {tenantLimits?.maxTechnicians} Lab Technician(s). To invite more, please contact your laboratory administrator or support to upgrade your plan.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="tenants-page__stats">
@@ -418,6 +439,7 @@ export function TechniciansPage() {
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}
+              disabled={isLimitReached}
             >
               <Plus size={18} />
               <span>Invite Technician</span>

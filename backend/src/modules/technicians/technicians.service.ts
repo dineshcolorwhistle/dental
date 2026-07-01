@@ -55,14 +55,25 @@ export class TechniciansService {
       );
     }
 
-    // Load tenant name and subdomain
+    // Check user limits
+    const currentTechniciansCount = await this.prisma.user.count({
+      where: { tenantId, role: UserRole.TECHNICIAN },
+    });
+
+    // Load tenant name, subdomain, and limit details
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { name: true, subdomain: true },
+      select: { name: true, subdomain: true, maxTechnicians: true },
     });
 
     if (!tenant) {
       throw new NotFoundException('Organization not found.');
+    }
+
+    if (currentTechniciansCount >= tenant.maxTechnicians) {
+      throw new BadRequestException(
+        `Your organization has reached the limit of ${tenant.maxTechnicians} Lab Technician(s).`,
+      );
     }
 
     // 2. Check if a user with this email already exists inside this tenant

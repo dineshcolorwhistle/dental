@@ -61,6 +61,9 @@ model Tenant {
   contactEmail String?     @map("contact_email")
   contactPhone String?     @map("contact_phone")
   address     String?
+  maxOwners   Int          @default(1) @map("max_owners")
+  maxAdmins   Int          @default(3) @map("max_admins")
+  maxTechnicians Int          @default(6) @map("max_technicians")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 

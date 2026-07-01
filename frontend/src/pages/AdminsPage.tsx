@@ -15,7 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { adminService, branchService, type AdminListItem, type BranchListItem, type CreateAdminPayload } from '../services';
+import { adminService, branchService, authService, type AdminListItem, type BranchListItem, type CreateAdminPayload, type TenantLimitsResponse } from '../services';
 import { Pagination, SearchableSelect } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
@@ -58,15 +58,19 @@ export function AdminsPage() {
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateAdminPayload, string>>>({});
 
+  const [tenantLimits, setTenantLimits] = useState<TenantLimitsResponse | null>(null);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [adminData, branchData] = await Promise.all([
+      const [adminData, branchData, limitsData] = await Promise.all([
         adminService.getAll(),
         branchService.getAll(),
+        authService.getTenantLimits(),
       ]);
       setAdmins(adminData);
       setBranches(branchData.filter((b) => b.isActive));
+      setTenantLimits(limitsData);
     } catch (err) {
       toast.error('Failed to load administrators or branches');
       console.error(err);
@@ -280,6 +284,10 @@ export function AdminsPage() {
     return <span className={className}>{icon} {label}</span>;
   };
 
+  const isLimitReached = tenantLimits
+    ? tenantLimits.currentAdmins >= tenantLimits.maxAdmins
+    : false;
+
   return (
     <div className="admins-page">
       {/* Page Header */}
@@ -292,12 +300,24 @@ export function AdminsPage() {
           id="btn-add-admin"
           className="btn btn--primary"
           onClick={handleCreateOpen}
-          disabled={branches.length === 0}
+          disabled={branches.length === 0 || isLimitReached}
         >
           <Plus size={18} />
           <span>Add Admin</span>
         </button>
       </div>
+
+      {isLimitReached && (
+        <div className="alert alert--danger" style={{ display: 'flex', gap: '0.75rem', padding: '1rem', borderRadius: '12px', border: '1px solid var(--danger)', background: 'var(--bg-base)', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+          <AlertCircle size={20} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+          <div>
+            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>Lab Admin Limit Reached</h4>
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              Your organization has reached the limit of {tenantLimits?.maxAdmins} Lab Administrator(s). To invite more, please contact support to upgrade your plan.
+            </p>
+          </div>
+        </div>
+      )}
 
       {branches.length === 0 && !loading && (
         <div className="alert alert--warning" style={{ display: 'flex', gap: '0.75rem', padding: '1rem', borderRadius: '12px', border: '1px solid var(--warning)', background: 'var(--bg-base)', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
@@ -418,6 +438,7 @@ export function AdminsPage() {
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}
+              disabled={isLimitReached}
             >
               <Plus size={18} />
               <span>Add Admin</span>

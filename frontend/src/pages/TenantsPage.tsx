@@ -63,6 +63,9 @@ export function TenantsPage() {
     contactPhone: '',
     address: '',
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED',
+    maxOwners: 1,
+    maxAdmins: 3,
+    maxTechnicians: 6,
   });
   const [editFormErrors, setEditFormErrors] = useState<Partial<Record<keyof typeof editForm, string>>>({});
 
@@ -71,6 +74,9 @@ export function TenantsPage() {
     tenantName: '',
     ownerName: '',
     ownerEmail: '',
+    maxOwners: 1,
+    maxAdmins: 3,
+    maxTechnicians: 6,
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateTenantPayload, string>>>({});
 
@@ -136,6 +142,15 @@ export function TenantsPage() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.ownerEmail)) {
       errors.ownerEmail = 'Enter a valid email address';
     }
+    if (form.maxOwners === undefined || form.maxOwners === null || isNaN(form.maxOwners) || form.maxOwners < 1) {
+      errors.maxOwners = 'Owner Count must be at least 1';
+    }
+    if (form.maxAdmins === undefined || form.maxAdmins === null || isNaN(form.maxAdmins) || form.maxAdmins < 0) {
+      errors.maxAdmins = 'Lab Admin Count must be >= 0';
+    }
+    if (form.maxTechnicians === undefined || form.maxTechnicians === null || isNaN(form.maxTechnicians) || form.maxTechnicians < 0) {
+      errors.maxTechnicians = 'Lab Technician Count must be >= 0';
+    }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -150,7 +165,7 @@ export function TenantsPage() {
       await tenantService.create(form);
       toast.success('Tenant created successfully! Invite email sent.');
       setShowCreateModal(false);
-      setForm({ tenantName: '', ownerName: '', ownerEmail: '' });
+      setForm({ tenantName: '', ownerName: '', ownerEmail: '', maxOwners: 1, maxAdmins: 3, maxTechnicians: 6 });
       setFormErrors({});
       await fetchTenants();
     } catch (err: any) {
@@ -161,8 +176,13 @@ export function TenantsPage() {
     }
   };
 
-  const handleInputChange = (field: keyof CreateTenantPayload, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: keyof CreateTenantPayload, value: any) => {
+    let finalValue = value;
+    if (field === 'maxOwners' || field === 'maxAdmins' || field === 'maxTechnicians') {
+      finalValue = parseInt(value, 10);
+      if (isNaN(finalValue)) finalValue = 0;
+    }
+    setForm((prev) => ({ ...prev, [field]: finalValue }));
     if (formErrors[field]) {
       setFormErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -252,13 +272,21 @@ export function TenantsPage() {
       contactPhone: tenant.contactPhone || '',
       address: tenant.address || '',
       status: tenant.status,
+      maxOwners: tenant.maxOwners ?? 1,
+      maxAdmins: tenant.maxAdmins ?? 3,
+      maxTechnicians: tenant.maxTechnicians ?? 6,
     });
     setEditFormErrors({});
     setShowEditModal(true);
   };
 
-  const handleEditInputChange = (field: keyof typeof editForm, value: string) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
+  const handleEditInputChange = (field: keyof typeof editForm, value: any) => {
+    let finalValue = value;
+    if (field === 'maxOwners' || field === 'maxAdmins' || field === 'maxTechnicians') {
+      finalValue = parseInt(value, 10);
+      if (isNaN(finalValue)) finalValue = 0;
+    }
+    setEditForm((prev) => ({ ...prev, [field]: finalValue }));
     if (editFormErrors[field]) {
       setEditFormErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -270,6 +298,15 @@ export function TenantsPage() {
     if (!editForm.name.trim()) errors.name = 'Lab name is required';
     if (editForm.contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.contactEmail)) {
       errors.contactEmail = 'Enter a valid email address';
+    }
+    if (editForm.maxOwners === undefined || editForm.maxOwners === null || isNaN(editForm.maxOwners) || editForm.maxOwners < 1) {
+      errors.maxOwners = 'Owner Count must be at least 1';
+    }
+    if (editForm.maxAdmins === undefined || editForm.maxAdmins === null || isNaN(editForm.maxAdmins) || editForm.maxAdmins < 0) {
+      errors.maxAdmins = 'Lab Admin Count must be >= 0';
+    }
+    if (editForm.maxTechnicians === undefined || editForm.maxTechnicians === null || isNaN(editForm.maxTechnicians) || editForm.maxTechnicians < 0) {
+      errors.maxTechnicians = 'Lab Technician Count must be >= 0';
     }
 
     setEditFormErrors(errors);
@@ -454,6 +491,9 @@ export function TenantsPage() {
                         <span className="cell-primary__meta">
                           <Users size={12} /> {tenant.userCount} users · <GitBranch size={12} /> {tenant.branchCount} branches
                         </span>
+                        <span className="cell-primary__meta" style={{ marginTop: '0.25rem' }}>
+                          Limits: {tenant.maxOwners} Owner · {tenant.maxAdmins} Admin(s) · {tenant.maxTechnicians} Tech(s)
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -631,6 +671,64 @@ export function TenantsPage() {
                 <span className="form-hint">
                   <Mail size={12} /> An invitation email with password reset link will be sent to this address.
                 </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-max-owners">
+                    Owner Limit *
+                  </label>
+                  <input
+                    id="input-max-owners"
+                    className="form-input"
+                    type="number"
+                    value={form.maxOwners}
+                    disabled
+                  />
+                  <span className="form-hint">Fixed default</span>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-max-admins">
+                    Lab Admin Limit *
+                  </label>
+                  <input
+                    id="input-max-admins"
+                    className={`form-input ${formErrors.maxAdmins ? 'form-input--error' : ''}`}
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 3"
+                    value={form.maxAdmins}
+                    onChange={(e) => handleInputChange('maxAdmins', e.target.value)}
+                    disabled={creating}
+                  />
+                  {formErrors.maxAdmins && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {formErrors.maxAdmins}
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-max-technicians">
+                    Lab Tech Limit *
+                  </label>
+                  <input
+                    id="input-max-technicians"
+                    className={`form-input ${formErrors.maxTechnicians ? 'form-input--error' : ''}`}
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 6"
+                    value={form.maxTechnicians}
+                    onChange={(e) => handleInputChange('maxTechnicians', e.target.value)}
+                    disabled={creating}
+                  />
+                  {formErrors.maxTechnicians && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {formErrors.maxTechnicians}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="modal__footer">
@@ -880,6 +978,64 @@ export function TenantsPage() {
                   <option value="INACTIVE">Inactive</option>
                   <option value="SUSPENDED">Suspended</option>
                 </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-edit-max-owners">
+                    Owner Limit *
+                  </label>
+                  <input
+                    id="input-edit-max-owners"
+                    className="form-input"
+                    type="number"
+                    value={editForm.maxOwners}
+                    disabled
+                  />
+                  <span className="form-hint">Fixed default</span>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-edit-max-admins">
+                    Lab Admin Limit *
+                  </label>
+                  <input
+                    id="input-edit-max-admins"
+                    className={`form-input ${editFormErrors.maxAdmins ? 'form-input--error' : ''}`}
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 3"
+                    value={editForm.maxAdmins}
+                    onChange={(e) => handleEditInputChange('maxAdmins', e.target.value)}
+                    disabled={saving}
+                  />
+                  {editFormErrors.maxAdmins && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {editFormErrors.maxAdmins}
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-edit-max-technicians">
+                    Lab Tech Limit *
+                  </label>
+                  <input
+                    id="input-edit-max-technicians"
+                    className={`form-input ${editFormErrors.maxTechnicians ? 'form-input--error' : ''}`}
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 6"
+                    value={editForm.maxTechnicians}
+                    onChange={(e) => handleEditInputChange('maxTechnicians', e.target.value)}
+                    disabled={saving}
+                  />
+                  {editFormErrors.maxTechnicians && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {editFormErrors.maxTechnicians}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="modal__footer">

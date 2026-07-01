@@ -49,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               tenantName: profile.tenant?.name || null,
               branchId: profile.branchId,
               branchName: profile.branch?.name || null,
+              maxAdmins: profile.tenant?.maxAdmins || null,
+              maxTechnicians: profile.tenant?.maxTechnicians || null,
             };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setUser(updatedUser);

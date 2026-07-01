@@ -11,7 +11,7 @@ export { workOrderService } from './work-order.service';
 export { notificationService } from './notification.service';
 export { technicianPortalService } from './technician-portal.service';
 export { financeService } from './finance.service';
-export type { LoginPayload, AuthUser, AuthResponse, UserProfile } from './auth.service';
+export type { LoginPayload, AuthUser, AuthResponse, UserProfile, TenantLimitsResponse } from './auth.service';
 export type {
   CreateTenantPayload,
   TenantListItem,

@@ -39,14 +39,25 @@ export class AdminsService {
       );
     }
 
-    // Load tenant name and subdomain
+    // Check user limits
+    const currentAdminsCount = await this.prisma.user.count({
+      where: { tenantId, role: UserRole.ADMIN },
+    });
+
+    // Load tenant name, subdomain, and limit details
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { name: true, subdomain: true },
+      select: { name: true, subdomain: true, maxAdmins: true },
     });
 
     if (!tenant) {
       throw new NotFoundException('Organization not found.');
+    }
+
+    if (currentAdminsCount >= tenant.maxAdmins) {
+      throw new BadRequestException(
+        `Your organization has reached the limit of ${tenant.maxAdmins} Lab Administrator(s).`,
+      );
     }
 
     // 2. Check if a user with this email already exists inside this tenant

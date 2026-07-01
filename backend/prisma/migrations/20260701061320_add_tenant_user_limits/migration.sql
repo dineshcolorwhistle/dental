@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "tenants" ADD COLUMN     "max_admins" INTEGER NOT NULL DEFAULT 3,
+ADD COLUMN     "max_owners" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN     "max_technicians" INTEGER NOT NULL DEFAULT 6;

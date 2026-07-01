@@ -54,4 +54,11 @@ export class AuthController {
   async getProfile(@CurrentUser('id') userId: string) {
     return this.authService.getProfile(userId);
   }
+
+  @Get('tenant-limits')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current tenant user limits and counts' })
+  async getTenantLimits(@CurrentUser('tenantId') tenantId: string | null) {
+    return this.authService.getTenantLimits(tenantId);
+  }
 }

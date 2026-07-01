@@ -7,6 +7,9 @@ export interface CreateTenantPayload {
   ownerName: string;
   branchName?: string;
   ownerEmail: string;
+  maxOwners: number;
+  maxAdmins: number;
+  maxTechnicians: number;
 }
 
 export interface TenantOwner {
@@ -40,6 +43,9 @@ export interface TenantListItem {
   settings?: {
     features?: Record<string, boolean>;
   } | null;
+  maxOwners: number;
+  maxAdmins: number;
+  maxTechnicians: number;
 }
 
 export interface CreateTenantResponse {
@@ -79,6 +85,9 @@ export const tenantService = {
       address: string;
       status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
       settings: { features?: Record<string, boolean> };
+      maxOwners?: number;
+      maxAdmins?: number;
+      maxTechnicians?: number;
     }>,
   ): Promise<TenantListItem> => {
     const { data } = await api.patch<TenantListItem>(`/tenants/${id}`, payload);
