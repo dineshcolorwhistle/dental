@@ -4,12 +4,9 @@ import { authService, type TenantLimitsResponse } from '../services';
 import {
   Users,
   Wrench,
-  AlertCircle,
   Loader2,
   Building2,
-  Sparkles,
-  ClipboardList,
-  Plus
+  Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
