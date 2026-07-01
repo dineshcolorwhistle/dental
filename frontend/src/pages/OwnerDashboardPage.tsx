@@ -320,7 +320,7 @@ export function OwnerDashboardPage() {
                   />
                 </div>
               </div>
-              <div className="modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div className="modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '1.25rem 1.75rem', margin: 0 }}>
                 <button
                   type="button"
                   className="btn btn--secondary"
