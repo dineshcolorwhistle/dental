@@ -42,6 +42,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         status: true,
         tenantId: true,
         branchId: true,
+        preferredLanguage: true,
         tenant: {
           select: {
             id: true,

@@ -43,6 +43,7 @@ import {
   type ProcessListItem,
   type AdminListItem,
 } from '../services';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal } from '../components';
 
@@ -105,12 +106,21 @@ interface ProcessFormItem {
 }
 
 export function WorkOrdersPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER';
   const canCreate = isAdmin || isOwner;
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+      style: 'currency',
+      currency: i18n.language?.startsWith('es') ? 'MXN' : 'INR',
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
   const [workOrders, setWorkOrders] = useState<WorkOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -200,12 +210,12 @@ export function WorkOrdersPage() {
       setWorkOrders(woData);
       setBranches(branchData.filter((b) => b.isActive));
     } catch (err) {
-      toast.error('Failed to load work orders');
+      toast.error(t('workOrders.failedLoad', { defaultValue: 'Failed to load work orders' }));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user?.branchId]);
+  }, [isAdmin, user?.branchId, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -252,10 +262,10 @@ export function WorkOrdersPage() {
       setAvailableProcesses(processData);
       setAdmins(adminData.filter((a) => a.status === 'ACTIVE'));
     } catch (err) {
-      toast.error('Failed to load reference data');
+      toast.error(t('common.failedLoadReference', { defaultValue: 'Failed to load reference data' }));
       console.error(err);
     }
-  }, [isAdmin, user?.branchId]);
+  }, [isAdmin, user?.branchId, t]);
 
   // ─── Filtering & Sorting ───────────────────────
   const filtered = workOrders
@@ -394,7 +404,7 @@ export function WorkOrdersPage() {
 
       setProcessList(items);
     } catch (err) {
-      toast.error('Failed to load processes for the selected prosthesis type');
+      toast.error(t('workOrders.failedLoadProcesses', { defaultValue: 'Failed to load processes for the selected prosthesis type' }));
       console.error(err);
     }
   };
@@ -441,11 +451,11 @@ export function WorkOrdersPage() {
 
   const handleAddProcess = () => {
     if (!newProcessName.trim()) {
-      toast.error('Process selection is required');
+      toast.error(t('workOrders.validationProcessRequired', { defaultValue: 'Process selection is required' }));
       return;
     }
     if (!newProcessTechnicianId) {
-      toast.error('Technician assignment is required');
+      toast.error(t('workOrders.validationTechRequired', { defaultValue: 'Technician assignment is required' }));
       return;
     }
     const newItem: ProcessFormItem = {
@@ -465,7 +475,7 @@ export function WorkOrdersPage() {
 
   const handleAddVerification = () => {
     if (verificationType === 'INTERNAL' && !verificationTechnicianId) {
-      toast.error('Technician assignment is required for internal verification');
+      toast.error(t('workOrders.validationInternalVerifyTechRequired', { defaultValue: 'Technician assignment is required for internal verification' }));
       return;
     }
 
@@ -521,13 +531,13 @@ export function WorkOrdersPage() {
       await workOrderService.create(payload);
       toast.success(
         action === 'createAndAssign'
-          ? 'Work order created and assigned!'
-          : 'Work order created successfully!',
+          ? t('workOrders.createAndAssignSuccess', { defaultValue: 'Work order created and assigned!' })
+          : t('workOrders.createSuccess', { defaultValue: 'Work order created successfully!' }),
       );
       setShowCreateModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create work order';
+      const message = err?.response?.data?.message || t('workOrders.failedCreate', { defaultValue: 'Failed to create work order' });
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -586,24 +596,24 @@ export function WorkOrdersPage() {
   const handleEditSubmit = async (isAssign = true, skipConfirm = false) => {
     if (!editingWO) return;
     const errors: Record<string, string> = {};
-    if (!form.doctorId) errors.doctorId = 'Doctor is required';
-    if (!form.patient.trim()) errors.patient = 'Patient name is required';
-    if (!form.prosthesisTypeId) errors.prosthesisTypeId = 'Prosthesis type is required';
-    if (!form.specification.trim()) errors.specification = 'Specification is required';
-    if (!form.color.trim()) errors.color = 'Color is required';
+    if (!form.doctorId) errors.doctorId = t('validation.fieldRequired');
+    if (!form.patient.trim()) errors.patient = t('validation.fieldRequired');
+    if (!form.prosthesisTypeId) errors.prosthesisTypeId = t('validation.fieldRequired');
+    if (!form.specification.trim()) errors.specification = t('validation.fieldRequired');
+    if (!form.color.trim()) errors.color = t('validation.fieldRequired');
     if (!form.totalQuote.trim()) {
-      errors.totalQuote = 'Total quote is required';
+      errors.totalQuote = t('validation.fieldRequired');
     } else if (parseFloat(form.totalQuote) <= 0) {
-      errors.totalQuote = 'Total quote must be greater than 0';
+      errors.totalQuote = t('workOrders.validationQuotePositive', { defaultValue: 'Total quote must be greater than 0' });
     }
     
     if (isAssign) {
       if (processList.length === 0) {
-        errors.processes = 'At least one process step is required';
+        errors.processes = t('workOrders.validationProcessStepRequired', { defaultValue: 'At least one process step is required' });
       } else {
         const hasUnassignedProcess = processList.some((p) => !p.technicianId && !(p.isVerification && !p.technicianId));
         if (hasUnassignedProcess) {
-          errors.processes = 'All process steps must be assigned to a technician';
+          errors.processes = t('workOrders.validationAllStepsAssigned', { defaultValue: 'All process steps must be assigned to a technician' });
         }
       }
     }
@@ -646,11 +656,11 @@ export function WorkOrdersPage() {
       }
 
       await workOrderService.update(editingWO.id, payload);
-      toast.success(isAssign ? 'Work order processes assigned successfully!' : 'Work order updated successfully!');
+      toast.success(isAssign ? t('workOrders.assignSuccess', { defaultValue: 'Work order processes assigned successfully!' }) : t('workOrders.updateSuccess', { defaultValue: 'Work order updated successfully!' }));
       setShowEditModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update work order';
+      const message = err?.response?.data?.message || t('workOrders.failedUpdate', { defaultValue: 'Failed to update work order' });
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -668,12 +678,12 @@ export function WorkOrdersPage() {
     try {
       setDeleting(true);
       await workOrderService.delete(woToDelete.id);
-      toast.success('Work order deleted successfully');
+      toast.success(t('workOrders.deleteSuccess', { defaultValue: 'Work order deleted successfully' }));
       setDeleteModalOpen(false);
       setWoToDelete(null);
       await fetchData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete work order');
+      toast.error(err?.response?.data?.message || t('workOrders.failedDelete', { defaultValue: 'Failed to delete work order' }));
     } finally {
       setDeleting(false);
     }
@@ -693,8 +703,8 @@ export function WorkOrdersPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-header__left">
-          <h1 className="page-header__title">Work Orders</h1>
-          <p className="page-header__subtitle">Manage dental lab work orders and workflows</p>
+          <h1 className="page-header__title">{t('workOrders.title', { defaultValue: 'Work Orders' })}</h1>
+          <p className="page-header__subtitle">{t('workOrders.subtitle', { defaultValue: 'Manage dental lab work orders and workflows' })}</p>
         </div>
         {canCreate && (
           <button
@@ -703,7 +713,7 @@ export function WorkOrdersPage() {
             onClick={handleCreateOpen}
           >
             <Plus size={18} />
-            <span>New Work Order</span>
+            <span>{t('workOrders.newWorkOrder', { defaultValue: 'New Work Order' })}</span>
           </button>
         )}
       </div>
@@ -716,7 +726,7 @@ export function WorkOrdersPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.total}</span>
-            <span className="stat-card__label">Total Orders</span>
+            <span className="stat-card__label">{t('workOrders.totalOrders', { defaultValue: 'Total Orders' })}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -725,7 +735,7 @@ export function WorkOrdersPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.assigned}</span>
-            <span className="stat-card__label">Assigned</span>
+            <span className="stat-card__label">{t('enums.workOrderStatus.ASSIGNED')}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -734,7 +744,7 @@ export function WorkOrdersPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.inProgress}</span>
-            <span className="stat-card__label">In Progress</span>
+            <span className="stat-card__label">{t('enums.workOrderStatus.IN_PROGRESS')}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -743,7 +753,7 @@ export function WorkOrdersPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.completed}</span>
-            <span className="stat-card__label">Completed</span>
+            <span className="stat-card__label">{t('enums.workOrderStatus.COMPLETED')}</span>
           </div>
         </div>
       </div>
@@ -756,7 +766,7 @@ export function WorkOrdersPage() {
             id="input-wo-search"
             type="text"
             className="form-input search-input"
-            placeholder="Search by folio, patient, doctor..."
+            placeholder={t('workOrders.searchPlaceholder', { defaultValue: 'Search by folio, patient, doctor...' })}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -771,14 +781,14 @@ export function WorkOrdersPage() {
           {/* Branch Filter (Owner only) */}
           {isOwner && branches.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>Branch:</span>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.branch')}:</span>
               <select
                 className="form-input"
                 style={{ width: '160px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
               >
-                <option value="ALL">All Branches</option>
+                <option value="ALL">{t('branches.allBranches')}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -794,7 +804,7 @@ export function WorkOrdersPage() {
                 className={`filter-chip ${selectedStatusFilter === s ? 'filter-chip--active' : ''}`}
                 onClick={() => setSelectedStatusFilter(s)}
               >
-                {s === 'ALL' ? 'All' : STATUS_CONFIG[s]?.label || s}
+                {s === 'ALL' ? t('common.all') : t(`enums.workOrderStatus.${s}`, { defaultValue: s })}
               </button>
             ))}
           </div>
@@ -805,7 +815,7 @@ export function WorkOrdersPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>Loading work orders...</span>
+          <span>{t('workOrders.loading', { defaultValue: 'Loading work orders...' })}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -813,17 +823,17 @@ export function WorkOrdersPage() {
             <ClipboardList size={48} style={{ color: 'var(--accent-primary)' }} />
           </div>
           <h3 className="empty-state__title">
-            {workOrders.length === 0 ? 'No work orders yet' : 'No matching work orders'}
+            {workOrders.length === 0 ? t('workOrders.noWorkOrders', { defaultValue: 'No work orders yet' }) : t('workOrders.noMatching', { defaultValue: 'No matching work orders' })}
           </h3>
           <p className="empty-state__text">
             {workOrders.length === 0
-              ? 'Create your first work order to start managing lab workflows.'
-              : 'Try adjusting your search or filter criteria.'}
+              ? t('workOrders.createDesc', { defaultValue: 'Create your first work order to start managing lab workflows.' })
+              : t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
           {workOrders.length === 0 && canCreate && (
             <button className="btn btn--primary" onClick={handleCreateOpen}>
               <Plus size={18} />
-              <span>New Work Order</span>
+              <span>{t('workOrders.newWorkOrder', { defaultValue: 'New Work Order' })}</span>
             </button>
           )}
         </div>
@@ -834,26 +844,26 @@ export function WorkOrdersPage() {
               <tr>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('folioNumber')}>
-                    Folio # <ArrowUpDown size={14} />
+                    {t('workOrders.folioNumber', { defaultValue: 'Folio #' })} <ArrowUpDown size={14} />
                   </button>
                 </th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('patient')}>
-                    Patient <ArrowUpDown size={14} />
+                    {t('workOrders.patient')} <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Doctor</th>
-                <th>Prosthesis Type</th>
-                <th>Color</th>
-                {isOwner && <th>Branch</th>}
-                <th>Quote</th>
-                <th>Status</th>
+                <th>{t('workOrders.doctor', { defaultValue: 'Doctor' })}</th>
+                <th>{t('workOrders.prosthesisType')}</th>
+                <th>{t('workOrders.color', { defaultValue: 'Color' })}</th>
+                {isOwner && <th>{t('common.branch')}</th>}
+                <th>{t('finance.quoted')}</th>
+                <th>{t('common.status')}</th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('createdAt')}>
-                    Created <ArrowUpDown size={14} />
+                    {t('common.created')} <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Actions</th>
+                <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -871,7 +881,7 @@ export function WorkOrdersPage() {
                             {wo.folioNumber}
                           </span>
                           {wo.boxNumber && (
-                            <span className="cell-primary__meta">Box: {wo.boxNumber}</span>
+                            <span className="cell-primary__meta">{t('workOrders.boxNumber', { defaultValue: 'Box' })}: {wo.boxNumber}</span>
                           )}
                         </div>
                       </div>
@@ -917,7 +927,7 @@ export function WorkOrdersPage() {
                     <td>
                       {wo.totalQuote != null ? (
                         <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
-                          ${wo.totalQuote.toLocaleString('es-MX')}
+                          {formatCurrency(wo.totalQuote)}
                         </span>
                       ) : (
                         <span className="text-muted">—</span>
@@ -932,12 +942,12 @@ export function WorkOrdersPage() {
                         }}
                       >
                         {sc.icon}
-                        {sc.label}
+                        {t(`enums.workOrderStatus.${wo.status}`, { defaultValue: sc.label })}
                       </span>
                     </td>
                     <td>
                       <span className="cell-date">
-                        {new Date(wo.createdAt).toLocaleDateString('en-IN', {
+                        {new Date(wo.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
                           day: 'numeric',
                           month: 'short',
                           year: '2-digit',
@@ -950,7 +960,7 @@ export function WorkOrdersPage() {
                           className="btn-action"
                           style={{ color: 'var(--accent-primary, #3B82F6)', backgroundColor: '#EFF6FF' }}
                           onClick={() => handleViewOpen(wo)}
-                          title="View Work Order"
+                          title={t('workOrders.viewWorkOrder', { defaultValue: 'View Work Order' })}
                         >
                           <Eye size={15} />
                         </button>
@@ -961,7 +971,7 @@ export function WorkOrdersPage() {
                             setQrWO(wo);
                             setShowQrModal(true);
                           }}
-                          title="Print QR Label"
+                          title={t('workOrders.printQRLabel', { defaultValue: 'Print QR Label' })}
                         >
                           <QrCode size={15} />
                         </button>
@@ -971,14 +981,14 @@ export function WorkOrdersPage() {
                               className="btn-action"
                               style={{ color: '#D97706', backgroundColor: '#FEF3C7' }}
                               onClick={() => handleEditOpen(wo)}
-                              title="Edit Work Order"
+                              title={t('workOrders.editWorkOrder')}
                             >
                               <Pencil size={15} />
                             </button>
                             <button
                               className="btn-action btn-action--danger"
                               onClick={() => confirmDelete(wo)}
-                              title="Delete Work Order"
+                              title={t('workOrders.deleteConfirm')}
                             >
                               <Trash2 size={15} />
                             </button>
@@ -1006,8 +1016,8 @@ export function WorkOrdersPage() {
           <div className="modal modal--xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">New Work Order</h2>
-                <p className="modal__subtitle">Create a new dental lab work order</p>
+                <h2 className="modal__title">{t('workOrders.newWorkOrder')}</h2>
+                <p className="modal__subtitle">{t('workOrders.createWorkOrderSubtitle', { defaultValue: 'Create a new dental lab work order' })}</p>
               </div>
               <button
                 className="modal__close"
@@ -1036,7 +1046,7 @@ export function WorkOrdersPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  1. Basic Details
+                  {t('workOrders.tabs.basicDetails', { defaultValue: '1. Basic Details' })}
                 </button>
                 <button
                   type="button"
@@ -1060,7 +1070,7 @@ export function WorkOrdersPage() {
                     gap: '0.5rem'
                   }}
                 >
-                  <span>2. Process Steps</span>
+                  <span>{t('workOrders.tabs.processSteps', { defaultValue: '2. Process Steps' })}</span>
                   {processList.length > 0 && (
                     <span style={{
                       fontSize: '0.75rem',
@@ -1083,7 +1093,7 @@ export function WorkOrdersPage() {
                   {/* Row 1: Doctor + Patient */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="select-wo-doctor">Doctor *</label>
+                      <label className="form-label" htmlFor="select-wo-doctor">{t('workOrders.doctor', { defaultValue: 'Doctor' })} *</label>
                       <SearchableSelect
                         id="select-wo-doctor"
                         options={doctors.map((d) => ({
@@ -1093,7 +1103,7 @@ export function WorkOrdersPage() {
                         value={form.doctorId}
                         onChange={(val) => handleInputChange('doctorId', val)}
                         disabled={saving}
-                        placeholder="Select a doctor"
+                        placeholder={t('doctors.selectDoctor', { defaultValue: 'Select a doctor' })}
                         error={!!formErrors.doctorId}
                       />
                       {formErrors.doctorId && (
@@ -1102,12 +1112,12 @@ export function WorkOrdersPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-patient">Patient *</label>
+                      <label className="form-label" htmlFor="input-wo-patient">{t('workOrders.patient')} *</label>
                       <input
                         id="input-wo-patient"
                         className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
                         type="text"
-                        placeholder="e.g., John Doe"
+                        placeholder={t('workOrders.patientPlaceholder', { defaultValue: 'e.g., John Doe' })}
                         value={form.patient}
                         onChange={(e) => handleInputChange('patient', e.target.value)}
                         disabled={saving}
@@ -1121,24 +1131,24 @@ export function WorkOrdersPage() {
                   {/* Row 2: Folio Number + Box Number */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-folio">Folio Number</label>
+                      <label className="form-label" htmlFor="input-wo-folio">{t('workOrders.folioNumber', { defaultValue: 'Folio Number' })}</label>
                       <input
                         id="input-wo-folio"
                         className="form-input"
                         type="text"
-                        value={generatedFolio || 'Generating...'}
+                        value={generatedFolio || t('workOrders.generating', { defaultValue: 'Generating...' })}
                         disabled
                         style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
                       />
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-box">Box Number</label>
+                      <label className="form-label" htmlFor="input-wo-box">{t('workOrders.boxNumber', { defaultValue: 'Box Number' })}</label>
                       <input
                         id="input-wo-box"
                         className="form-input"
                         type="text"
-                        placeholder="e.g., BOX-42"
+                        placeholder={t('workOrders.boxNumberPlaceholder', { defaultValue: 'e.g., BOX-42' })}
                         value={form.boxNumber}
                         onChange={(e) => handleInputChange('boxNumber', e.target.value)}
                         disabled={saving}
@@ -1148,7 +1158,7 @@ export function WorkOrdersPage() {
 
                   {/* Row 3: Prosthesis Type */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="select-wo-prosthesis">Prosthesis Type *</label>
+                    <label className="form-label" htmlFor="select-wo-prosthesis">{t('workOrders.prosthesisType')} *</label>
                     <SearchableSelect
                       id="select-wo-prosthesis"
                       options={prosthesisTypes.map((pt) => ({
@@ -1158,7 +1168,7 @@ export function WorkOrdersPage() {
                       value={form.prosthesisTypeId}
                       onChange={handleProsthesisTypeChange}
                       disabled={saving}
-                      placeholder="Select prosthesis type"
+                      placeholder={t('workOrders.selectProsthesisType', { defaultValue: 'Select prosthesis type' })}
                       error={!!formErrors.prosthesisTypeId}
                     />
                     {formErrors.prosthesisTypeId && (
@@ -1169,12 +1179,12 @@ export function WorkOrdersPage() {
                   {/* Specification (Admin only) */}
                   {isAdmin && (
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-spec">Specification *</label>
+                      <label className="form-label" htmlFor="input-wo-spec">{t('workOrders.specification', { defaultValue: 'Specification' })} *</label>
                       <textarea
                         id="input-wo-spec"
                         className={`form-input ${formErrors.specification ? 'form-input--error' : ''}`}
                         style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                        placeholder="Color, shade, units, material details..."
+                        placeholder={t('workOrders.specificationPlaceholder', { defaultValue: 'Color, shade, units, material details...' })}
                         value={form.specification}
                         onChange={(e) => handleInputChange('specification', e.target.value)}
                         disabled={saving}
@@ -1187,12 +1197,12 @@ export function WorkOrdersPage() {
 
                   {/* Color (Mandatory) */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="input-wo-color">Color *</label>
+                    <label className="form-label" htmlFor="input-wo-color">{t('workOrders.color', { defaultValue: 'Color' })} *</label>
                     <input
                       id="input-wo-color"
                       className={`form-input ${formErrors.color ? 'form-input--error' : ''}`}
                       type="text"
-                      placeholder="e.g., A1, A2, B1..."
+                      placeholder={t('workOrders.colorPlaceholder', { defaultValue: 'e.g., A1, A2, B1...' })}
                       value={form.color}
                       onChange={(e) => handleInputChange('color', e.target.value)}
                       disabled={saving}
@@ -1204,12 +1214,12 @@ export function WorkOrdersPage() {
 
                   {/* Notes */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="input-wo-notes">Notes</label>
+                    <label className="form-label" htmlFor="input-wo-notes">{t('workOrders.notes', { defaultValue: 'Notes' })}</label>
                     <textarea
                       id="input-wo-notes"
                       className="form-input"
                       style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                      placeholder="Additional notes or instructions..."
+                      placeholder={t('workOrders.notesPlaceholder', { defaultValue: 'Additional notes or instructions...' })}
                       value={form.notes}
                       onChange={(e) => handleInputChange('notes', e.target.value)}
                       disabled={saving}
@@ -1219,14 +1229,14 @@ export function WorkOrdersPage() {
                   {/* Row: Total Quote + Initial Payment */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-quote">Total Quote ($) *</label>
+                      <label className="form-label" htmlFor="input-wo-quote">{t('workOrders.totalQuote', { defaultValue: 'Total Quote' })} ({i18n.language?.startsWith('es') ? '$' : '₹'}) *</label>
                       <input
                         id="input-wo-quote"
                         className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
                         type="number"
                         min="0"
                         step="0.01"
-                        placeholder="e.g., 5000"
+                        placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g., 5000' })}
                         value={form.totalQuote}
                         onChange={(e) => handleInputChange('totalQuote', e.target.value)}
                         disabled={saving}
@@ -1236,14 +1246,14 @@ export function WorkOrdersPage() {
                       )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-payment">Initial Payment ($)</label>
+                      <label className="form-label" htmlFor="input-wo-payment">{t('workOrders.initialPayment', { defaultValue: 'Initial Payment' })} ({i18n.language?.startsWith('es') ? '$' : '₹'})</label>
                       <input
                         id="input-wo-payment"
                         className="form-input"
                         type="number"
                         min="0"
                         step="0.01"
-                        placeholder="e.g., 2000"
+                        placeholder={t('workOrders.paymentPlaceholder', { defaultValue: 'e.g., 2000' })}
                         value={form.initialPayment}
                         onChange={(e) => handleInputChange('initialPayment', e.target.value)}
                         disabled={saving}
@@ -1254,7 +1264,7 @@ export function WorkOrdersPage() {
                   {/* Branch select (Owner only) */}
                   {isOwner && branches.length > 0 && (
                     <div className="form-group">
-                      <label className="form-label" htmlFor="select-wo-branch">Branch *</label>
+                      <label className="form-label" htmlFor="select-wo-branch">{t('common.branch')} *</label>
                       <SearchableSelect
                         id="select-wo-branch"
                         options={branches.map((b) => ({
@@ -1264,7 +1274,7 @@ export function WorkOrdersPage() {
                         value={form.branchId}
                         onChange={(val) => handleInputChange('branchId', val)}
                         disabled={saving}
-                        placeholder="Select a branch"
+                        placeholder={t('branches.selectBranch', { defaultValue: 'Select a branch' })}
                         error={!!formErrors.branchId}
                       />
                       {formErrors.branchId && (
@@ -1278,7 +1288,7 @@ export function WorkOrdersPage() {
                 <div className="wo-process-section" style={{ margin: 0, border: 'none', background: 'transparent', padding: 0 }}>
                   <div className="wo-process-section__header" style={{ marginBottom: '1rem' }}>
                     <h3 className="wo-process-section__title">
-                      Process Steps Assignment
+                      {t('workOrders.processStepsAssignment', { defaultValue: 'Process Steps Assignment' })}
                       {processList.length > 0 && (
                         <span className="wo-process-section__count">{processList.length}</span>
                       )}
@@ -1297,7 +1307,7 @@ export function WorkOrdersPage() {
                         disabled={saving || showAddProcess}
                       >
                         <PlusCircle size={14} />
-                        <span>Add Process</span>
+                        <span>{t('workOrders.addProcess', { defaultValue: 'Add Process' })}</span>
                       </button>
                       <button
                         type="button"
@@ -1311,7 +1321,7 @@ export function WorkOrdersPage() {
                         disabled={saving || showAddVerificationForm}
                       >
                         <ShieldPlus size={14} />
-                        <span>Add Verification</span>
+                        <span>{t('workOrders.addVerification', { defaultValue: 'Add Verification' })}</span>
                       </button>
                     </div>
                   </div>
@@ -1325,7 +1335,7 @@ export function WorkOrdersPage() {
                   {processList.length === 0 && !showAddProcess && !showAddVerificationForm ? (
                     <div className="wo-process-empty" style={{ border: '1px dashed var(--border)', borderRadius: '8px' }}>
                       <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                      <span>No processes loaded yet. Choose prosthesis type in details or add processes.</span>
+                      <span>{t('workOrders.noProcessesLoaded', { defaultValue: 'No processes loaded yet. Choose prosthesis type in details or add processes.' })}</span>
                     </div>
                   ) : (
                     <div className="wo-process-list">
@@ -1345,7 +1355,7 @@ export function WorkOrdersPage() {
                                 backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
                                 color: proc.technicianId ? '#8B5CF6' : '#6366F1'
                               }}>
-                                {proc.technicianId ? 'Internal' : 'External'} Verification
+                                {proc.technicianId ? t('workOrders.internalVerification', { defaultValue: 'Internal Verification' }) : t('workOrders.externalVerification', { defaultValue: 'External Verification' })}
                               </span>
                             )}
                           </div>
@@ -1367,7 +1377,7 @@ export function WorkOrdersPage() {
                               }}>
                                 {(() => {
                                   const selectedDoc = doctors.find((d) => d.id === form.doctorId);
-                                  return selectedDoc ? selectedDoc.name : 'Selected Doctor';
+                                  return selectedDoc ? selectedDoc.name : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' });
                                 })()}
                               </div>
                             ) : (
@@ -1380,7 +1390,7 @@ export function WorkOrdersPage() {
                                 value={proc.technicianId}
                                 onChange={(val) => updateProcessTechnician(idx, val)}
                                 disabled={saving}
-                                placeholder={`Select ${proc.isVerification ? 'admin' : 'technician'}`}
+                                placeholder={proc.isVerification ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
                               />
                             )}
                           </div>
@@ -1390,17 +1400,17 @@ export function WorkOrdersPage() {
                             <SearchableSelect
                               id={`select-proc-status-${proc.tempId}`}
                               options={[
-                                { value: 'NOT_STARTED', label: 'Not Started' },
-                                { value: 'IN_PROGRESS', label: 'In Progress' },
-                                { value: 'PAUSED', label: 'Paused' },
-                                { value: 'COMPLETED', label: 'Completed' },
-                                { value: 'FAILED', label: 'Failed' },
-                                { value: 'CANCELLED', label: 'Cancelled' },
+                                { value: 'NOT_STARTED', label: t('enums.processStatus.NOT_STARTED', { defaultValue: 'Not Started' }) },
+                                { value: 'IN_PROGRESS', label: t('enums.processStatus.IN_PROGRESS', { defaultValue: 'In Progress' }) },
+                                { value: 'PAUSED', label: t('enums.processStatus.PAUSED', { defaultValue: 'Paused' }) },
+                                { value: 'COMPLETED', label: t('enums.processStatus.COMPLETED', { defaultValue: 'Completed' }) },
+                                { value: 'FAILED', label: t('enums.processStatus.FAILED', { defaultValue: 'Failed' }) },
+                                { value: 'CANCELLED', label: t('enums.processStatus.CANCELLED', { defaultValue: 'Cancelled' }) },
                               ]}
                               value={proc.status || 'NOT_STARTED'}
                               onChange={(val) => updateProcessStatus(idx, val as any)}
                               disabled={saving}
-                              placeholder="Select status"
+                              placeholder={t('common.selectStatus', { defaultValue: 'Select status' })}
                             />
                           </div>
 
@@ -1410,7 +1420,7 @@ export function WorkOrdersPage() {
                               className="wo-process-item__btn"
                               onClick={() => moveProcess(idx, 'up')}
                               disabled={idx === 0 || saving}
-                              title="Move up"
+                              title={t('common.moveUp', { defaultValue: 'Move up' })}
                             >
                               <ChevronUp size={14} />
                             </button>
@@ -1419,7 +1429,7 @@ export function WorkOrdersPage() {
                               className="wo-process-item__btn"
                               onClick={() => moveProcess(idx, 'down')}
                               disabled={idx === processList.length - 1 || saving}
-                              title="Move down"
+                              title={t('common.moveDown', { defaultValue: 'Move down' })}
                             >
                               <ChevronDown size={14} />
                             </button>
@@ -1428,7 +1438,7 @@ export function WorkOrdersPage() {
                               className="wo-process-item__btn wo-process-item__btn--danger"
                               onClick={() => removeProcess(idx)}
                               disabled={saving}
-                              title="Remove"
+                              title={t('common.remove')}
                             >
                               <Trash2 size={14} />
                             </button>
@@ -1452,7 +1462,7 @@ export function WorkOrdersPage() {
                             value={newProcessId}
                             onChange={handleAvailableProcessChange}
                             disabled={saving}
-                            placeholder="Select process..."
+                            placeholder={t('processesPage.selectProcess', { defaultValue: 'Select process...' })}
                           />
                         </div>
                         <div style={{ flex: 1, minWidth: '180px' }}>
@@ -1465,14 +1475,14 @@ export function WorkOrdersPage() {
                             value={newProcessTechnicianId}
                             onChange={setNewProcessTechnicianId}
                             disabled={saving}
-                            placeholder="Select technician"
+                            placeholder={t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
                           />
                         </div>
                         <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
-                          Add
+                          {t('common.add')}
                         </button>
                         <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessId(''); setNewProcessName(''); setNewProcessTechnicianId(''); }}>
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                       </div>
                     </div>
@@ -1482,7 +1492,7 @@ export function WorkOrdersPage() {
                   {showAddVerificationForm && (
                     <div className="wo-process-add" style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-muted, #F3F4F6)' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>Add Verification Step</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('workOrders.addVerificationStep', { defaultValue: 'Add Verification Step' })}</span>
                         <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap', alignItems: 'center' }}>
                           <select
                             className="form-input form-input--sm"
@@ -1498,8 +1508,8 @@ export function WorkOrdersPage() {
                             }}
                             style={{ flex: 1, minWidth: '120px' }}
                           >
-                            <option value="INTERNAL">Internal Verification</option>
-                            <option value="EXTERNAL">External Verification</option>
+                            <option value="INTERNAL">{t('workOrders.internalVerification', { defaultValue: 'Internal Verification' })}</option>
+                            <option value="EXTERNAL">{t('workOrders.externalVerification', { defaultValue: 'External Verification' })}</option>
                           </select>
 
                           {verificationType === 'INTERNAL' ? (
@@ -1513,7 +1523,7 @@ export function WorkOrdersPage() {
                                 value={verificationTechnicianId}
                                 onChange={setVerificationTechnicianId}
                                 disabled={saving}
-                                placeholder="Select admin"
+                                placeholder={t('workOrders.selectAdmin', { defaultValue: 'Select admin' })}
                               />
                             </div>
                           ) : (
@@ -1525,18 +1535,18 @@ export function WorkOrdersPage() {
                               padding: '0 0.5rem',
                               fontStyle: 'italic'
                             }}>
-                              Assigned: {(() => {
+                              {t('common.assigned', { defaultValue: 'Assigned' })}: {(() => {
                                 const selectedDoc = doctors.find((d) => d.id === form.doctorId);
-                                return selectedDoc ? `${selectedDoc.name} (Doctor)` : 'Selected Doctor';
+                                return selectedDoc ? `${selectedDoc.name} (${t('common.doctor')})` : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' });
                               })()}
                             </div>
                           )}
 
                           <button type="button" className="btn btn--primary btn--sm" onClick={handleAddVerification}>
-                            Add
+                            {t('common.add')}
                           </button>
                           <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddVerificationForm(false); setVerificationTechnicianId(''); }}>
-                            Cancel
+                            {t('common.cancel')}
                           </button>
                         </div>
                       </div>
@@ -1556,7 +1566,7 @@ export function WorkOrdersPage() {
                     onClick={() => setShowCreateModal(false)}
                     disabled={saving}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
@@ -1567,7 +1577,7 @@ export function WorkOrdersPage() {
                       disabled={saving}
                     >
                       {saving ? (
-                        <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                        <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
                       ) : (
                         <span>Save</span>
                       )}
@@ -1595,7 +1605,7 @@ export function WorkOrdersPage() {
                     onClick={() => setModalTab('details')}
                     disabled={saving}
                   >
-                    Back
+                    {t('common.back', { defaultValue: 'Back' })}
                   </button>
                   <button
                     id="btn-wo-confirm"
@@ -1605,9 +1615,9 @@ export function WorkOrdersPage() {
                     disabled={saving}
                   >
                     {saving ? (
-                      <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                      <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
                     ) : (
-                      <span>Confirm</span>
+                      <span>{t('common.confirm', { defaultValue: 'Confirm' })}</span>
                     )}
                   </button>
                 </>
@@ -1623,9 +1633,9 @@ export function WorkOrdersPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Delete Work Order</h2>
+                <h2 className="modal__title">{t('workOrders.deleteTitle', { defaultValue: 'Delete Work Order' })}</h2>
                 <p className="modal__subtitle">
-                  Are you sure you want to delete work order <strong>{woToDelete.folioNumber}</strong>?
+                  {t('workOrders.deleteConfirmText', { folio: woToDelete.folioNumber, defaultValue: `Are you sure you want to delete work order ${woToDelete.folioNumber}?` })}
                 </p>
               </div>
               <button
@@ -1645,7 +1655,7 @@ export function WorkOrdersPage() {
                 fontSize: '0.875rem',
                 color: 'var(--danger, #EF4444)',
               }}>
-                <strong>Warning:</strong> This action cannot be undone. All process steps and data associated with this work order will be permanently removed.
+                <strong>{t('common.warning', { defaultValue: 'Warning' })}:</strong> {t('workOrders.deleteWarningText', { defaultValue: 'This action cannot be undone. All process steps and data associated with this work order will be permanently removed.' })}
               </div>
             </div>
             <div className="modal__footer" style={{ padding: '1rem 1.75rem' }}>
@@ -1655,7 +1665,7 @@ export function WorkOrdersPage() {
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deleting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1664,9 +1674,9 @@ export function WorkOrdersPage() {
                 disabled={deleting}
               >
                 {deleting ? (
-                  <><Loader2 size={16} className="spinner" /><span>Deleting...</span></>
+                  <><Loader2 size={16} className="spinner" /><span>{t('common.deleting', { defaultValue: 'Deleting...' })}</span></>
                 ) : (
-                  <><Trash2 size={16} /><span>Delete</span></>
+                  <><Trash2 size={16} /><span>{t('common.delete')}</span></>
                 )}
               </button>
             </div>
@@ -1685,11 +1695,11 @@ export function WorkOrdersPage() {
               prev.map((wo) =>
                 wo.id === updatedWO.id
                   ? {
-                      ...wo,
-                      initialPayment: updatedWO.initialPayment,
-                      notes: updatedWO.notes,
-                      status: updatedWO.status,
-                    }
+                       ...wo,
+                       initialPayment: updatedWO.initialPayment,
+                       notes: updatedWO.notes,
+                       status: updatedWO.status,
+                     }
                   : wo
               )
             );
@@ -1704,8 +1714,8 @@ export function WorkOrdersPage() {
           <div className="modal modal--xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Edit Work Order</h2>
-                <p className="modal__subtitle">Edit work order <strong>{editingWO.folioNumber}</strong></p>
+                <h2 className="modal__title">{t('workOrders.editTitle', { defaultValue: 'Edit Work Order' })}</h2>
+                <p className="modal__subtitle">{t('workOrders.editSubtitle', { folio: editingWO.folioNumber, defaultValue: `Edit work order ${editingWO.folioNumber}` })}</p>
               </div>
               <button
                 className="modal__close"
@@ -1734,7 +1744,7 @@ export function WorkOrdersPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  1. Basic Details
+                  {t('workOrders.tabs.basicDetails', { defaultValue: '1. Basic Details' })}
                 </button>
                 <button
                   type="button"
@@ -1758,7 +1768,7 @@ export function WorkOrdersPage() {
                     gap: '0.5rem'
                   }}
                 >
-                  <span>2. Process Steps</span>
+                  <span>{t('workOrders.tabs.processSteps', { defaultValue: '2. Process Steps' })}</span>
                   {processList.length > 0 && (
                     <span style={{
                       fontSize: '0.75rem',
@@ -1781,7 +1791,7 @@ export function WorkOrdersPage() {
                   {/* Row 1: Doctor + Patient */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-doctor">Doctor *</label>
+                      <label className="form-label" htmlFor="edit-wo-doctor">{t('workOrders.doctor', { defaultValue: 'Doctor' })} *</label>
                       <SearchableSelect
                         id="edit-wo-doctor"
                         options={doctors.map((d) => ({
@@ -1791,7 +1801,7 @@ export function WorkOrdersPage() {
                         value={form.doctorId}
                         onChange={(val) => handleInputChange('doctorId', val)}
                         disabled={saving}
-                        placeholder="Select a doctor"
+                        placeholder={t('doctors.selectDoctor', { defaultValue: 'Select a doctor' })}
                         error={!!formErrors.doctorId}
                       />
                       {formErrors.doctorId && (
@@ -1800,12 +1810,12 @@ export function WorkOrdersPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-patient">Patient *</label>
+                      <label className="form-label" htmlFor="edit-wo-patient">{t('workOrders.patient')} *</label>
                       <input
                         id="edit-wo-patient"
                         className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
                         type="text"
-                        placeholder="e.g., John Doe"
+                        placeholder={t('workOrders.patientPlaceholder', { defaultValue: 'e.g., John Doe' })}
                         value={form.patient}
                         onChange={(e) => handleInputChange('patient', e.target.value)}
                         disabled={saving}
@@ -1819,7 +1829,7 @@ export function WorkOrdersPage() {
                   {/* Row 2: Folio Number + Box Number */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-folio">Folio Number</label>
+                      <label className="form-label" htmlFor="edit-wo-folio">{t('workOrders.folioNumber', { defaultValue: 'Folio Number' })}</label>
                       <input
                         id="edit-wo-folio"
                         className="form-input"
@@ -1831,12 +1841,12 @@ export function WorkOrdersPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-box">Box Number</label>
+                      <label className="form-label" htmlFor="edit-wo-box">{t('workOrders.boxNumber', { defaultValue: 'Box Number' })}</label>
                       <input
                         id="edit-wo-box"
                         className="form-input"
                         type="text"
-                        placeholder="e.g., BOX-42"
+                        placeholder={t('workOrders.boxNumberPlaceholder', { defaultValue: 'e.g., BOX-42' })}
                         value={form.boxNumber}
                         onChange={(e) => handleInputChange('boxNumber', e.target.value)}
                         disabled={saving}
@@ -1846,7 +1856,7 @@ export function WorkOrdersPage() {
 
                   {/* Row 3: Status Dropdown Selection */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-status">Work Order Status</label>
+                    <label className="form-label" htmlFor="edit-wo-status">{t('workOrders.status', { defaultValue: 'Work Order Status' })}</label>
                     <select
                       id="edit-wo-status"
                       className="form-input"
@@ -1855,20 +1865,20 @@ export function WorkOrdersPage() {
                       disabled={saving}
                       style={{ fontWeight: 600 }}
                     >
-                      <option value="CREATED">Created</option>
-                      <option value="ASSIGNED">Assigned</option>
-                      <option value="IN_PROGRESS">In Progress</option>
-                      <option value="INTERNAL_VERIFICATION">Internal Verification</option>
-                      <option value="EXTERNAL_VERIFICATION">External Verification</option>
-                      <option value="COMPLETED">Completed</option>
-                      <option value="FAILED">Failed</option>
-                      <option value="CANCELLED">Cancelled</option>
+                      <option value="CREATED">{t('enums.workOrderStatus.CREATED')}</option>
+                      <option value="ASSIGNED">{t('enums.workOrderStatus.ASSIGNED')}</option>
+                      <option value="IN_PROGRESS">{t('enums.workOrderStatus.IN_PROGRESS')}</option>
+                      <option value="INTERNAL_VERIFICATION">{t('enums.workOrderStatus.INTERNAL_VERIFICATION')}</option>
+                      <option value="EXTERNAL_VERIFICATION">{t('enums.workOrderStatus.EXTERNAL_VERIFICATION')}</option>
+                      <option value="COMPLETED">{t('enums.workOrderStatus.COMPLETED')}</option>
+                      <option value="FAILED">{t('enums.workOrderStatus.FAILED')}</option>
+                      <option value="CANCELLED">{t('enums.workOrderStatus.CANCELLED')}</option>
                     </select>
                   </div>
 
                   {/* Row 4: Prosthesis Type */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-prosthesis">Prosthesis Type *</label>
+                    <label className="form-label" htmlFor="edit-wo-prosthesis">{t('workOrders.prosthesisType')} *</label>
                     <SearchableSelect
                       id="edit-wo-prosthesis"
                       options={prosthesisTypes.map((pt) => ({
@@ -1878,7 +1888,7 @@ export function WorkOrdersPage() {
                       value={form.prosthesisTypeId}
                       onChange={handleProsthesisTypeChange}
                       disabled={saving}
-                      placeholder="Select prosthesis type"
+                      placeholder={t('workOrders.selectProsthesisType', { defaultValue: 'Select prosthesis type' })}
                       error={!!formErrors.prosthesisTypeId}
                     />
                     {formErrors.prosthesisTypeId && (
@@ -1889,12 +1899,12 @@ export function WorkOrdersPage() {
                   {/* Specification (Admin only) */}
                   {isAdmin && (
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-spec">Specification *</label>
+                      <label className="form-label" htmlFor="edit-wo-spec">{t('workOrders.specification', { defaultValue: 'Specification' })} *</label>
                       <textarea
                         id="edit-wo-spec"
                         className={`form-input ${formErrors.specification ? 'form-input--error' : ''}`}
                         style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                        placeholder="Color, shade, units, material details..."
+                        placeholder={t('workOrders.specificationPlaceholder', { defaultValue: 'Color, shade, units, material details...' })}
                         value={form.specification}
                         onChange={(e) => handleInputChange('specification', e.target.value)}
                         disabled={saving}
@@ -1907,12 +1917,12 @@ export function WorkOrdersPage() {
 
                   {/* Color (Mandatory) */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-color">Color *</label>
+                    <label className="form-label" htmlFor="edit-wo-color">{t('workOrders.color', { defaultValue: 'Color' })} *</label>
                     <input
                       id="edit-wo-color"
                       className={`form-input ${formErrors.color ? 'form-input--error' : ''}`}
                       type="text"
-                      placeholder="e.g., A1, A2, B1..."
+                      placeholder={t('workOrders.colorPlaceholder', { defaultValue: 'e.g., A1, A2, B1...' })}
                       value={form.color}
                       onChange={(e) => handleInputChange('color', e.target.value)}
                       disabled={saving}
@@ -1924,12 +1934,12 @@ export function WorkOrdersPage() {
 
                   {/* Notes */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-notes">Notes</label>
+                    <label className="form-label" htmlFor="edit-wo-notes">{t('workOrders.notes', { defaultValue: 'Notes' })}</label>
                     <textarea
                       id="edit-wo-notes"
                       className="form-input"
                       style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                      placeholder="Additional notes or instructions..."
+                      placeholder={t('workOrders.notesPlaceholder', { defaultValue: 'Additional notes or instructions...' })}
                       value={form.notes}
                       onChange={(e) => handleInputChange('notes', e.target.value)}
                       disabled={saving}
@@ -1939,14 +1949,14 @@ export function WorkOrdersPage() {
                   {/* Row: Total Quote + Initial Payment */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-quote">Total Quote ($) *</label>
+                      <label className="form-label" htmlFor="edit-wo-quote">{t('workOrders.totalQuote', { defaultValue: 'Total Quote' })} ({i18n.language?.startsWith('es') ? '$' : '₹'}) *</label>
                       <input
                         id="edit-wo-quote"
                         className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
                         type="number"
                         min="0"
                         step="0.01"
-                        placeholder="e.g., 5000"
+                        placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g., 5000' })}
                         value={form.totalQuote}
                         onChange={(e) => handleInputChange('totalQuote', e.target.value)}
                         disabled={saving}
@@ -1956,14 +1966,14 @@ export function WorkOrdersPage() {
                       )}
                     </div>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-payment">Initial Payment ($)</label>
+                      <label className="form-label" htmlFor="edit-wo-payment">{t('workOrders.initialPayment', { defaultValue: 'Initial Payment' })} ({i18n.language?.startsWith('es') ? '$' : '₹'})</label>
                       <input
                         id="edit-wo-payment"
                         className="form-input"
                         type="number"
                         min="0"
                         step="0.01"
-                        placeholder="e.g., 2000"
+                        placeholder={t('workOrders.paymentPlaceholder', { defaultValue: 'e.g., 2000' })}
                         value={form.initialPayment}
                         onChange={(e) => handleInputChange('initialPayment', e.target.value)}
                         disabled={saving}
@@ -1974,7 +1984,7 @@ export function WorkOrdersPage() {
                   {/* Branch select (Owner only) */}
                   {isOwner && branches.length > 0 && (
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-branch">Branch *</label>
+                      <label className="form-label" htmlFor="edit-wo-branch">{t('common.branch')} *</label>
                       <SearchableSelect
                         id="edit-wo-branch"
                         options={branches.map((b) => ({
@@ -1984,7 +1994,7 @@ export function WorkOrdersPage() {
                         value={form.branchId}
                         onChange={(val) => handleInputChange('branchId', val)}
                         disabled={saving}
-                        placeholder="Select a branch"
+                        placeholder={t('branches.selectBranch', { defaultValue: 'Select a branch' })}
                         error={!!formErrors.branchId}
                       />
                       {formErrors.branchId && (
@@ -2014,12 +2024,12 @@ export function WorkOrdersPage() {
                             marginBottom: '1rem'
                           }}>
                             <Lock size={15} />
-                            <span><strong>Workflow Steps Locked:</strong> Some steps have already started. You cannot modify, reorder, or delete started steps, but you can still manage, reorder, delete, or assign unstarted steps, and add new ones.</span>
+                            <span><strong>{t('workOrders.workflowStepsLockedTitle', { defaultValue: 'Workflow Steps Locked:' })}</strong> {t('workOrders.workflowStepsLockedDesc', { defaultValue: 'Some steps have already started. You cannot modify, reorder, or delete started steps, but you can still manage, reorder, delete, or assign unstarted steps, and add new ones.' })}</span>
                           </div>
                         )}
                         <div className="wo-process-section__header" style={{ marginBottom: '1rem' }}>
                           <h3 className="wo-process-section__title">
-                            Process Steps Assignment
+                            {t('workOrders.processStepsAssignment', { defaultValue: 'Process Steps Assignment' })}
                             {processList.length > 0 && (
                               <span className="wo-process-section__count">{processList.length}</span>
                             )}
@@ -2038,7 +2048,7 @@ export function WorkOrdersPage() {
                               disabled={saving || showAddProcess}
                             >
                               <PlusCircle size={14} />
-                              <span>Add Process</span>
+                              <span>{t('workOrders.addProcess', { defaultValue: 'Add Process' })}</span>
                             </button>
                             <button
                               type="button"
@@ -2052,7 +2062,7 @@ export function WorkOrdersPage() {
                               disabled={saving || showAddVerificationForm}
                             >
                               <ShieldPlus size={14} />
-                              <span>Add Verification</span>
+                              <span>{t('workOrders.addVerification', { defaultValue: 'Add Verification' })}</span>
                             </button>
                           </div>
                         </div>
@@ -2069,7 +2079,7 @@ export function WorkOrdersPage() {
                   {processList.length === 0 && !showAddProcess && !showAddVerificationForm ? (
                     <div className="wo-process-empty" style={{ border: '1px dashed var(--border)', borderRadius: '8px' }}>
                       <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                      <span>No processes loaded yet. Choose prosthesis type in details or add processes.</span>
+                      <span>{t('workOrders.noProcessesLoaded', { defaultValue: 'No processes loaded yet. Choose prosthesis type in details or add processes.' })}</span>
                     </div>
                   ) : (
                     <div className="wo-process-list">
@@ -2094,7 +2104,7 @@ export function WorkOrdersPage() {
                                   backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
                                   color: proc.technicianId ? '#8B5CF6' : '#6366F1'
                                 }}>
-                                  {proc.technicianId ? 'Internal' : 'External'} Verification
+                                  {proc.technicianId ? t('workOrders.internalVerification', { defaultValue: 'Internal Verification' }) : t('workOrders.externalVerification', { defaultValue: 'External Verification' })}
                                 </span>
                               )}
                               {formStatus !== 'COMPLETED' && (proc.status === 'COMPLETED' || proc.reworkActive) && !proc.isVerification && (
@@ -2128,7 +2138,7 @@ export function WorkOrdersPage() {
                                       accentColor: '#EF4444'
                                     }}
                                   />
-                                  <span>Rework</span>
+                                  <span>{t('workOrders.rework', { defaultValue: 'Rework' })}</span>
                                 </label>
                               )}
                             </div>
@@ -2150,7 +2160,7 @@ export function WorkOrdersPage() {
                                 }}>
                                   {(() => {
                                     const selectedDoc = doctors.find((d) => d.id === form.doctorId);
-                                    return selectedDoc ? selectedDoc.name : 'Selected Doctor';
+                                    return selectedDoc ? selectedDoc.name : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' });
                                   })()}
                                 </div>
                               ) : (
@@ -2163,7 +2173,7 @@ export function WorkOrdersPage() {
                                   value={proc.technicianId}
                                   onChange={(val) => updateProcessTechnician(idx, val)}
                                   disabled={saving || isStepStarted}
-                                  placeholder={`Select ${proc.isVerification ? 'admin' : 'technician'}`}
+                                  placeholder={proc.isVerification ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
                                 />
                               )}
                             </div>
@@ -2173,17 +2183,17 @@ export function WorkOrdersPage() {
                               <SearchableSelect
                                 id={`select-edit-proc-status-${proc.tempId}`}
                                 options={[
-                                  { value: 'NOT_STARTED', label: 'Not Started' },
-                                  { value: 'IN_PROGRESS', label: 'In Progress' },
-                                  { value: 'PAUSED', label: 'Paused' },
-                                  { value: 'COMPLETED', label: 'Completed' },
-                                  { value: 'FAILED', label: 'Failed' },
-                                  { value: 'CANCELLED', label: 'Cancelled' },
+                                  { value: 'NOT_STARTED', label: t('enums.processStatus.NOT_STARTED', { defaultValue: 'Not Started' }) },
+                                  { value: 'IN_PROGRESS', label: t('enums.processStatus.IN_PROGRESS', { defaultValue: 'In Progress' }) },
+                                  { value: 'PAUSED', label: t('enums.processStatus.PAUSED', { defaultValue: 'Paused' }) },
+                                  { value: 'COMPLETED', label: t('enums.processStatus.COMPLETED', { defaultValue: 'Completed' }) },
+                                  { value: 'FAILED', label: t('enums.processStatus.FAILED', { defaultValue: 'Failed' }) },
+                                  { value: 'CANCELLED', label: t('enums.processStatus.CANCELLED', { defaultValue: 'Cancelled' }) },
                                 ]}
                                 value={proc.status || 'NOT_STARTED'}
                                 onChange={(val) => updateProcessStatus(idx, val as any)}
                                 disabled={saving || isStepStarted}
-                                placeholder="Select status"
+                                placeholder={t('common.selectStatus', { defaultValue: 'Select status' })}
                               />
                             </div>
 

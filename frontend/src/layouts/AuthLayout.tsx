@@ -1,6 +1,9 @@
 import { Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export function AuthLayout() {
+  const { t } = useTranslation();
+
   return (
     <div className="auth-layout">
       <div className="auth-layout__background">
@@ -22,8 +25,8 @@ export function AuthLayout() {
               </defs>
             </svg>
           </div>
-          <h1 className="auth-layout__title">DentalLab</h1>
-          <p className="auth-layout__subtitle">Management System</p>
+          <h1 className="auth-layout__title">{t('auth.dentalLab')}</h1>
+          <p className="auth-layout__subtitle">{t('auth.managementSystem')}</p>
         </div>
 
         <div className="auth-layout__card">
@@ -31,7 +34,7 @@ export function AuthLayout() {
         </div>
 
         <p className="auth-layout__footer">
-          &copy; {new Date().getFullYear()} Dental Lab Management System
+          {t('auth.copyright', { year: new Date().getFullYear() })}
         </p>
       </div>
     </div>

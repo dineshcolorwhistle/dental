@@ -10,6 +10,7 @@ import {
   Building2,
   GitMerge,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   processService,
@@ -24,6 +25,7 @@ import { useAuth } from '../context';
 import { Pagination, SearchableSelect } from '../components';
 
 export function ProcessesPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const canEdit = user?.role === 'ADMIN';
@@ -78,12 +80,12 @@ export function ProcessesPage() {
       setProcesses(processData);
       setBranches(branchData.filter((b) => b.isActive));
     } catch (err) {
-      toast.error('Failed to load processes or related data');
+      toast.error(t('processesPage.failedLoad'));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user?.branchId]);
+  }, [isAdmin, user?.branchId, t]);
 
   useEffect(() => {
     fetchData();
@@ -101,7 +103,7 @@ export function ProcessesPage() {
       const techs = await technicianService.getAll(branchId);
       setFormTechnicians(techs.filter((t) => t.status === 'ACTIVE'));
     } catch (err) {
-      toast.error('Failed to load branch technicians');
+      toast.error(t('technicians.failedLoad'));
       console.error(err);
     } finally {
       setLoadingTechs(false);
@@ -150,11 +152,11 @@ export function ProcessesPage() {
   const validateForm = (): boolean => {
     const errors: Partial<Record<keyof CreateProcessPayload, string>> = {};
 
-    if (!form.name.trim()) errors.name = 'Process name is required';
-    if (!form.processArea.trim()) errors.processArea = 'Process area is required';
-    if (!form.defaultTechnicianId) errors.defaultTechnicianId = 'Default technician is mandatory';
+    if (!form.name.trim()) errors.name = t('validation.fieldRequired');
+    if (!form.processArea.trim()) errors.processArea = t('validation.fieldRequired');
+    if (!form.defaultTechnicianId) errors.defaultTechnicianId = t('validation.fieldRequired');
     if (!isAdmin && !form.branchId) {
-      errors.branchId = 'Assigned branch is required';
+      errors.branchId = t('validation.fieldRequired');
     }
 
     setFormErrors(errors);
@@ -198,11 +200,11 @@ export function ProcessesPage() {
         branchId: isAdmin ? user?.branchId || undefined : form.branchId,
       };
       await processService.create(payload);
-      toast.success('Workflow process created successfully!');
+      toast.success(t('processesPage.createSuccess'));
       setShowCreateModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create process';
+      const message = err?.response?.data?.message || t('processesPage.failedCreate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -222,11 +224,11 @@ export function ProcessesPage() {
         branchId: isAdmin ? user?.branchId || undefined : form.branchId || undefined,
       };
       await processService.update(selectedProcess.id, payload);
-      toast.success('Workflow process updated successfully!');
+      toast.success(t('processesPage.updateSuccess'));
       setShowEditModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update process';
+      const message = err?.response?.data?.message || t('processesPage.failedUpdate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -267,12 +269,12 @@ export function ProcessesPage() {
     try {
       setDeleting(true);
       await processService.delete(processToDelete.id);
-      toast.success('Process deleted successfully');
+      toast.success(t('processesPage.deleteSuccess'));
       setDeleteModalOpen(false);
       setProcessToDelete(null);
       await fetchData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete process');
+      toast.error(err?.response?.data?.message || t('processesPage.failedDelete'));
     } finally {
       setDeleting(false);
     }
@@ -283,8 +285,8 @@ export function ProcessesPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-header__left">
-          <h1 className="page-header__title">Processes</h1>
-          <p className="page-header__subtitle">Manage workflow stages and customize production handoffs</p>
+          <h1 className="page-header__title">{t('processesPage.title')}</h1>
+          <p className="page-header__subtitle">{t('processesPage.subtitle', { defaultValue: 'Manage workflow stages and customize production handoffs' })}</p>
         </div>
         {canEdit && (
           <button
@@ -293,7 +295,7 @@ export function ProcessesPage() {
             onClick={handleCreateOpen}
           >
             <Plus size={18} />
-            <span>Add Process</span>
+            <span>{t('processesPage.createProcess')}</span>
           </button>
         )}
       </div>
@@ -306,7 +308,7 @@ export function ProcessesPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{processes.length}</span>
-            <span className="stat-card__label">Total Workflow Stages</span>
+            <span className="stat-card__label">{t('processesPage.totalStages', { defaultValue: 'Total Workflow Stages' })}</span>
           </div>
         </div>
       </div>
@@ -319,7 +321,7 @@ export function ProcessesPage() {
             id="input-process-search"
             type="text"
             className="form-input search-input"
-            placeholder="Search processes..."
+            placeholder={t('processesPage.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -334,14 +336,14 @@ export function ProcessesPage() {
           {/* Branch Filter dropdown (Only for OWNER, since ADMIN is auto-scoped) */}
           {!isAdmin && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>Branch:</span>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.branch')}:</span>
               <select
                 className="form-input"
                 style={{ width: '160px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
               >
-                <option value="ALL">All Branches</option>
+                <option value="ALL">{t('common.allBranches')}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -357,7 +359,7 @@ export function ProcessesPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>Loading processes...</span>
+          <span>{t('processesPage.loading', { defaultValue: 'Loading processes...' })}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -365,12 +367,12 @@ export function ProcessesPage() {
             <GitMerge size={48} style={{ color: 'var(--accent-primary)' }} />
           </div>
           <h3 className="empty-state__title">
-            {processes.length === 0 ? 'No workflow processes created' : 'No matching records'}
+            {processes.length === 0 ? t('processesPage.noProcesses') : t('processesPage.noMatching', { defaultValue: 'No matching records' })}
           </h3>
           <p className="empty-state__text">
             {processes.length === 0
-              ? 'Configure processes to define operational workflow stages like scanning, designing, and QC.'
-              : 'Try adjusting your search or filter criteria.'}
+              ? t('processesPage.createDesc', { defaultValue: 'Configure processes to define operational workflow stages like scanning, designing, and QC.' })
+              : t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
           {processes.length === 0 && canEdit && (
             <button
@@ -378,7 +380,7 @@ export function ProcessesPage() {
               onClick={handleCreateOpen}
             >
               <Plus size={18} />
-              <span>Add Process</span>
+              <span>{t('processesPage.createProcess')}</span>
             </button>
           )}
         </div>
@@ -389,20 +391,20 @@ export function ProcessesPage() {
               <tr>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('name')}>
-                    Process Name
+                    {t('processesPage.processName')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('processArea')}>
-                    Process Area
+                    {t('processesPage.processArea', { defaultValue: 'Process Area' })}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Default Technician</th>
-                {!isAdmin && <th>Branch</th>}
-                <th>Assigned To</th>
-                {canEdit && <th>Actions</th>}
+                <th>{t('processesPage.defaultTechnician')}</th>
+                {!isAdmin && <th>{t('common.branch')}</th>}
+                <th>{t('processesPage.assignedTo', { defaultValue: 'Assigned To' })}</th>
+                {canEdit && <th>{t('common.actions')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -470,7 +472,7 @@ export function ProcessesPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-muted" style={{ fontSize: '0.75rem' }}>Not assigned</span>
+                      <span className="text-muted" style={{ fontSize: '0.75rem' }}>{t('processesPage.notAssigned', { defaultValue: 'Not assigned' })}</span>
                     )}
                   </td>
                   {canEdit && (
@@ -479,14 +481,14 @@ export function ProcessesPage() {
                         <button
                           className="btn-action"
                           onClick={() => handleEditOpen(proc)}
-                          title="Edit Process"
+                          title={t('processesPage.editProcess')}
                         >
-                          <span>Edit</span>
+                          <span>{t('common.edit')}</span>
                         </button>
                         <button
                           className="btn-action btn-action--danger"
                           onClick={() => confirmDelete(proc)}
-                          title="Delete Process"
+                          title={t('processesPage.deleteConfirm')}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -512,8 +514,8 @@ export function ProcessesPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Add Process</h2>
-                <p className="modal__subtitle">Define a manufacturing step and link a default technician</p>
+                <h2 className="modal__title">{t('processesPage.createProcess')}</h2>
+                <p className="modal__subtitle">{t('processesPage.createProcessSubtitle', { defaultValue: 'Define a manufacturing step and link a default technician' })}</p>
               </div>
               <button
                 className="modal__close"
@@ -529,7 +531,7 @@ export function ProcessesPage() {
               {!isAdmin && branches.length > 0 && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-process-branch">
-                    Assigned Branch *
+                    {t('admins.assignedBranch')} *
                   </label>
                   <SearchableSelect
                     id="select-process-branch"
@@ -540,7 +542,7 @@ export function ProcessesPage() {
                     value={form.branchId || ''}
                     onChange={(val) => handleInputChange('branchId', val)}
                     disabled={saving}
-                    placeholder="Select a branch"
+                    placeholder={t('branches.selectBranch')}
                     error={!!formErrors.branchId}
                   />
                   {formErrors.branchId && (
@@ -554,7 +556,7 @@ export function ProcessesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-process-name">
-                    Process Name *
+                    {t('processesPage.processName')} *
                   </label>
                   <input
                     id="input-process-name"
@@ -575,7 +577,7 @@ export function ProcessesPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-process-area">
-                    Process Area *
+                    {t('processesPage.processArea', { defaultValue: 'Process Area' })} *
                   </label>
                   <input
                     id="input-process-area"
@@ -596,7 +598,7 @@ export function ProcessesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="select-process-technician">
-                  Default Technician *
+                  {t('processesPage.defaultTechnician')} *
                 </label>
                 <SearchableSelect
                   id="select-process-technician"
@@ -609,12 +611,12 @@ export function ProcessesPage() {
                   disabled={saving || loadingTechs || (!isAdmin && !form.branchId)}
                   placeholder={
                     loadingTechs
-                      ? 'Loading technicians...'
+                      ? t('technicians.loading', { defaultValue: 'Loading technicians...' })
                       : !isAdmin && !form.branchId
-                      ? 'Select a branch first'
+                      ? t('processesPage.selectBranchFirst', { defaultValue: 'Select a branch first' })
                       : formTechnicians.length === 0
-                      ? 'No technicians in this branch'
-                      : 'Select pre-assigned default technician'
+                      ? t('processesPage.noTechniciansBranch', { defaultValue: 'No technicians in this branch' })
+                      : t('processesPage.selectDefaultTechnician', { defaultValue: 'Select pre-assigned default technician' })
                   }
                   error={!!formErrors.defaultTechnicianId}
                 />
@@ -632,7 +634,7 @@ export function ProcessesPage() {
                   onClick={() => setShowCreateModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-process"
@@ -643,10 +645,10 @@ export function ProcessesPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Add Process</span>
+                    <span>{t('processesPage.createProcess')}</span>
                   )}
                 </button>
               </div>
@@ -661,8 +663,8 @@ export function ProcessesPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Edit Process</h2>
-                <p className="modal__subtitle">Update details for process stage <strong>{selectedProcess.name}</strong></p>
+                <h2 className="modal__title">{t('processesPage.editProcess')}</h2>
+                <p className="modal__subtitle">{t('processesPage.updateDetails', { defaultValue: 'Update details for process stage' })} <strong>{selectedProcess.name}</strong></p>
               </div>
               <button
                 className="modal__close"
@@ -678,7 +680,7 @@ export function ProcessesPage() {
               {!isAdmin && branches.length > 0 && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-edit-process-branch">
-                    Assigned Branch *
+                    {t('admins.assignedBranch')} *
                   </label>
                   <SearchableSelect
                     id="select-edit-process-branch"
@@ -689,7 +691,7 @@ export function ProcessesPage() {
                     value={form.branchId || ''}
                     onChange={(val) => handleInputChange('branchId', val)}
                     disabled={saving}
-                    placeholder="Select a branch"
+                    placeholder={t('branches.selectBranch')}
                     error={!!formErrors.branchId}
                   />
                   {formErrors.branchId && (
@@ -703,7 +705,7 @@ export function ProcessesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-process-name">
-                    Process Name *
+                    {t('processesPage.processName')} *
                   </label>
                   <input
                     id="input-edit-process-name"
@@ -723,7 +725,7 @@ export function ProcessesPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-process-area">
-                    Process Area *
+                    {t('processesPage.processArea', { defaultValue: 'Process Area' })} *
                   </label>
                   <input
                     id="input-edit-process-area"
@@ -743,7 +745,7 @@ export function ProcessesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="select-edit-process-technician">
-                  Default Technician *
+                  {t('processesPage.defaultTechnician')} *
                 </label>
                 <SearchableSelect
                   id="select-edit-process-technician"
@@ -754,7 +756,7 @@ export function ProcessesPage() {
                   value={form.defaultTechnicianId}
                   onChange={(val) => handleInputChange('defaultTechnicianId', val)}
                   disabled={saving || loadingTechs}
-                  placeholder={loadingTechs ? 'Loading technicians...' : 'Select pre-assigned default technician'}
+                  placeholder={loadingTechs ? t('technicians.loading', { defaultValue: 'Loading technicians...' }) : t('processesPage.selectDefaultTechnician', { defaultValue: 'Select pre-assigned default technician' })}
                   error={!!formErrors.defaultTechnicianId}
                 />
                 {formErrors.defaultTechnicianId && (
@@ -771,7 +773,7 @@ export function ProcessesPage() {
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-edit-process"
@@ -782,10 +784,10 @@ export function ProcessesPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Update Process</span>
+                    <span>{t('common.save')}</span>
                   )}
                 </button>
               </div>
@@ -800,7 +802,7 @@ export function ProcessesPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Delete Process</h2>
+                <h2 className="modal__title">{t('common.delete')}</h2>
               </div>
               <button
                 className="modal__close"
@@ -813,7 +815,7 @@ export function ProcessesPage() {
 
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                Are you sure you want to delete process stage <strong>{processToDelete.name}</strong>?
+                {t('processesPage.deleteConfirmText', { name: processToDelete.name, defaultValue: `Are you sure you want to delete process stage ${processToDelete.name}?` })}
               </p>
             </div>
 
@@ -824,7 +826,7 @@ export function ProcessesPage() {
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deleting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -836,12 +838,12 @@ export function ProcessesPage() {
                 {deleting ? (
                   <>
                     <Loader2 size={16} className="spinner" />
-                    <span>Deleting...</span>
+                    <span>{t('common.saving')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 size={16} />
-                    <span>Delete Permanently</span>
+                    <span>{t('common.delete')}</span>
                   </>
                 )}
               </button>

@@ -5,22 +5,24 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  subdomain: z.string().optional(),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loginSchema = z.object({
+    email: z.string().email(t('validation.emailRequired')),
+    password: z.string().min(6, t('validation.passwordMinLength')),
+    subdomain: z.string().optional(),
+  });
+
+  type LoginFormData = z.infer<typeof loginSchema>;
 
   const searchParams = new URLSearchParams(location.search);
   const redirectParam = searchParams.get('redirect');
@@ -78,11 +80,11 @@ export function LoginPage() {
         password: data.password,
         subdomain: extractedSubdomain,
       });
-      toast.success('Login successful!');
+      toast.success(t('auth.loginSuccess'));
       navigate(from, { replace: true });
     } catch (error: any) {
       const message =
-        error?.response?.data?.message || 'Invalid credentials. Please try again.';
+        error?.response?.data?.message || t('auth.invalidCredentials');
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -91,15 +93,15 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
-      <h2 className="login-page__heading">Welcome back</h2>
+      <h2 className="login-page__heading">{t('auth.welcomeBack')}</h2>
       <p className="login-page__subheading">
-        Sign in to your account to continue
+        {t('auth.signInSubtitle')}
       </p>
 
       <form className="login-page__form" onSubmit={handleSubmit(onSubmit)}>
         <div className="form-group">
           <label htmlFor="email" className="form-label">
-            Email Address
+            {t('auth.emailAddress')}
           </label>
           <input
             id="email"
@@ -119,7 +121,7 @@ export function LoginPage() {
 
         <div className="form-group">
           <label htmlFor="password" className="form-label">
-            Password
+            {t('auth.password')}
           </label>
           <div className="form-input-wrapper">
             <input
@@ -157,7 +159,7 @@ export function LoginPage() {
           ) : (
             <>
               <LogIn size={18} />
-              <span>Sign In</span>
+              <span>{t('auth.signIn')}</span>
             </>
           )}
         </button>

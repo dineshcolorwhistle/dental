@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { workOrderService } from '../services';
 
 export function QRRedirectPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
-      setError('Invalid QR code token.');
+      setError(t('errors.invalidQrToken'));
       return;
     }
 
@@ -24,14 +26,14 @@ export function QRRedirectPage() {
       .catch((err) => {
         if (!isMounted) return;
         console.error('Failed to validate QR token', err);
-        const errMsg = err?.response?.data?.message || 'Failed to validate QR token. Please ensure you have permission to access this work order.';
+        const errMsg = err?.response?.data?.message || t('errors.qrValidationFailed');
         setError(errMsg);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [token, navigate]);
+  }, [token, navigate, t]);
 
   if (error) {
     return (
@@ -59,7 +61,7 @@ export function QRRedirectPage() {
           <AlertTriangle size={36} />
         </div>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)', marginBottom: '0.75rem' }}>
-          Verification Failed
+          {t('errors.verificationFailed')}
         </h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: '420px', fontSize: '0.9375rem', lineHeight: '1.6', marginBottom: '1.75rem' }}>
           {error}
@@ -70,7 +72,7 @@ export function QRRedirectPage() {
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >
           <ArrowLeft size={16} />
-          <span>Back to Dashboard</span>
+          <span>{t('common.backToDashboard')}</span>
         </button>
       </div>
     );
@@ -89,10 +91,10 @@ export function QRRedirectPage() {
     >
       <Loader2 size={44} className="spinner" style={{ color: 'var(--accent-primary, #6FAED9)' }} />
       <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-heading)' }}>
-        Validating QR Code
+        {t('errors.validatingQrCode')}
       </h3>
       <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-        Verifying authorization and loading work order details...
+        {t('errors.verifyingAuth')}
       </p>
     </div>
   );

@@ -21,6 +21,7 @@ import {
   Save,
   QrCode,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import {
   technicianPortalService,
@@ -99,7 +100,7 @@ function ProcessTimer({ startedAt, lastPausedAt, totalPauseDuration, status }: {
   );
 }
 
-const getCombinedProcessLogs = (proc: any, workOrder: any) => {
+const getCombinedProcessLogs = (proc: any, workOrder: any, t: any) => {
   const logs: Array<{
     id: string;
     action: string;
@@ -130,7 +131,11 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
         id: `rework-init-${log.id}`,
         action: 'REWORK_ASSIGNED',
         timestamp: log.initiatedAt,
-        notes: `Rework cycle #${log.reworkCount} initiated by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''} (Flagged at verification step: "${log.verificationStage}")`,
+        notes: t('workOrder.reworkLogInitiated', {
+          count: log.reworkCount,
+          name: `${log.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${log.initiatedBy?.lastName || ''}`,
+          stage: log.verificationStage
+        }),
       });
 
       // Rework completion
@@ -139,7 +144,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
           id: `rework-comp-${log.id}`,
           action: 'REWORK_COMPLETED',
           timestamp: log.completedAt,
-          notes: `Rework cycle #${log.reworkCount} completed by technician.`,
+          notes: t('workOrder.reworkLogCompleted', { count: log.reworkCount }),
         });
       }
 
@@ -149,7 +154,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
           id: `rework-appr-${log.id}`,
           action: 'REWORK_APPROVED',
           timestamp: log.approvedAt,
-          notes: `Rework cycle #${log.reworkCount} approved at verification step.`,
+          notes: t('workOrder.reworkLogApproved', { count: log.reworkCount }),
         });
       }
     });
@@ -165,7 +170,11 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
           id: `rep-reset-${log.id}`,
           action: 'REPETITION_RESET',
           timestamp: log.initiatedAt,
-          notes: `Process repeated (Cycle #${log.repetitionCount}). Step reset due to repetition request from verification step "${log.verificationStage}" by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}.`,
+          notes: t('workOrder.repetitionLogReset', {
+            count: log.repetitionCount,
+            stage: log.verificationStage,
+            name: `${log.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${log.initiatedBy?.lastName || ''}`
+          }),
         });
       }
 
@@ -175,7 +184,10 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
           id: `rep-trig-${log.id}`,
           action: 'REPETITION_TRIGGERED',
           timestamp: log.initiatedAt,
-          notes: `Repetition cycle #${log.repetitionCount} triggered by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}. All preceding completed steps have been reset.`,
+          notes: t('workOrder.repetitionLogTriggered', {
+            count: log.repetitionCount,
+            name: `${log.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${log.initiatedBy?.lastName || ''}`
+          }),
         });
       }
     });
@@ -186,6 +198,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
 };
 
 export function TechnicianWorkOrdersPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [workOrders, setWorkOrders] = useState<TechnicianWorkOrderListItem[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<TechnicianWorkOrderListItem | null>(null);
@@ -218,17 +231,17 @@ export function TechnicianWorkOrdersPage() {
   const handleSaveNotes = async () => {
     if (!selectedOrder) return;
     setSavingNotes(true);
-    const loadingToast = toast.loading('Updating notes...');
+    const loadingToast = toast.loading(t('workOrder.updatingNotes'));
     try {
       await technicianPortalService.updateNotes(selectedOrder.id, notesText);
-      toast.success('Notes updated successfully!', { id: loadingToast });
+      toast.success(t('workOrder.notesUpdatedSuccessfully'), { id: loadingToast });
       setIsEditingNotes(false);
       
       // Update local state instantly to avoid waiting for reload
       setSelectedOrder(prev => prev ? { ...prev, notes: notesText } : null);
       setWorkOrders(prev => prev.map(wo => wo.id === selectedOrder.id ? { ...wo, notes: notesText } : wo));
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || 'Failed to update notes.';
+      const errMsg = err?.response?.data?.message || t('workOrder.failedUpdateNotes');
       toast.error(errMsg, { id: loadingToast });
     } finally {
       setSavingNotes(false);
@@ -246,11 +259,11 @@ export function TechnicianWorkOrdersPage() {
         setSelectedOrder(updated);
       }
     } catch {
-      toast.error('Failed to retrieve work orders.');
+      toast.error(t('workOrder.failedRetrieveWorkOrders'));
     } finally {
       setLoading(false);
     }
-  }, [activeTab, selectedOrder?.id]);
+  }, [activeTab, selectedOrder?.id, t]);
 
   useEffect(() => {
     fetchWorkOrders();
@@ -265,31 +278,36 @@ export function TechnicianWorkOrdersPage() {
       const detail = await technicianPortalService.getWorkOrderDetail(order.id);
       setSelectedOrder(detail);
     } catch {
-      toast.error('Failed to load work order details.');
+      toast.error(t('workOrder.failedLoadDetails'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleAction = async (processId: string, action: 'start' | 'pause' | 'resume' | 'end') => {
-    const loadingToast = toast.loading(`${action.toUpperCase()}ing process...`);
+    let actionLoadingKey = 'startingProcess';
+    if (action === 'pause') actionLoadingKey = 'pausingProcess';
+    else if (action === 'resume') actionLoadingKey = 'resumingProcess';
+    else if (action === 'end') actionLoadingKey = 'endingProcess';
+
+    const loadingToast = toast.loading(t(`dashboard.${actionLoadingKey}`));
     try {
       if (action === 'start') {
         await technicianPortalService.startProcess(processId);
-        toast.success('Process started successfully!', { id: loadingToast });
+        toast.success(t('dashboard.processActionStarted'), { id: loadingToast });
       } else if (action === 'pause') {
         await technicianPortalService.pauseProcess(processId);
-        toast.success('Process paused successfully!', { id: loadingToast });
+        toast.success(t('dashboard.processActionPaused'), { id: loadingToast });
       } else if (action === 'resume') {
         await technicianPortalService.resumeProcess(processId);
-        toast.success('Process resumed successfully!', { id: loadingToast });
+        toast.success(t('dashboard.processActionResumed'), { id: loadingToast });
       } else if (action === 'end') {
         await technicianPortalService.endProcess(processId);
-        toast.success('Process completed!', { id: loadingToast });
+        toast.success(t('dashboard.processActionEnded'), { id: loadingToast });
       }
       fetchWorkOrders();
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || `Failed to ${action} process.`;
+      const errMsg = err?.response?.data?.message || t('dashboard.processActionFailed', { action: t(`dashboard.action.${action}`) });
       toast.error(errMsg, { id: loadingToast });
     }
   };
@@ -382,9 +400,9 @@ export function TechnicianWorkOrdersPage() {
       {/* Search and Tabs Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
         <div>
-          <h1 className="dashboard-page__title">My Work Orders</h1>
+          <h1 className="dashboard-page__title">{t('navigation.workOrders')}</h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-            Manage processes assigned to you and update production queues.
+            {t('workOrder.manageAssignedProcesses')}
           </p>
         </div>
 
@@ -392,7 +410,7 @@ export function TechnicianWorkOrdersPage() {
           <Search size={16} style={{ color: 'var(--text-muted)', marginRight: '8px' }} />
           <input
             type="text"
-            placeholder="Search by folio or patient name..."
+            placeholder={t('workOrder.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '0.85rem', color: 'var(--text-primary)' }}
@@ -409,7 +427,7 @@ export function TechnicianWorkOrdersPage() {
             style={{ padding: '0.35rem 1rem', borderRadius: '100px', fontSize: '0.75rem', textTransform: 'capitalize' }}
             onClick={() => { setActiveTab(tab); setSelectedOrder(null); }}
           >
-            {tab === 'ALL' ? 'All Assigned' : tab === 'PENDING' ? 'Not Started' : tab === 'IN_PROGRESS' ? 'In Progress / Paused' : 'Completed'}
+            {tab === 'ALL' ? t('workOrder.allAssigned') : tab === 'PENDING' ? t('enums.processStatus.NOT_STARTED') : tab === 'IN_PROGRESS' ? t('workOrder.inProgressPausedTab') : t('enums.processStatus.COMPLETED')}
           </button>
         ))}
       </div>
@@ -419,9 +437,9 @@ export function TechnicianWorkOrdersPage() {
         {filteredOrders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 2rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
             <Clipboard size={42} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-            <h4 style={{ fontWeight: 500 }}>No assigned work orders found</h4>
+            <h4 style={{ fontWeight: 500 }}>{t('workOrder.noAssignedFound')}</h4>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '320px', margin: '0' }}>
-              You do not have any work orders matching this filter context.
+              {t('workOrder.noAssignedFoundDesc')}
             </p>
           </div>
         ) : (
@@ -479,16 +497,16 @@ export function TechnicianWorkOrdersPage() {
                           setQrWO(wo);
                           setShowQrModal(true);
                         }}
-                        title="Print QR Label"
+                        title={t('workOrder.printQRLabel')}
                       >
                         <QrCode size={16} />
                       </button>
                     </div>
 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '0.75rem' }}>
-                      <div>Prosthesis: <strong>{wo.prosthesisType?.name}</strong></div>
-                      <div>Doctor: <strong>{wo.doctor?.name} ({wo.doctor?.clinicName || 'Clinic'})</strong></div>
-                      <div>Box No: <strong>{wo.boxNumber || 'N/A'}</strong></div>
+                      <div>{t('dashboard.prosthesis')}: <strong>{wo.prosthesisType?.name}</strong></div>
+                      <div>{t('dashboard.doctor')}: <strong>{wo.doctor?.name} ({wo.doctor?.clinicName || t('workOrder.clinic')})</strong></div>
+                      <div>{t('workOrder.boxNo')}: <strong>{wo.boxNumber || t('common.na')}</strong></div>
                     </div>
                   </div>
 
@@ -504,14 +522,14 @@ export function TechnicianWorkOrdersPage() {
                       border: '1px solid var(--border)'
                     }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)' }}>My Step Assignment</span>
+                        <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)' }}>{t('workOrder.myStepAssignment')}</span>
                         <span style={{ fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                           <span>{myStep.processName}</span>
                           {myStep.reworkActive && (
-                            <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>Rework</span>
+                            <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>{t('dashboard.rework')}</span>
                           )}
                           {!myStep.reworkActive && (myStep.reworkCount || 0) > 0 && (
-                            <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#D97706' }}>Reworked ({myStep.reworkCount})</span>
+                            <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#D97706' }}>{t('workOrder.reworkedCount', { count: myStep.reworkCount })}</span>
                           )}
                           {(() => {
                             const repetitions = (wo.repetitionLogs || []).filter((r: any) =>
@@ -520,7 +538,7 @@ export function TechnicianWorkOrdersPage() {
                             );
                             if (repetitions.length > 0) {
                               return (
-                                <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(139, 92, 246, 0.1)', color: '#8B5CF6' }}>Repeated ({repetitions.length})</span>
+                                <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(139, 92, 246, 0.1)', color: '#8B5CF6' }}>{t('workOrder.repeatedCount', { count: repetitions.length })}</span>
                               );
                             }
                             return null;
@@ -534,16 +552,16 @@ export function TechnicianWorkOrdersPage() {
                         textTransform: 'uppercase',
                         letterSpacing: '0.02em'
                       }}>
-                        {myStep.status.replace('_', ' ')}
+                        {t(`enums.processStatus.${myStep.status}`)}
                       </span>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
                       <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'var(--text-muted)' }}>
-                        Created: {new Date(wo.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        {t('workOrder.created')}: {new Date(wo.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', { day: 'numeric', month: 'short' })}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
-                        View Details & Stepper <ChevronRight size={12} />
+                        {t('workOrder.viewDetailsStepper')} <ChevronRight size={12} />
                       </div>
                     </div>
                   </div>
@@ -576,7 +594,7 @@ export function TechnicianWorkOrdersPage() {
                     fontFamily: 'monospace',
                     border: '1px solid rgba(111, 174, 217, 0.2)'
                   }}>
-                    Folio: {selectedOrder.folioNumber}
+                    {t('workOrder.folio')}: {selectedOrder.folioNumber}
                   </span>
                   <button
                     type="button"
@@ -597,11 +615,11 @@ export function TechnicianWorkOrdersPage() {
                     }}
                   >
                     <QrCode size={12} />
-                    <span>Print QR</span>
+                    <span>{t('workOrder.printQR')}</span>
                   </button>
                 </h2>
                 <p className="modal__subtitle" style={{ marginTop: '4px' }}>
-                  Work Order Details, Interactive Stepper & Processing Timer
+                  {t('workOrder.interactiveStepperSubtitle')}
                 </p>
               </div>
               <button
@@ -631,7 +649,7 @@ export function TechnicianWorkOrdersPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  General Information
+                  {t('workOrder.generalInformation')}
                 </button>
                 <button
                   type="button"
@@ -648,7 +666,7 @@ export function TechnicianWorkOrdersPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  Process & Audit
+                  {t('workOrder.processAndAudit')}
                 </button>
               </div>
             </div>
@@ -660,21 +678,21 @@ export function TechnicianWorkOrdersPage() {
                   <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       <div>
-                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Created On</span>
+                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.createdOn')}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
                           <Calendar size={14} style={{ color: 'var(--accent-primary)' }} />
-                          <span>{new Date(selectedOrder.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                          <span>{new Date(selectedOrder.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                         </div>
                       </div>
                       <div>
-                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Doctor</span>
+                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.doctor')}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
                           <User size={14} style={{ color: 'var(--accent-primary)' }} />
-                          <span>{selectedOrder.doctor?.name} ({selectedOrder.doctor?.clinicName || 'Clinic'})</span>
+                          <span>{selectedOrder.doctor?.name} ({selectedOrder.doctor?.clinicName || t('workOrder.clinic')})</span>
                         </div>
                       </div>
                       <div>
-                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Color</span>
+                        <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.color')}</span>
                         <span style={{
                           fontSize: '0.8rem',
                           fontWeight: 700,
@@ -688,7 +706,7 @@ export function TechnicianWorkOrdersPage() {
                       </div>
                       {selectedOrder.boxNumber && (
                         <div>
-                          <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>Box Number</span>
+                          <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.boxNumber')}</span>
                           <span style={{
                             fontSize: '0.8rem',
                             fontWeight: 700,
@@ -713,7 +731,7 @@ export function TechnicianWorkOrdersPage() {
                         lineHeight: '1.5',
                         color: 'var(--text-primary)'
                       }}>
-                        <strong style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Dental Spec/Shade Instructions</strong>
+                        <strong style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>{t('workOrder.dentalSpecInstructions')}</strong>
                         {selectedOrder.specification}
                       </div>
                     )}
@@ -739,7 +757,7 @@ export function TechnicianWorkOrdersPage() {
                         alignItems: 'center',
                         gap: '6px'
                       }}>
-                        <FileText size={14} /> Work Order Notes
+                        <FileText size={14} /> {t('workOrder.notes')}
                       </h4>
                       {!isEditingNotes && (
                         <button
@@ -754,7 +772,7 @@ export function TechnicianWorkOrdersPage() {
                             borderRadius: '6px'
                           }}
                         >
-                          <Edit3 size={11} /> Edit Notes
+                          <Edit3 size={11} /> {t('workOrder.editNotes')}
                         </button>
                       )}
                     </div>
@@ -764,7 +782,7 @@ export function TechnicianWorkOrdersPage() {
                         <textarea
                           value={notesText}
                           onChange={(e) => setNotesText(e.target.value)}
-                          placeholder="Enter process notes, special requirements, or updates for this work order..."
+                          placeholder={t('workOrder.notesPlaceholder')}
                           style={{
                             width: '100%',
                             minHeight: '90px',
@@ -790,7 +808,7 @@ export function TechnicianWorkOrdersPage() {
                             className="btn btn--outline btn--sm"
                             style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px' }}
                           >
-                            Cancel
+                            {t('common.cancel')}
                           </button>
                           <button
                             onClick={handleSaveNotes}
@@ -805,7 +823,7 @@ export function TechnicianWorkOrdersPage() {
                               gap: '4px'
                             }}
                           >
-                            <Save size={12} /> {savingNotes ? 'Saving...' : 'Save'}
+                            <Save size={12} /> {savingNotes ? t('common.saving') : t('common.save')}
                           </button>
                         </div>
                       </div>
@@ -820,7 +838,7 @@ export function TechnicianWorkOrdersPage() {
                         color: selectedOrder.notes ? 'var(--text-primary)' : 'var(--text-muted)',
                         fontStyle: selectedOrder.notes ? 'normal' : 'italic'
                       }}>
-                        {selectedOrder.notes || 'No work order notes recorded yet. Click edit to add notes.'}
+                        {selectedOrder.notes || t('workOrder.noNotesPlaceholder')}
                       </div>
                     )}
                   </div>
@@ -832,7 +850,7 @@ export function TechnicianWorkOrdersPage() {
                   {/* Stepper Timeline Tracker */}
                   <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
                     <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Activity size={14} /> Workflow Stepper Sequence
+                      <Activity size={14} /> {t('workOrder.workflowStepperSequence')}
                     </h4>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -920,17 +938,17 @@ export function TechnicianWorkOrdersPage() {
                                   </span>
                                   {isAssignedToMe && (
                                     <span style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--success)', backgroundColor: 'rgba(46,204,113,0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(46,204,113,0.2)' }}>
-                                      Assigned To Me
+                                      {t('workOrder.assignedToMe')}
                                     </span>
                                   )}
                                   {proc.reworkActive && (
                                     <span style={{ fontSize: '0.58rem', fontWeight: 700, color: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                                      Rework Active
+                                      {t('workOrder.reworkActive')}
                                     </span>
                                   )}
                                   {!proc.reworkActive && (proc.reworkCount || 0) > 0 && (
                                     <span style={{ fontSize: '0.58rem', fontWeight: 700, color: '#D97706', backgroundColor: 'rgba(245, 158, 11, 0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                                      Reworked ({proc.reworkCount})
+                                      {t('workOrder.reworkedCount', { count: proc.reworkCount })}
                                     </span>
                                   )}
                                   {(() => {
@@ -940,8 +958,8 @@ export function TechnicianWorkOrdersPage() {
                                     );
                                     if (repetitions.length > 0) {
                                       return (
-                                        <span style={{ fontSize: '0.58rem', fontWeight: 700, color: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(139, 92, 246, 0.2)' }} title={`Repeated in ${repetitions.length} cycle(s)`}>
-                                          Repeated ({repetitions.length})
+                                        <span style={{ fontSize: '0.58rem', fontWeight: 700, color: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(139, 92, 246, 0.2)' }} title={t('workOrder.stepRepeatedInCycles', { count: repetitions.length })}>
+                                          {t('workOrder.repeatedCount', { count: repetitions.length })}
                                         </span>
                                       );
                                     }
@@ -949,7 +967,7 @@ export function TechnicianWorkOrdersPage() {
                                   })()}
                                 </div>
                                 <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                                  Tech: {proc.technician ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` : 'Unassigned'}
+                                  {t('workOrder.tech')}: {proc.technician ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` : t('dashboard.unassigned')}
                                 </span>
                               </div>
 
@@ -995,7 +1013,7 @@ export function TechnicianWorkOrdersPage() {
                         marginTop: '1.5rem'
                       }}>
                         <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
-                          Process Timing Control Panel
+                          {t('workOrder.processTimingControlPanel')}
                         </h4>
 
                         {myStep.reworkActive && activeRework && (
@@ -1014,9 +1032,13 @@ export function TechnicianWorkOrdersPage() {
                             <AlertTriangle size={16} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '2px' }} />
                             <div>
                               <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '2px', fontSize: '0.85rem' }}>
-                                ⚠️ Assigned for Rework (Cycle #{activeRework.reworkCount})
+                                ⚠️ {t('workOrder.assignedReworkTitle', { count: activeRework.reworkCount })}
                               </strong>
-                              This step was flagged for rework by <strong>{activeRework.initiatedBy?.firstName} {activeRework.initiatedBy?.lastName}</strong> from verification step <strong>"{activeRework.verificationStage}"</strong> on {new Date(activeRework.initiatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}. Please review specs, apply corrections, and complete this task.
+                              {t('workOrder.flaggedReworkDesc', {
+                                name: `${activeRework.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${activeRework.initiatedBy?.lastName || ''}`,
+                                stage: activeRework.verificationStage,
+                                date: new Date(activeRework.initiatedAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                              })}
                             </div>
                           </div>
                         )}
@@ -1037,9 +1059,12 @@ export function TechnicianWorkOrdersPage() {
                             <History size={16} style={{ color: '#8B5CF6', flexShrink: 0, marginTop: '2px' }} />
                             <div>
                               <strong style={{ color: '#8B5CF6', display: 'block', marginBottom: '2px', fontSize: '0.85rem' }}>
-                                🔄 Part of Repetition Cycle #{latestRepetition.repetitionCount}
+                                🔄 {t('workOrder.partRepetitionTitle', { count: latestRepetition.repetitionCount })}
                               </strong>
-                              This step is being repeated because verification step <strong>"{latestRepetition.verificationStage}"</strong> failed quality checks, requiring a repeat of the workflow. Triggered by <strong>{latestRepetition.initiatedBy?.firstName} {latestRepetition.initiatedBy?.lastName}</strong>. Please restart processing this step.
+                              {t('workOrder.partRepetitionDesc', {
+                                stage: latestRepetition.verificationStage,
+                                name: `${latestRepetition.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${latestRepetition.initiatedBy?.lastName || ''}`
+                              })}
                             </div>
                           </div>
                         )}
@@ -1047,7 +1072,7 @@ export function TechnicianWorkOrdersPage() {
                         {isBlocked && (
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.75rem', backgroundColor: 'rgba(231,76,60,0.05)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(231,76,60,0.1)' }}>
                             <AlertTriangle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '1px' }} />
-                            <span>You cannot start your assigned step because preceding steps in the sequence have not been completed.</span>
+                            <span>{t('workOrder.blockedSequenceMsg')}</span>
                           </div>
                         )}
 
@@ -1055,7 +1080,7 @@ export function TechnicianWorkOrdersPage() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {(isActive || isPaused) && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Active Time Elapsed:</span>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('workOrder.activeTimeElapsed')}:</span>
                                 <ProcessTimer
                                   startedAt={myStep.startedAt}
                                   lastPausedAt={myStep.lastPausedAt}
@@ -1072,7 +1097,7 @@ export function TechnicianWorkOrdersPage() {
                                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                                   onClick={() => handleAction(myStep.id, 'start')}
                                 >
-                                  <Play size={16} /> Start Process
+                                  <Play size={16} /> {t('workOrder.startProcess')}
                                 </button>
                               )}
 
@@ -1082,7 +1107,7 @@ export function TechnicianWorkOrdersPage() {
                                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                                   onClick={() => handleAction(myStep.id, 'pause')}
                                 >
-                                  <Pause size={16} /> Pause Process
+                                  <Pause size={16} /> {t('workOrder.pauseProcess')}
                                 </button>
                               )}
 
@@ -1092,7 +1117,7 @@ export function TechnicianWorkOrdersPage() {
                                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#fff' }}
                                   onClick={() => handleAction(myStep.id, 'resume')}
                                 >
-                                  <Play size={16} /> Resume Process
+                                  <Play size={16} /> {t('workOrder.resumeProcess')}
                                 </button>
                               )}
 
@@ -1102,7 +1127,7 @@ export function TechnicianWorkOrdersPage() {
                                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                                   onClick={() => handleAction(myStep.id, 'end')}
                                 >
-                                  <CheckCircle2 size={16} /> End Process
+                                  <CheckCircle2 size={16} /> {t('workOrder.endProcess')}
                                 </button>
                               )}
                             </div>
@@ -1112,7 +1137,7 @@ export function TechnicianWorkOrdersPage() {
                         {isCompleted && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>
                             <CheckCircle2 size={18} />
-                            <span>Completed! Total Active Time: {formatDurationString(myStep.totalActiveDuration)}</span>
+                            <span>{t('workOrder.completedTotalActiveTime', { duration: formatDurationString(myStep.totalActiveDuration) })}</span>
                           </div>
                         )}
                       </div>
@@ -1124,22 +1149,11 @@ export function TechnicianWorkOrdersPage() {
                     const myStep = getMyStep(selectedOrder);
                     if (!myStep) return null;
 
-                    const combinedLogs = getCombinedProcessLogs(myStep, selectedOrder);
+                    const combinedLogs = getCombinedProcessLogs(myStep, selectedOrder, t);
                     if (combinedLogs.length === 0) return null;
 
                     const getActionLabel = (act: string) => {
-                      switch (act) {
-                        case 'START': return 'Process Started';
-                        case 'PAUSE': return 'Process Paused';
-                        case 'RESUME': return 'Process Resumed';
-                        case 'END': return 'Process Completed';
-                        case 'REWORK_ASSIGNED': return 'Rework Assigned';
-                        case 'REWORK_COMPLETED': return 'Rework Completed';
-                        case 'REWORK_APPROVED': return 'Rework Approved';
-                        case 'REPETITION_RESET': return 'Process Repeated (Reset)';
-                        case 'REPETITION_TRIGGERED': return 'Repetition Triggered';
-                        default: return act.replace('_', ' ');
-                      }
+                      return t(`enums.processAction.${act}`, { defaultValue: act.replace('_', ' ') });
                     };
 
                     const getActionColor = (act: string) => {
@@ -1160,7 +1174,7 @@ export function TechnicianWorkOrdersPage() {
                     return (
                       <div style={{ marginTop: '1.5rem' }}>
                         <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <History size={14} /> Process Log Audit Trail
+                          <History size={14} /> {t('workOrder.processLogAuditTrail')}
                         </h4>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>

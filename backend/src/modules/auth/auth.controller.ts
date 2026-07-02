@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   HttpCode,
   HttpStatus,
@@ -76,4 +77,18 @@ export class AuthController {
     }
     return this.authService.requestLimitUpgrade(tenantId, userId, message);
   }
+
+  @Patch('language')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user language preference' })
+  async updateLanguage(
+    @CurrentUser('id') userId: string,
+    @Body('language') language: 'EN' | 'ES',
+  ) {
+    if (!language || !['EN', 'ES'].includes(language)) {
+      throw new BadRequestException('Language must be EN or ES.');
+    }
+    return this.authService.updateLanguage(userId, language);
+  }
 }
+

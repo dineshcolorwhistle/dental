@@ -14,6 +14,7 @@ import {
   Building2,
   Trash2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { technicianService, branchService, authService, type TechnicianListItem, type BranchListItem, type CreateTechnicianPayload, type UpdateTechnicianPayload, type TenantLimitsResponse } from '../services';
 import { useAuth } from '../context';
@@ -22,6 +23,7 @@ import { Pagination, SearchableSelect } from '../components';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
 export function TechniciansPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const canEdit = user?.role === 'ADMIN';
@@ -78,12 +80,12 @@ export function TechniciansPage() {
       setBranches(branchData.filter((b) => b.isActive));
       setTenantLimits(limitsData);
     } catch (err) {
-      toast.error('Failed to load technicians or branches');
+      toast.error(t('technicians.failedLoad'));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user?.branchId]);
+  }, [isAdmin, user?.branchId, t]);
 
   useEffect(() => {
     fetchData();
@@ -133,19 +135,19 @@ export function TechniciansPage() {
   const validateForm = (isEdit = false): boolean => {
     const errors: Partial<Record<keyof CreateTechnicianPayload, string>> = {};
 
-    if (!form.firstName.trim()) errors.firstName = 'First name is required';
-    if (!form.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!form.firstName.trim()) errors.firstName = t('validation.fieldRequired');
+    if (!form.lastName.trim()) errors.lastName = t('validation.fieldRequired');
 
     if (!isEdit) {
       if (!form.email.trim()) {
-        errors.email = 'Email address is required';
+        errors.email = t('validation.fieldRequired');
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        errors.email = 'Enter a valid email address';
+        errors.email = t('validation.invalidEmail');
       }
     }
 
     if (!isAdmin && !form.branchId) {
-      errors.branchId = 'Assigned branch is required';
+      errors.branchId = t('validation.fieldRequired');
     }
 
     setFormErrors(errors);
@@ -192,11 +194,11 @@ export function TechniciansPage() {
         branchId: isAdmin ? user?.branchId || '' : form.branchId,
       };
       await technicianService.create(payload);
-      toast.success('Technician invited successfully! Invitation email sent.');
+      toast.success(t('technicians.inviteSent'));
       setShowCreateModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to invite technician';
+      const message = err?.response?.data?.message || t('technicians.failedCreate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -217,11 +219,11 @@ export function TechniciansPage() {
         status: form.status,
       };
       await technicianService.update(selectedTechnician.id, payload);
-      toast.success('Technician updated successfully!');
+      toast.success(t('technicians.updateSuccess'));
       setShowEditModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update technician';
+      const message = err?.response?.data?.message || t('technicians.failedUpdate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -248,10 +250,10 @@ export function TechniciansPage() {
     const newStatus = tech.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
       await technicianService.update(tech.id, { status: newStatus });
-      toast.success(`Technician ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}`);
+      toast.success(t('technicians.statusChanged', { status: newStatus === 'ACTIVE' ? t('common.active') : t('common.inactive'), defaultValue: `Technician ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}` }));
       await fetchData();
     } catch {
-      toast.error('Failed to update technician status');
+      toast.error(t('technicians.failedUpdate'));
     }
   };
 
@@ -265,30 +267,30 @@ export function TechniciansPage() {
     try {
       setDeleting(true);
       await technicianService.delete(technicianToDelete.id);
-      toast.success('Technician deleted successfully');
+      toast.success(t('technicians.deleteSuccess'));
       setDeleteModalOpen(false);
       setTechnicianToDelete(null);
       await fetchData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete technician');
+      toast.error(err?.response?.data?.message || t('technicians.failedDelete'));
     } finally {
       setDeleting(false);
     }
   };
 
   const StatusBadge = ({ status }: { status: string }) => {
-    const config: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
-      ACTIVE: { className: 'badge badge--success', icon: <CheckCircle2 size={12} />, label: 'Active' },
-      INACTIVE: { className: 'badge badge--warning', icon: <XCircle size={12} />, label: 'Inactive' },
-      INVITED: { className: 'badge badge--primary', icon: <Mail size={12} />, label: 'Invited' },
+    const config: Record<string, { className: string; icon: React.ReactNode; labelKey: string }> = {
+      ACTIVE: { className: 'badge badge--success', icon: <CheckCircle2 size={12} />, labelKey: 'enums.userStatus.ACTIVE' },
+      INACTIVE: { className: 'badge badge--warning', icon: <XCircle size={12} />, labelKey: 'enums.userStatus.INACTIVE' },
+      INVITED: { className: 'badge badge--primary', icon: <Mail size={12} />, labelKey: 'enums.userStatus.INVITED' },
     };
 
-    const current = config[status] || { className: 'badge', icon: null, label: status };
+    const current = config[status] || { className: 'badge', icon: null, labelKey: 'enums.userStatus.INACTIVE' };
 
     return (
       <span className={current.className}>
         {current.icon}
-        {current.label}
+        {t(current.labelKey)}
       </span>
     );
   };
@@ -302,8 +304,8 @@ export function TechniciansPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-header__left">
-          <h1 className="page-header__title">Technicians</h1>
-          <p className="page-header__subtitle">Manage dental lab technicians and their access</p>
+          <h1 className="page-header__title">{t('technicians.title')}</h1>
+          <p className="page-header__subtitle">{t('technicians.subtitle', { defaultValue: 'Manage dental lab technicians and their access' })}</p>
         </div>
         {canEdit && (
           <button
@@ -313,7 +315,7 @@ export function TechniciansPage() {
             disabled={isLimitReached}
           >
             <Plus size={18} />
-            <span>Invite Technician</span>
+            <span>{t('technicians.createTechnician')}</span>
           </button>
         )}
       </div>
@@ -322,9 +324,9 @@ export function TechniciansPage() {
         <div className="alert alert--danger" style={{ display: 'flex', gap: '0.75rem', padding: '1rem', borderRadius: '12px', border: '1px solid var(--danger)', background: 'var(--bg-base)', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
           <AlertCircle size={20} style={{ color: 'var(--danger)', flexShrink: 0 }} />
           <div>
-            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>Technician Limit Reached</h4>
+            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>{t('technicians.limitReachedTitle', { defaultValue: 'Technician Limit Reached' })}</h4>
             <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              Your organization has reached the limit of {tenantLimits?.maxTechnicians} Lab Technician(s). To invite more, please contact your laboratory administrator or support to upgrade your plan.
+              {t('technicians.limitReachedDesc', { count: tenantLimits?.maxTechnicians, defaultValue: `Your organization has reached the limit of ${tenantLimits?.maxTechnicians} Lab Technician(s). To invite more, please contact your laboratory administrator or support to upgrade your plan.` })}
             </p>
           </div>
         </div>
@@ -338,7 +340,7 @@ export function TechniciansPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.total}</span>
-            <span className="stat-card__label">Total Technicians</span>
+            <span className="stat-card__label">{t('technicians.totalTechnicians', { defaultValue: 'Total Technicians' })}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -347,7 +349,7 @@ export function TechniciansPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.active}</span>
-            <span className="stat-card__label">Active</span>
+            <span className="stat-card__label">{t('common.active')}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -356,7 +358,7 @@ export function TechniciansPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.invited}</span>
-            <span className="stat-card__label">Pending Invites</span>
+            <span className="stat-card__label">{t('technicians.pendingInvites', { defaultValue: 'Pending Invites' })}</span>
           </div>
         </div>
       </div>
@@ -369,7 +371,7 @@ export function TechniciansPage() {
             id="input-technician-search"
             type="text"
             className="form-input search-input"
-            placeholder="Search technicians..."
+            placeholder={t('technicians.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -384,14 +386,14 @@ export function TechniciansPage() {
           {/* Branch Filter dropdown (Only for OWNER, since ADMIN is auto-scoped) */}
           {!isAdmin && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>Branch:</span>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.branch')}:</span>
               <select
                 className="form-input"
                 style={{ width: '160px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
               >
-                <option value="ALL">All Branches</option>
+                <option value="ALL">{t('common.allBranches')}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -409,7 +411,7 @@ export function TechniciansPage() {
                 className={`filter-chip ${selectedStatusFilter === s ? 'filter-chip--active' : ''}`}
                 onClick={() => setSelectedStatusFilter(s)}
               >
-                {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
+                {s === 'ALL' ? t('common.all') : s === 'ACTIVE' ? t('enums.userStatus.ACTIVE') : s === 'INACTIVE' ? t('enums.userStatus.INACTIVE') : t('enums.userStatus.INVITED')}
               </button>
             ))}
           </div>
@@ -420,7 +422,7 @@ export function TechniciansPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>Loading technicians...</span>
+          <span>{t('technicians.loading', { defaultValue: 'Loading technicians...' })}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -428,12 +430,12 @@ export function TechniciansPage() {
             <Wrench size={48} style={{ color: 'var(--accent-primary)' }} />
           </div>
           <h3 className="empty-state__title">
-            {technicians.length === 0 ? 'No technicians invited yet' : 'No matching records'}
+            {technicians.length === 0 ? t('technicians.noTechnicians', { defaultValue: 'No technicians found' }) : t('technicians.noMatching', { defaultValue: 'No matching records' })}
           </h3>
           <p className="empty-state__text">
             {technicians.length === 0
-              ? 'Invite technicians to assign design tasks and lab manufacturing workflow steps.'
-              : 'Try adjusting your search or filter criteria.'}
+              ? t('technicians.createDesc', { defaultValue: 'Invite technicians to assign design tasks and lab manufacturing workflow steps.' })
+              : t('technicians.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
           {technicians.length === 0 && canEdit && (
             <button
@@ -442,7 +444,7 @@ export function TechniciansPage() {
               disabled={isLimitReached}
             >
               <Plus size={18} />
-              <span>Invite Technician</span>
+              <span>{t('technicians.createTechnician')}</span>
             </button>
           )}
         </div>
@@ -453,20 +455,20 @@ export function TechniciansPage() {
               <tr>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('name')}>
-                    Technician
+                    {t('navigation.technician')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('email')}>
-                    Email Address
+                    {t('common.email')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Phone</th>
-                {!isAdmin && <th>Branch</th>}
-                <th>Status</th>
-                {canEdit && <th>Actions</th>}
+                <th>{t('common.phone')}</th>
+                {!isAdmin && <th>{t('common.branch')}</th>}
+                <th>{t('common.status')}</th>
+                {canEdit && <th>{t('common.actions')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -483,7 +485,7 @@ export function TechniciansPage() {
                           {tech.firstName} {tech.lastName}
                         </span>
                         <span className="cell-primary__meta">
-                          Joined {new Date(tech.createdAt).toLocaleDateString('en-IN', {
+                          {t('common.joined', { defaultValue: 'Joined' })} {new Date(tech.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
                             day: 'numeric',
                             month: 'short',
                           })}
@@ -527,23 +529,23 @@ export function TechniciansPage() {
                           <button
                             className={`btn-action ${tech.status === 'ACTIVE' ? 'btn-action--danger' : 'btn-action--success'}`}
                             onClick={() => handleToggleStatus(tech)}
-                            title={tech.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                            title={tech.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}
                           >
                             {tech.status === 'ACTIVE' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                            <span>{tech.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</span>
+                            <span>{tech.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}</span>
                           </button>
                         )}
                         <button
                           className="btn-action"
                           onClick={() => handleEditOpen(tech)}
-                          title="Edit Technician"
+                          title={t('technicians.editTechnician')}
                         >
-                          <span>Edit</span>
+                          <span>{t('common.edit')}</span>
                         </button>
                         <button
                           className="btn-action btn-action--danger"
                           onClick={() => confirmDelete(tech)}
-                          title="Delete Technician"
+                          title={t('technicians.deleteConfirm')}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -569,8 +571,8 @@ export function TechniciansPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Invite Technician</h2>
-                <p className="modal__subtitle">Invite a new technician to this dental laboratory</p>
+                <h2 className="modal__title">{t('technicians.createTechnician')}</h2>
+                <p className="modal__subtitle">{t('technicians.createTechnicianSubtitle', { defaultValue: 'Invite a new technician to this dental laboratory' })}</p>
               </div>
               <button
                 className="modal__close"
@@ -585,7 +587,7 @@ export function TechniciansPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-tech-firstname">
-                    First Name *
+                    {t('admins.firstName')} *
                   </label>
                   <input
                     id="input-tech-firstname"
@@ -606,7 +608,7 @@ export function TechniciansPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-tech-lastname">
-                    Last Name *
+                    {t('admins.lastName')} *
                   </label>
                   <input
                     id="input-tech-lastname"
@@ -627,7 +629,7 @@ export function TechniciansPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-tech-email">
-                  Email Address *
+                  {t('common.email')} *
                 </label>
                 <input
                   id="input-tech-email"
@@ -647,7 +649,7 @@ export function TechniciansPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-tech-phone">
-                  Phone Number
+                  {t('common.phone')}
                 </label>
                 <input
                   id="input-tech-phone"
@@ -664,7 +666,7 @@ export function TechniciansPage() {
               {!isAdmin && branches.length > 0 && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-tech-branch">
-                    Assigned Branch *
+                    {t('admins.assignedBranch')} *
                   </label>
                   <SearchableSelect
                     id="select-tech-branch"
@@ -675,7 +677,7 @@ export function TechniciansPage() {
                     value={form.branchId}
                     onChange={(val) => handleInputChange('branchId', val)}
                     disabled={saving}
-                    placeholder="Select a branch"
+                    placeholder={t('branches.selectBranch')}
                     error={!!formErrors.branchId}
                   />
                   {formErrors.branchId && (
@@ -693,7 +695,7 @@ export function TechniciansPage() {
                   onClick={() => setShowCreateModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-technician"
@@ -704,10 +706,10 @@ export function TechniciansPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Inviting...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Invite Technician</span>
+                    <span>{t('technicians.createTechnician')}</span>
                   )}
                 </button>
               </div>
@@ -722,8 +724,8 @@ export function TechniciansPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Edit Technician</h2>
-                <p className="modal__subtitle">Update profile for <strong>{selectedTechnician.firstName} {selectedTechnician.lastName}</strong></p>
+                <h2 className="modal__title">{t('technicians.editTechnician')}</h2>
+                <p className="modal__subtitle">{t('admins.updateDetailsFor', { defaultValue: 'Update details for' })} <strong>{selectedTechnician.firstName} {selectedTechnician.lastName}</strong></p>
               </div>
               <button
                 className="modal__close"
@@ -738,7 +740,7 @@ export function TechniciansPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-tech-firstname">
-                    First Name *
+                    {t('admins.firstName')} *
                   </label>
                   <input
                     id="input-edit-tech-firstname"
@@ -758,7 +760,7 @@ export function TechniciansPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-tech-lastname">
-                    Last Name *
+                    {t('admins.lastName')} *
                   </label>
                   <input
                     id="input-edit-tech-lastname"
@@ -778,7 +780,7 @@ export function TechniciansPage() {
 
               <div className="form-group">
                 <label className="form-label">
-                  Email Address
+                  {t('common.email')}
                 </label>
                 <input
                   className="form-input"
@@ -787,13 +789,13 @@ export function TechniciansPage() {
                   disabled
                 />
                 <span className="form-error" style={{ color: 'var(--text-muted)' }}>
-                  Email cannot be changed after invitation.
+                  {t('technicians.emailChangeHint', { defaultValue: 'Email cannot be changed after invitation.' })}
                 </span>
               </div>
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-tech-phone">
-                  Phone Number
+                  {t('common.phone')}
                 </label>
                 <input
                   id="input-edit-tech-phone"
@@ -809,7 +811,7 @@ export function TechniciansPage() {
               {!isAdmin && branches.length > 0 && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-edit-tech-branch">
-                    Assigned Branch *
+                    {t('admins.assignedBranch')} *
                   </label>
                   <SearchableSelect
                     id="select-edit-tech-branch"
@@ -820,7 +822,7 @@ export function TechniciansPage() {
                     value={form.branchId}
                     onChange={(val) => handleInputChange('branchId', val)}
                     disabled={saving}
-                    placeholder="Select a branch"
+                    placeholder={t('branches.selectBranch')}
                     error={!!formErrors.branchId}
                   />
                   {formErrors.branchId && (
@@ -834,7 +836,7 @@ export function TechniciansPage() {
               {selectedTechnician.status !== 'INVITED' && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-edit-tech-status">
-                    Status *
+                    {t('common.status')} *
                   </label>
                   <select
                     id="select-edit-tech-status"
@@ -843,8 +845,8 @@ export function TechniciansPage() {
                     onChange={(e) => handleInputChange('status', e.target.value)}
                     disabled={saving}
                   >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
+                    <option value="ACTIVE">{t('common.active')}</option>
+                    <option value="INACTIVE">{t('common.inactive')}</option>
                   </select>
                 </div>
               )}
@@ -856,7 +858,7 @@ export function TechniciansPage() {
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-edit-submit-technician"
@@ -867,10 +869,10 @@ export function TechniciansPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Save Changes</span>
+                    <span>{t('common.save')}</span>
                   )}
                 </button>
               </div>
@@ -885,7 +887,7 @@ export function TechniciansPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Delete Technician</h2>
+                <h2 className="modal__title">{t('common.delete')}</h2>
               </div>
               <button
                 className="modal__close"
@@ -898,7 +900,7 @@ export function TechniciansPage() {
 
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                Are you sure you want to delete technician <strong>{technicianToDelete.firstName} {technicianToDelete.lastName}</strong>? This action will permanently remove the record from the database.
+                {t('technicians.deleteConfirmText', { name: `${technicianToDelete.firstName} ${technicianToDelete.lastName}`, defaultValue: `Are you sure you want to delete technician ${technicianToDelete.firstName} ${technicianToDelete.lastName}? This action will permanently remove the record from the database.` })}
               </p>
             </div>
 
@@ -909,7 +911,7 @@ export function TechniciansPage() {
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deleting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -921,12 +923,12 @@ export function TechniciansPage() {
                 {deleting ? (
                   <>
                     <Loader2 size={16} className="spinner" />
-                    <span>Deleting...</span>
+                    <span>{t('common.saving')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 size={16} />
-                    <span>Delete Permanently</span>
+                    <span>{t('common.delete')}</span>
                   </>
                 )}
               </button>

@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface PaginationProps {
   currentPage: number; // 0-indexed
@@ -9,6 +10,8 @@ interface PaginationProps {
 
 export function Pagination({ currentPage, totalItems, pageSize, onPageChange }: PaginationProps) {
   const totalPages = Math.ceil(totalItems / pageSize);
+
+  const { t } = useTranslation();
 
   if (totalItems === 0) return null;
 
@@ -71,9 +74,9 @@ export function Pagination({ currentPage, totalItems, pageSize, onPageChange }: 
     >
       {/* Entries Info */}
       <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-        Showing <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{startItem}</span> to{' '}
-        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{endItem}</span> of{' '}
-        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{totalItems}</span> entries
+        {t('pagination.showing')} <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{startItem}</span> {t('pagination.to')}{' '}
+        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{endItem}</span> {t('pagination.of')}{' '}
+        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{totalItems}</span> {t('pagination.entries')}
       </div>
 
       {/* Navigation Buttons */}

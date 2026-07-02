@@ -15,6 +15,7 @@ import {
   MapPin,
   Trash2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { branchService, adminService, type BranchListItem, type CreateBranchPayload, type AdminListItem } from '../services';
 import { Pagination } from '../components';
@@ -22,6 +23,7 @@ import { Pagination } from '../components';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 export function BranchesPage() {
+  const { t } = useTranslation();
   const [branches, setBranches] = useState<BranchListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -66,12 +68,12 @@ export function BranchesPage() {
       const data = await branchService.getAll();
       setBranches(data);
     } catch (err) {
-      toast.error('Failed to load branches');
+      toast.error(t('branches.failedLoad'));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchBranches();
@@ -118,22 +120,22 @@ export function BranchesPage() {
     const errors: Partial<Record<keyof CreateBranchPayload, string>> = {};
 
     if (!form.name.trim()) {
-      errors.name = 'Branch name is required';
+      errors.name = t('validation.fieldRequired');
     } else if (form.name.length < 2) {
-      errors.name = 'Branch name must be at least 2 characters';
+      errors.name = t('validation.minLength', { count: 2 });
     }
 
     if (form.code && form.code.trim().length > 0) {
       if (!/^[a-zA-Z0-9]+$/.test(form.code)) {
-        errors.code = 'Branch code must be alphanumeric';
+        errors.code = t('branches.codeAlphanumeric', { defaultValue: 'Branch code must be alphanumeric' });
       } else if (form.code.length < 2 || form.code.length > 10) {
-        errors.code = 'Branch code must be between 2 and 10 characters';
+        errors.code = t('branches.codeLength', { defaultValue: 'Branch code must be between 2 and 10 characters' });
       }
     }
 
     if (form.email && form.email.trim().length > 0) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        errors.email = 'Enter a valid email address';
+        errors.email = t('validation.invalidEmail');
       }
     }
 
@@ -197,11 +199,11 @@ export function BranchesPage() {
       };
 
       await branchService.create(sanitized);
-      toast.success('Branch created successfully!');
+      toast.success(t('branches.createSuccess'));
       setShowCreateModal(false);
       await fetchBranches();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create branch';
+      const message = err?.response?.data?.message || t('branches.failedCreate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -223,11 +225,11 @@ export function BranchesPage() {
         isActive: form.isActive,
         defaultAdminId: form.defaultAdminId || null,
       });
-      toast.success('Branch updated successfully!');
+      toast.success(t('branches.updateSuccess'));
       setShowEditModal(false);
       await fetchBranches();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update branch';
+      const message = err?.response?.data?.message || t('branches.failedUpdate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -254,10 +256,10 @@ export function BranchesPage() {
     const newStatus = !branch.isActive;
     try {
       await branchService.update(branch.id, { isActive: newStatus });
-      toast.success(`Branch ${newStatus ? 'activated' : 'deactivated'}`);
+      toast.success(t('branches.statusChanged', { status: newStatus ? t('common.active') : t('common.inactive'), defaultValue: `Branch ${newStatus ? 'activated' : 'deactivated'}` }));
       await fetchBranches();
     } catch {
-      toast.error('Failed to update branch status');
+      toast.error(t('branches.failedUpdate'));
     }
   };
 
@@ -271,12 +273,12 @@ export function BranchesPage() {
     try {
       setDeleting(true);
       await branchService.delete(branchToDelete.id);
-      toast.success('Branch deleted successfully');
+      toast.success(t('branches.deleteSuccess'));
       setDeleteModalOpen(false);
       setBranchToDelete(null);
       await fetchBranches();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete branch');
+      toast.error(err?.response?.data?.message || t('branches.failedDelete'));
     } finally {
       setDeleting(false);
     }
@@ -286,9 +288,9 @@ export function BranchesPage() {
 
   const StatusBadge = ({ active }: { active: boolean }) => {
     return active ? (
-      <span className="badge badge--success"><CheckCircle2 size={12} /> Active</span>
+      <span className="badge badge--success"><CheckCircle2 size={12} /> {t('common.active')}</span>
     ) : (
-      <span className="badge badge--warning"><XCircle size={12} /> Inactive</span>
+      <span className="badge badge--warning"><XCircle size={12} /> {t('common.inactive')}</span>
     );
   };
 
@@ -297,8 +299,8 @@ export function BranchesPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-header__left">
-          <h1 className="page-header__title">Branches</h1>
-          <p className="page-header__subtitle">Manage your dental lab branches</p>
+          <h1 className="page-header__title">{t('branches.title')}</h1>
+          <p className="page-header__subtitle">{t('branches.subtitle', { defaultValue: 'Manage your dental lab branches' })}</p>
         </div>
         <button
           id="btn-add-branch"
@@ -306,7 +308,7 @@ export function BranchesPage() {
           onClick={handleCreateOpen}
         >
           <Plus size={18} />
-          <span>Add Branch</span>
+          <span>{t('branches.createBranch')}</span>
         </button>
       </div>
 
@@ -318,7 +320,7 @@ export function BranchesPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.total}</span>
-            <span className="stat-card__label">Total Branches</span>
+            <span className="stat-card__label">{t('branches.totalBranches', { defaultValue: 'Total Branches' })}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -327,7 +329,7 @@ export function BranchesPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.active}</span>
-            <span className="stat-card__label">Active</span>
+            <span className="stat-card__label">{t('common.active')}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -336,7 +338,7 @@ export function BranchesPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.inactive}</span>
-            <span className="stat-card__label">Inactive</span>
+            <span className="stat-card__label">{t('common.inactive')}</span>
           </div>
         </div>
       </div>
@@ -349,7 +351,7 @@ export function BranchesPage() {
             id="input-branch-search"
             type="text"
             className="form-input search-input"
-            placeholder="Search branches..."
+            placeholder={t('branches.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -366,7 +368,7 @@ export function BranchesPage() {
               className={`filter-chip ${statusFilter === s ? 'filter-chip--active' : ''}`}
               onClick={() => setStatusFilter(s)}
             >
-              {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
+              {s === 'ALL' ? t('common.all') : s === 'ACTIVE' ? t('enums.userStatus.ACTIVE') : t('enums.userStatus.INACTIVE')}
             </button>
           ))}
         </div>
@@ -376,7 +378,7 @@ export function BranchesPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>Loading branches...</span>
+          <span>{t('branches.loading', { defaultValue: 'Loading branches...' })}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -384,12 +386,12 @@ export function BranchesPage() {
             <Building2 size={48} />
           </div>
           <h3 className="empty-state__title">
-            {branches.length === 0 ? 'No branches yet' : 'No matching branches'}
+            {branches.length === 0 ? t('branches.noBranches') : t('branches.noMatching', { defaultValue: 'No matching branches' })}
           </h3>
           <p className="empty-state__text">
             {branches.length === 0
-              ? 'Create a branch to expand your operations.'
-              : 'Try adjusting your search or filter criteria.'}
+              ? t('branches.createDesc', { defaultValue: 'Create a branch to expand your operations.' })
+              : t('branches.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
           {branches.length === 0 && (
             <button
@@ -397,7 +399,7 @@ export function BranchesPage() {
               onClick={handleCreateOpen}
             >
               <Plus size={18} />
-              <span>Add Branch</span>
+              <span>{t('branches.createBranch')}</span>
             </button>
           )}
         </div>
@@ -408,21 +410,21 @@ export function BranchesPage() {
               <tr>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('name')}>
-                    Branch Name
+                    {t('branches.branchName')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('code')}>
-                    Code
+                    {t('branches.branchCode')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Default Admin</th>
-                <th>Contact Info</th>
-                <th>Address</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>{t('branches.defaultAdmin')}</th>
+                <th>{t('branches.contactInfo', { defaultValue: 'Contact Info' })}</th>
+                <th>{t('common.address')}</th>
+                <th>{t('common.status')}</th>
+                <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -436,7 +438,7 @@ export function BranchesPage() {
                       <div>
                         <span className="cell-primary__name">{branch.name}</span>
                         <span className="cell-primary__meta">
-                          <Users size={12} /> {branch._count?.users ?? 0} active users
+                          <Users size={12} /> {t('branches.activeUsersCount', { count: branch._count?.users ?? 0, defaultValue: `${branch._count?.users ?? 0} active users` })}
                         </span>
                       </div>
                     </div>
@@ -460,7 +462,7 @@ export function BranchesPage() {
                         </div>
                       </div>
                     ) : (
-                      <span className="text-muted" style={{ fontSize: '0.8125rem', fontStyle: 'italic' }}>Not Assigned</span>
+                      <span className="text-muted" style={{ fontSize: '0.8125rem', fontStyle: 'italic' }}>{t('branches.notAssigned', { defaultValue: 'Not Assigned' })}</span>
                     )}
                   </td>
                   <td>
@@ -496,22 +498,22 @@ export function BranchesPage() {
                       <button
                         className={`btn-action ${branch.isActive ? 'btn-action--danger' : 'btn-action--success'}`}
                         onClick={() => handleToggleStatus(branch)}
-                        title={branch.isActive ? 'Deactivate' : 'Activate'}
+                        title={branch.isActive ? t('common.disable') : t('common.enable')}
                       >
                         {branch.isActive ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                        <span>{branch.isActive ? 'Deactivate' : 'Activate'}</span>
+                        <span>{branch.isActive ? t('common.disable') : t('common.enable')}</span>
                       </button>
                       <button
                         className="btn-action"
                         onClick={() => handleEditOpen(branch)}
-                        title="Edit Branch"
+                        title={t('branches.editBranch')}
                       >
-                        <span>Edit</span>
+                        <span>{t('common.edit')}</span>
                       </button>
                       <button
                         className="btn-action btn-action--danger"
                         onClick={() => confirmDelete(branch)}
-                        title="Delete Branch"
+                        title={t('branches.deleteConfirm')}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -536,8 +538,8 @@ export function BranchesPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Add New Branch</h2>
-                <p className="modal__subtitle">Create a new branch location for your dental lab</p>
+                <h2 className="modal__title">{t('branches.createBranch')}</h2>
+                <p className="modal__subtitle">{t('branches.createBranchSubtitle', { defaultValue: 'Create a new branch location for your dental lab' })}</p>
               </div>
               <button
                 className="modal__close"
@@ -551,7 +553,7 @@ export function BranchesPage() {
             <form className="modal__body" onSubmit={handleCreate}>
               <div className="form-group">
                 <label className="form-label" htmlFor="input-branch-name">
-                  Branch Name *
+                  {t('branches.branchName')} *
                 </label>
                 <input
                   id="input-branch-name"
@@ -572,7 +574,7 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-branch-code">
-                  Branch Code (Optional)
+                  {t('branches.branchCode')} ({t('common.optional')})
                 </label>
                 <input
                   id="input-branch-code"
@@ -592,7 +594,7 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-branch-email">
-                  Branch Email (Optional)
+                  {t('common.email')} ({t('common.optional')})
                 </label>
                 <input
                   id="input-branch-email"
@@ -612,7 +614,7 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-branch-phone">
-                  Branch Phone (Optional)
+                  {t('branches.branchPhone', { defaultValue: 'Branch Phone' })} ({t('common.optional')})
                 </label>
                 <input
                   id="input-branch-phone"
@@ -627,7 +629,7 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-branch-address">
-                  Branch Address (Optional)
+                  {t('common.address')} ({t('common.optional')})
                 </label>
                 <textarea
                   id="input-branch-address"
@@ -647,7 +649,7 @@ export function BranchesPage() {
                   onClick={() => setShowCreateModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-branch"
@@ -658,12 +660,12 @@ export function BranchesPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
                     <>
                       <Plus size={16} />
-                      <span>Create Branch</span>
+                      <span>{t('branches.createBranch')}</span>
                     </>
                   )}
                 </button>
@@ -679,8 +681,8 @@ export function BranchesPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Edit Branch</h2>
-                <p className="modal__subtitle">Update details for branch <strong>{selectedBranch.name}</strong></p>
+                <h2 className="modal__title">{t('branches.editBranch')}</h2>
+                <p className="modal__subtitle">{t('branches.updateDetailsFor', { defaultValue: 'Update details for branch' })} <strong>{selectedBranch.name}</strong></p>
               </div>
               <button
                 className="modal__close"
@@ -694,7 +696,7 @@ export function BranchesPage() {
             <form className="modal__body" onSubmit={handleUpdate}>
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-branch-name">
-                  Branch Name *
+                  {t('branches.branchName')} *
                 </label>
                 <input
                   id="input-edit-branch-name"
@@ -715,7 +717,7 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-branch-code">
-                  Branch Code
+                  {t('branches.branchCode')}
                 </label>
                 <input
                   id="input-edit-branch-code"
@@ -735,7 +737,7 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-branch-email">
-                  Branch Email (Optional)
+                  {t('common.email')} ({t('common.optional')})
                 </label>
                 <input
                   id="input-edit-branch-email"
@@ -755,7 +757,7 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-branch-phone">
-                  Branch Phone (Optional)
+                  {t('branches.branchPhone', { defaultValue: 'Branch Phone' })} ({t('common.optional')})
                 </label>
                 <input
                   id="input-edit-branch-phone"
@@ -770,7 +772,7 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-branch-address">
-                  Branch Address (Optional)
+                  {t('common.address')} ({t('common.optional')})
                 </label>
                 <textarea
                   id="input-edit-branch-address"
@@ -785,16 +787,16 @@ export function BranchesPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="select-edit-branch-admin">
-                  Default Admin
+                  {t('branches.defaultAdmin')}
                 </label>
                 {loadingAdmins ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                     <Loader2 size={16} className="spinner" />
-                    <span>Loading administrators...</span>
+                    <span>{t('admins.loading')}</span>
                   </div>
                 ) : branchAdmins.length === 0 ? (
                   <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '4px 0' }}>
-                    No active administrators found in this branch. To assign a Default Admin, first add or activate an administrator for this branch.
+                    {t('branches.noAdminsFound', { defaultValue: 'No active administrators found in this branch. To assign a Default Admin, first add or activate an administrator for this branch.' })}
                   </div>
                 ) : (
                   <select
@@ -804,7 +806,7 @@ export function BranchesPage() {
                     onChange={(e) => handleInputChange('defaultAdminId', e.target.value || null)}
                     disabled={saving}
                   >
-                    <option value="">Select Default Admin...</option>
+                    <option value="">{t('branches.selectAdmin')}</option>
                     {branchAdmins.map((admin) => (
                       <option key={admin.id} value={admin.id}>
                         {admin.firstName} {admin.lastName} ({admin.email})
@@ -821,7 +823,7 @@ export function BranchesPage() {
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-edit-submit-branch"
@@ -832,10 +834,10 @@ export function BranchesPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Save Changes</span>
+                    <span>{t('common.save')}</span>
                   )}
                 </button>
               </div>
@@ -850,7 +852,7 @@ export function BranchesPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Delete Branch</h2>
+                <h2 className="modal__title">{t('branches.deleteConfirm')}</h2>
               </div>
               <button
                 className="modal__close"
@@ -863,7 +865,7 @@ export function BranchesPage() {
             
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                Are you sure you want to delete branch <strong>{branchToDelete.name}</strong>? This action will permanently remove the branch. Users associated with this branch will have their branch reference set to null.
+                {t('branches.deleteConfirmText', { name: branchToDelete.name, defaultValue: `Are you sure you want to delete branch ${branchToDelete.name}? This action will permanently remove the branch. Users associated with this branch will have their branch reference set to null.` })}
               </p>
             </div>
 
@@ -874,7 +876,7 @@ export function BranchesPage() {
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deleting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -886,12 +888,12 @@ export function BranchesPage() {
                 {deleting ? (
                   <>
                     <Loader2 size={16} className="spinner" />
-                    <span>Deleting...</span>
+                    <span>{t('common.saving')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 size={16} />
-                    <span>Delete Permanently</span>
+                    <span>{t('common.delete')}</span>
                   </>
                 )}
               </button>

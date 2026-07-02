@@ -147,6 +147,7 @@ export class AuthService {
         branchName,
         maxAdmins,
         maxTechnicians,
+        preferredLanguage: user.preferredLanguage,
       },
       ...tokens,
     };
@@ -209,6 +210,7 @@ export class AuthService {
         tenantName,
         branchId: stored.user.branchId,
         branchName,
+        preferredLanguage: stored.user.preferredLanguage,
       },
       ...tokens,
     };
@@ -283,6 +285,7 @@ export class AuthService {
         branchId: true,
         lastLoginAt: true,
         createdAt: true,
+        preferredLanguage: true,
         tenant: {
           select: {
             id: true,
@@ -459,5 +462,16 @@ export class AuthService {
     });
 
     return token;
+  }
+
+  /**
+   * Update user's preferred language
+   */
+  async updateLanguage(userId: string, language: 'EN' | 'ES') {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferredLanguage: language },
+    });
+    return { message: 'Language preference updated', language };
   }
 }

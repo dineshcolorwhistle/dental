@@ -19,6 +19,7 @@ import {
   Trash2,
   Pencil,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { tenantService, type TenantListItem, type CreateTenantPayload } from '../services';
 import { Pagination } from '../components';
@@ -26,6 +27,7 @@ import { Pagination } from '../components';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
 export function TenantsPage() {
+  const { t, i18n } = useTranslation();
   const [tenants, setTenants] = useState<TenantListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -86,12 +88,12 @@ export function TenantsPage() {
       const data = await tenantService.getAll();
       setTenants(data);
     } catch (err) {
-      toast.error('Failed to load tenants');
+      toast.error(t('tenants.failedLoad', { defaultValue: 'Failed to load tenants' }));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchTenants();
@@ -135,21 +137,21 @@ export function TenantsPage() {
   const validateForm = (): boolean => {
     const errors: Partial<Record<keyof CreateTenantPayload, string>> = {};
 
-    if (!form.tenantName.trim()) errors.tenantName = 'Lab name is required';
-    if (!form.ownerName.trim()) errors.ownerName = 'Owner name is required';
+    if (!form.tenantName.trim()) errors.tenantName = t('validation.fieldRequired');
+    if (!form.ownerName.trim()) errors.ownerName = t('validation.fieldRequired');
     if (!form.ownerEmail.trim()) {
-      errors.ownerEmail = 'Owner email is required';
+      errors.ownerEmail = t('validation.fieldRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.ownerEmail)) {
-      errors.ownerEmail = 'Enter a valid email address';
+      errors.ownerEmail = t('validation.invalidEmail');
     }
     if (form.maxOwners === undefined || form.maxOwners === null || isNaN(form.maxOwners) || form.maxOwners < 1) {
-      errors.maxOwners = 'Owner Count must be at least 1';
+      errors.maxOwners = t('tenants.validationOwnersLimit', { defaultValue: 'Owner Count must be at least 1' });
     }
     if (form.maxAdmins === undefined || form.maxAdmins === null || isNaN(form.maxAdmins) || form.maxAdmins < 0) {
-      errors.maxAdmins = 'Lab Admin Count must be >= 0';
+      errors.maxAdmins = t('tenants.validationAdminsLimit', { defaultValue: 'Lab Admin Count must be >= 0' });
     }
     if (form.maxTechnicians === undefined || form.maxTechnicians === null || isNaN(form.maxTechnicians) || form.maxTechnicians < 0) {
-      errors.maxTechnicians = 'Lab Technician Count must be >= 0';
+      errors.maxTechnicians = t('tenants.validationTechsLimit', { defaultValue: 'Lab Technician Count must be >= 0' });
     }
 
     setFormErrors(errors);
@@ -163,13 +165,13 @@ export function TenantsPage() {
     try {
       setCreating(true);
       await tenantService.create(form);
-      toast.success('Tenant created successfully! Invite email sent.');
+      toast.success(t('tenants.createSuccess', { defaultValue: 'Tenant created successfully! Invite email sent.' }));
       setShowCreateModal(false);
       setForm({ tenantName: '', ownerName: '', ownerEmail: '', maxOwners: 1, maxAdmins: 3, maxTechnicians: 6 });
       setFormErrors({});
       await fetchTenants();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create tenant';
+      const message = err?.response?.data?.message || t('tenants.failedCreate', { defaultValue: 'Failed to create tenant' });
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setCreating(false);
@@ -201,10 +203,10 @@ export function TenantsPage() {
     const newStatus = tenant.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
       await tenantService.updateStatus(tenant.id, newStatus);
-      toast.success(`Tenant ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}`);
+      toast.success(t('tenants.statusChanged', { status: newStatus === 'ACTIVE' ? t('common.active') : t('common.inactive'), defaultValue: `Tenant ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}` }));
       await fetchTenants();
     } catch {
-      toast.error('Failed to update tenant status');
+      toast.error(t('tenants.failedUpdate', { defaultValue: 'Failed to update tenant status' }));
     }
   };
 
@@ -233,11 +235,11 @@ export function TenantsPage() {
       await tenantService.update(selectedTenant.id, {
         settings: { features: featureForm },
       });
-      toast.success('Tenant features updated successfully');
+      toast.success(t('tenants.featuresUpdated', { defaultValue: 'Tenant features updated successfully' }));
       setFeaturesModalOpen(false);
       await fetchTenants();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to update features');
+      toast.error(err?.response?.data?.message || t('tenants.failedUpdateFeatures', { defaultValue: 'Failed to update features' }));
     } finally {
       setUpdatingFeatures(false);
     }
@@ -253,12 +255,12 @@ export function TenantsPage() {
     try {
       setDeleting(true);
       await tenantService.delete(tenantToDelete.id);
-      toast.success('Tenant deleted successfully');
+      toast.success(t('tenants.deleteSuccess', { defaultValue: 'Tenant deleted successfully' }));
       setDeleteModalOpen(false);
       setTenantToDelete(null);
       await fetchTenants();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete tenant');
+      toast.error(err?.response?.data?.message || t('tenants.failedDelete', { defaultValue: 'Failed to delete tenant' }));
     } finally {
       setDeleting(false);
     }
@@ -295,18 +297,18 @@ export function TenantsPage() {
   const validateEditForm = (): boolean => {
     const errors: Partial<Record<keyof typeof editForm, string>> = {};
 
-    if (!editForm.name.trim()) errors.name = 'Lab name is required';
+    if (!editForm.name.trim()) errors.name = t('validation.fieldRequired');
     if (editForm.contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.contactEmail)) {
-      errors.contactEmail = 'Enter a valid email address';
+      errors.contactEmail = t('validation.invalidEmail');
     }
     if (editForm.maxOwners === undefined || editForm.maxOwners === null || isNaN(editForm.maxOwners) || editForm.maxOwners < 1) {
-      errors.maxOwners = 'Owner Count must be at least 1';
+      errors.maxOwners = t('tenants.validationOwnersLimit', { defaultValue: 'Owner Count must be at least 1' });
     }
     if (editForm.maxAdmins === undefined || editForm.maxAdmins === null || isNaN(editForm.maxAdmins) || editForm.maxAdmins < 0) {
-      errors.maxAdmins = 'Lab Admin Count must be >= 0';
+      errors.maxAdmins = t('tenants.validationAdminsLimit', { defaultValue: 'Lab Admin Count must be >= 0' });
     }
     if (editForm.maxTechnicians === undefined || editForm.maxTechnicians === null || isNaN(editForm.maxTechnicians) || editForm.maxTechnicians < 0) {
-      errors.maxTechnicians = 'Lab Technician Count must be >= 0';
+      errors.maxTechnicians = t('tenants.validationTechsLimit', { defaultValue: 'Lab Technician Count must be >= 0' });
     }
 
     setEditFormErrors(errors);
@@ -320,11 +322,11 @@ export function TenantsPage() {
     try {
       setSaving(true);
       await tenantService.update(selectedTenant.id, editForm);
-      toast.success('Tenant updated successfully!');
+      toast.success(t('tenants.updateSuccess', { defaultValue: 'Tenant updated successfully!' }));
       setShowEditModal(false);
       await fetchTenants();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update tenant';
+      const message = err?.response?.data?.message || t('tenants.failedUpdate', { defaultValue: 'Failed to update tenant' });
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -334,13 +336,13 @@ export function TenantsPage() {
   // ─── Status Badge ───────────────────────────────────
 
   const StatusBadge = ({ status }: { status: string }) => {
-    const config: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
-      ACTIVE: { className: 'badge badge--success', icon: <CheckCircle2 size={12} />, label: 'Active' },
-      INACTIVE: { className: 'badge badge--warning', icon: <XCircle size={12} />, label: 'Inactive' },
-      SUSPENDED: { className: 'badge badge--danger', icon: <AlertCircle size={12} />, label: 'Suspended' },
+    const config: Record<string, { className: string; icon: React.ReactNode; labelKey: string }> = {
+      ACTIVE: { className: 'badge badge--success', icon: <CheckCircle2 size={12} />, labelKey: 'enums.userStatus.ACTIVE' },
+      INACTIVE: { className: 'badge badge--warning', icon: <XCircle size={12} />, labelKey: 'enums.userStatus.INACTIVE' },
+      SUSPENDED: { className: 'badge badge--danger', icon: <AlertCircle size={12} />, labelKey: 'enums.userStatus.SUSPENDED' },
     };
-    const { className, icon, label } = config[status] || config.INACTIVE;
-    return <span className={className}>{icon} {label}</span>;
+    const current = config[status] || { className: 'badge badge--warning', icon: <XCircle size={12} />, labelKey: 'enums.userStatus.INACTIVE' };
+    return <span className={current.className}>{current.icon} {t(current.labelKey, { defaultValue: status })}</span>;
   };
 
   // ─── Render ─────────────────────────────────────────
@@ -350,8 +352,8 @@ export function TenantsPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-header__left">
-          <h1 className="page-header__title">Tenants</h1>
-          <p className="page-header__subtitle">Manage dental lab organizations</p>
+          <h1 className="page-header__title">{t('tenants.title', { defaultValue: 'Tenants' })}</h1>
+          <p className="page-header__subtitle">{t('tenants.subtitle', { defaultValue: 'Manage dental lab organizations' })}</p>
         </div>
         <button
           id="btn-add-tenant"
@@ -359,7 +361,7 @@ export function TenantsPage() {
           onClick={() => setShowCreateModal(true)}
         >
           <Plus size={18} />
-          <span>Add Tenant</span>
+          <span>{t('tenants.createTenant', { defaultValue: 'Add Tenant' })}</span>
         </button>
       </div>
 
@@ -371,7 +373,7 @@ export function TenantsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.total}</span>
-            <span className="stat-card__label">Total Tenants</span>
+            <span className="stat-card__label">{t('tenants.totalTenants', { defaultValue: 'Total Tenants' })}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -380,7 +382,7 @@ export function TenantsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.active}</span>
-            <span className="stat-card__label">Active</span>
+            <span className="stat-card__label">{t('common.active')}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -389,7 +391,7 @@ export function TenantsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.inactive}</span>
-            <span className="stat-card__label">Inactive</span>
+            <span className="stat-card__label">{t('common.inactive')}</span>
           </div>
         </div>
       </div>
@@ -402,7 +404,7 @@ export function TenantsPage() {
             id="input-tenant-search"
             type="text"
             className="form-input search-input"
-            placeholder="Search tenants..."
+            placeholder={t('tenants.searchPlaceholder', { defaultValue: 'Search tenants...' })}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -419,7 +421,7 @@ export function TenantsPage() {
               className={`filter-chip ${statusFilter === s ? 'filter-chip--active' : ''}`}
               onClick={() => setStatusFilter(s)}
             >
-              {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
+              {s === 'ALL' ? t('common.all') : s === 'ACTIVE' ? t('enums.userStatus.ACTIVE') : s === 'INACTIVE' ? t('enums.userStatus.INACTIVE') : t('enums.userStatus.SUSPENDED', { defaultValue: 'Suspended' })}
             </button>
           ))}
         </div>
@@ -429,7 +431,7 @@ export function TenantsPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>Loading tenants...</span>
+          <span>{t('tenants.loading', { defaultValue: 'Loading tenants...' })}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -437,12 +439,12 @@ export function TenantsPage() {
             <Building2 size={48} />
           </div>
           <h3 className="empty-state__title">
-            {tenants.length === 0 ? 'No tenants yet' : 'No matching tenants'}
+            {tenants.length === 0 ? t('tenants.noTenants', { defaultValue: 'No tenants yet' }) : t('tenants.noMatching', { defaultValue: 'No matching tenants' })}
           </h3>
           <p className="empty-state__text">
             {tenants.length === 0
-              ? 'Create your first tenant to get started with the platform.'
-              : 'Try adjusting your search or filter criteria.'}
+              ? t('tenants.createDesc', { defaultValue: 'Create your first tenant to get started with the platform.' })
+              : t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
           {tenants.length === 0 && (
             <button
@@ -450,7 +452,7 @@ export function TenantsPage() {
               onClick={() => setShowCreateModal(true)}
             >
               <Plus size={18} />
-              <span>Add Tenant</span>
+              <span>{t('tenants.createTenant', { defaultValue: 'Add Tenant' })}</span>
             </button>
           )}
         </div>
@@ -461,21 +463,21 @@ export function TenantsPage() {
               <tr>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('name')}>
-                    Lab Name
+                    {t('tenants.labName', { defaultValue: 'Lab Name' })}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Owner</th>
-                <th>Branch</th>
-                <th>Subdomain</th>
-                <th>Status</th>
+                <th>{t('tenants.owner', { defaultValue: 'Owner' })}</th>
+                <th>{t('common.branch')}</th>
+                <th>{t('tenants.subdomain', { defaultValue: 'Subdomain' })}</th>
+                <th>{t('common.status')}</th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('createdAt')}>
-                    Created
+                    {t('common.created', { defaultValue: 'Created' })}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Actions</th>
+                <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -489,10 +491,10 @@ export function TenantsPage() {
                       <div>
                         <span className="cell-primary__name">{tenant.name}</span>
                         <span className="cell-primary__meta">
-                          <Users size={12} /> {tenant.userCount} users · <GitBranch size={12} /> {tenant.branchCount} branches
+                          <Users size={12} /> {tenant.userCount} {t('tenants.users', { defaultValue: 'users' })} · <GitBranch size={12} /> {tenant.branchCount} {t('tenants.branches', { defaultValue: 'branches' })}
                         </span>
                         <span className="cell-primary__meta" style={{ marginTop: '0.25rem' }}>
-                          Limits: {tenant.maxOwners} Owner · {tenant.maxAdmins} Admin(s) · {tenant.maxTechnicians} Tech(s)
+                          {t('tenants.limitsSummary', { maxOwners: tenant.maxOwners, maxAdmins: tenant.maxAdmins, maxTechnicians: tenant.maxTechnicians, defaultValue: `Limits: ${tenant.maxOwners} Owner · ${tenant.maxAdmins} Admin(s) · ${tenant.maxTechnicians} Tech(s)` })}
                         </span>
                       </div>
                     </div>
@@ -529,7 +531,7 @@ export function TenantsPage() {
                   </td>
                   <td>
                     <span className="cell-date">
-                      {new Date(tenant.createdAt).toLocaleDateString('en-IN', {
+                      {new Date(tenant.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric',
@@ -541,33 +543,33 @@ export function TenantsPage() {
                       <button
                         className={`btn-action ${tenant.status === 'ACTIVE' ? 'btn-action--danger' : 'btn-action--success'}`}
                         onClick={() => handleToggleStatus(tenant)}
-                        title={tenant.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                        title={tenant.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}
                       >
                         {tenant.status === 'ACTIVE' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                        <span>{tenant.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</span>
+                        <span>{tenant.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}</span>
                       </button>
                       <button
                         className="btn-action"
                         onClick={() => handleEditOpen(tenant)}
-                        title="Edit Tenant"
+                        title={t('tenants.editTenant')}
                       >
                         <Pencil size={15} />
-                        <span>Edit</span>
+                        <span>{t('common.edit')}</span>
                       </button>
                       <button
                         className="btn-action btn-action--danger"
                         onClick={() => confirmDelete(tenant)}
-                        title="Delete Tenant"
+                        title={t('tenants.deleteConfirm')}
                       >
                         <Trash2 size={15} />
                       </button>
                       <button
                         className="btn-action"
                         onClick={() => openFeaturesModal(tenant)}
-                        title="Manage Features"
+                        title={t('tenants.manageFeatures', { defaultValue: 'Manage Features' })}
                       >
                         <Settings size={15} />
-                        <span>Features</span>
+                        <span>{t('tenants.features', { defaultValue: 'Features' })}</span>
                       </button>
 
                     </div>
@@ -594,9 +596,9 @@ export function TenantsPage() {
           >
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Add New Tenant</h2>
+                <h2 className="modal__title">{t('tenants.createTenant')}</h2>
                 <p className="modal__subtitle">
-                  Create a new dental lab organization
+                  {t('tenants.createTenantSubtitle', { defaultValue: 'Create a new dental lab organization' })}
                 </p>
               </div>
               <button
@@ -611,7 +613,7 @@ export function TenantsPage() {
             <form className="modal__body" onSubmit={handleCreate}>
               <div className="form-group">
                 <label className="form-label" htmlFor="input-tenant-name">
-                  Tenant Name (Lab Name) *
+                  {t('tenants.labName', { defaultValue: 'Lab Name' })} *
                 </label>
                 <input
                   id="input-tenant-name"
@@ -632,7 +634,7 @@ export function TenantsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-owner-name">
-                  Owner Name *
+                  {t('tenants.ownerName', { defaultValue: 'Owner Name' })} *
                 </label>
                 <input
                   id="input-owner-name"
@@ -652,7 +654,7 @@ export function TenantsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-owner-email">
-                  Owner Email *
+                  {t('tenants.ownerEmail', { defaultValue: 'Owner Email' })} *
                 </label>
                 <input
                   id="input-owner-email"
@@ -669,14 +671,14 @@ export function TenantsPage() {
                   </span>
                 )}
                 <span className="form-hint">
-                  <Mail size={12} /> An invitation email with password reset link will be sent to this address.
+                  <Mail size={12} /> {t('tenants.ownerEmailInviteHint', { defaultValue: 'An invitation email with password reset link will be sent to this address.' })}
                 </span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-max-owners">
-                    Owner Limit *
+                    {t('tenants.ownerLimit', { defaultValue: 'Owner Limit' })} *
                   </label>
                   <input
                     id="input-max-owners"
@@ -685,12 +687,12 @@ export function TenantsPage() {
                     value={form.maxOwners}
                     disabled
                   />
-                  <span className="form-hint">Fixed default</span>
+                  <span className="form-hint">{t('tenants.fixedDefault', { defaultValue: 'Fixed default' })}</span>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-max-admins">
-                    Lab Admin Limit *
+                    {t('tenants.adminLimit', { defaultValue: 'Lab Admin Limit' })} *
                   </label>
                   <input
                     id="input-max-admins"
@@ -711,7 +713,7 @@ export function TenantsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-max-technicians">
-                    Lab Tech Limit *
+                    {t('tenants.techLimit', { defaultValue: 'Lab Tech Limit' })} *
                   </label>
                   <input
                     id="input-max-technicians"
@@ -738,7 +740,7 @@ export function TenantsPage() {
                   onClick={() => setShowCreateModal(false)}
                   disabled={creating}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-tenant"
@@ -749,12 +751,12 @@ export function TenantsPage() {
                   {creating ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Creating...</span>
+                      <span>{t('common.creating', { defaultValue: 'Creating...' })}</span>
                     </>
                   ) : (
                     <>
                       <Plus size={16} />
-                      <span>Create Tenant</span>
+                      <span>{t('tenants.createTenant', { defaultValue: 'Add Tenant' })}</span>
                     </>
                   )}
                 </button>
@@ -774,9 +776,9 @@ export function TenantsPage() {
           >
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Manage Features</h2>
+                <h2 className="modal__title">{t('tenants.manageFeatures', { defaultValue: 'Manage Features' })}</h2>
                 <p className="modal__subtitle">
-                  Configure modules enabled for <strong>{selectedTenant.name}</strong>
+                  {t('tenants.configureFeaturesDesc', { defaultValue: 'Configure modules enabled for' })} <strong>{selectedTenant.name}</strong>
                 </p>
               </div>
               <button
@@ -793,8 +795,8 @@ export function TenantsPage() {
                 {/* Feature 1 */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-heading)' }}>QR Workflow</h4>
-                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Scan-to-access work orders for technicians</p>
+                    <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-heading)' }}>{t('tenants.qrWorkflow', { defaultValue: 'QR Workflow' })}</h4>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('tenants.qrWorkflowDesc', { defaultValue: 'Scan-to-access work orders for technicians' })}</p>
                   </div>
                   <button
                     type="button"
@@ -808,8 +810,8 @@ export function TenantsPage() {
                 {/* Feature 2 */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-heading)' }}>Delivery Module</h4>
-                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Manage delivery boys and coordinate pickups/dropoffs</p>
+                    <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-heading)' }}>{t('tenants.deliveryModule', { defaultValue: 'Delivery Module' })}</h4>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('tenants.deliveryModuleDesc', { defaultValue: 'Manage delivery boys and coordinate pickups/dropoffs' })}</p>
                   </div>
                   <button
                     type="button"
@@ -823,8 +825,8 @@ export function TenantsPage() {
                 {/* Feature 3 */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0' }}>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-heading)' }}>Doctor Portal</h4>
-                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Allow doctors to log in and submit orders directly</p>
+                    <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-heading)' }}>{t('tenants.doctorPortal', { defaultValue: 'Doctor Portal' })}</h4>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('tenants.doctorPortalDesc', { defaultValue: 'Allow doctors to log in and submit orders directly' })}</p>
                   </div>
                   <button
                     type="button"
@@ -844,7 +846,7 @@ export function TenantsPage() {
                 onClick={() => setFeaturesModalOpen(false)}
                 disabled={updatingFeatures}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -855,10 +857,10 @@ export function TenantsPage() {
                 {updatingFeatures ? (
                   <>
                     <Loader2 size={16} className="spinner" />
-                    <span>Saving...</span>
+                    <span>{t('common.saving')}</span>
                   </>
                 ) : (
-                  <span>Save Features</span>
+                  <span>{t('tenants.saveFeatures', { defaultValue: 'Save Features' })}</span>
                 )}
               </button>
             </div>
@@ -875,9 +877,9 @@ export function TenantsPage() {
           >
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Edit Tenant</h2>
+                <h2 className="modal__title">{t('tenants.editTenant')}</h2>
                 <p className="modal__subtitle">
-                  Update details for <strong>{selectedTenant.name}</strong>
+                  {t('tenants.updateDetailsDesc', { defaultValue: 'Update details for' })} <strong>{selectedTenant.name}</strong>
                 </p>
               </div>
               <button
@@ -892,7 +894,7 @@ export function TenantsPage() {
             <form className="modal__body" onSubmit={handleUpdate}>
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-tenant-name">
-                  Tenant Name (Lab Name) *
+                  {t('tenants.labName', { defaultValue: 'Lab Name' })} *
                 </label>
                 <input
                   id="input-edit-tenant-name"
@@ -914,7 +916,7 @@ export function TenantsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-tenant-email">
-                    Contact Email
+                    {t('common.email')}
                   </label>
                   <input
                     id="input-edit-tenant-email"
@@ -934,7 +936,7 @@ export function TenantsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-tenant-phone">
-                    Contact Phone
+                    {t('tenants.contactPhone', { defaultValue: 'Contact Phone' })}
                   </label>
                   <input
                     id="input-edit-tenant-phone"
@@ -950,7 +952,7 @@ export function TenantsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-tenant-address">
-                  Address
+                  {t('tenants.address', { defaultValue: 'Address' })}
                 </label>
                 <textarea
                   id="input-edit-tenant-address"
@@ -965,7 +967,7 @@ export function TenantsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="select-edit-tenant-status">
-                  Status *
+                  {t('common.status')} *
                 </label>
                 <select
                   id="select-edit-tenant-status"
@@ -974,16 +976,16 @@ export function TenantsPage() {
                   onChange={(e) => handleEditInputChange('status', e.target.value)}
                   disabled={saving}
                 >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="SUSPENDED">Suspended</option>
+                  <option value="ACTIVE">{t('enums.userStatus.ACTIVE')}</option>
+                  <option value="INACTIVE">{t('enums.userStatus.INACTIVE')}</option>
+                  <option value="SUSPENDED">{t('enums.userStatus.SUSPENDED', { defaultValue: 'Suspended' })}</option>
                 </select>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-max-owners">
-                    Owner Limit *
+                    {t('tenants.ownerLimit', { defaultValue: 'Owner Limit' })} *
                   </label>
                   <input
                     id="input-edit-max-owners"
@@ -992,12 +994,12 @@ export function TenantsPage() {
                     value={editForm.maxOwners}
                     disabled
                   />
-                  <span className="form-hint">Fixed default</span>
+                  <span className="form-hint">{t('tenants.fixedDefault', { defaultValue: 'Fixed default' })}</span>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-max-admins">
-                    Lab Admin Limit *
+                    {t('tenants.adminLimit', { defaultValue: 'Lab Admin Limit' })} *
                   </label>
                   <input
                     id="input-edit-max-admins"
@@ -1018,7 +1020,7 @@ export function TenantsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-max-technicians">
-                    Lab Tech Limit *
+                    {t('tenants.techLimit', { defaultValue: 'Lab Tech Limit' })} *
                   </label>
                   <input
                     id="input-edit-max-technicians"
@@ -1045,7 +1047,7 @@ export function TenantsPage() {
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-edit-submit-tenant"
@@ -1056,12 +1058,12 @@ export function TenantsPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
                     <>
                       <Pencil size={16} />
-                      <span>Save Changes</span>
+                      <span>{t('common.saveChanges')}</span>
                     </>
                   )}
                 </button>
@@ -1081,7 +1083,7 @@ export function TenantsPage() {
           >
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Delete Tenant</h2>
+                <h2 className="modal__title">{t('tenants.deleteConfirm')}</h2>
               </div>
               <button
                 className="modal__close"
@@ -1094,7 +1096,7 @@ export function TenantsPage() {
 
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                Are you sure you want to delete <strong>{tenantToDelete.name}</strong>? This action will permanently remove the lab, its branches, users, and all associated data.
+                {t('tenants.deleteConfirmLongText', { name: tenantToDelete.name, defaultValue: `Are you sure you want to delete ${tenantToDelete.name}? This action will permanently remove the lab, its branches, users, and all associated data.` })}
               </p>
             </div>
 
@@ -1105,7 +1107,7 @@ export function TenantsPage() {
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deleting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1117,12 +1119,12 @@ export function TenantsPage() {
                 {deleting ? (
                   <>
                     <Loader2 size={16} className="spinner" />
-                    <span>Deleting...</span>
+                    <span>{t('common.saving')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 size={16} />
-                    <span>Delete Permanently</span>
+                    <span>{t('common.delete')}</span>
                   </>
                 )}
               </button>

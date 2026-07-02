@@ -12,6 +12,7 @@ import {
   AlertCircle,
   AlertTriangle,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import {
   technicianPortalService,
@@ -20,6 +21,7 @@ import {
 } from '../services';
 
 export function TechnicianDashboardPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [stats, setStats] = useState<TechnicianDashboardStats | null>(null);
   const [activeJobs, setActiveJobs] = useState<TechnicianWorkOrderListItem[]>([]);
@@ -34,11 +36,11 @@ export function TechnicianDashboardPage() {
       setStats(statsData);
       setActiveJobs(jobsData);
     } catch {
-      toast.error('Failed to load dashboard data. Please try again.');
+      toast.error(t('dashboard.failedLoadData'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const { socket, isConnected } = useSocket();
 
@@ -72,33 +74,38 @@ export function TechnicianDashboardPage() {
     e.preventDefault();
     e.stopPropagation();
 
-    const loadingToast = toast.loading(`${action.toUpperCase()}ing process...`);
+    let actionLoadingKey = 'startingProcess';
+    if (action === 'pause') actionLoadingKey = 'pausingProcess';
+    else if (action === 'resume') actionLoadingKey = 'resumingProcess';
+    else if (action === 'end') actionLoadingKey = 'endingProcess';
+
+    const loadingToast = toast.loading(t(`dashboard.${actionLoadingKey}`));
     try {
       if (action === 'start') {
         await technicianPortalService.startProcess(processId);
-        toast.success('Process started successfully!', { id: loadingToast });
+        toast.success(t('dashboard.processActionStarted'), { id: loadingToast });
       } else if (action === 'pause') {
         await technicianPortalService.pauseProcess(processId);
-        toast.success('Process paused successfully!', { id: loadingToast });
+        toast.success(t('dashboard.processActionPaused'), { id: loadingToast });
       } else if (action === 'resume') {
         await technicianPortalService.resumeProcess(processId);
-        toast.success('Process resumed successfully!', { id: loadingToast });
+        toast.success(t('dashboard.processActionResumed'), { id: loadingToast });
       } else if (action === 'end') {
         await technicianPortalService.endProcess(processId);
-        toast.success('Process ended and completed!', { id: loadingToast });
+        toast.success(t('dashboard.processActionEnded'), { id: loadingToast });
       }
       fetchDashboardData();
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || `Failed to perform ${action} action.`;
+      const errMsg = err?.response?.data?.message || t('dashboard.processActionFailed', { action: t(`dashboard.action.${action}`) });
       toast.error(errMsg, { id: loadingToast });
     }
   };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('dashboard.greetingMorning');
+    if (hour < 17) return t('dashboard.greetingAfternoon');
+    return t('dashboard.greetingEvening');
   };
 
   if (loading && !stats) {
@@ -122,7 +129,7 @@ export function TechnicianDashboardPage() {
             {getGreeting()}, {user?.firstName}!
           </h1>
           <p className="dashboard-page__subtitle" style={{ color: 'var(--text-secondary)' }}>
-            Here is your active technician workspace for today.
+            {t('dashboard.techWorkspaceSubtitle')}
           </p>
         </div>
       </div>
@@ -135,7 +142,7 @@ export function TechnicianDashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.pendingCount ?? 0}</span>
-            <span className="stat-card__label">Pending Steps</span>
+            <span className="stat-card__label">{t('dashboard.pendingSteps')}</span>
           </div>
         </div>
 
@@ -145,7 +152,7 @@ export function TechnicianDashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.activeCount ?? 0}</span>
-            <span className="stat-card__label">Active Steps</span>
+            <span className="stat-card__label">{t('dashboard.activeSteps')}</span>
           </div>
         </div>
 
@@ -155,7 +162,7 @@ export function TechnicianDashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.pausedCount ?? 0}</span>
-            <span className="stat-card__label">Paused Steps</span>
+            <span className="stat-card__label">{t('dashboard.pausedSteps')}</span>
           </div>
         </div>
 
@@ -165,7 +172,7 @@ export function TechnicianDashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.completedTodayCount ?? 0}</span>
-            <span className="stat-card__label">Completed Today</span>
+            <span className="stat-card__label">{t('dashboard.completedToday')}</span>
           </div>
         </div>
       </div>
@@ -177,22 +184,22 @@ export function TechnicianDashboardPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 className="dashboard-card__title" style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Activity size={18} style={{ color: 'var(--success)' }} />
-                My Active Queue
+                {t('dashboard.myActiveQueue')}
               </h3>
               <Link to="/tech/work-orders" className="btn btn--outline btn--sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                View All Queue <ChevronRight size={14} />
+                {t('dashboard.viewAllQueue')} <ChevronRight size={14} />
               </Link>
             </div>
 
             {activeJobs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <ClipboardList size={36} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                <h4 style={{ fontWeight: 500, fontSize: '0.95rem' }}>No active processes currently</h4>
+                <h4 style={{ fontWeight: 500, fontSize: '0.95rem' }}>{t('dashboard.noActiveProcesses')}</h4>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '320px', margin: '0' }}>
-                  Head over to the Work Orders page to start one of your assigned pending steps.
+                  {t('dashboard.techNoActiveProcessesDesc')}
                 </p>
                 <Link to="/tech/work-orders" className="btn btn--primary btn--sm" style={{ marginTop: '0.5rem' }}>
-                  Open My Work Orders
+                  {t('dashboard.openMyWorkOrders')}
                 </Link>
               </div>
             ) : (
@@ -236,7 +243,7 @@ export function TechnicianDashboardPage() {
                             <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{wo.patient}</span>
                           </div>
                           <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                            {wo.prosthesisType?.name} • Box: {wo.boxNumber || 'N/A'}
+                            {wo.prosthesisType?.name} • {t('dashboard.box')}: {wo.boxNumber || t('common.na')}
                           </p>
                         </div>
 
@@ -263,7 +270,7 @@ export function TechnicianDashboardPage() {
                               }}
                               className={!isPaused ? 'animate-pulse' : ''}
                             />
-                            {isPaused ? 'Paused' : 'In Progress'}
+                            {isPaused ? t('enums.processStatus.PAUSED') : t('enums.processStatus.IN_PROGRESS')}
                           </span>
                         </div>
                       </div>
@@ -280,7 +287,7 @@ export function TechnicianDashboardPage() {
                       }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Current Stage
+                            {t('dashboard.currentStage')}
                           </span>
                           <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
                             {proc.processName}
@@ -288,10 +295,10 @@ export function TechnicianDashboardPage() {
                         </div>
                         <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                            Pauses
+                            {t('dashboard.pauses')}
                           </span>
                           <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                            {proc.pauseCount} times
+                            {t('dashboard.xTimes', { count: proc.pauseCount })}
                           </span>
                         </div>
                       </div>
@@ -304,7 +311,7 @@ export function TechnicianDashboardPage() {
                             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                             onClick={(e) => handleAction(e, proc.id, 'resume')}
                           >
-                            <Play size={14} /> Resume Process
+                            <Play size={14} /> {t('dashboard.resumeProcess')}
                           </button>
                         ) : (
                           <button
@@ -312,7 +319,7 @@ export function TechnicianDashboardPage() {
                             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                             onClick={(e) => handleAction(e, proc.id, 'pause')}
                           >
-                            <Pause size={14} /> Pause Process
+                            <Pause size={14} /> {t('dashboard.pauseProcess')}
                           </button>
                         )}
                         <button
@@ -320,7 +327,7 @@ export function TechnicianDashboardPage() {
                           style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                           onClick={(e) => handleAction(e, proc.id, 'end')}
                         >
-                          <CheckCircle2 size={14} /> End Process
+                          <CheckCircle2 size={14} /> {t('dashboard.endProcess')}
                         </button>
                       </div>
                     </div>
@@ -336,10 +343,10 @@ export function TechnicianDashboardPage() {
           <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
             <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertCircle size={18} style={{ color: 'var(--accent-primary)' }} />
-              Quick QR Scan
+              {t('dashboard.quickQRScan')}
             </h3>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 1rem 0', lineHeight: '1.4' }}>
-              Instantly start or complete processes by scanning the QR code printed on the physical Work Order box.
+              {t('dashboard.quickQRScanDesc')}
             </p>
             <div style={{
               border: '2px dashed var(--border)',
@@ -358,10 +365,10 @@ export function TechnicianDashboardPage() {
                 <span style={{ fontSize: '1.5rem' }}>📷</span>
               </div>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Camera Scan Disabled
+                {t('dashboard.cameraScanDisabled')}
               </span>
               <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                Requires HTTPS Companion App
+                {t('dashboard.requiresHttpsApp')}
               </span>
             </div>
           </div>
@@ -369,17 +376,17 @@ export function TechnicianDashboardPage() {
           <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
             <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertTriangle size={18} style={{ color: 'var(--warning)' }} />
-              Workflow Rules
+              {t('dashboard.workflowRules')}
             </h3>
             <ul style={{ paddingLeft: '1.25rem', fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px', margin: '0' }}>
               <li>
-                <strong>Strict Sequencing:</strong> You cannot start a process step until the previous step is 100% completed.
+                <strong>{t('dashboard.ruleStrictSequencingTitle')}</strong> {t('dashboard.ruleStrictSequencingDesc')}
               </li>
               <li>
-                <strong>Automatic Handoff:</strong> When you click "End Process", the next technician will be alerted automatically.
+                <strong>{t('dashboard.ruleAutomaticHandoffTitle')}</strong> {t('dashboard.ruleAutomaticHandoffDesc')}
               </li>
               <li>
-                <strong>Pause Logging:</strong> Pausing a step stops the active duration log, preventing SLA inflation.
+                <strong>{t('dashboard.rulePauseLoggingTitle')}</strong> {t('dashboard.rulePauseLoggingDesc')}
               </li>
             </ul>
           </div>

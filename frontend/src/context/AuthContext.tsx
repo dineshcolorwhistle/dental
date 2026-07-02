@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { toast } from 'react-hot-toast';
 import { authService, type AuthUser, type LoginPayload } from '../services';
+import i18n from '../i18n/config';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -51,9 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               branchName: profile.branch?.name || null,
               maxAdmins: profile.tenant?.maxAdmins || null,
               maxTechnicians: profile.tenant?.maxTechnicians || null,
+              preferredLanguage: profile.preferredLanguage || 'ES',
             };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setUser(updatedUser);
+
+            // Sync i18n language from user preference
+            const lang = (profile.preferredLanguage || 'ES').toLowerCase();
+            if (i18n.language !== lang) {
+              i18n.changeLanguage(lang);
+            }
           })
           .catch((err) => {
             console.error('Failed to sync user profile in background:', err);
@@ -78,6 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user', JSON.stringify(data.user));
 
     setUser(data.user);
+
+    // Sync i18n language from user preference on login
+    const lang = (data.user.preferredLanguage || 'ES').toLowerCase();
+    if (i18n.language !== lang) {
+      i18n.changeLanguage(lang);
+    }
   }, []);
 
   const logout = useCallback(async () => {

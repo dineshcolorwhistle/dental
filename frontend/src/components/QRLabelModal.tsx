@@ -1,6 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { X } from 'lucide-react';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface QRLabelModalProps {
   isOpen: boolean;
@@ -14,6 +15,8 @@ interface QRLabelModalProps {
 }
 
 export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     if (isOpen) {
       // Add a class to body when open for custom styles
@@ -30,8 +33,6 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
 
   const qrValue = `${window.location.origin}/qr/${workOrder.qrToken}`;
 
-
-
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
       <div
@@ -41,11 +42,11 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
       >
         {/* Modal Header */}
         <div className="modal__header" style={{ padding: '1.25rem', borderBottom: '1px solid var(--border)' }}>
-          <h3 className="modal__title" style={{ margin: 0 }}>Print QR Label</h3>
+          <h3 className="modal__title" style={{ margin: 0 }}>{t('workOrders.printQR')}</h3>
           <button
             className="modal__close"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('common.close')}
             style={{ top: '1.25rem', right: '1.25rem' }}
           >
             <X size={18} />
@@ -101,12 +102,12 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
 
             {/* General Info */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.25rem' }}>
-              <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>Patient Name</div>
+              <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>{t('workOrders.patientName')}</div>
               <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#000000' }}>{workOrder.patient}</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>Doctor Name</div>
+              <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>{t('doctors.doctorName')}</div>
               <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#000000' }}>
                 {workOrder.doctor?.name || '—'}
               </div>
@@ -140,12 +141,8 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
           }}
         >
           <button className="btn btn--outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
-          {/* <button className="btn btn--primary" onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Printer size={16} />
-            <span>Print Label</span>
-          </button> */}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context';
 import {
   X,
@@ -141,6 +142,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
 
 export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: ViewWorkOrderModalProps) {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const isLabAdminOrOwner = user?.role === 'ADMIN' || user?.role === 'OWNER';
@@ -169,7 +171,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
         })
         .catch((err) => {
           console.error('Failed to load work order details', err);
-          toast.error('Failed to load work order details');
+          toast.error(t('workOrders.failedLoad'));
           onClose();
         })
         .finally(() => {
@@ -178,29 +180,29 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
     } else {
       setSelectedWO(null);
     }
-  }, [isOpen, workOrderId, onClose]);
+  }, [isOpen, workOrderId, onClose, t]);
 
   if (!isOpen || !workOrderId) return null;
 
   const handleInlineStartVerification = async (woId: string, processId: string) => {
-    const loadingToast = toast.loading('Starting verification process...');
+    const loadingToast = toast.loading(t('dashboard.startingVerification'));
     try {
       await workOrderService.startVerification(woId, processId);
-      toast.success('Verification started!', { id: loadingToast });
+      toast.success(t('dashboard.verificationStarted'), { id: loadingToast });
       const detailedWo = await workOrderService.getById(woId);
       setSelectedWO(detailedWo);
       if (onUpdate) onUpdate(detailedWo);
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || 'Failed to start verification.';
+      const errMsg = err?.response?.data?.message || t('dashboard.verificationFailed');
       toast.error(errMsg, { id: loadingToast });
     }
   };
 
   const handleInlineEndVerification = async (woId: string, processId: string, outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
-    const loadingToast = toast.loading(`Completing verification as ${outcome}...`);
+    const loadingToast = toast.loading(t('dashboard.completingVerification', { outcome: t('enums.verificationOutcome.' + outcome) }));
     try {
       await workOrderService.endVerification(woId, processId, outcome);
-      toast.success(`Verification completed as ${outcome}!`, { id: loadingToast });
+      toast.success(t('dashboard.verificationCompleted', { outcome: t('enums.verificationOutcome.' + outcome) }), { id: loadingToast });
       if (outcome === 'REWORK') {
         onClose();
         navigate('/work-orders', { state: { editWorkOrderId: woId, activeTab: 'processes' } });
@@ -210,7 +212,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
         if (onUpdate) onUpdate(detailedWo);
       }
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || 'Failed to complete verification.';
+      const errMsg = err?.response?.data?.message || t('dashboard.verificationCompleteFailed');
       toast.error(errMsg, { id: loadingToast });
     }
   };
@@ -224,11 +226,11 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
 
     const amount = parseFloat(addFundAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount greater than 0');
+      toast.error(t('financePage.invalidAmount'));
       return;
     }
     if (amount > balance) {
-      toast.error(`Amount cannot exceed the remaining balance of $${balance.toLocaleString('es-MX')}`);
+      toast.error(t('financePage.amountExceedsBalance', { balance: balance.toLocaleString('es-MX') }));
       return;
     }
 
@@ -250,7 +252,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
         notes: serializedNotes
       });
 
-      toast.success('Fund added successfully!');
+      toast.success(t('financePage.fundAdded'));
       setSelectedWO(updatedWO);
       if (onUpdate) onUpdate(updatedWO);
       
@@ -258,7 +260,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
       setAddFundNotes('');
       setShowAddFundForm(false);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to add payment');
+      toast.error(err?.response?.data?.message || t('financePage.addPaymentFailed'));
     } finally {
       setSubmittingPayment(false);
     }
@@ -270,14 +272,14 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
         {loading || !selectedWO ? (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '300px', gap: '12px' }}>
             <Loader2 size={36} className="spinner" />
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading work order details...</span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{t('common.loading')}</span>
           </div>
         ) : (
           <>
             <div className="modal__header" style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', margin: 0 }}>
-                  <span>Work Order Details</span>
+                  <span>{t('workOrders.orderDetails')}</span>
                   <span style={{ 
                     fontSize: '0.75rem', 
                     fontWeight: 700, 
@@ -288,7 +290,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                     fontFamily: 'monospace',
                     border: '1px solid rgba(111, 174, 217, 0.2)'
                   }}>
-                    Folio: {selectedWO.folioNumber}
+                    {t('workOrders.folioNumber')}: {selectedWO.folioNumber}
                   </span>
                   {selectedWO.boxNumber && (
                     <span style={{ 
@@ -305,13 +307,13 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                   )}
                 </h2>
                 <p className="modal__subtitle" style={{ marginTop: '4px', margin: 0 }}>
-                  Complete information and dynamic workflow progress tracking
+                  {t('dashboard.selectOutcome')}
                 </p>
               </div>
               <button
                 className="modal__close"
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t('common.close')}
                 style={{ top: '1.5rem', right: '1.5rem' }}
               >
                 <X size={20} />
@@ -336,7 +338,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                     fontSize: '0.875rem'
                   }}
                 >
-                  General Instructions
+                  {t('workOrders.general')}
                 </button>
                 <button
                   type="button"
@@ -353,7 +355,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                     fontSize: '0.875rem'
                   }}
                 >
-                  Process
+                  {t('workOrders.processes')}
                 </button>
                 <button
                   type="button"
@@ -370,7 +372,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                     fontSize: '0.875rem'
                   }}
                 >
-                  Rework History
+                  {t('dashboard.reworks')}
                 </button>
                 <button
                   type="button"
@@ -387,7 +389,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                     fontSize: '0.875rem'
                   }}
                 >
-                  Repetition History
+                  {t('dashboard.repetitions')}
                 </button>
                 {isLabAdminOrOwner && (
                   <button
@@ -405,7 +407,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                       fontSize: '0.875rem'
                     }}
                   >
-                    Payment Details
+                    {t('financePage.paymentHistory')}
                   </button>
                 )}
               </div>
@@ -446,21 +448,21 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                 const hasActiveProcess = activeIndex >= 0 && activeIndex < processes.length;
                 const displayProc = hasActiveProcess ? processes[activeIndex] : processes[0];
 
-                const activeStepName = displayProc?.processName || 'No steps configured';
+                const activeStepName = displayProc?.processName || t('workOrders.noProcesses');
                 const activeTechnician = displayProc?.technician 
                   ? `${displayProc.technician.firstName} ${displayProc.technician.lastName}` 
-                  : (displayProc?.isVerification && !displayProc?.technicianId ? (selectedWO.doctor?.name || 'External Doctor') : 'Unassigned');
+                  : (displayProc?.isVerification && !displayProc?.technicianId ? (selectedWO.doctor?.name || t('dashboard.externalDoctor')) : t('dashboard.unassigned'));
 
                 const stepStatus = displayProc?.status || 'NOT_STARTED';
                 const getStepStatusLabel = (status?: string) => {
-                  if (!status) return 'Not Started';
+                  if (!status) return t('enums.processStatus.NOT_STARTED');
                   switch (status) {
-                    case 'COMPLETED': return 'Completed';
-                    case 'IN_PROGRESS': return 'In Progress';
-                    case 'PAUSED': return 'Paused';
-                    case 'FAILED': return 'Failed';
-                    case 'CANCELLED': return 'Cancelled';
-                    default: return 'Not Started';
+                    case 'COMPLETED': return t('enums.processStatus.COMPLETED');
+                    case 'IN_PROGRESS': return t('enums.processStatus.IN_PROGRESS');
+                    case 'PAUSED': return t('enums.processStatus.PAUSED');
+                    case 'FAILED': return t('enums.processStatus.FAILED');
+                    case 'CANCELLED': return t('enums.processStatus.CANCELLED');
+                    default: return t('enums.processStatus.NOT_STARTED');
                   }
                 };
                 const stepStatusLabel = getStepStatusLabel(stepStatus);
@@ -498,7 +500,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           gap: '0.5rem'
                         }}>
                           <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Specification Details
+                            {t('workOrders.specifications')}
                           </span>
                           <div style={{ 
                             fontSize: '0.9375rem',
@@ -508,7 +510,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             fontWeight: 500
                           }}>
                             {selectedWO.specification || (
-                              <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No specification details provided.</span>
+                              <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('workOrders.noSpecifications')}</span>
                             )}
                           </div>
                         </div>
@@ -525,7 +527,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           gap: '0.5rem'
                         }}>
                           <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Color
+                            {t('workOrders.shade')}
                           </span>
                           <div style={{ 
                             fontSize: '0.9375rem',
@@ -549,7 +551,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           gap: '0.5rem'
                         }}>
                           <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Current Progress Step
+                            {t('workOrders.currentProgressStep')}
                           </span>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -561,7 +563,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                 backgroundColor: 'rgba(111, 174, 217, 0.15)',
                                 color: 'var(--accent-primary)',
                               }}>
-                                Step {activeIndex >= 0 ? activeIndex + 1 : 1} of {processes.length || 1}
+                                {t('workOrders.stepOf', { current: activeIndex >= 0 ? activeIndex + 1 : 1, total: processes.length || 1 })}
                               </span>
                             </div>
                             <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-heading)' }}>
@@ -569,10 +571,10 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             </span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '2px' }}>
                               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                Technician: <strong style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activeTechnician}</strong>
+                                {t('workOrders.assignedTechnician')}: <strong style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activeTechnician}</strong>
                               </span>
                               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                Status: <strong style={{ 
+                                {t('common.status')}: <strong style={{ 
                                   fontWeight: 700, 
                                   color: stepStatusColor
                                 }}>{stepStatusLabel}</strong>
@@ -585,7 +587,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                       {/* Summary Section */}
                       <div>
                         <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-                          Work Order Summary Details
+                          {t('workOrders.summaryDetails')}
                         </span>
                         
                         <div style={{
@@ -604,18 +606,18 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             gap: '1.25rem'
                           }}>
                             <div>
-                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Patient</span>
+                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.patient')}</span>
                               <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedWO.patient}</span>
                             </div>
                             <div>
-                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Doctor</span>
+                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.doctor')}</span>
                               <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedWO.doctor?.name || '—'}</span>
                               {selectedWO.doctor?.clinicName && (
                                 <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{selectedWO.doctor.clinicName}</span>
                               )}
                             </div>
                             <div>
-                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Prosthesis Type</span>
+                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.prosthesisType')}</span>
                               <span style={{
                                 fontSize: '0.8125rem',
                                 fontWeight: 700,
@@ -629,7 +631,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                               }}>{selectedWO.prosthesisType?.name || '—'}</span>
                             </div>
                             <div>
-                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Color</span>
+                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.shade')}</span>
                               <span style={{
                                 fontSize: '0.8125rem',
                                 fontWeight: 700,
@@ -640,16 +642,16 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             </div>
                             {selectedWO.branch && (
                               <div>
-                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Branch</span>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('common.branch')}</span>
                                 <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                                   {selectedWO.branch.name} ({selectedWO.branch.code})
                                 </span>
                               </div>
                             )}
                             <div>
-                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Created On</span>
+                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.createdAt')}</span>
                               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                {new Date(selectedWO.createdAt).toLocaleDateString('en-IN', {
+                                {new Date(selectedWO.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                                   day: 'numeric',
                                   month: 'long',
                                   year: 'numeric',
@@ -667,7 +669,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                               paddingTop: '0.75rem',
                               marginTop: '0.25rem'
                             }}>
-                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Notes</span>
+                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>{t('workOrders.notes')}</span>
                               <div style={{ 
                                 fontSize: '0.875rem',
                                 color: 'var(--text-secondary)',
@@ -682,25 +684,23 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                       </div>
                     </div>
                   );
-                }
-
-                // 2. PROCESS TAB
+                }                // 2. PROCESS TAB
                 if (viewTab === 'process') {
                   // Determine active stepper index dynamically based on 6 stages
-                  let finalStep = { label: 'Completed', statusKey: 'COMPLETED' };
+                  let finalStepKey = 'COMPLETED';
                   if (selectedWO.status === 'FAILED') {
-                    finalStep = { label: 'Failed', statusKey: 'FAILED' };
+                    finalStepKey = 'FAILED';
                   } else if (selectedWO.status === 'CANCELLED') {
-                    finalStep = { label: 'Cancelled', statusKey: 'CANCELLED' };
+                    finalStepKey = 'CANCELLED';
                   }
 
                   const steps = [
-                    { label: 'Created', statusKey: 'CREATED' },
-                    { label: 'Assigned', statusKey: 'ASSIGNED' },
-                    { label: 'In Progress', statusKey: 'IN_PROGRESS' },
-                    { label: 'Internal Verification', statusKey: 'INTERNAL_VERIFICATION' },
-                    { label: 'External Verification', statusKey: 'EXTERNAL_VERIFICATION' },
-                    finalStep
+                    { label: t('enums.workOrderStatus.CREATED'), statusKey: 'CREATED' },
+                    { label: t('enums.workOrderStatus.ASSIGNED'), statusKey: 'ASSIGNED' },
+                    { label: t('enums.workOrderStatus.IN_PROGRESS'), statusKey: 'IN_PROGRESS' },
+                    { label: t('enums.workOrderStatus.INTERNAL_VERIFICATION'), statusKey: 'INTERNAL_VERIFICATION' },
+                    { label: t('enums.workOrderStatus.EXTERNAL_VERIFICATION'), statusKey: 'EXTERNAL_VERIFICATION' },
+                    { label: t(`enums.workOrderStatus.${finalStepKey}`), statusKey: finalStepKey }
                   ];
 
                   const currentStatusIdx = steps.findIndex(s => s.statusKey === selectedWO.status);
@@ -716,7 +716,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                         boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
                       }}>
                         <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.5rem' }}>
-                          Workflow Timeline Progress
+                          {t('workOrders.timeline')}
                         </span>
 
                         <div style={{
@@ -801,7 +801,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             }
 
                             return (
-                              <div key={step.label} style={{
+                              <div key={step.statusKey} style={{
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -847,7 +847,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Detailed Process Flow
+                            {t('workOrders.processes')}
                           </span>
                           <span style={{
                             fontSize: '0.725rem',
@@ -858,13 +858,13 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             color: 'var(--accent-primary)',
                             border: '1px solid var(--border)'
                           }}>
-                            Total Steps: {processes.length}
+                            {t('common.total')}: {processes.length}
                           </span>
                         </div>
 
                         {processes.length === 0 ? (
                           <div style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-                            No processes to display.
+                            {t('workOrders.noProcesses')}
                           </div>
                         ) : (
                           <div style={{
@@ -876,13 +876,13 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Step</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Process Name</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Technician</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Start Time</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>End Time</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Time Audit</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.step')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.processName')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.assignedTechnician')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.startTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.endTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.timeAudit')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -899,32 +899,32 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                   };
 
                                   let startTimeStr = proc.startedAt ? formatDate(proc.startedAt) : '—';
-                                  let endTimeStr = proc.endedAt ? formatDate(proc.endedAt) : (stepStatus === 'IN_PROGRESS' ? 'Running...' : stepStatus === 'PAUSED' ? 'Paused' : '—');
+                                  let endTimeStr = proc.endedAt ? formatDate(proc.endedAt) : (stepStatus === 'IN_PROGRESS' ? t('common.running') : stepStatus === 'PAUSED' ? t('enums.processStatus.PAUSED') : '—');
                                   
                                   let badgeColor = 'var(--text-muted, #64748B)';
                                   let badgeBg = 'var(--bg-overlay, rgba(148, 163, 184, 0.08))';
-                                  let statusLabel = 'Not Started';
+                                  let statusLabel = t('enums.processStatus.NOT_STARTED');
 
                                   if (stepStatus === 'COMPLETED') {
                                     badgeColor = 'var(--success, #10B981)';
                                     badgeBg = 'var(--success-bg, rgba(16, 185, 129, 0.08))';
-                                    statusLabel = 'Complete';
+                                    statusLabel = t('enums.processStatus.COMPLETED');
                                   } else if (stepStatus === 'IN_PROGRESS') {
                                     badgeColor = 'var(--warning, #F59E0B)';
                                     badgeBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
-                                    statusLabel = 'In Progress';
+                                    statusLabel = t('enums.processStatus.IN_PROGRESS');
                                   } else if (stepStatus === 'PAUSED') {
                                     badgeColor = 'var(--warning, #F59E0B)';
                                     badgeBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
-                                    statusLabel = 'Paused';
+                                    statusLabel = t('enums.processStatus.PAUSED');
                                   } else if (stepStatus === 'FAILED') {
                                     badgeColor = '#EF4444';
                                     badgeBg = 'rgba(239, 68, 68, 0.08)';
-                                    statusLabel = 'Failed';
+                                    statusLabel = t('enums.processStatus.FAILED');
                                   } else if (stepStatus === 'CANCELLED') {
                                     badgeColor = '#94A3B8';
                                     badgeBg = 'rgba(148, 163, 184, 0.08)';
-                                    statusLabel = 'Cancelled';
+                                    statusLabel = t('enums.processStatus.CANCELLED');
                                   }
 
                                   const combinedLogs = getCombinedProcessLogs(proc, selectedWO);
@@ -955,7 +955,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                 backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
                                                 color: proc.technicianId ? '#8B5CF6' : '#6366F1'
                                               }}>
-                                                {proc.technicianId ? 'Internal' : 'External'} Verification
+                                                {proc.technicianId ? t('enums.verificationType.INTERNAL') : t('enums.verificationType.EXTERNAL')} {t('dashboard.verification')}
                                               </span>
                                             )}
                                             {proc.reworkActive && (
@@ -967,7 +967,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                                                 color: '#EF4444'
                                               }}>
-                                                Rework Active
+                                                {t('common.reworkActive')}
                                               </span>
                                             )}
                                             {!proc.reworkActive && proc.reworkCount > 0 && (
@@ -979,7 +979,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                 backgroundColor: 'rgba(245, 158, 11, 0.1)',
                                                 color: '#D97706'
                                               }}>
-                                                Reworked ({proc.reworkCount})
+                                                {t('common.reworked')} ({proc.reworkCount})
                                               </span>
                                             )}
                                             {repetitionsForStep.length > 0 && (
@@ -990,8 +990,8 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                 borderRadius: '4px',
                                                 backgroundColor: 'rgba(139, 92, 246, 0.1)',
                                                 color: '#8B5CF6'
-                                              }} title={`Step repeated in ${repetitionsForStep.length} cycle(s)`}>
-                                                Repeated ({repetitionsForStep.length})
+                                              }} title={t('common.stepRepeatedInCycles', { count: repetitionsForStep.length })}>
+                                                {t('common.repeated')} ({repetitionsForStep.length})
                                               </span>
                                             )}
                                           </div>
@@ -999,12 +999,12 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                                           {proc.isVerification && !proc.technicianId ? (
                                             <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                                              {selectedWO.doctor?.name ? `${selectedWO.doctor.name} (External Doctor)` : 'External Doctor'}
+                                              {selectedWO.doctor?.name ? `${selectedWO.doctor.name} (${t('dashboard.externalDoctor')})` : t('dashboard.externalDoctor')}
                                             </span>
                                           ) : proc.technician ? (
                                             `${proc.technician.firstName} ${proc.technician.lastName}`
                                           ) : (
-                                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unassigned</span>
+                                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('dashboard.unassigned')}</span>
                                           )}
                                         </td>
                                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{startTimeStr}</td>
@@ -1031,10 +1031,10 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                               onClick={() => setExpandedAuditRow(isExpanded ? null : proc.id)}
                                             >
                                               <History size={12} />
-                                              <span>{isExpanded ? 'Hide Audit' : `View Audit (${combinedLogs.length})`}</span>
+                                              <span>{isExpanded ? t('dashboard.hideAudit') : t('dashboard.viewAudit', { count: combinedLogs.length })}</span>
                                             </button>
                                           ) : (
-                                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontStyle: 'italic' }}>No activity logs</span>
+                                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontStyle: 'italic' }}>{t('dashboard.noActivityLogs')}</span>
                                           )}
                                         </td>
 
@@ -1071,7 +1071,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                               style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '3px 8px', fontSize: '0.7rem', marginTop: '6px', fontWeight: 600 }}
                                                               onClick={() => handleInlineStartVerification(selectedWO.id, proc.id)}
                                                             >
-                                                              <Play size={10} /> Start
+                                                              <Play size={10} /> {t('dashboard.start')}
                                                             </button>
                                                           );
                                                         }
@@ -1085,27 +1085,27 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                           style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#10B981' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
                                                           onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'SUCCESS')}
                                                           disabled={!canCompleteExternal}
-                                                          title={canCompleteExternal ? undefined : 'Only default branch admin can complete external verification'}
+                                                          title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
                                                         >
-                                                          <Check size={10} /> Approve
+                                                          <Check size={10} /> {t('dashboard.approve')}
                                                         </button>
                                                         <button
                                                           className="btn btn--primary btn--sm"
                                                           style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#EF4444' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
                                                           onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'REWORK')}
                                                           disabled={!canCompleteExternal}
-                                                          title={canCompleteExternal ? undefined : 'Only default branch admin can complete external verification'}
+                                                          title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
                                                         >
-                                                          <AlertCircle size={10} /> Rework
+                                                          <AlertCircle size={10} /> {t('dashboard.rework')}
                                                         </button>
                                                         <button
                                                           className="btn btn--primary btn--sm"
                                                           style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#D946EF' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
                                                           onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'REPETITION')}
                                                           disabled={!canCompleteExternal}
-                                                          title={canCompleteExternal ? undefined : 'Only default branch admin can complete external verification'}
+                                                          title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
                                                         >
-                                                          <History size={10} /> Repetition
+                                                          <History size={10} /> {t('dashboard.repetition')}
                                                         </button>
                                                       </div>
                                                     )}
@@ -1132,21 +1132,21 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                               boxShadow: 'var(--shadow-sm)'
                                             }}>
                                               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                Process Activity History &mdash; {proc.processName}
+                                                {t('dashboard.processActivityHistory')} &mdash; {proc.processName}
                                               </div>
                                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                                 {combinedLogs.map((log: any, lidx: number) => {
                                                   const getActionLabel = (act: string) => {
                                                     switch (act) {
-                                                      case 'START': return 'Process Started';
-                                                      case 'PAUSE': return 'Process Paused';
-                                                      case 'RESUME': return 'Process Resumed';
-                                                      case 'END': return 'Process Completed';
-                                                      case 'REWORK_ASSIGNED': return 'Rework Assigned';
-                                                      case 'REWORK_COMPLETED': return 'Rework Completed';
-                                                      case 'REWORK_APPROVED': return 'Rework Approved';
-                                                      case 'REPETITION_RESET': return 'Process Repeated (Reset)';
-                                                      case 'REPETITION_TRIGGERED': return 'Repetition Triggered';
+                                                      case 'START': return t('enums.processAction.START');
+                                                      case 'PAUSE': return t('enums.processAction.PAUSE');
+                                                      case 'RESUME': return t('enums.processAction.RESUME');
+                                                      case 'END': return t('enums.processAction.END');
+                                                      case 'REWORK_ASSIGNED': return t('enums.processAction.REWORK_ASSIGNED');
+                                                      case 'REWORK_COMPLETED': return t('enums.processAction.REWORK_COMPLETED');
+                                                      case 'REWORK_APPROVED': return t('enums.processAction.REWORK_APPROVED');
+                                                      case 'REPETITION_RESET': return t('enums.processAction.REPETITION_RESET');
+                                                      case 'REPETITION_TRIGGERED': return t('enums.processAction.REPETITION_TRIGGERED');
                                                       default: return act.replace('_', ' ');
                                                     }
                                                   };
@@ -1186,7 +1186,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                             <span style={{ color: getActionColor(log.action) }}>{getActionLabel(log.action)}</span>
                                                           </span>
                                                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                            {new Date(log.timestamp).toLocaleDateString('en-IN', {
+                                                            {new Date(log.timestamp).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                                                               day: 'numeric',
                                                               month: 'short',
                                                               year: 'numeric',
@@ -1221,23 +1221,23 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                   );
                 }
 
-                // 3. PAYMENT DETAILS TAB (Only ADMIN/OWNER)
+                                                // 3. PAYMENT DETAILS TAB (Only ADMIN/OWNER)
                 if (viewTab === 'payment') {
                   const quote = selectedWO.totalQuote || 0;
                   const initialPay = selectedWO.initialPayment || 0;
                   const balance = Math.max(0, quote - initialPay);
                   const isPaidComplete = initialPay >= quote;
 
-                  let payStatusLabel = 'Unpaid';
+                  let payStatusLabel = t('financePage.unpaid');
                   let payStatusColor = '#64748B';
                   let payStatusBg = 'rgba(148, 163, 184, 0.08)';
 
                   if (isPaidComplete) {
-                    payStatusLabel = 'Fully Paid';
+                    payStatusLabel = t('financePage.paidInFull');
                     payStatusColor = 'var(--success, #10B981)';
                     payStatusBg = 'var(--success-bg, rgba(16, 185, 129, 0.08))';
                   } else if (initialPay > 0) {
-                    payStatusLabel = 'Partially Paid';
+                    payStatusLabel = t('financePage.partiallyPaid');
                     payStatusColor = 'var(--warning, #F59E0B)';
                     payStatusBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
                   }
@@ -1260,7 +1260,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           flexDirection: 'column',
                           gap: '0.25rem'
                         }}>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Quoted Amount</span>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.totalPrice')}</span>
                           <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>${quote.toLocaleString('es-MX')}</span>
                         </div>
 
@@ -1274,7 +1274,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           flexDirection: 'column',
                           gap: '0.25rem'
                         }}>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Paid</span>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.receivedAmount')}</span>
                           <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success, #10B981)' }}>${initialPay.toLocaleString('es-MX')}</span>
                         </div>
 
@@ -1288,7 +1288,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           flexDirection: 'column',
                           gap: '0.25rem'
                         }}>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Balance Due</span>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.pendingAmount')}</span>
                           <span style={{ fontSize: '1.5rem', fontWeight: 800, color: balance > 0 ? '#EF4444' : 'var(--text-muted)' }}>${balance.toLocaleString('es-MX')}</span>
                         </div>
 
@@ -1303,7 +1303,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           gap: '0.25rem',
                           justifyContent: 'center'
                         }}>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Payment Status</span>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>{t('financePage.paymentStatus')}</span>
                           <div>
                             <span style={{
                               display: 'inline-flex',
@@ -1325,7 +1325,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Payment Transactions
+                            {t('workOrders.paymentTransactions')}
                           </span>
                           {isAdmin && !showAddFundForm && (
                             <button
@@ -1340,7 +1340,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                               disabled={isPaidComplete}
                             >
                               <PlusCircle size={14} />
-                              <span>Add Fund</span>
+                              <span>{t('financePage.recordPayment')}</span>
                             </button>
                           )}
                         </div>
@@ -1357,10 +1357,10 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             flexDirection: 'column',
                             gap: '1rem'
                           }}>
-                            <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-heading)' }}>Record New Payment Fund</h4>
+                            <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-heading)' }}>{t('workOrders.recordNewPayment')}</h4>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', alignItems: 'flex-start' }}>
                               <div className="form-group" style={{ margin: 0 }}>
-                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>Amount ($) *</label>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('financePage.paymentAmount')} *</label>
                                 <input
                                   type="number"
                                   className="form-input"
@@ -1374,7 +1374,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                 />
                               </div>
                               <div className="form-group" style={{ margin: 0 }}>
-                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>Payment Notes / Remarks</label>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('financePage.paymentNotes')}</label>
                                 <input
                                   type="text"
                                   className="form-input"
@@ -1392,7 +1392,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                 onClick={() => setShowAddFundForm(false)}
                                 disabled={submittingPayment}
                               >
-                                Cancel
+                                {t('common.cancel')}
                               </button>
                               <button
                                 type="button"
@@ -1402,9 +1402,9 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                 disabled={submittingPayment || !addFundAmount}
                               >
                                 {submittingPayment ? (
-                                  <><Loader2 size={12} className="spinner" /> <span>Adding...</span></>
+                                  <><Loader2 size={12} className="spinner" /> <span>{t('common.loading')}</span></>
                                 ) : (
-                                  <span>Submit Payment</span>
+                                  <span>{t('financePage.recordPayment')}</span>
                                 )}
                               </button>
                             </div>
@@ -1421,17 +1421,17 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Date &amp; Time</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Received Amount</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Remarks</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('financePage.paymentDate')}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.receivedAmount')}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.notes')}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
                               </tr>
                             </thead>
                             <tbody>
                               {/* Initial Payment Creation Row */}
                               <tr style={{ borderBottom: payments.length > 0 ? '1px solid var(--border)' : 'none' }}>
                                 <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                                  {new Date(selectedWO.createdAt).toLocaleDateString('en-IN', {
+                                  {new Date(selectedWO.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                                     day: 'numeric',
                                     month: 'short',
                                     year: 'numeric',
@@ -1443,7 +1443,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                   ${((selectedWO.initialPayment || 0) - payments.reduce((acc: number, curr: any) => acc + curr.amount, 0)).toLocaleString('es-MX')}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontWeight: 500, fontStyle: 'italic' }}>
-                                  Initial payment registered at order creation
+                                  {t('workOrders.initialPaymentRegistered')}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem' }}>
                                   <span style={{
@@ -1456,7 +1456,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                     color: 'var(--success, #10B981)',
                                     backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.08))'
                                   }}>
-                                    Settled
+                                    {t('financePage.settled')}
                                   </span>
                                 </td>
                               </tr>
@@ -1467,7 +1467,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                   borderBottom: pidx < payments.length - 1 ? '1px solid var(--border)' : 'none'
                                 }}>
                                   <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                                    {new Date(payment.date).toLocaleDateString('en-IN', {
+                                    {new Date(payment.date).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                                       day: 'numeric',
                                       month: 'short',
                                       year: 'numeric',
@@ -1479,7 +1479,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                     ${payment.amount.toLocaleString('es-MX')}
                                   </td>
                                   <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                    {payment.notes || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No notes provided</span>}
+                                    {payment.notes || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('workOrders.noSpecifications')}</span>}
                                   </td>
                                   <td style={{ padding: '0.75rem 1rem' }}>
                                     <span style={{
@@ -1492,7 +1492,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                       color: 'var(--success, #10B981)',
                                       backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.08))'
                                     }}>
-                                      Settled
+                                      {t('financePage.settled')}
                                     </span>
                                   </td>
                                 </tr>
@@ -1512,7 +1512,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Rework Cycle Audit Trail
+                            {t('workOrders.reworkCycleTrail')}
                           </span>
                           <span style={{
                             fontSize: '0.725rem',
@@ -1523,16 +1523,16 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             color: '#EF4444',
                             border: '1px solid var(--border)'
                           }}>
-                            Total Rework Cycles: {logs.length}
+                            {t('workOrders.totalReworkCycles', { count: logs.length })}
                           </span>
                         </div>
 
                         {logs.length === 0 ? (
                           <div style={{ padding: '3rem 1.5rem', textAlign: 'center', border: '1.5px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                             <History size={32} style={{ opacity: 0.5 }} />
-                            <h4 style={{ fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>No Rework Cycles Recorded</h4>
+                            <h4 style={{ fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>{t('workOrders.noReworkCycles')}</h4>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                              This work order has not undergone any rework.
+                              {t('workOrders.hasNotUndergoneRework')}
                             </p>
                           </div>
                         ) : (
@@ -1545,22 +1545,22 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239, 68, 68, 0.02)' }}>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Process Step</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Rework Count</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Initiated By</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Initiation Date/Time</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Triggering Stage</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Tech</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Completion Date/Time</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Approval Date/Time</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.processName')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.reworkCount')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.initiatedBy')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.initiationDateTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.triggeringStage')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.assignedTechnician')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.completionDateTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.approvalDateTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {logs.map((log: any) => {
                                   const formatDate = (dateStr: string | null) => {
                                     if (!dateStr) return '—';
-                                    return new Date(dateStr).toLocaleString('en-IN', {
+                                    return new Date(dateStr).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                                       day: 'numeric',
                                       month: 'short',
                                       hour: '2-digit',
@@ -1570,15 +1570,19 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
 
                                   let statusColor = '#6B7280';
                                   let statusBg = 'rgba(107, 114, 128, 0.08)';
+                                  let displayStatus = log.status;
                                   if (log.status === 'Approved') {
                                     statusColor = 'var(--success, #10B981)';
                                     statusBg = 'var(--success-bg, rgba(16, 185, 129, 0.08))';
+                                    displayStatus = t('enums.processAction.REWORK_APPROVED');
                                   } else if (log.status === 'In Progress') {
                                     statusColor = 'var(--warning, #F59E0B)';
                                     statusBg = 'var(--warning-bg, rgba(245, 158, 11, 0.08))';
+                                    displayStatus = t('enums.processStatus.IN_PROGRESS');
                                   } else if (log.status === 'Completed') {
                                     statusColor = 'var(--accent-primary, #3B82F6)';
                                     statusBg = 'rgba(59, 130, 246, 0.08)';
+                                    displayStatus = t('enums.processStatus.COMPLETED');
                                   }
 
                                   return (
@@ -1590,7 +1594,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                         {log.reworkCount}
                                       </td>
                                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                        {log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : 'System'}
+                                        {log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : t('dashboard.system')}
                                       </td>
                                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
                                         {formatDate(log.initiatedAt)}
@@ -1599,7 +1603,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                         {log.verificationStage}
                                       </td>
                                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                        {log.technician ? `${log.technician.firstName} ${log.technician.lastName}` : 'Unassigned'}
+                                        {log.technician ? `${log.technician.firstName} ${log.technician.lastName}` : t('dashboard.unassigned')}
                                       </td>
                                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
                                         {formatDate(log.completedAt)}
@@ -1618,7 +1622,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                           color: statusColor,
                                           backgroundColor: statusBg
                                         }}>
-                                          {log.status}
+                                          {displayStatus}
                                         </span>
                                       </td>
                                     </tr>
@@ -1640,7 +1644,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Repetition Cycle Audit Trail
+                            {t('workOrders.repetitionCycleTrail')}
                           </span>
                           <span style={{
                             fontSize: '0.725rem',
@@ -1651,16 +1655,16 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             color: '#EF4444',
                             border: '1px solid var(--border)'
                           }}>
-                            Total Repetition Cycles: {logs.length}
+                            {t('workOrders.totalRepetitionCycles', { count: logs.length })}
                           </span>
                         </div>
 
                         {logs.length === 0 ? (
                           <div style={{ padding: '3rem 1.5rem', textAlign: 'center', border: '1.5px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                             <History size={32} style={{ opacity: 0.5 }} />
-                            <h4 style={{ fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>No Repetition Cycles Recorded</h4>
+                            <h4 style={{ fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>{t('workOrders.noRepetitionCycles')}</h4>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                              This work order has not undergone any repetition.
+                              {t('workOrders.hasNotUndergoneRepetition')}
                             </p>
                           </div>
                         ) : (
@@ -1673,18 +1677,18 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239, 68, 68, 0.02)' }}>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Repetition Cycle</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Triggering Stage</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Initiated By</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Initiation Date/Time</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Previous Completed Steps</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.repetitionCycle')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.triggeringStage')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.initiatedBy')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.initiationDateTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.previousCompletedSteps')}</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {logs.map((log: any) => {
                                   const formatDate = (dateStr: string | null) => {
                                     if (!dateStr) return '—';
-                                    return new Date(dateStr).toLocaleString('en-IN', {
+                                    return new Date(dateStr).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                                       day: 'numeric',
                                       month: 'short',
                                       hour: '2-digit',
@@ -1695,13 +1699,13 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                   return (
                                     <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
                                       <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        Cycle #{log.repetitionCount}
+                                        {t('dashboard.repetitionNumber', { count: log.repetitionCount })}
                                       </td>
                                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 600 }}>
                                         {log.verificationStage}
                                       </td>
                                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                        {log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : 'System'}
+                                        {log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : t('dashboard.system')}
                                       </td>
                                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
                                         {formatDate(log.initiatedAt)}
@@ -1751,7 +1755,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                 }}
                 onClick={onClose}
               >
-                Close
+                {t('common.close')}
               </button>
             </div>
           </>

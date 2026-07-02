@@ -15,6 +15,7 @@ import {
   Trash2,
   MapPin,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { doctorService, branchService, type DoctorListItem, type BranchListItem, type CreateDoctorPayload } from '../services';
 import { useAuth } from '../context';
@@ -23,6 +24,7 @@ import { Pagination, SearchableSelect } from '../components';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 export function DoctorsPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const canEdit = user?.role === 'ADMIN';
@@ -77,12 +79,12 @@ export function DoctorsPage() {
       setDoctors(doctorData);
       setBranches(branchData.filter((b) => b.isActive));
     } catch (err) {
-      toast.error('Failed to load doctors or branches');
+      toast.error(t('doctors.failedLoad'));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user?.branchId]);
+  }, [isAdmin, user?.branchId, t]);
 
   useEffect(() => {
     fetchData();
@@ -134,14 +136,14 @@ export function DoctorsPage() {
   const validateForm = (): boolean => {
     const errors: Partial<Record<keyof CreateDoctorPayload, string>> = {};
 
-    if (!form.name.trim()) errors.name = 'Doctor name is required';
+    if (!form.name.trim()) errors.name = t('validation.fieldRequired');
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      errors.email = 'Enter a valid email address';
+      errors.email = t('validation.invalidEmail');
     }
 
     // Branch selection is only mandatory if branches exist and user is OWNER (otherwise ADMIN is auto-scoped)
     if (!isAdmin && branches.length > 0 && !form.branchId) {
-      errors.branchId = 'Assigned branch is required';
+      errors.branchId = t('validation.fieldRequired');
     }
 
     setFormErrors(errors);
@@ -192,11 +194,11 @@ export function DoctorsPage() {
         branchId: form.branchId || undefined,
       };
       await doctorService.create(payload);
-      toast.success('Doctor added successfully!');
+      toast.success(t('doctors.createSuccess'));
       setShowCreateModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to add doctor';
+      const message = err?.response?.data?.message || t('doctors.failedCreate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -210,11 +212,11 @@ export function DoctorsPage() {
     try {
       setSaving(true);
       await doctorService.update(selectedDoctor.id, form);
-      toast.success('Doctor updated successfully!');
+      toast.success(t('doctors.updateSuccess'));
       setShowEditModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update doctor';
+      const message = err?.response?.data?.message || t('doctors.failedUpdate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -241,10 +243,10 @@ export function DoctorsPage() {
     const newStatus = !doctor.isActive;
     try {
       await doctorService.update(doctor.id, { isActive: newStatus });
-      toast.success(`Doctor ${newStatus ? 'activated' : 'deactivated'}`);
+      toast.success(t('doctors.statusChanged', { status: newStatus ? t('common.active') : t('common.inactive'), defaultValue: `Doctor ${newStatus ? 'activated' : 'deactivated'}` }));
       await fetchData();
     } catch {
-      toast.error('Failed to update doctor status');
+      toast.error(t('doctors.failedUpdate'));
     }
   };
 
@@ -258,12 +260,12 @@ export function DoctorsPage() {
     try {
       setDeleting(true);
       await doctorService.delete(doctorToDelete.id);
-      toast.success('Doctor record deleted successfully');
+      toast.success(t('doctors.deleteSuccess'));
       setDeleteModalOpen(false);
       setDoctorToDelete(null);
       await fetchData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete doctor');
+      toast.error(err?.response?.data?.message || t('doctors.failedDelete'));
     } finally {
       setDeleting(false);
     }
@@ -274,8 +276,8 @@ export function DoctorsPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-header__left">
-          <h1 className="page-header__title">Doctors</h1>
-          <p className="page-header__subtitle">Manage dental doctor and clinic records</p>
+          <h1 className="page-header__title">{t('doctors.title')}</h1>
+          <p className="page-header__subtitle">{t('doctors.subtitle', { defaultValue: 'Manage dental doctor and clinic records' })}</p>
         </div>
         {canEdit && (
           <button
@@ -284,7 +286,7 @@ export function DoctorsPage() {
             onClick={handleCreateOpen}
           >
             <Plus size={18} />
-            <span>Add Doctor</span>
+            <span>{t('doctors.createDoctor')}</span>
           </button>
         )}
       </div>
@@ -297,7 +299,7 @@ export function DoctorsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.total}</span>
-            <span className="stat-card__label">Total Doctors</span>
+            <span className="stat-card__label">{t('doctors.totalDoctors', { defaultValue: 'Total Doctors' })}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -306,7 +308,7 @@ export function DoctorsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.active}</span>
-            <span className="stat-card__label">Active Clinics</span>
+            <span className="stat-card__label">{t('doctors.activeClinics', { defaultValue: 'Active Clinics' })}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -315,7 +317,7 @@ export function DoctorsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.inactive}</span>
-            <span className="stat-card__label">Inactive</span>
+            <span className="stat-card__label">{t('common.inactive')}</span>
           </div>
         </div>
       </div>
@@ -328,7 +330,7 @@ export function DoctorsPage() {
             id="input-doctor-search"
             type="text"
             className="form-input search-input"
-            placeholder="Search doctors or clinics..."
+            placeholder={t('doctors.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -343,14 +345,14 @@ export function DoctorsPage() {
           {/* Branch Filter dropdown (Only for OWNER, since ADMIN is auto-scoped) */}
           {!isAdmin && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>Branch:</span>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.branch')}:</span>
               <select
                 className="form-input"
                 style={{ width: '160px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
               >
-                <option value="ALL">All Branches</option>
+                <option value="ALL">{t('common.allBranches')}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -368,7 +370,7 @@ export function DoctorsPage() {
                 className={`filter-chip ${selectedStatusFilter === s ? 'filter-chip--active' : ''}`}
                 onClick={() => setSelectedStatusFilter(s)}
               >
-                {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
+                {s === 'ALL' ? t('common.all') : s === 'ACTIVE' ? t('enums.userStatus.ACTIVE') : t('enums.userStatus.INACTIVE')}
               </button>
             ))}
           </div>
@@ -379,7 +381,7 @@ export function DoctorsPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>Loading doctor records...</span>
+          <span>{t('doctors.loading', { defaultValue: 'Loading doctor records...' })}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -387,12 +389,12 @@ export function DoctorsPage() {
             <Heart size={48} style={{ color: '#E35B77' }} />
           </div>
           <h3 className="empty-state__title">
-            {doctors.length === 0 ? 'No doctor records yet' : 'No matching records'}
+            {doctors.length === 0 ? t('doctors.noDoctorsYet', { defaultValue: 'No doctor records yet' }) : t('doctors.noMatching', { defaultValue: 'No matching records' })}
           </h3>
           <p className="empty-state__text">
             {doctors.length === 0
-              ? 'Add details of dental clinics or external doctors to assign work orders.'
-              : 'Try adjusting your search or filter criteria.'}
+              ? t('doctors.createDesc', { defaultValue: 'Add details of dental clinics or external doctors to assign work orders.' })
+              : t('doctors.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
           {doctors.length === 0 && canEdit && (
             <button
@@ -400,7 +402,7 @@ export function DoctorsPage() {
               onClick={handleCreateOpen}
             >
               <Plus size={18} />
-              <span>Add Doctor</span>
+              <span>{t('doctors.createDoctor')}</span>
             </button>
           )}
         </div>
@@ -411,21 +413,21 @@ export function DoctorsPage() {
               <tr>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('name')}>
-                    Doctor Name
+                    {t('doctors.doctorName')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('clinicName')}>
-                    Clinic / Hospital
+                    {t('doctors.clinic')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Contact Info</th>
-                <th>Clinic Address</th>
-                {!isAdmin && <th>Branch</th>}
-                <th>Status</th>
-                {canEdit && <th>Actions</th>}
+                <th>{t('branches.contactInfo', { defaultValue: 'Contact Info' })}</th>
+                <th>{t('doctors.clinicAddress', { defaultValue: 'Clinic Address' })}</th>
+                {!isAdmin && <th>{t('common.branch')}</th>}
+                <th>{t('common.status')}</th>
+                {canEdit && <th>{t('common.actions')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -441,7 +443,7 @@ export function DoctorsPage() {
                           {doctor.name}
                         </span>
                         <span className="cell-primary__meta">
-                          Added {new Date(doctor.createdAt).toLocaleDateString('en-IN', {
+                          {t('common.created')} {new Date(doctor.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
                             day: 'numeric',
                             month: 'short',
                           })}
@@ -498,7 +500,7 @@ export function DoctorsPage() {
                   <td>
                     <span className={`badge ${doctor.isActive ? 'badge--success' : 'badge--warning'}`}>
                       {doctor.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                      {doctor.isActive ? 'Active' : 'Inactive'}
+                      {doctor.isActive ? t('common.active') : t('common.inactive')}
                     </span>
                   </td>
                   {canEdit && (
@@ -507,22 +509,22 @@ export function DoctorsPage() {
                         <button
                           className={`btn-action ${doctor.isActive ? 'btn-action--danger' : 'btn-action--success'}`}
                           onClick={() => handleToggleStatus(doctor)}
-                          title={doctor.isActive ? 'Deactivate' : 'Activate'}
+                          title={doctor.isActive ? t('common.disable') : t('common.enable')}
                         >
                           {doctor.isActive ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                          <span>{doctor.isActive ? 'Deactivate' : 'Activate'}</span>
+                          <span>{doctor.isActive ? t('common.disable') : t('common.enable')}</span>
                         </button>
                         <button
                           className="btn-action"
                           onClick={() => handleEditOpen(doctor)}
-                          title="Edit Doctor"
+                          title={t('doctors.editDoctor')}
                         >
-                          <span>Edit</span>
+                          <span>{t('common.edit')}</span>
                         </button>
                         <button
                           className="btn-action btn-action--danger"
                           onClick={() => confirmDelete(doctor)}
-                          title="Delete Doctor"
+                          title={t('doctors.deleteConfirm')}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -548,8 +550,8 @@ export function DoctorsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Add Doctor Record</h2>
-                <p className="modal__subtitle">Register an external doctor or dental clinic</p>
+                <h2 className="modal__title">{t('doctors.createDoctor')}</h2>
+                <p className="modal__subtitle">{t('doctors.createDoctorSubtitle', { defaultValue: 'Register an external doctor or dental clinic' })}</p>
               </div>
               <button
                 className="modal__close"
@@ -563,7 +565,7 @@ export function DoctorsPage() {
             <form className="modal__body" onSubmit={handleCreate}>
               <div className="form-group">
                 <label className="form-label" htmlFor="input-doctor-name">
-                  Doctor Name *
+                  {t('doctors.doctorName')} *
                 </label>
                 <input
                   id="input-doctor-name"
@@ -584,7 +586,7 @@ export function DoctorsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-doctor-clinic">
-                  Clinic / Hospital Name
+                  {t('doctors.clinicName')}
                 </label>
                 <input
                   id="input-doctor-clinic"
@@ -600,7 +602,7 @@ export function DoctorsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-doctor-email">
-                    Email Address
+                    {t('common.email')}
                   </label>
                   <input
                     id="input-doctor-email"
@@ -620,7 +622,7 @@ export function DoctorsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-doctor-phone">
-                    Phone Number
+                    {t('common.phone')}
                   </label>
                   <input
                     id="input-doctor-phone"
@@ -636,7 +638,7 @@ export function DoctorsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-doctor-address">
-                  Clinic Address
+                  {t('doctors.clinicAddress', { defaultValue: 'Clinic Address' })}
                 </label>
                 <textarea
                   id="input-doctor-address"
@@ -653,20 +655,20 @@ export function DoctorsPage() {
               {!isAdmin && branches.length > 0 && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-doctor-branch">
-                    Assigned Branch *
+                    {t('admins.assignedBranch')} *
                   </label>
                   <SearchableSelect
-                    id="select-doctor-branch"
-                    options={branches.map((b) => ({
-                      value: b.id,
-                      label: `${b.name} (${b.code})`,
-                    }))}
-                    value={form.branchId || ''}
-                    onChange={(val) => handleInputChange('branchId', val)}
-                    disabled={saving}
-                    placeholder="Select a branch"
-                    error={!!formErrors.branchId}
-                  />
+                     id="select-doctor-branch"
+                     options={branches.map((b) => ({
+                       value: b.id,
+                       label: `${b.name} (${b.code})`,
+                     }))}
+                     value={form.branchId || ''}
+                     onChange={(val) => handleInputChange('branchId', val)}
+                     disabled={saving}
+                     placeholder={t('branches.selectBranch')}
+                     error={!!formErrors.branchId}
+                   />
                   {formErrors.branchId && (
                     <span className="form-error">
                       <AlertCircle size={12} /> {formErrors.branchId}
@@ -682,7 +684,7 @@ export function DoctorsPage() {
                   onClick={() => setShowCreateModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-doctor"
@@ -693,10 +695,10 @@ export function DoctorsPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Add Doctor</span>
+                    <span>{t('doctors.createDoctor')}</span>
                   )}
                 </button>
               </div>
@@ -711,8 +713,8 @@ export function DoctorsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Edit Doctor</h2>
-                <p className="modal__subtitle">Update details for <strong>{selectedDoctor.name}</strong></p>
+                <h2 className="modal__title">{t('doctors.editDoctor')}</h2>
+                <p className="modal__subtitle">{t('admins.updateDetailsFor', { defaultValue: 'Update details for' })} <strong>{selectedDoctor.name}</strong></p>
               </div>
               <button
                 className="modal__close"
@@ -726,7 +728,7 @@ export function DoctorsPage() {
             <form className="modal__body" onSubmit={handleUpdate}>
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-doctor-name">
-                  Doctor Name *
+                  {t('doctors.doctorName')} *
                 </label>
                 <input
                   id="input-edit-doctor-name"
@@ -746,7 +748,7 @@ export function DoctorsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-doctor-clinic">
-                  Clinic / Hospital Name
+                  {t('doctors.clinicName')}
                 </label>
                 <input
                   id="input-edit-doctor-clinic"
@@ -761,7 +763,7 @@ export function DoctorsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-doctor-email">
-                    Email Address
+                    {t('common.email')}
                   </label>
                   <input
                     id="input-edit-doctor-email"
@@ -780,7 +782,7 @@ export function DoctorsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-doctor-phone">
-                    Phone Number
+                    {t('common.phone')}
                   </label>
                   <input
                     id="input-edit-doctor-phone"
@@ -795,7 +797,7 @@ export function DoctorsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-doctor-address">
-                  Clinic Address
+                  {t('doctors.clinicAddress', { defaultValue: 'Clinic Address' })}
                 </label>
                 <textarea
                   id="input-edit-doctor-address"
@@ -811,7 +813,7 @@ export function DoctorsPage() {
               {!isAdmin && branches.length > 0 && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-edit-doctor-branch">
-                    Assigned Branch *
+                    {t('admins.assignedBranch')} *
                   </label>
                   <SearchableSelect
                     id="select-edit-doctor-branch"
@@ -822,7 +824,7 @@ export function DoctorsPage() {
                     value={form.branchId || ''}
                     onChange={(val) => handleInputChange('branchId', val)}
                     disabled={saving}
-                    placeholder="Select a branch"
+                    placeholder={t('branches.selectBranch')}
                     error={!!formErrors.branchId}
                   />
                   {formErrors.branchId && (
@@ -835,7 +837,7 @@ export function DoctorsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="select-edit-doctor-status">
-                  Status *
+                  {t('common.status')} *
                 </label>
                 <select
                   id="select-edit-doctor-status"
@@ -844,8 +846,8 @@ export function DoctorsPage() {
                   onChange={(e) => handleInputChange('isActive', e.target.value === 'ACTIVE')}
                   disabled={saving}
                 >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
+                  <option value="ACTIVE">{t('common.active')}</option>
+                  <option value="INACTIVE">{t('common.inactive')}</option>
                 </select>
               </div>
 
@@ -856,7 +858,7 @@ export function DoctorsPage() {
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-edit-submit-doctor"
@@ -867,10 +869,10 @@ export function DoctorsPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Save Changes</span>
+                    <span>{t('common.save')}</span>
                   )}
                 </button>
               </div>
@@ -885,7 +887,7 @@ export function DoctorsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Delete Doctor</h2>
+                <h2 className="modal__title">{t('common.delete')}</h2>
               </div>
               <button
                 className="modal__close"
@@ -898,7 +900,7 @@ export function DoctorsPage() {
 
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                Are you sure you want to delete doctor <strong>{doctorToDelete.name}</strong>? This action will permanently remove the record from the database.
+                {t('doctors.deleteConfirmText', { name: doctorToDelete.name, defaultValue: `Are you sure you want to delete doctor ${doctorToDelete.name}? This action will permanently remove the record from the database.` })}
               </p>
             </div>
 
@@ -909,7 +911,7 @@ export function DoctorsPage() {
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deleting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -921,12 +923,12 @@ export function DoctorsPage() {
                 {deleting ? (
                   <>
                     <Loader2 size={16} className="spinner" />
-                    <span>Deleting...</span>
+                    <span>{t('common.saving')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 size={16} />
-                    <span>Delete Permanently</span>
+                    <span>{t('common.delete')}</span>
                   </>
                 )}
               </button>

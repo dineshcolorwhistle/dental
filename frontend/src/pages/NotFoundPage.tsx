@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { FileQuestion, ArrowLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function NotFoundPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <div className="error-page">
@@ -11,16 +13,16 @@ export function NotFoundPage() {
           <FileQuestion size={64} />
         </div>
         <h1 className="error-page__code">404</h1>
-        <h2 className="error-page__title">Page Not Found</h2>
+        <h2 className="error-page__title">{t('errors.pageNotFound')}</h2>
         <p className="error-page__message">
-          The page you're looking for doesn't exist or has been moved.
+          {t('errors.pageNotFoundMessage')}
         </p>
         <button
           className="btn btn--primary"
           onClick={() => navigate('/dashboard')}
         >
           <ArrowLeft size={18} />
-          <span>Back to Dashboard</span>
+          <span>{t('common.backToDashboard')}</span>
         </button>
       </div>
     </div>

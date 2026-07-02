@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface Option {
   value: string;
@@ -30,6 +31,7 @@ export function SearchableSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const { t } = useTranslation();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -161,7 +163,7 @@ export function SearchableSelect({
               ref={searchInputRef}
               type="text"
               className="searchable-select__search-input"
-              placeholder="Search..."
+              placeholder={t('common.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               disabled={disabled}
@@ -183,7 +185,7 @@ export function SearchableSelect({
             role="listbox"
           >
             {filteredOptions.length === 0 ? (
-              <div className="searchable-select__no-results">No results found</div>
+              <div className="searchable-select__no-results">{t('common.noResults')}</div>
             ) : (
               filteredOptions.map((opt, index) => {
                 const isSelected = opt.value === value;

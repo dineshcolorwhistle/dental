@@ -15,6 +15,7 @@ import {
   ListOrdered,
   Layers,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   prosthesisTypeService,
@@ -30,6 +31,7 @@ import { useAuth } from '../context';
 import { Pagination, SearchableSelect } from '../components';
 
 export function ProsthesisTypesPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const canEdit = user?.role === 'ADMIN';
@@ -89,12 +91,12 @@ export function ProsthesisTypesPage() {
       setBranches(branchData.filter((b) => b.isActive));
       setAllBranchProcesses(processData);
     } catch (err) {
-      toast.error('Failed to load prosthesis types or related data');
+      toast.error(t('prosthesisTypes.failedLoad', { defaultValue: 'Failed to load prosthesis types or related data' }));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user?.branchId]);
+  }, [isAdmin, user?.branchId, t]);
 
   useEffect(() => {
     fetchData();
@@ -128,10 +130,10 @@ export function ProsthesisTypesPage() {
   const validateForm = (): boolean => {
     const errors: Partial<Record<keyof CreateProsthesisTypePayload, string>> = {};
     if (!form.name.trim()) {
-      errors.name = 'Prosthesis name is required';
+      errors.name = t('validation.fieldRequired');
     }
     if (!isAdmin && !form.branchId) {
-      errors.branchId = 'Assigned branch is required';
+      errors.branchId = t('validation.fieldRequired');
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -174,11 +176,11 @@ export function ProsthesisTypesPage() {
         processIds: form.processIds,
       };
       await prosthesisTypeService.create(payload);
-      toast.success('Prosthesis type created successfully!');
+      toast.success(t('prosthesisTypes.createSuccess', { defaultValue: 'Prosthesis type created successfully!' }));
       setShowCreateModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create prosthesis type';
+      const message = err?.response?.data?.message || t('prosthesisTypes.failedCreate', { defaultValue: 'Failed to create prosthesis type' });
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -198,11 +200,11 @@ export function ProsthesisTypesPage() {
         processIds: form.processIds,
       };
       await prosthesisTypeService.update(selectedType.id, payload);
-      toast.success('Prosthesis type updated successfully!');
+      toast.success(t('prosthesisTypes.updateSuccess', { defaultValue: 'Prosthesis type updated successfully!' }));
       setShowEditModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update prosthesis type';
+      const message = err?.response?.data?.message || t('prosthesisTypes.failedUpdate', { defaultValue: 'Failed to update prosthesis type' });
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -255,7 +257,7 @@ export function ProsthesisTypesPage() {
       setReorderProcessesList(data);
       setShowReorderModal(true);
     } catch (err) {
-      toast.error('Failed to load processes for reordering');
+      toast.error(t('prosthesisTypes.failedLoadProcesses', { defaultValue: 'Failed to load processes for reordering' }));
       console.error(err);
     } finally {
       setReordering(false);
@@ -276,11 +278,11 @@ export function ProsthesisTypesPage() {
       setSaving(true);
       const processIds = reorderProcessesList.map((a) => a.process.id);
       await prosthesisTypeService.reorderProcesses(reorderTarget.id, processIds);
-      toast.success('Workflow sequence reordered successfully!');
+      toast.success(t('prosthesisTypes.reorderSuccess', { defaultValue: 'Workflow sequence reordered successfully!' }));
       setShowReorderModal(false);
       await fetchData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to reorder sequence');
+      toast.error(err?.response?.data?.message || t('prosthesisTypes.failedReorder', { defaultValue: 'Failed to reorder sequence' }));
     } finally {
       setSaving(false);
     }
@@ -298,12 +300,12 @@ export function ProsthesisTypesPage() {
     try {
       setDeleting(true);
       await prosthesisTypeService.delete(typeToDelete.id);
-      toast.success('Prosthesis type deleted successfully');
+      toast.success(t('prosthesisTypes.deleteSuccess', { defaultValue: 'Prosthesis type deleted successfully' }));
       setDeleteModalOpen(false);
       setTypeToDelete(null);
       await fetchData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete prosthesis type');
+      toast.error(err?.response?.data?.message || t('prosthesisTypes.failedDelete', { defaultValue: 'Failed to delete prosthesis type' }));
     } finally {
       setDeleting(false);
     }
@@ -327,8 +329,8 @@ export function ProsthesisTypesPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-header__left">
-          <h1 className="page-header__title">Prosthesis Types</h1>
-          <p className="page-header__subtitle">Manage dental laboratory work types and custom workflows</p>
+          <h1 className="page-header__title">{t('prosthesisTypes.title', { defaultValue: 'Prosthesis Types' })}</h1>
+          <p className="page-header__subtitle">{t('prosthesisTypes.subtitle', { defaultValue: 'Manage dental laboratory work types and custom workflows' })}</p>
         </div>
         {canEdit && (
           <button
@@ -337,7 +339,7 @@ export function ProsthesisTypesPage() {
             onClick={handleCreateOpen}
           >
             <Plus size={18} />
-            <span>Add Prosthesis Type</span>
+            <span>{t('prosthesisTypes.createProsthesis', { defaultValue: 'Add Prosthesis Type' })}</span>
           </button>
         )}
       </div>
@@ -350,7 +352,7 @@ export function ProsthesisTypesPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{types.length}</span>
-            <span className="stat-card__label">Total Catalog Items</span>
+            <span className="stat-card__label">{t('prosthesisTypes.totalItems', { defaultValue: 'Total Catalog Items' })}</span>
           </div>
         </div>
       </div>
@@ -363,7 +365,7 @@ export function ProsthesisTypesPage() {
             id="input-prosthesis-search"
             type="text"
             className="form-input search-input"
-            placeholder="Search prosthesis types..."
+            placeholder={t('prosthesisTypes.searchPlaceholder', { defaultValue: 'Search prosthesis types...' })}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -378,14 +380,14 @@ export function ProsthesisTypesPage() {
           {/* Branch Filter dropdown (Only for OWNER) */}
           {!isAdmin && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>Branch:</span>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.branch')}:</span>
               <select
                 className="form-input"
                 style={{ width: '160px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
               >
-                <option value="ALL">All Branches</option>
+                <option value="ALL">{t('common.allBranches')}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -401,7 +403,7 @@ export function ProsthesisTypesPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>Loading prosthesis types...</span>
+          <span>{t('prosthesisTypes.loading', { defaultValue: 'Loading prosthesis types...' })}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -409,12 +411,12 @@ export function ProsthesisTypesPage() {
             <Sparkles size={48} style={{ color: 'var(--accent-primary)' }} />
           </div>
           <h3 className="empty-state__title">
-            {types.length === 0 ? 'No prosthesis types registered' : 'No matching records'}
+            {types.length === 0 ? t('prosthesisTypes.noProsthesis', { defaultValue: 'No prosthesis types registered' }) : t('prosthesisTypes.noMatching', { defaultValue: 'No matching records' })}
           </h3>
           <p className="empty-state__text">
             {types.length === 0
-              ? 'Add prosthesis types to define work items and build custom manufacturing workflow sequences.'
-              : 'Try adjusting your search or filter criteria.'}
+              ? t('prosthesisTypes.createDesc', { defaultValue: 'Add prosthesis types to define work items and build custom manufacturing workflow sequences.' })
+              : t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
           {types.length === 0 && canEdit && (
             <button
@@ -422,7 +424,7 @@ export function ProsthesisTypesPage() {
               onClick={handleCreateOpen}
             >
               <Plus size={18} />
-              <span>Add Prosthesis Type</span>
+              <span>{t('prosthesisTypes.createProsthesis', { defaultValue: 'Add Prosthesis Type' })}</span>
             </button>
           )}
         </div>
@@ -433,20 +435,20 @@ export function ProsthesisTypesPage() {
               <tr>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('name')}>
-                    Prosthesis Name
+                    {t('prosthesisTypes.prosthesisName', { defaultValue: 'Prosthesis Name' })}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Description</th>
-                <th>Assigned Workflow Sequence</th>
-                {!isAdmin && <th>Branch</th>}
+                <th>{t('common.description')}</th>
+                <th>{t('prosthesisTypes.assignedSequence', { defaultValue: 'Assigned Workflow Sequence' })}</th>
+                {!isAdmin && <th>{t('common.branch')}</th>}
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('createdAt')}>
-                    Created On
+                    {t('common.createdOn', { defaultValue: 'Created On' })}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                {canEdit && <th>Actions</th>}
+                {canEdit && <th>{t('common.actions')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -512,12 +514,12 @@ export function ProsthesisTypesPage() {
                               alignItems: 'center',
                             }}
                           >
-                            + {item.processAssignments.length - 4} more
+                            + {t('prosthesisTypes.moreCount', { count: item.processAssignments.length - 4, defaultValue: `${item.processAssignments.length - 4} more` })}
                           </span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-muted" style={{ fontSize: '0.75rem' }}>No processes assigned</span>
+                      <span className="text-muted" style={{ fontSize: '0.75rem' }}>{t('prosthesisTypes.noProcesses', { defaultValue: 'No processes assigned' })}</span>
                     )}
                   </td>
                   {!isAdmin && (
@@ -534,7 +536,7 @@ export function ProsthesisTypesPage() {
                   )}
                   <td>
                     <span className="cell-date">
-                      {new Date(item.createdAt).toLocaleDateString('en-IN', {
+                      {new Date(item.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric',
@@ -547,9 +549,9 @@ export function ProsthesisTypesPage() {
                         <button
                           className="btn-action"
                           onClick={() => handleEditOpen(item)}
-                          title="Edit Type"
+                          title={t('prosthesisTypes.editProsthesis')}
                         >
-                          <span>Edit</span>
+                          <span>{t('common.edit')}</span>
                         </button>
                         <button
                           className="btn-action"
@@ -561,15 +563,15 @@ export function ProsthesisTypesPage() {
                             gap: '4px',
                           }}
                           onClick={() => handleReorderOpen(item)}
-                          title="Manage Sequence"
+                          title={t('prosthesisTypes.manageSequence', { defaultValue: 'Manage Sequence' })}
                         >
                           <ListOrdered size={13} />
-                          <span>Sequence</span>
+                          <span>{t('prosthesisTypes.sequence', { defaultValue: 'Sequence' })}</span>
                         </button>
                         <button
                           className="btn-action btn-action--danger"
                           onClick={() => confirmDelete(item)}
-                          title="Delete Type"
+                          title={t('prosthesisTypes.deleteConfirm')}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -595,8 +597,8 @@ export function ProsthesisTypesPage() {
           <div className="modal" style={{ maxWidth: '750px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Add Prosthesis Type</h2>
-                <p className="modal__subtitle">Register a new work type and build its manufacturing workflow</p>
+                <h2 className="modal__title">{t('prosthesisTypes.createProsthesis')}</h2>
+                <p className="modal__subtitle">{t('prosthesisTypes.createProsthesisSubtitle', { defaultValue: 'Register a new work type and build its manufacturing workflow' })}</p>
               </div>
               <button
                 className="modal__close"
@@ -611,7 +613,7 @@ export function ProsthesisTypesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: !isAdmin ? '1fr 1fr' : '1fr', gap: '1.25rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-prosthesis-name">
-                    Prosthesis Name *
+                    {t('prosthesisTypes.prosthesisName')} *
                   </label>
                   <input
                     id="input-prosthesis-name"
@@ -633,7 +635,7 @@ export function ProsthesisTypesPage() {
                 {!isAdmin && (
                   <div className="form-group">
                     <label className="form-label" htmlFor="input-prosthesis-branch">
-                      Branch *
+                      {t('common.branch')} *
                     </label>
                     <SearchableSelect
                       id="input-prosthesis-branch"
@@ -644,7 +646,7 @@ export function ProsthesisTypesPage() {
                       value={form.branchId || ''}
                       onChange={(val) => handleInputChange('branchId', val)}
                       disabled={saving}
-                      placeholder="Select a branch..."
+                      placeholder={t('branches.selectBranch')}
                       error={!!formErrors.branchId}
                     />
                     {formErrors.branchId && (
@@ -658,7 +660,7 @@ export function ProsthesisTypesPage() {
 
               <div className="form-group" style={{ marginTop: '0.75rem' }}>
                 <label className="form-label" htmlFor="input-prosthesis-desc">
-                  Description
+                  {t('common.description')}
                 </label>
                 <textarea
                   id="input-prosthesis-desc"
@@ -675,17 +677,17 @@ export function ProsthesisTypesPage() {
               <div className="form-group" style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
                 <label className="form-label" style={{ fontWeight: 700, fontSize: '0.9375rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Layers size={16} style={{ color: 'var(--accent-primary)' }} />
-                  Workflow Sequence Builder
+                  {t('prosthesisTypes.sequenceBuilder', { defaultValue: 'Workflow Sequence Builder' })}
                 </label>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-                  Assign processes and arrange them in the sequence they should be executed for this prosthesis type.
+                  {t('prosthesisTypes.sequenceBuilderDesc', { defaultValue: 'Assign processes and arrange them in the sequence they should be executed for this prosthesis type.' })}
                 </p>
 
                 {!activeBranchId ? (
                   <div className="empty-state" style={{ padding: '2rem', minHeight: 'auto', border: '1px dashed var(--border)', borderRadius: '12px', backgroundColor: 'var(--bg-overlay, #F8FAFC)' }}>
                     <AlertCircle size={24} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }} />
                     <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                      Please select a branch first to load available workflow processes.
+                      {t('prosthesisTypes.selectBranchFirstDesc', { defaultValue: 'Please select a branch first to load available workflow processes.' })}
                     </span>
                   </div>
                 ) : (
@@ -693,11 +695,11 @@ export function ProsthesisTypesPage() {
                     {/* Left Column: Available Processes */}
                     <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-overlay, #F8FAFC)', display: 'flex', flexDirection: 'column' }}>
                       <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        Available Processes ({branchProcesses.length})
+                        {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })} ({branchProcesses.length})
                       </span>
                       {branchProcesses.length === 0 ? (
                         <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          No processes found for this branch. Create them in the Processes Page first.
+                          {t('prosthesisTypes.noProcessesBranch', { defaultValue: 'No processes found for this branch. Create them in the Processes Page first.' })}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -737,7 +739,7 @@ export function ProsthesisTypesPage() {
                                     padding: '2px 8px',
                                     borderRadius: '4px',
                                     flexShrink: 0
-                                  }}>+ Add</span>
+                                  }}>+ {t('common.add', { defaultValue: 'Add' })}</span>
                                 )}
                               </button>
                             );
@@ -749,11 +751,11 @@ export function ProsthesisTypesPage() {
                     {/* Right Column: Sequence Order */}
                     <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column' }}>
                       <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        Selected Workflow Sequence ({(form.processIds || []).length})
+                        {t('prosthesisTypes.selectedSequence', { defaultValue: 'Selected Workflow Sequence' })} ({(form.processIds || []).length})
                       </span>
                       {(form.processIds || []).length === 0 ? (
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', border: '1px dashed var(--border)', borderRadius: '6px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          No processes added yet. Click available processes on the left to build the sequence.
+                          {t('prosthesisTypes.noProcessesAddedDesc', { defaultValue: 'No processes added yet. Click available processes on the left to build the sequence.' })}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -798,7 +800,7 @@ export function ProsthesisTypesPage() {
                                     disabled={index === 0 || saving}
                                     onClick={() => moveProcessInForm(index, 'up')}
                                     style={{ padding: '4px', border: 'none', background: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1, display: 'inline-flex' }}
-                                    title="Move Up"
+                                    title={t('common.moveUp', { defaultValue: 'Move Up' })}
                                   >
                                     <ArrowUp size={12} />
                                   </button>
@@ -807,7 +809,7 @@ export function ProsthesisTypesPage() {
                                     disabled={index === (form.processIds || []).length - 1 || saving}
                                     onClick={() => moveProcessInForm(index, 'down')}
                                     style={{ padding: '4px', border: 'none', background: 'none', cursor: index === (form.processIds || []).length - 1 ? 'default' : 'pointer', opacity: index === (form.processIds || []).length - 1 ? 0.3 : 1, display: 'inline-flex' }}
-                                    title="Move Down"
+                                    title={t('common.moveDown', { defaultValue: 'Move Down' })}
                                   >
                                     <ArrowDown size={12} />
                                   </button>
@@ -816,7 +818,7 @@ export function ProsthesisTypesPage() {
                                     disabled={saving}
                                     onClick={() => removeProcessFromForm(index)}
                                     style={{ padding: '4px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'inline-flex', marginLeft: '4px' }}
-                                    title="Remove"
+                                    title={t('common.remove')}
                                   >
                                     <X size={13} />
                                   </button>
@@ -838,7 +840,7 @@ export function ProsthesisTypesPage() {
                   onClick={() => setShowCreateModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-prosthesis"
@@ -849,10 +851,10 @@ export function ProsthesisTypesPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Add Prosthesis Type</span>
+                    <span>{t('prosthesisTypes.createProsthesis')}</span>
                   )}
                 </button>
               </div>
@@ -867,8 +869,8 @@ export function ProsthesisTypesPage() {
           <div className="modal" style={{ maxWidth: '750px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Edit Prosthesis Type</h2>
-                <p className="modal__subtitle">Update details and workflow sequences for <strong>{selectedType.name}</strong></p>
+                <h2 className="modal__title">{t('prosthesisTypes.editProsthesis')}</h2>
+                <p className="modal__subtitle">{t('prosthesisTypes.updateDetails', { defaultValue: 'Update details and workflow sequences for' })} <strong>{selectedType.name}</strong></p>
               </div>
               <button
                 className="modal__close"
@@ -883,7 +885,7 @@ export function ProsthesisTypesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: !isAdmin ? '1fr 1fr' : '1fr', gap: '1.25rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-prosthesis-name">
-                    Prosthesis Name *
+                    {t('prosthesisTypes.prosthesisName')} *
                   </label>
                   <input
                     id="input-edit-prosthesis-name"
@@ -904,7 +906,7 @@ export function ProsthesisTypesPage() {
                 {!isAdmin && (
                   <div className="form-group">
                     <label className="form-label" htmlFor="input-edit-prosthesis-branch">
-                      Branch *
+                      {t('common.branch')} *
                     </label>
                     <SearchableSelect
                       id="input-edit-prosthesis-branch"
@@ -915,7 +917,7 @@ export function ProsthesisTypesPage() {
                       value={form.branchId || ''}
                       onChange={(val) => handleInputChange('branchId', val)}
                       disabled={saving}
-                      placeholder="Select a branch..."
+                      placeholder={t('branches.selectBranch')}
                       error={!!formErrors.branchId}
                     />
                     {formErrors.branchId && (
@@ -929,7 +931,7 @@ export function ProsthesisTypesPage() {
 
               <div className="form-group" style={{ marginTop: '0.75rem' }}>
                 <label className="form-label" htmlFor="input-edit-prosthesis-desc">
-                  Description
+                  {t('common.description')}
                 </label>
                 <textarea
                   id="input-edit-prosthesis-desc"
@@ -945,17 +947,17 @@ export function ProsthesisTypesPage() {
               <div className="form-group" style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
                 <label className="form-label" style={{ fontWeight: 700, fontSize: '0.9375rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Layers size={16} style={{ color: 'var(--accent-primary)' }} />
-                  Workflow Sequence Builder
+                  {t('prosthesisTypes.sequenceBuilder', { defaultValue: 'Workflow Sequence Builder' })}
                 </label>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-                  Assign processes and arrange them in the sequence they should be executed for this prosthesis type.
+                  {t('prosthesisTypes.sequenceBuilderDesc', { defaultValue: 'Assign processes and arrange them in the sequence they should be executed for this prosthesis type.' })}
                 </p>
 
                 {!activeBranchId ? (
                   <div className="empty-state" style={{ padding: '2rem', minHeight: 'auto', border: '1px dashed var(--border)', borderRadius: '12px', backgroundColor: 'var(--bg-overlay, #F8FAFC)' }}>
                     <AlertCircle size={24} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }} />
                     <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                      Please select a branch first to load available workflow processes.
+                      {t('prosthesisTypes.selectBranchFirstDesc', { defaultValue: 'Please select a branch first to load available workflow processes.' })}
                     </span>
                   </div>
                 ) : (
@@ -963,11 +965,11 @@ export function ProsthesisTypesPage() {
                     {/* Left Column: Available Processes */}
                     <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-overlay, #F8FAFC)', display: 'flex', flexDirection: 'column' }}>
                       <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        Available Processes ({branchProcesses.length})
+                        {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })} ({branchProcesses.length})
                       </span>
                       {branchProcesses.length === 0 ? (
                         <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          No processes found for this branch. Create them in the Processes Page first.
+                          {t('prosthesisTypes.noProcessesBranch', { defaultValue: 'No processes found for this branch. Create them in the Processes Page first.' })}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -1007,7 +1009,7 @@ export function ProsthesisTypesPage() {
                                     padding: '2px 8px',
                                     borderRadius: '4px',
                                     flexShrink: 0
-                                  }}>+ Add</span>
+                                  }}>+ {t('common.add', { defaultValue: 'Add' })}</span>
                                 )}
                               </button>
                             );
@@ -1019,11 +1021,11 @@ export function ProsthesisTypesPage() {
                     {/* Right Column: Sequence Order */}
                     <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column' }}>
                       <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        Selected Workflow Sequence ({(form.processIds || []).length})
+                        {t('prosthesisTypes.selectedSequence', { defaultValue: 'Selected Workflow Sequence' })} ({(form.processIds || []).length})
                       </span>
                       {(form.processIds || []).length === 0 ? (
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', border: '1px dashed var(--border)', borderRadius: '6px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          No processes added yet. Click available processes on the left to build the sequence.
+                          {t('prosthesisTypes.noProcessesAddedDesc', { defaultValue: 'No processes added yet. Click available processes on the left to build the sequence.' })}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -1068,7 +1070,7 @@ export function ProsthesisTypesPage() {
                                     disabled={index === 0 || saving}
                                     onClick={() => moveProcessInForm(index, 'up')}
                                     style={{ padding: '4px', border: 'none', background: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1, display: 'inline-flex' }}
-                                    title="Move Up"
+                                    title={t('common.moveUp', { defaultValue: 'Move Up' })}
                                   >
                                     <ArrowUp size={12} />
                                   </button>
@@ -1077,7 +1079,7 @@ export function ProsthesisTypesPage() {
                                     disabled={index === (form.processIds || []).length - 1 || saving}
                                     onClick={() => moveProcessInForm(index, 'down')}
                                     style={{ padding: '4px', border: 'none', background: 'none', cursor: index === (form.processIds || []).length - 1 ? 'default' : 'pointer', opacity: index === (form.processIds || []).length - 1 ? 0.3 : 1, display: 'inline-flex' }}
-                                    title="Move Down"
+                                    title={t('common.moveDown', { defaultValue: 'Move Down' })}
                                   >
                                     <ArrowDown size={12} />
                                   </button>
@@ -1086,7 +1088,7 @@ export function ProsthesisTypesPage() {
                                     disabled={saving}
                                     onClick={() => removeProcessFromForm(index)}
                                     style={{ padding: '4px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'inline-flex', marginLeft: '4px' }}
-                                    title="Remove"
+                                    title={t('common.remove')}
                                   >
                                     <X size={13} />
                                   </button>
@@ -1108,7 +1110,7 @@ export function ProsthesisTypesPage() {
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-edit-prosthesis"
@@ -1119,10 +1121,10 @@ export function ProsthesisTypesPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Update Prosthesis Type</span>
+                    <span>{t('prosthesisTypes.editProsthesis')}</span>
                   )}
                 </button>
               </div>
@@ -1139,10 +1141,10 @@ export function ProsthesisTypesPage() {
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ListOrdered size={20} style={{ color: 'var(--accent-primary)' }} />
-                  Workflow Sequence
+                  {t('prosthesisTypes.assignedSequence', { defaultValue: 'Workflow Sequence' })}
                 </h2>
                 <p className="modal__subtitle">
-                  Configure sequence order for <strong>{reorderTarget.name}</strong>
+                  {t('prosthesisTypes.configureSequenceFor', { defaultValue: 'Configure sequence order for' })} <strong>{reorderTarget.name}</strong>
                 </p>
               </div>
               <button
@@ -1158,20 +1160,20 @@ export function ProsthesisTypesPage() {
               {reordering ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 0', gap: '1rem' }}>
                   <Loader2 size={36} className="spinner" style={{ color: 'var(--accent-primary)' }} />
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Loading workflow details...</span>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{t('prosthesisTypes.loadingWorkflowDetails', { defaultValue: 'Loading workflow details...' })}</span>
                 </div>
               ) : reorderProcessesList.length === 0 ? (
                 <div className="empty-state" style={{ padding: '2rem 1rem', border: '1px dashed var(--border)', borderRadius: '12px' }}>
                   <GitMerge size={36} style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }} />
-                  <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.875rem', fontWeight: 600 }}>No processes assigned</h4>
+                  <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.875rem', fontWeight: 600 }}>{t('prosthesisTypes.noProcesses', { defaultValue: 'No processes assigned' })}</h4>
                   <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '280px' }}>
-                    This prosthesis type doesn't have any workflow stages assigned. Edit this type to assign stages first.
+                    {t('prosthesisTypes.noProcessesAssignedDesc', { defaultValue: "This prosthesis type doesn't have any workflow stages assigned. Edit this type to assign stages first." })}
                   </p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', margin: '0.5rem 0' }}>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.5rem 0' }}>
-                    Move processes up or down to set the correct manufacturing step order. Sequence starts at 1.
+                    {t('prosthesisTypes.moveProcessesDesc', { defaultValue: 'Move processes up or down to set the correct manufacturing step order. Sequence starts at 1.' })}
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
                     {reorderProcessesList.map((item, index) => (
@@ -1225,7 +1227,7 @@ export function ProsthesisTypesPage() {
                               opacity: index === 0 ? 0.3 : 1,
                               display: 'inline-flex',
                             }}
-                            title="Move Up"
+                            title={t('common.moveUp', { defaultValue: 'Move Up' })}
                           >
                             <ArrowUp size={14} />
                           </button>
@@ -1242,7 +1244,7 @@ export function ProsthesisTypesPage() {
                               opacity: index === reorderProcessesList.length - 1 ? 0.3 : 1,
                               display: 'inline-flex',
                             }}
-                            title="Move Down"
+                            title={t('common.moveDown', { defaultValue: 'Move Down' })}
                           >
                             <ArrowDown size={14} />
                           </button>
@@ -1271,22 +1273,22 @@ export function ProsthesisTypesPage() {
                 onClick={() => setShowReorderModal(false)}
                 disabled={saving}
               >
-                Close
+                {t('common.close', { defaultValue: 'Close' })}
               </button>
               {reorderProcessesList.length > 0 && (
                 <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={handleReorderSave}
-                  disabled={saving || reordering}
+                   type="button"
+                   className="btn btn--primary"
+                   onClick={handleReorderSave}
+                   disabled={saving || reordering}
                 >
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Save Sequence</span>
+                    <span>{t('prosthesisTypes.saveSequence', { defaultValue: 'Save Sequence' })}</span>
                   )}
                 </button>
               )}
@@ -1301,7 +1303,7 @@ export function ProsthesisTypesPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Delete Prosthesis Type</h2>
+                <h2 className="modal__title">{t('prosthesisTypes.deleteConfirm')}</h2>
               </div>
               <button
                 className="modal__close"
@@ -1314,7 +1316,7 @@ export function ProsthesisTypesPage() {
 
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                Are you sure you want to delete <strong>{typeToDelete.name}</strong>? This action will permanently remove this work type and delete its assigned workflow step orders. Existing work orders already using this type will remain.
+                {t('prosthesisTypes.deleteConfirmLongText', { name: typeToDelete.name, defaultValue: `Are you sure you want to delete ${typeToDelete.name}? This action will permanently remove this work type and delete its assigned workflow step orders. Existing work orders already using this type will remain.` })}
               </p>
             </div>
 
@@ -1335,7 +1337,7 @@ export function ProsthesisTypesPage() {
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deleting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1347,12 +1349,12 @@ export function ProsthesisTypesPage() {
                 {deleting ? (
                   <>
                     <Loader2 size={16} className="spinner" />
-                    <span>Deleting...</span>
+                    <span>{t('common.saving')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 size={16} />
-                    <span>Delete Permanently</span>
+                    <span>{t('common.delete')}</span>
                   </>
                 )}
               </button>

@@ -20,11 +20,13 @@ import {
   RotateCcw,
   UserCheck,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
 import { ViewWorkOrderModal } from '../components';
 
 export function DashboardPage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
@@ -89,13 +91,13 @@ export function DashboardPage() {
   }, [isConnected, fetchDashboardData]);
 
   const handleStartVerification = async (workOrderId: string, processId: string) => {
-    const loadingToast = toast.loading('Starting verification process...');
+    const loadingToast = toast.loading(t('dashboard.startingVerification'));
     try {
       await workOrderService.startVerification(workOrderId, processId);
-      toast.success('Verification started! Status updated to monitoring.', { id: loadingToast });
+      toast.success(t('dashboard.verificationStarted'), { id: loadingToast });
       fetchDashboardData();
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || 'Failed to start verification.';
+      const errMsg = err?.response?.data?.message || t('dashboard.verificationFailed');
       toast.error(errMsg, { id: loadingToast });
     }
   };
@@ -108,10 +110,10 @@ export function DashboardPage() {
   const handleEndVerification = async (outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
     if (!selectedAlert) return;
     setOutcomeSaving(true);
-    const loadingToast = toast.loading(`Completing verification as ${outcome}...`);
+    const loadingToast = toast.loading(t('dashboard.completingVerification', { outcome }));
     try {
       await workOrderService.endVerification(selectedAlert.workOrderId, selectedAlert.id, outcome);
-      toast.success(`Verification completed! Status logged as ${outcome}.`, { id: loadingToast });
+      toast.success(t('dashboard.verificationCompleted', { outcome }), { id: loadingToast });
       setShowOutcomeModal(false);
       const targetWoId = selectedAlert.workOrderId;
       setSelectedAlert(null);
@@ -120,7 +122,7 @@ export function DashboardPage() {
         navigate('/work-orders', { state: { editWorkOrderId: targetWoId, activeTab: 'processes' } });
       }
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || 'Failed to complete verification.';
+      const errMsg = err?.response?.data?.message || t('dashboard.verificationCompleteFailed');
       toast.error(errMsg, { id: loadingToast });
     } finally {
       setOutcomeSaving(false);
@@ -129,16 +131,16 @@ export function DashboardPage() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('dashboard.greetingMorning');
+    if (hour < 17) return t('dashboard.greetingAfternoon');
+    return t('dashboard.greetingEvening');
   };
 
   if (loading && !stats) {
     return (
       <div className="table-loading" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
         <Loader2 size={36} className="spinner" />
-        <span style={{ marginLeft: '12px' }}>Loading branch analytics...</span>
+        <span style={{ marginLeft: '12px' }}>{t('dashboard.loadingAnalytics')}</span>
       </div>
     );
   }
@@ -160,7 +162,7 @@ export function DashboardPage() {
             {getGreeting()}, {user?.firstName}!
           </h1>
           <p className="dashboard-page__subtitle" style={{ color: 'var(--text-secondary)' }}>
-            Branch Management Console {isAdmin && user?.branchId ? `(Branch Scoped)` : ''}
+            {t('dashboard.branchManagementConsole')} {isAdmin && user?.branchId ? ` ${t('dashboard.branchScoped')}` : ''}
           </p>
         </div>
         <div style={{
@@ -176,7 +178,7 @@ export function DashboardPage() {
           color: 'var(--accent-primary, #3B82F6)'
         }}>
           <Clock size={14} className="animate-spin-slow" />
-          <span>Real-time Active Monitoring</span>
+          <span>{t('dashboard.realTimeMonitoring')}</span>
         </div>
       </div>
 
@@ -200,7 +202,7 @@ export function DashboardPage() {
             marginBottom: '1rem'
           }}>
             <ShieldCheck size={20} style={{ color: '#8B5CF6' }} />
-            Pending Verification Alerts
+            {t('dashboard.pendingVerificationAlerts')}
             <span style={{
               fontSize: '0.75rem',
               backgroundColor: '#8B5CF6',
@@ -242,8 +244,8 @@ export function DashboardPage() {
                         borderRadius: '4px',
                         backgroundColor: isInternal ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
                         color: isInternal ? '#8B5CF6' : '#6366F1'
-                      }}>
-                        {alert.type} VERIFICATION
+                  }}>
+                    {isInternal ? t('enums.verificationType.INTERNAL') : t('enums.verificationType.EXTERNAL')} {t('dashboard.verification')}
                       </span>
                       <span style={{
                         fontSize: '0.7rem',
@@ -253,11 +255,11 @@ export function DashboardPage() {
                         backgroundColor: isNotStarted ? 'rgba(156, 163, 175, 0.1)' : 'rgba(245, 158, 11, 0.1)',
                         color: isNotStarted ? '#6B7280' : '#F59E0B'
                       }}>
-                        {isNotStarted ? 'NOT STARTED' : 'IN PROGRESS'}
+                        {isNotStarted ? t('enums.processStatus.NOT_STARTED') : t('enums.processStatus.IN_PROGRESS')}
                       </span>
                     </div>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      Process: <strong>{alert.processName}</strong> • Assigned Evaluator: <strong>{alert.assignedTo}</strong>
+                      {t('dashboard.process')}: <strong>{alert.processName}</strong> • {t('dashboard.assignedEvaluator')}: <strong>{alert.assignedTo}</strong>
                     </span>
                   </div>
 
@@ -270,7 +272,7 @@ export function DashboardPage() {
                         setShowViewModal(true);
                       }}
                     >
-                      <Eye size={12} /> View WO
+                      <Eye size={12} /> {t('dashboard.viewWO')}
                     </button>
                     {(() => {
                       const isExternal = alert.type === 'EXTERNAL';
@@ -284,7 +286,7 @@ export function DashboardPage() {
                             style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#8B5CF6', border: 'none' }}
                             onClick={() => handleStartVerification(alert.workOrderId, alert.id)}
                           >
-                            <Play size={12} /> Start Verification
+                            <Play size={12} /> {t('dashboard.startVerification')}
                           </button>
                         );
                       }
@@ -302,9 +304,9 @@ export function DashboardPage() {
                           }}
                           onClick={() => canCompleteExternal && triggerOutcomeSelection(alert)}
                           disabled={!canCompleteExternal}
-                          title={canCompleteExternal ? undefined : "Only default branch admin can complete external verification"}
+                          title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
                         >
-                          <Check size={12} /> End Verification
+                          <Check size={12} /> {t('dashboard.endVerification')}
                         </button>
                       );
                     })()}
@@ -324,7 +326,7 @@ export function DashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.inProgressWorkOrders ?? 0}</span>
-            <span className="stat-card__label">Active Orders</span>
+            <span className="stat-card__label">{t('dashboard.activeOrders')}</span>
           </div>
         </div>
 
@@ -334,7 +336,7 @@ export function DashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{alerts.length}</span>
-            <span className="stat-card__label">Pending Verifications</span>
+            <span className="stat-card__label">{t('dashboard.pendingVerifications')}</span>
           </div>
         </div>
 
@@ -344,7 +346,7 @@ export function DashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{pendingProcs.length}</span>
-            <span className="stat-card__label">Pending Tech Steps</span>
+            <span className="stat-card__label">{t('dashboard.pendingTechSteps')}</span>
           </div>
         </div>
 
@@ -354,7 +356,7 @@ export function DashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.completedWorkOrders ?? 0}</span>
-            <span className="stat-card__label">Completed Today</span>
+            <span className="stat-card__label">{t('dashboard.completedToday')}</span>
           </div>
         </div>
       </div>
@@ -365,16 +367,16 @@ export function DashboardPage() {
         <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
             <Activity size={18} style={{ color: 'var(--accent-primary, #3B82F6)' }} />
-            In-Progress Work Orders
+            {t('dashboard.inProgressWorkOrders')}
             <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--accent-primary, #3B82F6)', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>{inProgressWOs.length}</span>
           </h3>
 
           {inProgressWOs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
               <CheckCircle2 size={32} style={{ color: 'var(--success)', opacity: 0.6 }} />
-              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No Active In-Progress Orders</h4>
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>{t('dashboard.noActiveInProgress')}</h4>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Create or assign work orders to get started.
+                {t('dashboard.createOrAssign')}
               </p>
             </div>
           ) : (
@@ -386,7 +388,7 @@ export function DashboardPage() {
 
                 const activeStepTech = activeStep?.technician
                   ? `${activeStep.technician.firstName} ${activeStep.technician.lastName}`
-                  : 'Unassigned';
+                  : t('dashboard.unassigned');
 
                 return (
                   <div key={wo.id} style={{
@@ -416,7 +418,7 @@ export function DashboardPage() {
                           backgroundColor: wo.status === 'ASSIGNED' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)',
                           color: wo.status === 'ASSIGNED' ? '#3B82F6' : '#F59E0B'
                         }}>
-                          {wo.status === 'ASSIGNED' ? 'Assigned' : 'In Progress'}
+                          {wo.status === 'ASSIGNED' ? t('enums.workOrderStatus.ASSIGNED') : t('enums.workOrderStatus.IN_PROGRESS')}
                         </span>
                         <button
                           className="btn-action"
@@ -435,7 +437,7 @@ export function DashboardPage() {
                             setSelectedWOId(wo.id);
                             setShowViewModal(true);
                           }}
-                          title="View Work Order"
+                          title={t('dashboard.viewWorkOrder')}
                         >
                           <Eye size={14} />
                         </button>
@@ -444,10 +446,10 @@ export function DashboardPage() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       <div>
-                        Doctor: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
+                        {t('dashboard.doctor')}: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
                       </div>
                       <div>
-                        Prosthesis: <strong style={{ color: 'var(--accent-primary)' }}>{wo.prosthesisType?.name || '—'}</strong>
+                        {t('dashboard.prosthesis')}: <strong style={{ color: 'var(--accent-primary)' }}>{wo.prosthesisType?.name || '—'}</strong>
                       </div>
                     </div>
 
@@ -463,8 +465,8 @@ export function DashboardPage() {
                         justifyContent: 'space-between',
                         alignItems: 'center'
                       }}>
-                        <span>Active Step: <strong>{activeStep.processName}</strong></span>
-                        <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>Tech: <strong>{activeStepTech}</strong></span>
+                        <span>{t('dashboard.activeStep')}: <strong>{activeStep.processName}</strong></span>
+                        <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>{t('dashboard.tech')}: <strong>{activeStepTech}</strong></span>
                       </div>
                     )}
                   </div>
@@ -478,16 +480,16 @@ export function DashboardPage() {
         <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
             <ShieldCheck size={18} style={{ color: '#8B5CF6' }} />
-            Work Orders in Verification
+            {t('dashboard.workOrdersInVerification')}
             <span style={{ fontSize: '0.75rem', backgroundColor: '#8B5CF6', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>{verificationWOs.length}</span>
           </h3>
 
           {verificationWOs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
               <ShieldCheck size={32} style={{ color: '#8B5CF6', opacity: 0.6 }} />
-              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No Orders in Verification</h4>
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>{t('dashboard.noOrdersInVerification')}</h4>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Pending verification steps will appear here for audit review.
+                {t('dashboard.verificationAudit')}
               </p>
             </div>
           ) : (
@@ -497,7 +499,7 @@ export function DashboardPage() {
                 const isNotStarted = activeVerification?.status === 'NOT_STARTED';
                 const evaluator = activeVerification?.technicianId && activeVerification.technician
                   ? `${activeVerification.technician.firstName} ${activeVerification.technician.lastName}`
-                  : (wo.doctor?.name || 'External Doctor');
+                  : (wo.doctor?.name ? `${wo.doctor.name} (${t('dashboard.externalDoctor')})` : t('dashboard.externalDoctor'));
 
                 return (
                   <div key={wo.id} style={{
@@ -527,7 +529,7 @@ export function DashboardPage() {
                           backgroundColor: wo.status === 'INTERNAL_VERIFICATION' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
                           color: wo.status === 'INTERNAL_VERIFICATION' ? '#8B5CF6' : '#6366F1'
                         }}>
-                          {wo.status === 'INTERNAL_VERIFICATION' ? 'Internal' : 'External'} Verification
+                          {wo.status === 'INTERNAL_VERIFICATION' ? t('enums.verificationType.INTERNAL') : t('enums.verificationType.EXTERNAL')} {t('dashboard.verification')}
                         </span>
                         <button
                           className="btn-action"
@@ -546,7 +548,7 @@ export function DashboardPage() {
                             setSelectedWOId(wo.id);
                             setShowViewModal(true);
                           }}
-                          title="View Work Order"
+                          title={t('dashboard.viewWorkOrder')}
                         >
                           <Eye size={14} />
                         </button>
@@ -555,10 +557,10 @@ export function DashboardPage() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       <div>
-                        Doctor: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
+                        {t('dashboard.doctor')}: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
                       </div>
                       <div>
-                        Prosthesis: <strong style={{ color: 'var(--accent-primary)' }}>{wo.prosthesisType?.name || '—'}</strong>
+                        {t('dashboard.prosthesis')}: <strong style={{ color: 'var(--accent-primary)' }}>{wo.prosthesisType?.name || '—'}</strong>
                       </div>
                     </div>
 
@@ -577,10 +579,10 @@ export function DashboardPage() {
                       }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            Verification: <strong>{activeVerification.processName}</strong>
+                            {t('dashboard.verification')}: <strong>{activeVerification.processName}</strong>
                           </span>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            Evaluator: <strong>{evaluator}</strong>
+                            {t('dashboard.evaluator')}: <strong>{evaluator}</strong>
                           </span>
                         </div>
 
@@ -597,7 +599,7 @@ export function DashboardPage() {
                                   style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '4px 10px', fontSize: '0.725rem', fontWeight: 600 }}
                                   onClick={() => handleStartVerification(wo.id, activeVerification.id)}
                                 >
-                                  <Play size={10} /> Start
+                                  <Play size={10} /> {t('dashboard.start')}
                                 </button>
                               );
                             }
@@ -624,9 +626,9 @@ export function DashboardPage() {
                                   processName: activeVerification.processName
                                 })}
                                 disabled={!canCompleteExternal}
-                                title={canCompleteExternal ? undefined : "Only default branch admin can complete external verification"}
+                                title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
                               >
-                                <Check size={10} /> End
+                                <Check size={10} /> {t('dashboard.end')}
                               </button>
                             );
                           })()}
@@ -648,23 +650,23 @@ export function DashboardPage() {
         <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
             <Wrench size={18} style={{ color: 'var(--accent-primary, #3B82F6)' }} />
-            Technician Activity & Involvement
+            {t('dashboard.technicianActivity')}
           </h3>
 
           {technicianActivityOverview.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
               <UserCheck size={32} style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
-              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No Active Technicians</h4>
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>{t('dashboard.noActiveTechnicians')}</h4>
             </div>
           ) : (
             <div style={{ overflowX: 'auto', flex: 1 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '8px 12px', fontWeight: 600 }}>Technician</th>
-                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>Completed</th>
-                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>Reworks</th>
-                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>Repetitions</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600 }}>{t('navigation.technician')}</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>{t('dashboard.completed')}</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>{t('dashboard.reworks')}</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'center' }}>{t('dashboard.repetitions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -726,16 +728,16 @@ export function DashboardPage() {
                             }}>
                               <h4 style={{ fontWeight: 700, marginBottom: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '4px', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <AlertCircle size={12} style={{ color: '#EF4444' }} />
-                                Rework Processes ({tech.reworkCount})
+                                {t('dashboard.reworkProcesses', { count: tech.reworkCount })}
                               </h4>
                               {tech.reworkDetails.length === 0 ? (
-                                <div style={{ color: 'var(--text-muted)' }}>No reworks</div>
+                                <div style={{ color: 'var(--text-muted)' }}>{t('dashboard.noReworks')}</div>
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
                                   {tech.reworkDetails.map((detail: any, idx: number) => (
                                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', borderBottom: idx < tech.reworkDetails.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: idx < tech.reworkDetails.length - 1 ? '4px' : 0 }}>
                                       <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{detail.processName} ({detail.folioNumber})</span>
-                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>Rework #{detail.reworkCount} • {detail.status}</span>
+                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>{t('dashboard.reworkCount', { count: detail.reworkCount })} • {detail.status}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -798,16 +800,16 @@ export function DashboardPage() {
                             }}>
                               <h4 style={{ fontWeight: 700, marginBottom: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '4px', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <RotateCcw size={12} style={{ color: '#D946EF' }} />
-                                Repetition Work Orders ({tech.repetitionCount})
+                                {t('dashboard.repetitionWorkOrders', { count: tech.repetitionCount })}
                               </h4>
                               {tech.repetitionDetails.length === 0 ? (
-                                <div style={{ color: 'var(--text-muted)' }}>No repetitions</div>
+                                <div style={{ color: 'var(--text-muted)' }}>{t('dashboard.noRepetitions')}</div>
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
                                   {tech.repetitionDetails.map((detail: any, idx: number) => (
                                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', borderBottom: idx < tech.repetitionDetails.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: idx < tech.repetitionDetails.length - 1 ? '4px' : 0 }}>
                                       <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{detail.folioNumber} ({detail.patient})</span>
-                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>Total repetitions: {detail.repetitionCount}</span>
+                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>{t('dashboard.totalRepetitions', { count: detail.repetitionCount })}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -828,16 +830,16 @@ export function DashboardPage() {
         <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
             <History size={18} style={{ color: '#8B5CF6' }} />
-            Repetition Work Orders (WO)
+            {t('dashboard.repetitionWO')}
             <span style={{ fontSize: '0.75rem', backgroundColor: '#8B5CF6', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>{repetitionLogs.length}</span>
           </h3>
 
           {repetitionLogs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
               <History size={32} style={{ color: '#8B5CF6', opacity: 0.6 }} />
-              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>No Repetitions Triggered</h4>
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem' }}>{t('dashboard.noRepetitionsTriggered')}</h4>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Orders flagged for repetition will be displayed here.
+                {t('dashboard.repetitionWillAppear')}
               </p>
             </div>
           ) : (
@@ -870,7 +872,7 @@ export function DashboardPage() {
                         backgroundColor: 'rgba(217, 70, 239, 0.1)',
                         color: '#D946EF'
                       }}>
-                        Repetition #{log.repetitionCount}
+                        {t('dashboard.repetitionNumber', { count: log.repetitionCount })}
                       </span>
                       <button
                         className="btn-action"
@@ -889,7 +891,7 @@ export function DashboardPage() {
                           setSelectedWOId(log.workOrder.id);
                           setShowViewModal(true);
                         }}
-                        title="View Work Order"
+                        title={t('dashboard.viewWorkOrder')}
                       >
                         <Eye size={14} />
                       </button>
@@ -898,10 +900,10 @@ export function DashboardPage() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     <div>
-                      Triggered By: <strong style={{ color: 'var(--text-primary)' }}>{log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : 'System'}</strong>
+                      {t('dashboard.triggeredBy')}: <strong style={{ color: 'var(--text-primary)' }}>{log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : t('dashboard.system')}</strong>
                     </div>
                     <div>
-                      Triggered At: <strong style={{ color: 'var(--text-primary)' }}>{new Date(log.initiatedAt).toLocaleString()}</strong>
+                      {t('dashboard.triggeredAt')}: <strong style={{ color: 'var(--text-primary)' }}>{new Date(log.initiatedAt).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US')}</strong>
                     </div>
                   </div>
                   
@@ -912,7 +914,7 @@ export function DashboardPage() {
                     border: '1px solid var(--border)',
                     fontSize: '0.78rem'
                   }}>
-                    Stage: <strong>{log.verificationStage}</strong> • Reset Steps: <strong>{log.completedSteps}</strong>
+                    {t('dashboard.stage')}: <strong>{log.verificationStage}</strong> • {t('dashboard.resetSteps')}: <strong>{log.completedSteps}</strong>
                   </div>
                 </div>
               ))}
@@ -924,19 +926,19 @@ export function DashboardPage() {
       {/* Status Summary Visual Indicator Panel */}
       <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', marginTop: '2rem' }}>
         <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.25rem' }}>
-          Work Order Status Summary
+          {t('dashboard.workOrderStatusSummary')}
         </h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem' }}>
           {Object.entries({
-            CREATED: { label: 'Created', color: '#6B7280', bg: '#F3F4F6' },
-            ASSIGNED: { label: 'Assigned', color: '#3B82F6', bg: '#EFF6FF' },
-            IN_PROGRESS: { label: 'In Progress', color: '#F59E0B', bg: '#FFFBEB' },
-            INTERNAL_VERIFICATION: { label: 'Internal Verification', color: '#8B5CF6', bg: '#F5F3FF' },
-            EXTERNAL_VERIFICATION: { label: 'External Verification', color: '#6366F1', bg: '#EEF2FF' },
-            COMPLETED: { label: 'Completed', color: '#10B981', bg: '#ECFDF5' },
-            FAILED: { label: 'Failed', color: '#EF4444', bg: '#FEF2F2' },
-            CANCELLED: { label: 'Cancelled', color: '#F97316', bg: '#FFF3E0' },
+            CREATED: { label: t('enums.workOrderStatus.CREATED'), color: '#6B7280', bg: '#F3F4F6' },
+            ASSIGNED: { label: t('enums.workOrderStatus.ASSIGNED'), color: '#3B82F6', bg: '#EFF6FF' },
+            IN_PROGRESS: { label: t('enums.workOrderStatus.IN_PROGRESS'), color: '#F59E0B', bg: '#FFFBEB' },
+            INTERNAL_VERIFICATION: { label: t('enums.workOrderStatus.INTERNAL_VERIFICATION'), color: '#8B5CF6', bg: '#F5F3FF' },
+            EXTERNAL_VERIFICATION: { label: t('enums.workOrderStatus.EXTERNAL_VERIFICATION'), color: '#6366F1', bg: '#EEF2FF' },
+            COMPLETED: { label: t('enums.workOrderStatus.COMPLETED'), color: '#10B981', bg: '#ECFDF5' },
+            FAILED: { label: t('enums.workOrderStatus.FAILED'), color: '#EF4444', bg: '#FEF2F2' },
+            CANCELLED: { label: t('enums.workOrderStatus.CANCELLED'), color: '#F97316', bg: '#FFF3E0' },
           }).map(([key, value]) => {
             const count = statusSummary[key] || 0;
             return (
@@ -969,14 +971,14 @@ export function DashboardPage() {
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <ShieldCheck size={20} style={{ color: '#8B5CF6' }} />
-                  <span>Verify Work Order</span>
+                  <span>{t('dashboard.verifyWorkOrder')}</span>
                 </h2>
-                <p className="modal__subtitle">Select evaluation outcome</p>
+                <p className="modal__subtitle">{t('dashboard.selectOutcome')}</p>
               </div>
               <button
                 className="modal__close"
                 onClick={() => !outcomeSaving && setShowOutcomeModal(false)}
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 <X size={20} />
               </button>
@@ -991,11 +993,11 @@ export function DashboardPage() {
                 color: 'var(--text-secondary)',
                 marginBottom: '0.5rem'
               }}>
-                Order: <strong>{selectedAlert.folioNumber} ({selectedAlert.patient})</strong><br />
-                Verification Stage: <strong>{selectedAlert.processName}</strong>
+                {t('dashboard.order')}: <strong>{selectedAlert.folioNumber} ({selectedAlert.patient})</strong><br />
+                {t('dashboard.verificationStage')}: <strong>{selectedAlert.processName}</strong>
               </div>
 
-              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>Select the outcome:</p>
+              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>{t('dashboard.selectTheOutcome')}</p>
               
               <button
                 type="button"
@@ -1018,7 +1020,7 @@ export function DashboardPage() {
                 disabled={outcomeSaving}
                 onClick={() => handleEndVerification('SUCCESS')}
               >
-                <CheckCircle2 size={18} /> Approve (Success)
+                <CheckCircle2 size={18} /> {t('dashboard.approveSuccess')}
               </button>
 
               <button
@@ -1042,7 +1044,7 @@ export function DashboardPage() {
                 disabled={outcomeSaving}
                 onClick={() => handleEndVerification('REWORK')}
               >
-                <AlertCircle size={18} /> Flag (Rework Needed)
+                <AlertCircle size={18} /> {t('dashboard.flagRework')}
               </button>
 
               <button
@@ -1066,7 +1068,7 @@ export function DashboardPage() {
                 disabled={outcomeSaving}
                 onClick={() => handleEndVerification('REPETITION')}
               >
-                <History size={18} /> Flag (Repetition Needed)
+                <History size={18} /> {t('dashboard.flagRepetition')}
               </button>
             </div>
             <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
@@ -1076,7 +1078,7 @@ export function DashboardPage() {
                 onClick={() => setShowOutcomeModal(false)}
                 disabled={outcomeSaving}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -1101,18 +1103,18 @@ export function DashboardPage() {
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <AlertCircle size={20} style={{ color: '#EF4444' }} />
-                  <span>Rework Involvement: {activeModalTech.name}</span>
+                  <span>{t('dashboard.reworkInvolvement', { name: activeModalTech.name })}</span>
                 </h2>
-                <p className="modal__subtitle">Processes reworked by technician</p>
+                <p className="modal__subtitle">{t('dashboard.processesReworked')}</p>
               </div>
-              <button className="modal__close" onClick={() => setActiveModalTech(null)} aria-label="Close">
+              <button className="modal__close" onClick={() => setActiveModalTech(null)} aria-label={t('common.close')}>
                 <X size={20} />
               </button>
             </div>
             <div className="modal__body" style={{ padding: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
               {activeModalTech.reworkDetails.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                  No rework processes recorded.
+                  {t('dashboard.noReworkProcesses')}
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1137,17 +1139,17 @@ export function DashboardPage() {
                               setShowViewModal(true);
                               setActiveModalTech(null);
                             }}
-                            title="Click to view Work Order"
+                            title={t('dashboard.clickToViewWO')}
                           >
                             {rework.folioNumber}
                           </span>
                           <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{rework.patient}</span>
                         </div>
                         <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                          Process: <strong>{rework.processName}</strong> • Rework Count: <strong>{rework.reworkCount}</strong>
+                          {t('dashboard.process')}: <strong>{rework.processName}</strong> • {t('dashboard.reworkCountLabel')}: <strong>{rework.reworkCount}</strong>
                         </span>
                         <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-                          Flagged in: <strong>{rework.verificationStage}</strong> • {new Date(rework.initiatedAt).toLocaleString()}
+                          {t('dashboard.flaggedIn')}: <strong>{rework.verificationStage}</strong> • {new Date(rework.initiatedAt).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US')}
                         </span>
                       </div>
                       <div>
@@ -1159,7 +1161,7 @@ export function DashboardPage() {
                           backgroundColor: rework.status === 'Approved' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
                           color: rework.status === 'Approved' ? '#10B981' : '#F59E0B'
                         }}>
-                          {rework.status}
+                          {rework.status === 'Approved' ? t('enums.processAction.REWORK_APPROVED') : rework.status === 'In Progress' ? t('enums.processStatus.IN_PROGRESS') : rework.status === 'Completed' ? t('enums.processStatus.COMPLETED') : rework.status}
                         </span>
                       </div>
                     </div>
@@ -1169,7 +1171,7 @@ export function DashboardPage() {
             </div>
             <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
               <button className="btn btn--ghost btn--sm" onClick={() => setActiveModalTech(null)}>
-                Close
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -1184,18 +1186,18 @@ export function DashboardPage() {
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <RotateCcw size={20} style={{ color: '#D946EF' }} />
-                  <span>Repetition Involvement: {activeModalTech.name}</span>
+                  <span>{t('dashboard.repetitionInvolvement', { name: activeModalTech.name })}</span>
                 </h2>
-                <p className="modal__subtitle">Repetition Work Orders in which the technician was involved</p>
+                <p className="modal__subtitle">{t('dashboard.repetitionInvolvementSubtitle')}</p>
               </div>
-              <button className="modal__close" onClick={() => setActiveModalTech(null)} aria-label="Close">
+              <button className="modal__close" onClick={() => setActiveModalTech(null)} aria-label={t('common.close')}>
                 <X size={20} />
               </button>
             </div>
             <div className="modal__body" style={{ padding: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
               {activeModalTech.repetitionDetails.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                  No repetition involvement recorded.
+                  {t('dashboard.noRepetitionInvolvement')}
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1218,7 +1220,7 @@ export function DashboardPage() {
                               setShowViewModal(true);
                               setActiveModalTech(null);
                             }}
-                            title="Click to view Work Order"
+                            title={t('dashboard.clickToViewWO')}
                           >
                             {wo.folioNumber}
                           </span>
@@ -1232,12 +1234,12 @@ export function DashboardPage() {
                           padding: '2px 8px',
                           borderRadius: '100px'
                         }}>
-                          {wo.repetitionCount} Repetitions
+                          {t('dashboard.xRepetitions', { count: wo.repetitionCount })}
                         </span>
                       </div>
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', borderTop: '1px dashed var(--border)', paddingTop: '6px' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Triggered Repetition Events:</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('dashboard.triggeredRepetitionEvents')}</span>
                         {wo.repetitionLogs.map((log: any) => (
                           <div key={log.id} style={{
                             fontSize: '0.725rem',
@@ -1252,8 +1254,8 @@ export function DashboardPage() {
                             flexWrap: 'wrap',
                             gap: '4px'
                           }}>
-                            <span>Stage: <strong>{log.verificationStage}</strong> (by {log.initiatedBy})</span>
-                            <span>{new Date(log.initiatedAt).toLocaleString()}</span>
+                            <span>{t('dashboard.stage')}: <strong>{log.verificationStage}</strong> ({t('dashboard.triggeredBy')}: {log.initiatedBy})</span>
+                            <span>{new Date(log.initiatedAt).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US')}</span>
                           </div>
                         ))}
                       </div>
@@ -1264,7 +1266,7 @@ export function DashboardPage() {
             </div>
             <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
               <button className="btn btn--ghost btn--sm" onClick={() => setActiveModalTech(null)}>
-                Close
+                {t('common.close')}
               </button>
             </div>
           </div>

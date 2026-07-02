@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { authService } from '../services';
 
@@ -8,6 +9,7 @@ export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -17,21 +19,21 @@ export function ResetPasswordPage() {
 
   useEffect(() => {
     if (!token) {
-      toast.error('Invalid or missing password reset token');
+      toast.error(t('resetPassword.invalidToken'));
       navigate('/login');
     }
-  }, [token, navigate]);
+  }, [token, navigate, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters long');
+      toast.error(t('resetPassword.passwordMinLength'));
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error(t('resetPassword.passwordsDoNotMatch'));
       return;
     }
 
@@ -39,9 +41,9 @@ export function ResetPasswordPage() {
       setIsSubmitting(true);
       await authService.resetPassword({ token: token!, newPassword: password });
       setSuccess(true);
-      toast.success('Password reset successfully!');
+      toast.success(t('resetPassword.resetSuccess'));
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to reset password');
+      toast.error(err?.response?.data?.message || t('resetPassword.resetFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -52,16 +54,16 @@ export function ResetPasswordPage() {
       <div className="login-page">
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <CheckCircle2 size={48} style={{ color: 'var(--success)', marginBottom: '1rem' }} />
-          <h2 className="login-page__heading">Password Reset Complete</h2>
+          <h2 className="login-page__heading">{t('resetPassword.passwordResetComplete')}</h2>
           <p className="login-page__subheading">
-            Your password has been set successfully. You can now log into your account.
+            {t('resetPassword.passwordSetSuccess')}
           </p>
         </div>
         <button
           className="btn btn--primary btn--full"
           onClick={() => navigate('/login')}
         >
-          Proceed to Login
+          {t('resetPassword.proceedToLogin')}
         </button>
       </div>
     );
@@ -69,22 +71,22 @@ export function ResetPasswordPage() {
 
   return (
     <div className="login-page">
-      <h2 className="login-page__heading">Set Your Password</h2>
+      <h2 className="login-page__heading">{t('resetPassword.setYourPassword')}</h2>
       <p className="login-page__subheading">
-        Please create a new password to secure your account.
+        {t('resetPassword.createNewPassword')}
       </p>
 
       <form className="login-page__form" onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="password" className="form-label">
-            New Password
+            {t('resetPassword.newPassword')}
           </label>
           <div className="form-input-wrapper">
             <input
               id="password"
               type={showPassword ? 'text' : 'password'}
               className="form-input"
-              placeholder="Min. 8 characters"
+              placeholder={t('resetPassword.minChars')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isSubmitting}
@@ -102,14 +104,14 @@ export function ResetPasswordPage() {
 
         <div className="form-group">
           <label htmlFor="confirm-password" className="form-label">
-            Confirm Password
+            {t('resetPassword.confirmPassword')}
           </label>
           <div className="form-input-wrapper">
             <input
               id="confirm-password"
               type={showPassword ? 'text' : 'password'}
               className="form-input"
-              placeholder="Confirm new password"
+              placeholder={t('resetPassword.confirmPlaceholder')}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={isSubmitting}
@@ -127,7 +129,7 @@ export function ResetPasswordPage() {
           ) : (
             <>
               <Lock size={18} />
-              <span>Set Password</span>
+              <span>{t('resetPassword.setPassword')}</span>
             </>
           )}
         </button>

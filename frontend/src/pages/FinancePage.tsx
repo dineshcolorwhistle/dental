@@ -11,6 +11,7 @@ import {
   Percent,
   X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { financeService, branchService } from '../services';
 import type { FinanceStats, PendingPaymentWorkOrder } from '../services';
@@ -25,6 +26,7 @@ interface BranchItem {
 type DateRangeType = 'current-month' | 'previous-month' | 'last-3-months' | 'last-6-months' | 'current-year' | 'custom';
 
 export function FinancePage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   // --- State Variables ---
   const [branches, setBranches] = useState<BranchItem[]>([]);
@@ -131,9 +133,9 @@ export function FinancePage() {
       })
       .catch((err) => {
         console.error('Failed to load branches', err);
-        toast.error('Failed to load branches');
+        toast.error(t('branches.failedLoad', { defaultValue: 'Failed to load branches' }));
       });
-  }, [user?.role]);
+  }, [user?.role, t]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -159,7 +161,7 @@ export function FinancePage() {
       setStats(statsData);
     } catch (err) {
       console.error('Failed to fetch financial statistics', err);
-      toast.error('Failed to load financial statistics');
+      toast.error(t('finance.failedLoadStats', { defaultValue: 'Failed to load financial statistics' }));
     } finally {
       setStatsLoading(false);
     }
@@ -181,7 +183,7 @@ export function FinancePage() {
       setPendingTotal(pendingData.meta.total);
     } catch (err) {
       console.error('Failed to fetch pending payments', err);
-      toast.error('Failed to load pending payments list');
+      toast.error(t('finance.failedLoadPending', { defaultValue: 'Failed to load pending payments list' }));
     } finally {
       setPendingLoading(false);
     }
@@ -202,9 +204,9 @@ export function FinancePage() {
   };
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('es-MX', {
+    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
       style: 'currency',
-      currency: 'MXN',
+      currency: i18n.language?.startsWith('es') ? 'MXN' : 'INR',
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -448,10 +450,10 @@ export function FinancePage() {
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-heading)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <TrendingUp size={28} style={{ color: 'var(--accent-primary)' }} />
-            <span>Finance Overview</span>
+            <span>{t('finance.overviewTitle', { defaultValue: 'Finance Overview' })}</span>
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '2px', margin: 0 }}>
-            Lab financial health, collections efficiency, and branch revenue summaries
+            {t('finance.overviewSubtitle', { defaultValue: 'Lab financial health, collections efficiency, and branch revenue summaries' })}
           </p>
         </div>
 
@@ -481,10 +483,10 @@ export function FinancePage() {
                 <Building2 size={16} />
                 <span>
                   {selectedBranches.length === 0
-                    ? 'All Branches'
+                    ? t('branches.allBranches')
                     : selectedBranches.length === 1
-                    ? branches.find(b => b.id === selectedBranches[0])?.name || '1 Branch'
-                    : `${selectedBranches.length} Branches`}
+                    ? branches.find(b => b.id === selectedBranches[0])?.name || t('branches.oneSelected', { defaultValue: '1 Branch' })
+                    : t('branches.nSelected', { count: selectedBranches.length, defaultValue: `${selectedBranches.length} Branches` })}
                 </span>
                 {selectedBranches.length > 0 && (
                   <span
@@ -501,7 +503,7 @@ export function FinancePage() {
                       backgroundColor: 'rgba(239, 68, 68, 0.1)',
                       color: 'var(--danger)',
                     }}
-                    title="Clear branch filter"
+                    title={t('branches.clearFilter', { defaultValue: 'Clear branch filter' })}
                   >
                     <X size={12} />
                   </span>
@@ -542,7 +544,7 @@ export function FinancePage() {
                         cursor: 'pointer',
                       }}
                     >
-                      All Branches
+                      {t('branches.allBranches')}
                     </button>
                     {branches.map((b) => {
                       const isSel = selectedBranches.includes(b.id);
@@ -580,12 +582,12 @@ export function FinancePage() {
           <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-surface)' }}>
             {(['current-month', 'previous-month', 'last-3-months', 'last-6-months', 'current-year', 'custom'] as const).map((type) => {
               const labels: Record<DateRangeType, string> = {
-                'current-month': 'This Month',
-                'previous-month': 'Last Month',
-                'last-3-months': 'Last 3M',
-                'last-6-months': 'Last 6M',
-                'current-year': 'Year',
-                'custom': 'Custom',
+                'current-month': t('finance.dateRanges.thisMonth', { defaultValue: 'This Month' }),
+                'previous-month': t('finance.dateRanges.lastMonth', { defaultValue: 'Last Month' }),
+                'last-3-months': t('finance.dateRanges.last3M', { defaultValue: 'Last 3M' }),
+                'last-6-months': t('finance.dateRanges.last6M', { defaultValue: 'Last 6M' }),
+                'current-year': t('finance.dateRanges.year', { defaultValue: 'Year' }),
+                'custom': t('common.custom', { defaultValue: 'Custom' }),
               };
 
               const isActive = dateRangeType === type;
@@ -631,7 +633,7 @@ export function FinancePage() {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Start Date</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('common.startDate')}</span>
             <input
               type="date"
               value={customStartDate}
@@ -641,7 +643,7 @@ export function FinancePage() {
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>End Date</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('common.endDate')}</span>
             <input
               type="date"
               value={customEndDate}
@@ -671,10 +673,10 @@ export function FinancePage() {
               backgroundColor: 'rgba(239, 68, 68, 0.05)',
               border: '1px solid rgba(239, 68, 68, 0.2)',
             }}
-            title="Reset Date Filter"
+            title={t('common.reset')}
           >
             <X size={14} />
-            <span>Reset</span>
+            <span>{t('common.reset')}</span>
           </button>
         </div>
       )}
@@ -713,7 +715,7 @@ export function FinancePage() {
               <TrendingUp size={24} />
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Revenue</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('finance.totalRevenue', { defaultValue: 'Total Revenue' })}</span>
               <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
                 {formatCurrency(stats.summary.totalQuotedAmount)}
               </h3>
@@ -744,7 +746,7 @@ export function FinancePage() {
               <Coins size={24} />
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Collected</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('finance.totalCollected', { defaultValue: 'Total Collected' })}</span>
               <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
                 {formatCurrency(stats.summary.totalPaidAmount)}
               </h3>
@@ -775,7 +777,7 @@ export function FinancePage() {
               <AlertCircle size={24} />
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Outstanding</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('finance.outstanding', { defaultValue: 'Outstanding' })}</span>
               <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
                 {formatCurrency(stats.summary.totalOutstandingAmount)}
               </h3>
@@ -806,7 +808,7 @@ export function FinancePage() {
               <Percent size={24} />
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Collection %</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('finance.collectionPercentage', { defaultValue: 'Collection %' })}</span>
               <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
                 {stats.summary.collectionPercentage.toFixed(1)}%
               </h3>
@@ -838,7 +840,7 @@ export function FinancePage() {
                 <Building2 size={24} />
               </div>
               <div style={{ overflow: 'hidden' }}>
-                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Branch</span>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('finance.topBranch', { defaultValue: 'Top Branch' })}</span>
                 <h3 style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={stats.summary.topPerformingBranch.name}>
                   {stats.summary.topPerformingBranch.name}
                 </h3>
@@ -873,7 +875,7 @@ export function FinancePage() {
               <TrendingDown size={24} />
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending Payments</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('finance.pendingPayments', { defaultValue: 'Pending Payments' })}</span>
               <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
                 {stats.summary.pendingPaymentCount}
               </h3>
@@ -899,7 +901,7 @@ export function FinancePage() {
             }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <TrendingUp size={18} style={{ color: 'var(--accent-primary)' }} />
-                <span>Monthly Revenue & Collections Trend</span>
+                <span>{t('finance.monthlyTrendTitle', { defaultValue: 'Monthly Revenue & Collections Trend' })}</span>
               </h3>
               
               <div style={{ position: 'relative' }}>
@@ -1081,12 +1083,12 @@ export function FinancePage() {
                     <div style={{ display: 'flex', gap: '8px', fontSize: '0.6875rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--accent-primary)' }} />
-                        <span style={{ color: 'var(--text-muted)' }}>Revenue:</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('finance.revenue', { defaultValue: 'Revenue' })}:</span>
                         <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(lineTooltip.quoted)}</strong>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
-                        <span style={{ color: 'var(--text-muted)' }}>Collected:</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('finance.collected', { defaultValue: 'Collected' })}:</span>
                         <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(lineTooltip.paid)}</strong>
                       </div>
                     </div>
@@ -1098,11 +1100,11 @@ export function FinancePage() {
               <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem' }}>
                   <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: 'var(--accent-primary)' }} />
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Revenue (Quoted Amount)</span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('finance.revenueQuotedDesc', { defaultValue: 'Revenue (Quoted Amount)' })}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem' }}>
                   <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: 'var(--success)' }} />
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Collections (Paid Amount)</span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('finance.collectionsPaidDesc', { defaultValue: 'Collections (Paid Amount)' })}</span>
                 </div>
               </div>
 
@@ -1121,7 +1123,7 @@ export function FinancePage() {
             }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Building2 size={18} style={{ color: 'var(--accent-primary)' }} />
-                <span>Revenue by Branch</span>
+                <span>{t('finance.revenueByBranch', { defaultValue: 'Revenue by Branch' })}</span>
               </h3>
 
               <div style={{ position: 'relative' }}>
@@ -1246,7 +1248,7 @@ export function FinancePage() {
             }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Coins size={18} style={{ color: 'var(--success)' }} />
-                <span>Collections vs Outstanding by Branch</span>
+                <span>{t('finance.collectionVsOutstandingByBranch', { defaultValue: 'Collections vs Outstanding by Branch' })}</span>
               </h3>
 
               <div style={{ position: 'relative' }}>
@@ -1359,18 +1361,18 @@ export function FinancePage() {
                     zIndex: 10,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '4px',
+                  gap: '4px',
                   }}>
                     <span style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{multiBarTooltip.label}</span>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.6875rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
-                        <span style={{ color: 'var(--text-muted)' }}>Paid:</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('common.paid', { defaultValue: 'Paid' })}:</span>
                         <strong style={{ color: 'var(--success)' }}>{formatCurrency(multiBarTooltip.paid)}</strong>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--warning)' }} />
-                        <span style={{ color: 'var(--text-muted)' }}>Outstanding:</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('finance.outstanding', { defaultValue: 'Outstanding' })}:</span>
                         <strong style={{ color: 'var(--warning)' }}>{formatCurrency(multiBarTooltip.outstanding)}</strong>
                       </div>
                     </div>
@@ -1382,11 +1384,11 @@ export function FinancePage() {
               <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem' }}>
                   <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: 'var(--success)' }} />
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Paid (Collections)</span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('finance.paidCollections', { defaultValue: 'Paid (Collections)' })}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem' }}>
                   <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: 'var(--warning)' }} />
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Outstanding</span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('finance.outstanding')}</span>
                 </div>
               </div>
 
@@ -1406,7 +1408,7 @@ export function FinancePage() {
             }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Percent size={18} style={{ color: 'var(--accent-primary)' }} />
-                <span>Payment Status Distribution</span>
+                <span>{t('finance.paymentStatusDistribution', { defaultValue: 'Payment Status Distribution' })}</span>
               </h3>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flex: 1, flexWrap: 'wrap', gap: '1rem' }}>
@@ -1469,7 +1471,7 @@ export function FinancePage() {
                       {donutChartData.total}
                     </span>
                     <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginTop: '2px' }}>
-                      Orders
+                      {t('finance.orders', { defaultValue: 'Orders' })}
                     </span>
                   </div>
                 </div>
@@ -1479,7 +1481,7 @@ export function FinancePage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--success)' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
-                      <span>Paid Work Orders</span>
+                      <span>{t('finance.paidWorkOrders', { defaultValue: 'Paid Work Orders' })}</span>
                     </div>
                     <div style={{ paddingLeft: '1.25rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                       <strong>{donutChartData.paid}</strong> ({donutChartData.paidPct.toFixed(1)}%)
@@ -1489,7 +1491,7 @@ export function FinancePage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--warning)' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--warning)' }} />
-                      <span>Pending Payment</span>
+                      <span>{t('finance.pendingPayment', { defaultValue: 'Pending Payment' })}</span>
                     </div>
                     <div style={{ paddingLeft: '1.25rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                       <strong>{donutChartData.pending}</strong> ({donutChartData.pendingPct.toFixed(1)}%)
@@ -1515,20 +1517,20 @@ export function FinancePage() {
         }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Building2 size={18} style={{ color: 'var(--accent-primary)' }} />
-            <span>Branch Financial Performance</span>
+            <span>{t('finance.branchPerformance', { defaultValue: 'Branch Financial Performance' })}</span>
           </h3>
 
           <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
-                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Branch</th>
-                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Quoted (Revenue)</th>
-                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Collected (Paid)</th>
-                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Outstanding</th>
-                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>Collection %</th>
-                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>Paid WO</th>
-                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>Pending WO</th>
+                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.branch')}</th>
+                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.quotedRevenue', { defaultValue: 'Quoted (Revenue)' })}</th>
+                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.collectedPaid', { defaultValue: 'Collected (Paid)' })}</th>
+                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.outstanding')}</th>
+                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('finance.collectionPercentage')}</th>
+                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('finance.paidWO', { defaultValue: 'Paid WO' })}</th>
+                  <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('finance.pendingWO', { defaultValue: 'Pending WO' })}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1571,10 +1573,10 @@ export function FinancePage() {
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-heading)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Coins size={18} style={{ color: 'var(--danger)' }} />
-              <span>Pending Payment Work Orders Tracker</span>
+              <span>{t('finance.pendingTrackerTitle', { defaultValue: 'Pending Payment Work Orders Tracker' })}</span>
             </h3>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', margin: 0 }}>
-              Work orders with outstanding balances created in the filtered range
+              {t('finance.pendingTrackerSubtitle', { defaultValue: 'Work orders with outstanding balances created in the filtered range' })}
             </p>
           </div>
 
@@ -1585,7 +1587,7 @@ export function FinancePage() {
             </span>
             <input
               type="text"
-              placeholder="Search by Patient, Doctor or Folio..."
+              placeholder={t('finance.searchPendingPlaceholder', { defaultValue: 'Search by Patient, Doctor or Folio...' })}
               value={pendingSearch}
               onChange={handleSearchChange}
               className="form-input"
@@ -1598,12 +1600,12 @@ export function FinancePage() {
         {pendingLoading ? (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '200px', gap: '12px' }}>
             <div className="loading-spinner" />
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Loading pending work orders...</span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('finance.loadingPending', { defaultValue: 'Loading pending work orders...' })}</span>
           </div>
         ) : pendingWOs.length === 0 ? (
           <div style={{ padding: '3rem 1.5rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)' }}>
             <Coins size={36} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
-            <p style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>No pending payment work orders found matching filters.</p>
+            <p style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>{t('finance.noPendingWOs', { defaultValue: 'No pending payment work orders found matching filters.' })}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1612,28 +1614,28 @@ export function FinancePage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Folio</th>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Patient</th>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Doctor/Clinic</th>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Branch</th>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Quoted</th>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Paid</th>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Outstanding</th>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Est. Due Date</th>
-                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>WO Status</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.folio')}</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.patient')}</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.doctorClinic', { defaultValue: 'Doctor/Clinic' })}</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.branch')}</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.quoted', { defaultValue: 'Quoted' })}</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.paid')}</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.outstanding')}</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.estDueDate', { defaultValue: 'Est. Due Date' })}</th>
+                    <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.status', { defaultValue: 'WO Status' })}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pendingWOs.map((wo, idx) => {
                     const statusLabels: Record<string, string> = {
-                      CREATED: 'Created',
-                      ASSIGNED: 'Assigned',
-                      IN_PROGRESS: 'In Progress',
-                      INTERNAL_VERIFICATION: 'Int. QC',
-                      EXTERNAL_VERIFICATION: 'Ext. QC',
-                      COMPLETED: 'Completed',
-                      FAILED: 'Failed',
-                      CANCELLED: 'Cancelled',
+                      CREATED: t('enums.workOrderStatus.CREATED'),
+                      ASSIGNED: t('enums.workOrderStatus.ASSIGNED'),
+                      IN_PROGRESS: t('enums.workOrderStatus.IN_PROGRESS'),
+                      INTERNAL_VERIFICATION: t('enums.workOrderStatus.INTERNAL_VERIFICATION'),
+                      EXTERNAL_VERIFICATION: t('enums.workOrderStatus.EXTERNAL_VERIFICATION'),
+                      COMPLETED: t('enums.workOrderStatus.COMPLETED'),
+                      FAILED: t('enums.workOrderStatus.FAILED'),
+                      CANCELLED: t('enums.workOrderStatus.CANCELLED'),
                     };
 
                     let badgeColor = 'var(--text-muted)';
@@ -1678,7 +1680,7 @@ export function FinancePage() {
                           {formatCurrency(wo.outstandingAmount)}
                         </td>
                         <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                          {new Date(wo.dueDate).toLocaleDateString('en-IN', {
+                          {new Date(wo.dueDate).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',
@@ -1706,9 +1708,9 @@ export function FinancePage() {
 
             {/* Pagination controls */}
             {pendingTotal > pendingLimit && (
-              <div style={{ display: 'flex', justifyContent: 'between', alignItems: 'center', marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                  Showing <strong>{((pendingPage - 1) * pendingLimit) + 1}</strong> to <strong>{Math.min(pendingPage * pendingLimit, pendingTotal)}</strong> of <strong>{pendingTotal}</strong> pending work orders
+                  {t('finance.showingPendingRange', { start: ((pendingPage - 1) * pendingLimit) + 1, end: Math.min(pendingPage * pendingLimit, pendingTotal), total: pendingTotal, defaultValue: `Showing ${((pendingPage - 1) * pendingLimit) + 1} to ${Math.min(pendingPage * pendingLimit, pendingTotal)} of ${pendingTotal} pending work orders` })}
                 </span>
                 
                 <div style={{ display: 'flex', gap: '0.25rem' }}>

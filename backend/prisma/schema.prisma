@@ -49,6 +49,11 @@ enum ProcessStatus {
   CANCELLED
 }
 
+enum Language {
+  EN
+  ES
+}
+
 
 // ─── Tenant ──────────────────────────────────────────────
 
@@ -91,6 +96,7 @@ model TenantSettings {
   workingHoursStart String @default("09:00") @map("working_hours_start")
   workingHoursEnd   String @default("18:00") @map("working_hours_end")
   features       Json   @default("{}")
+  defaultLanguage Language @default(ES) @map("default_language")
 
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -143,6 +149,7 @@ model User {
   lastLoginAt   DateTime?  @map("last_login_at")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
+  preferredLanguage Language @default(ES) @map("preferred_language")
 
   // Relations
   tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)

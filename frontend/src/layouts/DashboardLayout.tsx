@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   LogOut,
@@ -26,20 +27,13 @@ import {
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, type NotificationItem } from '../services';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import toast from 'react-hot-toast';
-
-const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  OWNER: 'Owner',
-  ADMIN: 'Administrator',
-  TECHNICIAN: 'Technician',
-  DELIVERY: 'Delivery',
-  DOCTOR: 'Doctor',
-};
 
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -59,12 +53,12 @@ export function DashboardLayout() {
     try {
       const success = await subscribePush();
       if (success) {
-        toast.success('Push notifications enabled successfully!');
+        toast.success(t('notifications.pushEnabled'));
       } else {
-        toast.error('Permission denied or failed to enable push notifications.');
+        toast.error(t('notifications.pushDenied'));
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to enable push notifications.');
+      toast.error(err.message || t('notifications.pushEnableFailed'));
     }
   };
 
@@ -72,12 +66,12 @@ export function DashboardLayout() {
     try {
       const success = await unsubscribePush();
       if (success) {
-        toast.success('Push notifications disabled.');
+        toast.success(t('notifications.pushDisabled'));
       } else {
-        toast.error('Failed to disable push notifications.');
+        toast.error(t('notifications.pushDisableFailed'));
       }
     } catch {
-      toast.error('Failed to disable push notifications.');
+      toast.error(t('notifications.pushDisableFailed'));
     }
   };
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -240,7 +234,7 @@ export function DashboardLayout() {
             onClick={() => setSidebarOpen(false)}
           >
             <LayoutDashboard size={20} />
-            <span>Dashboard</span>
+            <span>{t('navigation.dashboard')}</span>
           </NavLink>
 
           {user?.role === 'OWNER' && (
@@ -253,7 +247,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <DollarSign size={20} />
-                <span>Finance</span>
+                <span>{t('navigation.finance')}</span>
               </NavLink>
               <NavLink
                 to="/branches"
@@ -263,7 +257,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <GitBranch size={20} />
-                <span>Branches</span>
+                <span>{t('navigation.branches')}</span>
               </NavLink>
               <NavLink
                 to="/admins"
@@ -273,7 +267,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Users size={20} />
-                <span>Lab Admins</span>
+                <span>{t('navigation.labAdmins')}</span>
               </NavLink>
               <NavLink
                 to="/technicians"
@@ -283,7 +277,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Wrench size={20} />
-                <span>Technicians</span>
+                <span>{t('navigation.technicians')}</span>
               </NavLink>
               <NavLink
                 to="/doctors"
@@ -293,7 +287,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Stethoscope size={20} />
-                <span>Doctors</span>
+                <span>{t('navigation.doctors')}</span>
               </NavLink>
               <NavLink
                 to="/processes"
@@ -303,7 +297,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <GitMerge size={20} />
-                <span>Processes</span>
+                <span>{t('navigation.processes')}</span>
               </NavLink>
               <NavLink
                 to="/prosthesis-types"
@@ -313,7 +307,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Sparkles size={20} />
-                <span>Prosthesis Types</span>
+                <span>{t('navigation.prosthesisTypes')}</span>
               </NavLink>
 
               <NavLink
@@ -324,7 +318,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <ClipboardList size={20} />
-                <span>Work Orders</span>
+                <span>{t('navigation.workOrders')}</span>
               </NavLink>
             </>
           )}
@@ -339,7 +333,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <DollarSign size={20} />
-                <span>Finance</span>
+                <span>{t('navigation.finance')}</span>
               </NavLink>
               <NavLink
                 to="/technicians"
@@ -349,7 +343,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Wrench size={20} />
-                <span>Technician</span>
+                <span>{t('navigation.technician')}</span>
               </NavLink>
               <NavLink
                 to="/doctors"
@@ -359,7 +353,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Stethoscope size={20} />
-                <span>Doctors</span>
+                <span>{t('navigation.doctors')}</span>
               </NavLink>
               <NavLink
                 to="/processes"
@@ -369,7 +363,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <GitMerge size={20} />
-                <span>Processes</span>
+                <span>{t('navigation.processes')}</span>
               </NavLink>
               <NavLink
                 to="/prosthesis-types"
@@ -379,7 +373,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Sparkles size={20} />
-                <span>Prosthesis Types</span>
+                <span>{t('navigation.prosthesisTypes')}</span>
               </NavLink>
 
               <NavLink
@@ -390,7 +384,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <ClipboardList size={20} />
-                <span>Work Orders</span>
+                <span>{t('navigation.workOrders')}</span>
               </NavLink>
             </>
           )}
@@ -404,7 +398,7 @@ export function DashboardLayout() {
               onClick={() => setSidebarOpen(false)}
             >
               <ClipboardList size={20} />
-              <span>My Work Orders</span>
+              <span>{t('navigation.myWorkOrders')}</span>
             </NavLink>
           )}
 
@@ -417,7 +411,7 @@ export function DashboardLayout() {
               onClick={() => setSidebarOpen(false)}
             >
               <Building2 size={20} />
-              <span>Tenants</span>
+              <span>{t('navigation.tenants')}</span>
             </NavLink>
           )}
         </nav>
@@ -457,10 +451,10 @@ export function DashboardLayout() {
           <button
             className="sidebar__logout-btn-full"
             onClick={handleLogout}
-            aria-label="Logout"
+            aria-label={t('common.logout')}
           >
             <LogOut size={16} />
-            <span>Logout</span>
+            <span>{t('common.logout')}</span>
           </button>
         </div>
       </aside>
@@ -491,7 +485,7 @@ export function DashboardLayout() {
               <button
                 className="topbar__menu-btn"
                 style={{ display: 'flex', position: 'relative' }}
-                aria-label="Notifications"
+                aria-label={t('notifications.title')}
                 onClick={() => setNotifOpen(!notifOpen)}
               >
                 <Bell size={20} />
@@ -503,11 +497,11 @@ export function DashboardLayout() {
               {notifOpen && (
                 <div className="notif-dropdown">
                   <div className="notif-dropdown__header">
-                    <span className="notif-dropdown__title">Notifications</span>
+                    <span className="notif-dropdown__title">{t('notifications.title')}</span>
                     {unreadCount > 0 && (
                       <button className="notif-dropdown__mark-all" onClick={handleMarkAllRead}>
                         <Check size={12} />
-                        Mark all read
+                        {t('notifications.markAllRead')}
                       </button>
                     )}
                   </div>
@@ -516,25 +510,25 @@ export function DashboardLayout() {
                       {!isPushSubscribed ? (
                         <div className="push-banner">
                           <span className="push-banner__text">
-                            Enable desktop push notifications to get alerts when your work orders update.
+                            {t('notifications.enableDesktopPush')}
                           </span>
                           <button
                             className="push-banner__btn"
                             onClick={handleEnablePush}
                             disabled={pushLoading}
                           >
-                            {pushLoading ? 'Enabling...' : 'Enable Notifications'}
+                            {pushLoading ? t('notifications.enabling') : t('notifications.enableNotifications')}
                           </button>
                         </div>
                       ) : (
                         <div className="push-status-bar">
-                          <span>Push notifications active</span>
+                          <span>{t('notifications.pushActive')}</span>
                           <button
                             className="push-status-bar__toggle"
                             onClick={handleDisablePush}
                             disabled={pushLoading}
                           >
-                            Disable
+                            {t('common.disable')}
                           </button>
                         </div>
                       )}
@@ -544,7 +538,7 @@ export function DashboardLayout() {
                     {notifications.length === 0 ? (
                       <div className="notif-dropdown__empty">
                         <Bell size={20} style={{ opacity: 0.3 }} />
-                        <span>No notifications</span>
+                        <span>{t('notifications.noNotifications')}</span>
                       </div>
                     ) : (
                       notifications.slice(0, 20).map((n) => (
@@ -557,7 +551,7 @@ export function DashboardLayout() {
                           <div className="notif-dropdown__item-title">{n.title}</div>
                           <div className="notif-dropdown__item-msg">{n.message}</div>
                           <div className="notif-dropdown__item-time">
-                            {new Date(n.createdAt).toLocaleDateString('en-IN', {
+                            {new Date(n.createdAt).toLocaleDateString(undefined, {
                               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                             })}
                           </div>
@@ -584,7 +578,7 @@ export function DashboardLayout() {
                               }}
                               onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
                               onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
-                              title="Delete notification"
+                              title={t('notifications.deleteNotification')}
                             >
                               <Trash2 size={13} style={{ color: '#EF4444' }} />
                             </button>
@@ -596,6 +590,7 @@ export function DashboardLayout() {
                 </div>
               )}
             </div>
+            <LanguageSwitcher />
             <button
               onClick={toggleTheme}
               className="topbar__menu-btn"
@@ -620,7 +615,7 @@ export function DashboardLayout() {
                   {user?.firstName} {user?.lastName}
                 </span>
                 <span className="topbar__user-role">
-                  {ROLE_LABELS[user?.role ?? ''] ?? user?.role}
+                  {t(`enums.userRole.${user?.role ?? ''}`)}
                 </span>
               </div>
               <ChevronDown size={16} className={`topbar__chevron ${dropdownOpen ? 'topbar__chevron--open' : ''}`} />
@@ -630,7 +625,7 @@ export function DashboardLayout() {
               <div className="topbar__dropdown">
                 <button className="topbar__dropdown-item" onClick={() => { setDropdownOpen(false); }}>
                   <User size={16} />
-                  <span>Profile</span>
+                  <span>{t('common.profile')}</span>
                 </button>
                 <div className="topbar__dropdown-divider" />
                 <button
@@ -638,7 +633,7 @@ export function DashboardLayout() {
                   onClick={handleLogout}
                 >
                   <LogOut size={16} />
-                  <span>Logout</span>
+                  <span>{t('common.logout')}</span>
                 </button>
               </div>
             )}

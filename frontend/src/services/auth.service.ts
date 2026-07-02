@@ -18,6 +18,7 @@ export interface AuthUser {
   branchName?: string | null;
   maxAdmins?: number | null;
   maxTechnicians?: number | null;
+  preferredLanguage?: 'EN' | 'ES' | null;
 }
 
 export interface AuthResponse {
@@ -32,6 +33,7 @@ export interface UserProfile extends AuthUser {
   avatarUrl: string | null;
   lastLoginAt: string | null;
   createdAt: string;
+  preferredLanguage: 'EN' | 'ES';
   tenant: {
     id: string;
     name: string;
@@ -87,5 +89,10 @@ export const authService = {
 
   requestTenantLimitIncrease: async (message: string): Promise<void> => {
     await api.post('/auth/tenant-limits/request', { message });
+  },
+
+  updateLanguage: async (language: 'EN' | 'ES'): Promise<{ message: string; language: string }> => {
+    const { data } = await api.patch('/auth/language', { language });
+    return data;
   },
 };

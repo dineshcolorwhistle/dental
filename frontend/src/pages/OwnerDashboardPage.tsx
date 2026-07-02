@@ -8,9 +8,11 @@ import {
   Building2,
   Sparkles
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 
 export function OwnerDashboardPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [limits, setLimits] = useState<TenantLimitsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,9 +22,9 @@ export function OwnerDashboardPage() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('dashboard.greetingMorning');
+    if (hour < 17) return t('dashboard.greetingAfternoon');
+    return t('dashboard.greetingEvening');
   };
 
   const fetchLimits = async () => {
@@ -32,7 +34,7 @@ export function OwnerDashboardPage() {
       setLimits(data);
     } catch (err) {
       console.error('Failed to load tenant limits:', err);
-      toast.error('Failed to retrieve tenant capacity and limits');
+      toast.error(t('dashboard.failedRetrieveLimits'));
     } finally {
       setLoading(false);
     }
@@ -45,18 +47,18 @@ export function OwnerDashboardPage() {
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requestNote.trim()) {
-      toast.error('Please enter details about your request');
+      toast.error(t('dashboard.enterRequestDetails'));
       return;
     }
 
     try {
       setSubmitting(true);
       await authService.requestTenantLimitIncrease(requestNote);
-      toast.success('Your limit increase request has been submitted to the Super Admin!');
+      toast.success(t('dashboard.limitIncreaseRequestSubmitted'));
       setRequestModalOpen(false);
       setRequestNote('');
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to submit upgrade request';
+      const message = err?.response?.data?.message || t('dashboard.failedSubmitUpgradeRequest');
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -75,7 +77,7 @@ export function OwnerDashboardPage() {
             {getGreeting()}, {user?.firstName}!
           </h1>
           <p className="dashboard-page__subtitle" style={{ color: 'var(--text-secondary)', margin: 0 }}>
-            Dental Laboratory Capacity Console
+            {t('dashboard.capacityConsole')}
           </p>
         </div>
         <div style={{
@@ -91,7 +93,7 @@ export function OwnerDashboardPage() {
           color: 'var(--accent-primary)'
         }}>
           <Building2 size={14} />
-          <span>Tenant Configuration Mode</span>
+          <span>{t('dashboard.tenantConfigMode')}</span>
         </div>
       </div>
 
@@ -126,10 +128,10 @@ export function OwnerDashboardPage() {
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
               <div>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-heading)' }}>
-                  Active Limits & Resource Allocation
+                  {t('dashboard.activeLimitsAllocation')}
                 </h2>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 1.5rem 0', maxWidth: '750px' }}>
-                  Monitor and configure the maximum number of administrators and technicians registered under your organization. If you need additional capacity to support your growing team or new branches, you can request a limit upgrade at any time.
+                  {t('dashboard.limitsExplanation')}
                 </p>
               </div>
               <button 
@@ -138,7 +140,7 @@ export function OwnerDashboardPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, flexShrink: 0 }}
               >
                 <Sparkles size={16} />
-                <span>Request Limit Increase</span>
+                <span>{t('dashboard.requestLimitIncrease')}</span>
               </button>
             </div>
 
@@ -171,8 +173,8 @@ export function OwnerDashboardPage() {
                     <Users size={20} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Lab Administrators</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Organization-wide admins</span>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{t('dashboard.labAdmins')}</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('dashboard.organizationWideAdmins')}</span>
                   </div>
                 </div>
 
@@ -181,19 +183,19 @@ export function OwnerDashboardPage() {
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                       {limits?.currentAdmins}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Assigned</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.assigned')}</div>
                   </div>
                   <div style={{ padding: '8px', borderRight: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                       {limits?.maxAdmins}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Total Limit</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.totalLimit')}</div>
                   </div>
                   <div style={{ padding: '8px' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: remainingAdmins > 0 ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
                       {remainingAdmins}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Remaining</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.remaining')}</div>
                   </div>
                 </div>
 
@@ -201,7 +203,7 @@ export function OwnerDashboardPage() {
                 {limits && (
                   <div style={{ marginTop: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      <span>Usage Level</span>
+                      <span>{t('dashboard.usageLevel')}</span>
                       <span>{Math.round((limits.currentAdmins / limits.maxAdmins) * 100)}%</span>
                     </div>
                     <div style={{ height: '6px', backgroundColor: 'var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
@@ -238,8 +240,8 @@ export function OwnerDashboardPage() {
                     <Wrench size={20} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Lab Technicians</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Assigned to branch workflows</span>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{t('navigation.technicians')}</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('dashboard.assignedToWorkflows')}</span>
                   </div>
                 </div>
 
@@ -248,19 +250,19 @@ export function OwnerDashboardPage() {
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                       {limits?.currentTechnicians}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Assigned</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.assigned')}</div>
                   </div>
                   <div style={{ padding: '8px', borderRight: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                       {limits?.maxTechnicians}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Total Limit</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.totalLimit')}</div>
                   </div>
                   <div style={{ padding: '8px' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: remainingTechnicians > 0 ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
                       {remainingTechnicians}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Remaining</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.remaining')}</div>
                   </div>
                 </div>
 
@@ -268,7 +270,7 @@ export function OwnerDashboardPage() {
                 {limits && (
                   <div style={{ marginTop: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      <span>Usage Level</span>
+                      <span>{t('dashboard.usageLevel')}</span>
                       <span>{Math.round((limits.currentTechnicians / limits.maxTechnicians) * 100)}%</span>
                     </div>
                     <div style={{ height: '6px', backgroundColor: 'var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
@@ -292,25 +294,25 @@ export function OwnerDashboardPage() {
         <div className="modal-overlay" onClick={() => !submitting && setRequestModalOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', width: '100%' }}>
             <div className="modal__header">
-              <h2 className="modal__title">Request Limit Increase</h2>
-              <button className="modal__close" onClick={() => setRequestModalOpen(false)} disabled={submitting}>
+              <h2 className="modal__title">{t('dashboard.requestLimitIncrease')}</h2>
+              <button className="modal__close" onClick={() => setRequestModalOpen(false)} disabled={submitting} aria-label={t('common.close')}>
                 &times;
               </button>
             </div>
             <form onSubmit={handleRequestSubmit}>
               <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                  Please detail the capacity upgrades you need (e.g., number of additional Lab Admin or Technician seats required) and any notes for the Super Admin.
+                  {t('dashboard.limitRequestDescription')}
                 </p>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="request-message" style={{ fontWeight: 600 }}>
-                    Request Details
+                    {t('dashboard.requestDetails')}
                   </label>
                   <textarea
                     id="request-message"
                     className="form-input"
-                    placeholder="Example: We need to increase our Lab Technician slots from 6 to 10 to support our new team members."
+                    placeholder={t('dashboard.requestPlaceholder')}
                     rows={4}
                     value={requestNote}
                     onChange={(e) => setRequestNote(e.target.value)}
@@ -327,7 +329,7 @@ export function OwnerDashboardPage() {
                   onClick={() => setRequestModalOpen(false)}
                   disabled={submitting}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -336,7 +338,7 @@ export function OwnerDashboardPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   {submitting && <Loader2 className="animate-spin" size={14} />}
-                  <span>Submit Request</span>
+                  <span>{t('dashboard.submitRequest')}</span>
                 </button>
               </div>
             </form>

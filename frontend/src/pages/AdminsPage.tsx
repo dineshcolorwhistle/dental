@@ -14,6 +14,7 @@ import {
   Building2,
   Trash2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { adminService, branchService, authService, type AdminListItem, type BranchListItem, type CreateAdminPayload, type TenantLimitsResponse } from '../services';
 import { Pagination, SearchableSelect } from '../components';
@@ -21,6 +22,7 @@ import { Pagination, SearchableSelect } from '../components';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
 export function AdminsPage() {
+  const { t, i18n } = useTranslation();
   const [admins, setAdmins] = useState<AdminListItem[]>([]);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,12 +74,12 @@ export function AdminsPage() {
       setBranches(branchData.filter((b) => b.isActive));
       setTenantLimits(limitsData);
     } catch (err) {
-      toast.error('Failed to load administrators or branches');
+      toast.error(t('admins.failedLoad'));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchData();
@@ -127,19 +129,19 @@ export function AdminsPage() {
   const validateForm = (isEdit = false): boolean => {
     const errors: Partial<Record<keyof CreateAdminPayload, string>> = {};
 
-    if (!form.firstName.trim()) errors.firstName = 'First name is required';
-    if (!form.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!form.firstName.trim()) errors.firstName = t('validation.fieldRequired');
+    if (!form.lastName.trim()) errors.lastName = t('validation.fieldRequired');
 
     if (!isEdit) {
       if (!form.email.trim()) {
-        errors.email = 'Email address is required';
+        errors.email = t('validation.fieldRequired');
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        errors.email = 'Enter a valid email address';
+        errors.email = t('validation.invalidEmail');
       }
     }
 
     if (!form.branchId) {
-      errors.branchId = 'Assigned branch is required';
+      errors.branchId = t('validation.fieldRequired');
     }
 
     setFormErrors(errors);
@@ -179,11 +181,11 @@ export function AdminsPage() {
     try {
       setSaving(true);
       await adminService.create(form);
-      toast.success('Admin invited successfully! Invitation email sent.');
+      toast.success(t('admins.inviteSent'));
       setShowCreateModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to invite administrator';
+      const message = err?.response?.data?.message || t('admins.failedCreate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -197,11 +199,11 @@ export function AdminsPage() {
     try {
       setSaving(true);
       await adminService.update(selectedAdmin.id, form);
-      toast.success('Admin updated successfully!');
+      toast.success(t('admins.updateSuccess'));
       setShowEditModal(false);
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update administrator';
+      const message = err?.response?.data?.message || t('admins.failedUpdate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setSaving(false);
@@ -228,10 +230,10 @@ export function AdminsPage() {
     const newStatus = admin.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
       await adminService.update(admin.id, { status: newStatus });
-      toast.success(`Admin ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}`);
+      toast.success(t('admins.statusChanged', { status: newStatus === 'ACTIVE' ? t('common.active') : t('common.inactive') }));
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update administrator status';
+      const message = err?.response?.data?.message || t('admins.failedUpdate');
       toast.error(Array.isArray(message) ? message[0] : message);
     }
   };
@@ -241,10 +243,10 @@ export function AdminsPage() {
     try {
       setLoading(true);
       await branchService.update(admin.branchId, { defaultAdminId: admin.id });
-      toast.success(`${admin.firstName} ${admin.lastName} is now the Default Admin for ${admin.branch?.name}`);
+      toast.success(t('admins.defaultAdminSet', { name: `${admin.firstName} ${admin.lastName}`, branch: admin.branch?.name }));
       await fetchData();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to designate Default Admin';
+      const message = err?.response?.data?.message || t('admins.failedUpdate');
       toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
       setLoading(false);
@@ -261,12 +263,12 @@ export function AdminsPage() {
     try {
       setDeleting(true);
       await adminService.delete(adminToDelete.id);
-      toast.success('Admin deleted successfully');
+      toast.success(t('admins.deleteSuccess'));
       setDeleteModalOpen(false);
       setAdminToDelete(null);
       await fetchData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete admin');
+      toast.error(err?.response?.data?.message || t('admins.failedDelete'));
     } finally {
       setDeleting(false);
     }
@@ -275,13 +277,13 @@ export function AdminsPage() {
   // ─── Status Badge ───────────────────────────────────
 
   const StatusBadge = ({ status }: { status: string }) => {
-    const config: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
-      ACTIVE: { className: 'badge badge--success', icon: <CheckCircle2 size={12} />, label: 'Active' },
-      INACTIVE: { className: 'badge badge--warning', icon: <XCircle size={12} />, label: 'Inactive' },
-      INVITED: { className: 'badge badge--primary', icon: <Mail size={12} />, label: 'Invited' },
+    const config: Record<string, { className: string; icon: React.ReactNode; labelKey: string }> = {
+      ACTIVE: { className: 'badge badge--success', icon: <CheckCircle2 size={12} />, labelKey: 'enums.userStatus.ACTIVE' },
+      INACTIVE: { className: 'badge badge--warning', icon: <XCircle size={12} />, labelKey: 'enums.userStatus.INACTIVE' },
+      INVITED: { className: 'badge badge--primary', icon: <Mail size={12} />, labelKey: 'enums.userStatus.INVITED' },
     };
-    const { className, icon, label } = config[status] || config.INACTIVE;
-    return <span className={className}>{icon} {label}</span>;
+    const { className, icon, labelKey } = config[status] || config.INACTIVE;
+    return <span className={className}>{icon} {t(labelKey)}</span>;
   };
 
   const isLimitReached = tenantLimits
@@ -293,8 +295,8 @@ export function AdminsPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-header__left">
-          <h1 className="page-header__title">Lab Admins</h1>
-          <p className="page-header__subtitle">Manage branch administrators and their roles</p>
+          <h1 className="page-header__title">{t('admins.title')}</h1>
+          <p className="page-header__subtitle">{t('admins.subtitle', { defaultValue: 'Manage branch administrators and their roles' })}</p>
         </div>
         <button
           id="btn-add-admin"
@@ -303,7 +305,7 @@ export function AdminsPage() {
           disabled={branches.length === 0 || isLimitReached}
         >
           <Plus size={18} />
-          <span>Add Admin</span>
+          <span>{t('admins.createAdmin')}</span>
         </button>
       </div>
 
@@ -311,9 +313,9 @@ export function AdminsPage() {
         <div className="alert alert--danger" style={{ display: 'flex', gap: '0.75rem', padding: '1rem', borderRadius: '12px', border: '1px solid var(--danger)', background: 'var(--bg-base)', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
           <AlertCircle size={20} style={{ color: 'var(--danger)', flexShrink: 0 }} />
           <div>
-            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>Lab Admin Limit Reached</h4>
+            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>{t('admins.limitReachedTitle', { defaultValue: 'Lab Admin Limit Reached' })}</h4>
             <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              Your organization has reached the limit of {tenantLimits?.maxAdmins} Lab Administrator(s). To invite more, please contact support to upgrade your plan.
+              {t('admins.limitReachedDesc', { count: tenantLimits?.maxAdmins, defaultValue: `Your organization has reached the limit of ${tenantLimits?.maxAdmins} Lab Administrator(s). To invite more, please contact support to upgrade your plan.` })}
             </p>
           </div>
         </div>
@@ -323,9 +325,9 @@ export function AdminsPage() {
         <div className="alert alert--warning" style={{ display: 'flex', gap: '0.75rem', padding: '1rem', borderRadius: '12px', border: '1px solid var(--warning)', background: 'var(--bg-base)', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
           <AlertCircle size={20} style={{ color: 'var(--warning)', flexShrink: 0 }} />
           <div>
-            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>No Active Branches Found</h4>
+            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>{t('admins.noBranchesTitle', { defaultValue: 'No Active Branches Found' })}</h4>
             <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              You need to create at least one active branch before inviting or managing branch administrators. Go to the Branches tab to create a branch.
+              {t('admins.noBranchesDesc', { defaultValue: 'You need to create at least one active branch before inviting or managing branch administrators. Go to the Branches tab to create a branch.' })}
             </p>
           </div>
         </div>
@@ -339,7 +341,7 @@ export function AdminsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.total}</span>
-            <span className="stat-card__label">Total Admins</span>
+            <span className="stat-card__label">{t('admins.totalAdmins', { defaultValue: 'Total Admins' })}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -348,7 +350,7 @@ export function AdminsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.active}</span>
-            <span className="stat-card__label">Active</span>
+            <span className="stat-card__label">{t('common.active')}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -357,7 +359,7 @@ export function AdminsPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.invited}</span>
-            <span className="stat-card__label">Invited (Pending Setup)</span>
+            <span className="stat-card__label">{t('admins.invitedPending', { defaultValue: 'Invited (Pending Setup)' })}</span>
           </div>
         </div>
       </div>
@@ -370,7 +372,7 @@ export function AdminsPage() {
             id="input-admin-search"
             type="text"
             className="form-input search-input"
-            placeholder="Search administrators..."
+            placeholder={t('admins.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -384,14 +386,14 @@ export function AdminsPage() {
         <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           {/* Branch Filter dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>Branch:</span>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.branch')}:</span>
             <select
               className="form-input"
               style={{ width: '160px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
               value={selectedBranchFilter}
               onChange={(e) => setSelectedBranchFilter(e.target.value)}
             >
-              <option value="ALL">All Branches</option>
+              <option value="ALL">{t('common.allBranches', { defaultValue: 'All Branches' })}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -408,7 +410,7 @@ export function AdminsPage() {
                 className={`filter-chip ${selectedStatusFilter === s ? 'filter-chip--active' : ''}`}
                 onClick={() => setSelectedStatusFilter(s)}
               >
-                {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
+                {s === 'ALL' ? t('common.all') : s === 'ACTIVE' ? t('enums.userStatus.ACTIVE') : s === 'INACTIVE' ? t('enums.userStatus.INACTIVE') : t('enums.userStatus.INVITED')}
               </button>
             ))}
           </div>
@@ -419,7 +421,7 @@ export function AdminsPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>Loading administrators...</span>
+          <span>{t('admins.loading')}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -427,12 +429,12 @@ export function AdminsPage() {
             <Users size={48} />
           </div>
           <h3 className="empty-state__title">
-            {admins.length === 0 ? 'No admins yet' : 'No matching administrators'}
+            {admins.length === 0 ? t('admins.noAdminsYet', { defaultValue: 'No admins yet' }) : t('admins.noMatching', { defaultValue: 'No matching administrators' })}
           </h3>
           <p className="empty-state__text">
             {admins.length === 0
-              ? 'Invite your branch managers or assistants as administrators.'
-              : 'Try adjusting your search, branch, or filter criteria.'}
+              ? t('admins.inviteDesc', { defaultValue: 'Invite your branch managers or assistants as administrators.' })
+              : t('admins.adjustFilters', { defaultValue: 'Try adjusting your search, branch, or filter criteria.' })}
           </p>
           {admins.length === 0 && branches.length > 0 && (
             <button
@@ -441,7 +443,7 @@ export function AdminsPage() {
               disabled={isLimitReached}
             >
               <Plus size={18} />
-              <span>Add Admin</span>
+              <span>{t('admins.createAdmin')}</span>
             </button>
           )}
         </div>
@@ -452,20 +454,20 @@ export function AdminsPage() {
               <tr>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('name')}>
-                    Administrator
+                    {t('enums.userRole.ADMIN')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('email')}>
-                    Email Address
+                    {t('common.email')}
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
-                <th>Phone</th>
-                <th>Assigned Branch</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>{t('common.phone')}</th>
+                <th>{t('admins.assignedBranch', { defaultValue: 'Assigned Branch' })}</th>
+                <th>{t('common.status')}</th>
+                <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -482,12 +484,12 @@ export function AdminsPage() {
                           {admin.firstName} {admin.lastName}
                           {admin.branch?.defaultAdminId === admin.id && (
                              <span className="badge badge--success" style={{ marginLeft: '8px', fontSize: '0.6875rem', padding: '2px 6px', textTransform: 'uppercase', verticalAlign: 'middle', fontWeight: 700 }}>
-                               Default Admin
+                               {t('branches.defaultAdmin')}
                              </span>
                            )}
                         </span>
                         <span className="cell-primary__meta">
-                          Created {new Date(admin.createdAt).toLocaleDateString('en-IN', {
+                          {t('common.created') || 'Created'} {new Date(admin.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
                             day: 'numeric',
                             month: 'short',
                           })}
@@ -529,32 +531,32 @@ export function AdminsPage() {
                       <button
                         className={`btn-action ${admin.status === 'ACTIVE' ? 'btn-action--danger' : 'btn-action--success'}`}
                         onClick={() => handleToggleStatus(admin)}
-                        title={admin.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                        title={admin.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}
                       >
                         {admin.status === 'ACTIVE' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                        <span>{admin.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</span>
+                        <span>{admin.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}</span>
                       </button>
                       {admin.status === 'ACTIVE' && admin.branchId && admin.branch?.defaultAdminId !== admin.id && (
                          <button
                            className="btn-action"
                            style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
                            onClick={() => handleMakeDefaultAdmin(admin)}
-                           title="Designate as Default Admin"
+                           title={t('admins.designateDefaultAdmin', { defaultValue: 'Designate as Default Admin' })}
                          >
-                           <span>Make Default</span>
+                           <span>{t('admins.makeDefault', { defaultValue: 'Make Default' })}</span>
                          </button>
                        )}
                       <button
                         className="btn-action"
                         onClick={() => handleEditOpen(admin)}
-                        title="Edit Administrator"
+                        title={t('admins.editAdmin')}
                       >
-                        <span>Edit</span>
+                        <span>{t('common.edit')}</span>
                       </button>
                       <button
                         className="btn-action btn-action--danger"
                         onClick={() => confirmDelete(admin)}
-                        title="Delete Administrator"
+                        title={t('common.delete')}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -579,8 +581,8 @@ export function AdminsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Add Lab Administrator</h2>
-                <p className="modal__subtitle">Create a manager or administrator and assign them to a branch</p>
+                <h2 className="modal__title">{t('admins.createAdmin')}</h2>
+                <p className="modal__subtitle">{t('admins.createAdminSubtitle', { defaultValue: 'Create a manager or administrator and assign them to a branch' })}</p>
               </div>
               <button
                 className="modal__close"
@@ -595,7 +597,7 @@ export function AdminsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-admin-first">
-                    First Name *
+                    {t('admins.firstName')} *
                   </label>
                   <input
                     id="input-admin-first"
@@ -616,7 +618,7 @@ export function AdminsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-admin-last">
-                    Last Name *
+                    {t('admins.lastName')} *
                   </label>
                   <input
                     id="input-admin-last"
@@ -637,7 +639,7 @@ export function AdminsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-admin-email">
-                  Email Address *
+                  {t('common.email')} *
                 </label>
                 <input
                   id="input-admin-email"
@@ -654,13 +656,13 @@ export function AdminsPage() {
                   </span>
                 )}
                 <span className="form-hint">
-                  <Mail size={12} /> A welcome email with password reset link will be sent to this address.
+                  <Mail size={12} /> {t('admins.inviteWelcomeEmailHint', { defaultValue: 'A welcome email with password reset link will be sent to this address.' })}
                 </span>
               </div>
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-admin-phone">
-                  Phone Number (Optional)
+                  {t('common.phone')} ({t('common.optional', { defaultValue: 'Optional' })})
                 </label>
                 <input
                   id="input-admin-phone"
@@ -675,7 +677,7 @@ export function AdminsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="select-admin-branch">
-                  Assigned Branch *
+                  {t('admins.assignedBranch')} *
                 </label>
                 <SearchableSelect
                   id="select-admin-branch"
@@ -686,7 +688,7 @@ export function AdminsPage() {
                   value={form.branchId}
                   onChange={(val) => handleInputChange('branchId', val)}
                   disabled={saving}
-                  placeholder="Select a branch"
+                  placeholder={t('branches.selectBranch')}
                   error={!!formErrors.branchId}
                 />
                 {formErrors.branchId && (
@@ -703,7 +705,7 @@ export function AdminsPage() {
                   onClick={() => setShowCreateModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-submit-admin"
@@ -714,12 +716,12 @@ export function AdminsPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Adding Administrator...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
                     <>
                       <Plus size={16} />
-                      <span>Add Administrator</span>
+                      <span>{t('admins.createAdmin')}</span>
                     </>
                   )}
                 </button>
@@ -735,8 +737,8 @@ export function AdminsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Edit Administrator</h2>
-                <p className="modal__subtitle">Update details for <strong>{selectedAdmin.firstName} {selectedAdmin.lastName}</strong></p>
+                <h2 className="modal__title">{t('admins.editAdmin')}</h2>
+                <p className="modal__subtitle">{t('admins.updateDetailsFor', { defaultValue: 'Update details for' })} <strong>{selectedAdmin.firstName} {selectedAdmin.lastName}</strong></p>
               </div>
               <button
                 className="modal__close"
@@ -751,7 +753,7 @@ export function AdminsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-admin-first">
-                    First Name *
+                    {t('admins.firstName')} *
                   </label>
                   <input
                     id="input-edit-admin-first"
@@ -771,7 +773,7 @@ export function AdminsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-admin-last">
-                    Last Name *
+                    {t('admins.lastName')} *
                   </label>
                   <input
                     id="input-edit-admin-last"
@@ -791,7 +793,7 @@ export function AdminsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="input-edit-admin-phone">
-                  Phone Number (Optional)
+                  {t('common.phone')} ({t('common.optional', { defaultValue: 'Optional' })})
                 </label>
                 <input
                   id="input-edit-admin-phone"
@@ -805,7 +807,7 @@ export function AdminsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="select-edit-admin-branch">
-                  Assigned Branch *
+                  {t('admins.assignedBranch')} *
                 </label>
                 <SearchableSelect
                   id="select-edit-admin-branch"
@@ -816,7 +818,7 @@ export function AdminsPage() {
                   value={form.branchId}
                   onChange={(val) => handleInputChange('branchId', val)}
                   disabled={saving}
-                  placeholder="Select a branch"
+                  placeholder={t('branches.selectBranch')}
                   error={!!formErrors.branchId}
                 />
                 {formErrors.branchId && (
@@ -828,7 +830,7 @@ export function AdminsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="select-edit-admin-status">
-                  Status *
+                  {t('common.status')} *
                 </label>
                 <select
                   id="select-edit-admin-status"
@@ -837,9 +839,9 @@ export function AdminsPage() {
                   onChange={(e) => handleInputChange('status', e.target.value)}
                   disabled={saving}
                 >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="INVITED">Invited</option>
+                  <option value="ACTIVE">{t('enums.userStatus.ACTIVE')}</option>
+                  <option value="INACTIVE">{t('enums.userStatus.INACTIVE')}</option>
+                  <option value="INVITED">{t('enums.userStatus.INVITED')}</option>
                 </select>
               </div>
 
@@ -850,7 +852,7 @@ export function AdminsPage() {
                   onClick={() => setShowEditModal(false)}
                   disabled={saving}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   id="btn-edit-submit-admin"
@@ -861,10 +863,10 @@ export function AdminsPage() {
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" />
-                      <span>Saving...</span>
+                      <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>Save Changes</span>
+                    <span>{t('common.save')}</span>
                   )}
                 </button>
               </div>
@@ -879,7 +881,7 @@ export function AdminsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">Delete Administrator</h2>
+                <h2 className="modal__title">{t('common.delete')}</h2>
               </div>
               <button
                 className="modal__close"
@@ -892,7 +894,7 @@ export function AdminsPage() {
             
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                Are you sure you want to delete administrator <strong>{adminToDelete.firstName} {adminToDelete.lastName}</strong>? This action will permanently remove their user account.
+                {t('admins.deleteConfirmText', { name: `${adminToDelete.firstName} ${adminToDelete.lastName}`, defaultValue: `Are you sure you want to delete administrator ${adminToDelete.firstName} ${adminToDelete.lastName}? This action will permanently remove their user account.` })}
               </p>
             </div>
 
@@ -903,7 +905,7 @@ export function AdminsPage() {
                 onClick={() => setDeleteModalOpen(false)}
                 disabled={deleting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -915,12 +917,12 @@ export function AdminsPage() {
                 {deleting ? (
                   <>
                     <Loader2 size={16} className="spinner" />
-                    <span>Deleting...</span>
+                    <span>{t('common.saving')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 size={16} />
-                    <span>Delete Permanently</span>
+                    <span>{t('common.delete')}</span>
                   </>
                 )}
               </button>
