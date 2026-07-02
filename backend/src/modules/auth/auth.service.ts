@@ -390,15 +390,23 @@ export class AuthService {
     // 2. Create system notification for all Super Admins
     const superAdmins = await this.prisma.user.findMany({
       where: { role: UserRole.SUPER_ADMIN },
+      select: { id: true, preferredLanguage: true },
     });
 
     for (const admin of superAdmins) {
+      const lang = admin.preferredLanguage || 'ES';
+      const title = lang === 'ES' ? 'Solicitud de aumento de límite' : 'Limit Upgrade Request';
+      const detailMessage = message || (lang === 'ES' ? 'No se proporcionaron detalles' : 'No details provided');
+      const finalMessage = lang === 'ES'
+        ? `El propietario ${userName} (${tenantName}) solicitó un aumento de límite: ${detailMessage}`
+        : `Owner ${userName} (${tenantName}) requested a limits upgrade: ${detailMessage}`;
+
       await this.prisma.notification.create({
         data: {
           tenantId,
           userId: admin.id,
-          title: 'Limit Upgrade Request',
-          message: `Owner ${userName} (${tenantName}) requested a limits upgrade: ${message || 'No details provided'}`,
+          title,
+          message: finalMessage,
           type: 'SYSTEM',
         },
       });
