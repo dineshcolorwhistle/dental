@@ -364,12 +364,17 @@ export class WorkOrdersService {
       `Work order created: ${folioNumber} (${workOrder.id}) for tenant ${tenantId}`,
     );
 
-    this.websocketsGateway.sendToBranch(tenantId, finalBranchId, 'work_order_created', {
-      id: workOrder.id,
-      folioNumber,
-      patient,
-      status: workOrder.status,
-    });
+    this.websocketsGateway.sendToBranch(
+      tenantId,
+      finalBranchId,
+      'work_order_created',
+      {
+        id: workOrder.id,
+        folioNumber,
+        patient,
+        status: workOrder.status,
+      },
+    );
 
     return workOrder;
   }
@@ -415,12 +420,10 @@ export class WorkOrdersService {
 
     // Sanitize financial details for technicians and delivery staff
     if (userRole === 'TECHNICIAN' || userRole === 'DELIVERY') {
-      const { totalQuote, initialPayment, ...sanitized } = workOrder;
-      return {
-        ...sanitized,
-        totalQuote: null,
-        initialPayment: null,
-      } as any;
+      const sanitized = { ...workOrder } as any;
+      sanitized.totalQuote = null;
+      sanitized.initialPayment = null;
+      return sanitized;
     }
 
     return workOrder;
@@ -447,12 +450,10 @@ export class WorkOrdersService {
 
     // Sanitize financial details for technicians, delivery, or general QR scans
     if (userRole === 'TECHNICIAN' || userRole === 'DELIVERY') {
-      const { totalQuote, initialPayment, ...sanitized } = workOrder;
-      return {
-        ...sanitized,
-        totalQuote: null,
-        initialPayment: null,
-      } as any;
+      const sanitized = { ...workOrder } as any;
+      sanitized.totalQuote = null;
+      sanitized.initialPayment = null;
+      return sanitized;
     }
 
     return workOrder;
@@ -896,12 +897,17 @@ export class WorkOrdersService {
     );
 
     if (updated.branchId) {
-      this.websocketsGateway.sendToBranch(tenantId, updated.branchId, 'work_order_updated', {
-        id: updated.id,
-        folioNumber: updated.folioNumber,
-        patient: updated.patient,
-        status: updated.status,
-      });
+      this.websocketsGateway.sendToBranch(
+        tenantId,
+        updated.branchId,
+        'work_order_updated',
+        {
+          id: updated.id,
+          folioNumber: updated.folioNumber,
+          patient: updated.patient,
+          status: updated.status,
+        },
+      );
     }
 
     return this.findOne(tenantId, id, branchIdContext);
@@ -941,12 +947,17 @@ export class WorkOrdersService {
     });
 
     if (updated.branchId) {
-      this.websocketsGateway.sendToBranch(updated.tenantId, updated.branchId, 'work_order_updated', {
-        id: updated.id,
-        folioNumber: updated.folioNumber,
-        patient: updated.patient,
-        status: updated.status,
-      });
+      this.websocketsGateway.sendToBranch(
+        updated.tenantId,
+        updated.branchId,
+        'work_order_updated',
+        {
+          id: updated.id,
+          folioNumber: updated.folioNumber,
+          patient: updated.patient,
+          status: updated.status,
+        },
+      );
     }
   }
 

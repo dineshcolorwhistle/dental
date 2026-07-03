@@ -51,7 +51,10 @@ export class EmailQueueProcessor extends WorkerHost {
           this.logger.warn(`Unknown job type: ${job.name}`);
       }
     } catch (error) {
-      this.logger.error(`Failed to process email job ${job.id} (${job.name}):`, error);
+      this.logger.error(
+        `Failed to process email job ${job.id} (${job.name}):`,
+        error,
+      );
       throw error; // Let BullMQ handle retries
     }
   }

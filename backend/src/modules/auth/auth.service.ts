@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -395,11 +400,19 @@ export class AuthService {
 
     for (const admin of superAdmins) {
       const lang = admin.preferredLanguage || 'ES';
-      const title = lang === 'ES' ? 'Solicitud de aumento de límite' : 'Limit Upgrade Request';
-      const detailMessage = message || (lang === 'ES' ? 'No se proporcionaron detalles' : 'No details provided');
-      const finalMessage = lang === 'ES'
-        ? `El propietario ${userName} (${tenantName}) solicitó un aumento de límite: ${detailMessage}`
-        : `Owner ${userName} (${tenantName}) requested a limits upgrade: ${detailMessage}`;
+      const title =
+        lang === 'ES'
+          ? 'Solicitud de aumento de límite'
+          : 'Limit Upgrade Request';
+      const detailMessage =
+        message ||
+        (lang === 'ES'
+          ? 'No se proporcionaron detalles'
+          : 'No details provided');
+      const finalMessage =
+        lang === 'ES'
+          ? `El propietario ${userName} (${tenantName}) solicitó un aumento de límite: ${detailMessage}`
+          : `Owner ${userName} (${tenantName}) requested a limits upgrade: ${detailMessage}`;
 
       await this.prisma.notification.create({
         data: {

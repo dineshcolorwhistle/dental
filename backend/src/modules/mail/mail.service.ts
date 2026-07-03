@@ -42,10 +42,11 @@ export class MailService {
     const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
     const lang = await this.getUserLanguage(email);
 
-    const subject = lang === 'ES' 
-      ? `Bienvenido a ${tenantName} — Configura tu cuenta`
-      : `Welcome to ${tenantName} — Set Up Your Account`;
-    
+    const subject =
+      lang === 'ES'
+        ? `Bienvenido a ${tenantName} — Configura tu cuenta`
+        : `Welcome to ${tenantName} — Set Up Your Account`;
+
     const template = lang === 'ES' ? 'owner-invite-es' : 'owner-invite';
 
     try {
@@ -83,9 +84,10 @@ export class MailService {
     const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
     const lang = await this.getUserLanguage(email);
 
-    const subject = lang === 'ES'
-      ? `Bienvenido a ${tenantName} — Configura tu cuenta de administrador`
-      : `Welcome to ${tenantName} — Set Up Your Admin Account`;
+    const subject =
+      lang === 'ES'
+        ? `Bienvenido a ${tenantName} — Configura tu cuenta de administrador`
+        : `Welcome to ${tenantName} — Set Up Your Admin Account`;
 
     const template = lang === 'ES' ? 'admin-invite-es' : 'admin-invite';
 
@@ -125,11 +127,13 @@ export class MailService {
     const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
     const lang = await this.getUserLanguage(email);
 
-    const subject = lang === 'ES'
-      ? `Bienvenido a ${tenantName} — Configura tu cuenta de técnico`
-      : `Welcome to ${tenantName} — Set Up Your Technician Account`;
+    const subject =
+      lang === 'ES'
+        ? `Bienvenido a ${tenantName} — Configura tu cuenta de técnico`
+        : `Welcome to ${tenantName} — Set Up Your Technician Account`;
 
-    const template = lang === 'ES' ? 'technician-invite-es' : 'technician-invite';
+    const template =
+      lang === 'ES' ? 'technician-invite-es' : 'technician-invite';
 
     try {
       await this.mailerService.sendMail({
@@ -145,7 +149,9 @@ export class MailService {
         },
       });
 
-      this.logger.log(`Technician invite email sent to ${email} (Lang: ${lang})`);
+      this.logger.log(
+        `Technician invite email sent to ${email} (Lang: ${lang})`,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to send technician invite email to ${email}`,

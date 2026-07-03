@@ -183,7 +183,10 @@ export class BranchesService {
           );
         }
 
-        if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.INVITED) {
+        if (
+          user.status !== UserStatus.ACTIVE &&
+          user.status !== UserStatus.INVITED
+        ) {
           throw new BadRequestException(
             'The designated Default Admin must be active or invited.',
           );

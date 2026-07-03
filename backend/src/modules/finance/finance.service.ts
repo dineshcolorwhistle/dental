@@ -2,12 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WorkOrderStatus } from '@prisma/client';
 
-interface PaymentHistoryItem {
-  amount: number;
-  notes?: string;
-  date: string;
-}
-
 @Injectable()
 export class FinanceService {
   constructor(private readonly prisma: PrismaService) {}
@@ -39,7 +33,7 @@ export class FinanceService {
               }
             }
           }
-        } catch (e) {
+        } catch {
           // ignore
         }
       }

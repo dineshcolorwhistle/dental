@@ -21,7 +21,9 @@ export class NotificationsService implements OnModuleInit {
   onModuleInit() {
     const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
     const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-    const subject = this.configService.get<string>('VAPID_SUBJECT') || 'mailto:admin@dental.com';
+    const subject =
+      this.configService.get<string>('VAPID_SUBJECT') ||
+      'mailto:admin@dental.com';
 
     if (publicKey && privateKey) {
       webpush.setVapidDetails(subject, publicKey, privateKey);
@@ -80,7 +82,8 @@ export class NotificationsService implements OnModuleInit {
       translatedTitle = 'Nueva orden de trabajo asignada';
       // Match: You have been assigned to "Metal Casting" for work order WO-0001 (Patient: John Doe) (Box: 12).
       // or without box: You have been assigned to "Metal Casting" for work order WO-0001 (Patient: John Doe).
-      const regex = /^You have been assigned to "([^"]+)" for work order ([^\s]+) \(Patient: ([^\)]+)\)(?: \(Box: ([^\)]+)\))?\.?$/;
+      const regex =
+        /^You have been assigned to "([^"]+)" for work order ([^\s]+) \(Patient: ([^)]+)\)(?: \(Box: ([^)]+)\))?\.?$/;
       const match = message.match(regex);
       if (match) {
         const [, processName, folioNumber, patient, boxNumber] = match;
@@ -89,7 +92,8 @@ export class NotificationsService implements OnModuleInit {
     } else if (title === 'Work Order Flagged for Rework') {
       translatedTitle = 'Orden de trabajo marcada para retrabajo';
       // Match: Work Order "WO-0001" has been flagged for rework. Please review step "Metal Casting".
-      const regex = /^Work Order "([^"]+)" has been flagged for rework\. Please review step "([^"]+)"\.?$/;
+      const regex =
+        /^Work Order "([^"]+)" has been flagged for rework\. Please review step "([^"]+)"\.?$/;
       const match = message.match(regex);
       if (match) {
         const [, folioNumber, processName] = match;
@@ -98,7 +102,8 @@ export class NotificationsService implements OnModuleInit {
     } else if (title === 'Work Order Repetition Triggered') {
       translatedTitle = 'Repetición de orden de trabajo activada';
       // Match: Work Order "WO-0001" has been restarted due to a repetition request from verification step "Quality Check". Please restart step "Waxing".
-      const regex = /^Work Order "([^"]+)" has been restarted due to a repetition request from verification step "([^"]+)". Please restart step "([^"]+)"\.?$/;
+      const regex =
+        /^Work Order "([^"]+)" has been restarted due to a repetition request from verification step "([^"]+)". Please restart step "([^"]+)"\.?$/;
       const match = message.match(regex);
       if (match) {
         const [, folioNumber, verificationName, processName] = match;
@@ -108,7 +113,8 @@ export class NotificationsService implements OnModuleInit {
       translatedTitle = 'Alerta de verificación pendiente';
       // Match: Work Order "WO-0001" (Box: 12) requires verification step "Visual Check".
       // or without box: Work Order "WO-0001" requires verification step "Visual Check".
-      const regex = /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^\)]+)\))? requires verification step "([^"]+)"\.?$/;
+      const regex =
+        /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? requires verification step "([^"]+)"\.?$/;
       const match = message.match(regex);
       if (match) {
         const [, folioNumber, boxNumber, processName] = match;
@@ -120,7 +126,8 @@ export class NotificationsService implements OnModuleInit {
       // or without box: Work Order "WO-0001" is ready for you. The previous step "Waxing" has been completed.
       // or with verification step complete: Work Order "WO-0001" (Box: 12) is ready for you. The previous verification step has been completed.
       // or without box: Work Order "WO-0001" is ready for you. The previous verification step has been completed.
-      const regex = /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^\)]+)\))? is ready for you\. The previous (?:step "([^"]+)"|verification step) has been completed\.?$/;
+      const regex =
+        /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? is ready for you\. The previous (?:step "([^"]+)"|verification step) has been completed\.?$/;
       const match = message.match(regex);
       if (match) {
         const [, folioNumber, boxNumber, processName] = match;
@@ -134,7 +141,8 @@ export class NotificationsService implements OnModuleInit {
       translatedTitle = 'Orden de trabajo completada';
       // Match: Work Order "WO-0001" (Box: 12) has been fully completed!
       // or without box: Work Order "WO-0001" has been fully completed!
-      const regex = /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^\)]+)\))? has been fully completed!?$/;
+      const regex =
+        /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? has been fully completed!?$/;
       const match = message.match(regex);
       if (match) {
         const [, folioNumber, boxNumber] = match;
@@ -196,7 +204,11 @@ export class NotificationsService implements OnModuleInit {
     );
 
     // Broadcast in real-time
-    this.websocketsGateway.sendToUser(data.userId, 'notification_created', notification);
+    this.websocketsGateway.sendToUser(
+      data.userId,
+      'notification_created',
+      notification,
+    );
 
     // Queue push notification
     try {
@@ -210,9 +222,14 @@ export class NotificationsService implements OnModuleInit {
             title: finalTitle,
             body: finalMessage,
             data: {
-              url: data.type === 'REWORK' || data.type === 'REPETITION' || data.type === 'ASSIGNED'
-                ? (data.referenceId ? `/work-orders/${data.referenceId}` : '/dashboard')
-                : '/dashboard',
+              url:
+                data.type === 'REWORK' ||
+                data.type === 'REPETITION' ||
+                data.type === 'ASSIGNED'
+                  ? data.referenceId
+                    ? `/work-orders/${data.referenceId}`
+                    : '/dashboard'
+                  : '/dashboard',
             },
           },
         });

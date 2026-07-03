@@ -10,19 +10,12 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 
-interface AuthenticatedSocket extends Socket {
-  data: {
-    userId: string;
-    tenantId: string | null;
-    branchId: string | null;
-    role: string;
-    email: string;
-  };
-}
-
 @WebSocketGateway({
   cors: {
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       // Re-use logic matching NestJS main app CORS setup
       if (!origin) {
         callback(null, true);
@@ -42,11 +35,14 @@ interface AuthenticatedSocket extends Socket {
         const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
         const baseOriginUrl = new URL(corsOrigin);
         const baseHostname = baseOriginUrl.hostname;
-        if (hostname === baseHostname || hostname.endsWith('.' + baseHostname)) {
+        if (
+          hostname === baseHostname ||
+          hostname.endsWith('.' + baseHostname)
+        ) {
           callback(null, true);
           return;
         }
-      } catch (err) {
+      } catch {
         // Fallback
       }
       callback(null, true);
@@ -56,7 +52,9 @@ interface AuthenticatedSocket extends Socket {
   namespace: '/',
 })
 @Injectable()
-export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class WebsocketsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(WebsocketsGateway.name);
 
   @WebSocketServer()
@@ -83,7 +81,9 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
       }
 
       if (!token) {
-        this.logger.warn(`Connection rejected: No token provided (Client ID: ${client.id})`);
+        this.logger.warn(
+          `Connection rejected: No token provided (Client ID: ${client.id})`,
+        );
         client.disconnect();
         return;
       }
@@ -93,7 +93,9 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
       const payload = this.jwtService.verify(token, { secret });
 
       if (!payload || !payload.sub) {
-        this.logger.warn(`Connection rejected: Invalid token payload (Client ID: ${client.id})`);
+        this.logger.warn(
+          `Connection rejected: Invalid token payload (Client ID: ${client.id})`,
+        );
         client.disconnect();
         return;
       }
@@ -101,11 +103,20 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
       // 3. Double-check user is active in PostgreSQL
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
-        select: { id: true, status: true, tenantId: true, branchId: true, role: true, email: true },
+        select: {
+          id: true,
+          status: true,
+          tenantId: true,
+          branchId: true,
+          role: true,
+          email: true,
+        },
       });
 
       if (!user || user.status !== 'ACTIVE') {
-        this.logger.warn(`Connection rejected: User ${payload.sub} inactive or not found`);
+        this.logger.warn(
+          `Connection rejected: User ${payload.sub} inactive or not found`,
+        );
         client.disconnect();
         return;
       }
@@ -121,28 +132,35 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
 
       // 5. Connect user to targeted room sessions
       // User targeted room for direct notifications
-      client.join(`user:${user.id}`);
+      await client.join(`user:${user.id}`);
 
       // Tenant targeted room for multi-tenant isolation
       if (user.tenantId) {
-        client.join(`tenant:${user.tenantId}`);
-        
+        await client.join(`tenant:${user.tenantId}`);
+
         // Branch targeted room for operational scope isolation
         if (user.branchId) {
-          client.join(`tenant:${user.tenantId}:branch:${user.branchId}`);
+          await client.join(`tenant:${user.tenantId}:branch:${user.branchId}`);
         }
       }
 
-      this.logger.log(`WebSocket client connected: ${user.email} (ID: ${client.id})`);
+      this.logger.log(
+        `WebSocket client connected: ${user.email} (ID: ${client.id})`,
+      );
     } catch (error) {
-      this.logger.error(`Handshake verification error (Client ID: ${client.id}):`, error.message);
+      this.logger.error(
+        `Handshake verification error (Client ID: ${client.id}):`,
+        error.message,
+      );
       client.disconnect();
     }
   }
 
   handleDisconnect(client: Socket) {
     const userEmail = client.data?.email || 'Anonymous';
-    this.logger.log(`WebSocket client disconnected: ${userEmail} (ID: ${client.id})`);
+    this.logger.log(
+      `WebSocket client disconnected: ${userEmail} (ID: ${client.id})`,
+    );
   }
 
   /**
@@ -150,7 +168,9 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
    */
   sendToTenant(tenantId: string, event: string, payload: any) {
     if (!this.server) {
-      this.logger.warn(`Socket.IO Server is not initialized. Cannot broadcast to tenant ${tenantId}`);
+      this.logger.warn(
+        `Socket.IO Server is not initialized. Cannot broadcast to tenant ${tenantId}`,
+      );
       return;
     }
     this.server.to(`tenant:${tenantId}`).emit(event, payload);
@@ -159,12 +179,21 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   /**
    * Broadcast an event to a specific branch within a tenant
    */
-  sendToBranch(tenantId: string, branchId: string, event: string, payload: any) {
+  sendToBranch(
+    tenantId: string,
+    branchId: string,
+    event: string,
+    payload: any,
+  ) {
     if (!this.server) {
-      this.logger.warn(`Socket.IO Server is not initialized. Cannot broadcast to branch ${branchId}`);
+      this.logger.warn(
+        `Socket.IO Server is not initialized. Cannot broadcast to branch ${branchId}`,
+      );
       return;
     }
-    this.server.to(`tenant:${tenantId}:branch:${branchId}`).emit(event, payload);
+    this.server
+      .to(`tenant:${tenantId}:branch:${branchId}`)
+      .emit(event, payload);
   }
 
   /**
@@ -172,7 +201,9 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
    */
   sendToUser(userId: string, event: string, payload: any) {
     if (!this.server) {
-      this.logger.warn(`Socket.IO Server is not initialized. Cannot broadcast to user ${userId}`);
+      this.logger.warn(
+        `Socket.IO Server is not initialized. Cannot broadcast to user ${userId}`,
+      );
       return;
     }
     this.server.to(`user:${userId}`).emit(event, payload);

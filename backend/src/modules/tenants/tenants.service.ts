@@ -27,7 +27,14 @@ export class TenantsService {
    * Create a new tenant with owner, default branch, settings, and send invite email.
    */
   async create(dto: CreateTenantDto) {
-    const { tenantName, ownerName, ownerEmail, maxOwners, maxAdmins, maxTechnicians } = dto;
+    const {
+      tenantName,
+      ownerName,
+      ownerEmail,
+      maxOwners,
+      maxAdmins,
+      maxTechnicians,
+    } = dto;
 
     // Generate subdomain from tenant name (slugify)
     const subdomain = this.generateSubdomain(tenantName);

@@ -13,7 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole, TenantStatus } from '@prisma/client';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
-import { Roles, Public } from '../../common/decorators';
+import { Roles } from '../../common/decorators';
 
 @ApiTags('Tenants')
 @ApiBearerAuth()

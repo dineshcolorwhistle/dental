@@ -51,7 +51,7 @@ async function bootstrap() {
           callback(null, true);
           return;
         }
-      } catch (err) {
+      } catch {
         // Fallback to checking exact list if URL parsing fails
       }
 
@@ -93,6 +93,6 @@ async function bootstrap() {
   logger.log(`📚 Swagger docs at http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+void bootstrap();
 
 // Trigger restart: Prisma client regenerated - reload

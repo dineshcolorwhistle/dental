@@ -14,7 +14,9 @@ export class PushNotificationQueueProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    this.logger.log(`Processing push notification job ${job.id} for user ${job.data.userId}...`);
+    this.logger.log(
+      `Processing push notification job ${job.id} for user ${job.data.userId}...`,
+    );
     const { subscriptionId, subscription, payload } = job.data;
 
     try {
@@ -28,7 +30,9 @@ export class PushNotificationQueueProcessor extends WorkerHost {
         },
         payload,
       );
-      this.logger.log(`Push notification sent successfully to subscription ${subscriptionId}`);
+      this.logger.log(
+        `Push notification sent successfully to subscription ${subscriptionId}`,
+      );
     } catch (error: any) {
       // If the subscription is no longer valid (e.g. 410 Gone or 404 Not Found), remove it from our database
       if (error.statusCode === 410 || error.statusCode === 404) {
@@ -40,7 +44,10 @@ export class PushNotificationQueueProcessor extends WorkerHost {
             where: { id: subscriptionId },
           });
         } catch (dbErr) {
-          this.logger.error(`Failed to delete expired subscription ${subscriptionId}`, dbErr);
+          this.logger.error(
+            `Failed to delete expired subscription ${subscriptionId}`,
+            dbErr,
+          );
         }
       } else {
         this.logger.error(

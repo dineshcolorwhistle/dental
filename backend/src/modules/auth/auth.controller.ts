@@ -91,4 +91,3 @@ export class AuthController {
     return this.authService.updateLanguage(userId, language);
   }
 }
-

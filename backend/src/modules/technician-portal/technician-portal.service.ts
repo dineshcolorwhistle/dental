@@ -703,12 +703,17 @@ export class TechnicianPortalService {
     });
 
     if (updated.branchId) {
-      this.websocketsGateway.sendToBranch(updated.tenantId, updated.branchId, 'work_order_updated', {
-        id: updated.id,
-        folioNumber: updated.folioNumber,
-        patient: updated.patient,
-        status: updated.status,
-      });
+      this.websocketsGateway.sendToBranch(
+        updated.tenantId,
+        updated.branchId,
+        'work_order_updated',
+        {
+          id: updated.id,
+          folioNumber: updated.folioNumber,
+          patient: updated.patient,
+          status: updated.status,
+        },
+      );
     }
   }
 
