@@ -4,6 +4,7 @@ import {
   Get,
   Patch,
   Body,
+  Param,
   HttpCode,
   HttpStatus,
   BadRequestException,
@@ -89,5 +90,12 @@ export class AuthController {
       throw new BadRequestException('Language must be EN or ES.');
     }
     return this.authService.updateLanguage(userId, language);
+  }
+
+  @Public()
+  @Get('tenant-info/:subdomain')
+  @ApiOperation({ summary: 'Get tenant information by subdomain' })
+  async getTenantInfo(@Param('subdomain') subdomain: string) {
+    return this.authService.getTenantInfoBySubdomain(subdomain);
   }
 }

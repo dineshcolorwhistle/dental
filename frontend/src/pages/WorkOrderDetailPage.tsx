@@ -246,7 +246,7 @@ export function WorkOrderDetailPage() {
                   color: 'var(--text-secondary)',
                   border: '1px solid var(--border)'
                 }}>
-                  {t('dashboard.box')}: {workOrder.boxNumber}
+                  {t('workOrder.boxNo')}: {workOrder.boxNumber}
                 </span>
               )}
             </h1>

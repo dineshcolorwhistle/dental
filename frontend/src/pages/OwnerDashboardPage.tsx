@@ -34,7 +34,7 @@ export function OwnerDashboardPage() {
       setLimits(data);
     } catch (err) {
       console.error('Failed to load tenant limits:', err);
-      toast.error(t('dashboard.failedRetrieveLimits'));
+      toast.error(t('ownerDashboard.failedLoadLimits'));
     } finally {
       setLoading(false);
     }
@@ -47,18 +47,18 @@ export function OwnerDashboardPage() {
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requestNote.trim()) {
-      toast.error(t('dashboard.enterRequestDetails'));
+      toast.error(t('ownerDashboard.enterRequestDetails'));
       return;
     }
 
     try {
       setSubmitting(true);
       await authService.requestTenantLimitIncrease(requestNote);
-      toast.success(t('dashboard.limitIncreaseRequestSubmitted'));
+      toast.success(t('ownerDashboard.requestSubmitted'));
       setRequestModalOpen(false);
       setRequestNote('');
     } catch (err: any) {
-      const message = err?.response?.data?.message || t('dashboard.failedSubmitUpgradeRequest');
+      const message = err?.response?.data?.message || t('ownerDashboard.requestFailed');
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -77,7 +77,7 @@ export function OwnerDashboardPage() {
             {getGreeting()}, {user?.firstName}!
           </h1>
           <p className="dashboard-page__subtitle" style={{ color: 'var(--text-secondary)', margin: 0 }}>
-            {t('dashboard.capacityConsole')}
+            {t('ownerDashboard.capacityConsole')}
           </p>
         </div>
         <div style={{
@@ -93,7 +93,7 @@ export function OwnerDashboardPage() {
           color: 'var(--accent-primary)'
         }}>
           <Building2 size={14} />
-          <span>{t('dashboard.tenantConfigMode')}</span>
+          <span>{t('ownerDashboard.tenantConfigMode')}</span>
         </div>
       </div>
 
@@ -128,10 +128,10 @@ export function OwnerDashboardPage() {
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
               <div>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-heading)' }}>
-                  {t('dashboard.activeLimitsAllocation')}
+                  {t('ownerDashboard.activeLimits')}
                 </h2>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 1.5rem 0', maxWidth: '750px' }}>
-                  {t('dashboard.limitsExplanation')}
+                  {t('ownerDashboard.limitsDescription')}
                 </p>
               </div>
               <button 
@@ -140,7 +140,7 @@ export function OwnerDashboardPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, flexShrink: 0 }}
               >
                 <Sparkles size={16} />
-                <span>{t('dashboard.requestLimitIncrease')}</span>
+                <span>{t('ownerDashboard.requestLimitIncrease')}</span>
               </button>
             </div>
 
@@ -173,8 +173,8 @@ export function OwnerDashboardPage() {
                     <Users size={20} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{t('dashboard.labAdmins')}</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('dashboard.organizationWideAdmins')}</span>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{t('ownerDashboard.labAdministrators')}</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('ownerDashboard.orgWideAdmins')}</span>
                   </div>
                 </div>
 
@@ -183,19 +183,19 @@ export function OwnerDashboardPage() {
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                       {limits?.currentAdmins}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.assigned')}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('ownerDashboard.assigned')}</div>
                   </div>
                   <div style={{ padding: '8px', borderRight: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                       {limits?.maxAdmins}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.totalLimit')}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('ownerDashboard.totalLimit')}</div>
                   </div>
                   <div style={{ padding: '8px' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: remainingAdmins > 0 ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
                       {remainingAdmins}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.remaining')}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('ownerDashboard.remaining')}</div>
                   </div>
                 </div>
 
@@ -203,7 +203,7 @@ export function OwnerDashboardPage() {
                 {limits && (
                   <div style={{ marginTop: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      <span>{t('dashboard.usageLevel')}</span>
+                      <span>{t('ownerDashboard.usageLevel')}</span>
                       <span>{Math.round((limits.currentAdmins / limits.maxAdmins) * 100)}%</span>
                     </div>
                     <div style={{ height: '6px', backgroundColor: 'var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
@@ -240,8 +240,8 @@ export function OwnerDashboardPage() {
                     <Wrench size={20} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{t('navigation.technicians')}</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('dashboard.assignedToWorkflows')}</span>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{t('ownerDashboard.labTechnicians')}</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('ownerDashboard.assignedToWorkflows')}</span>
                   </div>
                 </div>
 
@@ -250,19 +250,19 @@ export function OwnerDashboardPage() {
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                       {limits?.currentTechnicians}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.assigned')}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('ownerDashboard.assigned')}</div>
                   </div>
                   <div style={{ padding: '8px', borderRight: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)' }}>
                       {limits?.maxTechnicians}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.totalLimit')}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('ownerDashboard.totalLimit')}</div>
                   </div>
                   <div style={{ padding: '8px' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: remainingTechnicians > 0 ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
                       {remainingTechnicians}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('dashboard.remaining')}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{t('ownerDashboard.remaining')}</div>
                   </div>
                 </div>
 
@@ -270,7 +270,7 @@ export function OwnerDashboardPage() {
                 {limits && (
                   <div style={{ marginTop: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      <span>{t('dashboard.usageLevel')}</span>
+                      <span>{t('ownerDashboard.usageLevel')}</span>
                       <span>{Math.round((limits.currentTechnicians / limits.maxTechnicians) * 100)}%</span>
                     </div>
                     <div style={{ height: '6px', backgroundColor: 'var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
@@ -294,7 +294,7 @@ export function OwnerDashboardPage() {
         <div className="modal-overlay" onClick={() => !submitting && setRequestModalOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', width: '100%' }}>
             <div className="modal__header">
-              <h2 className="modal__title">{t('dashboard.requestLimitIncrease')}</h2>
+              <h2 className="modal__title">{t('ownerDashboard.requestLimitIncrease')}</h2>
               <button className="modal__close" onClick={() => setRequestModalOpen(false)} disabled={submitting} aria-label={t('common.close')}>
                 &times;
               </button>
@@ -302,17 +302,17 @@ export function OwnerDashboardPage() {
             <form onSubmit={handleRequestSubmit}>
               <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                  {t('dashboard.limitRequestDescription')}
+                  {t('ownerDashboard.requestDescription')}
                 </p>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="request-message" style={{ fontWeight: 600 }}>
-                    {t('dashboard.requestDetails')}
+                    {t('ownerDashboard.requestDetails')}
                   </label>
                   <textarea
                     id="request-message"
                     className="form-input"
-                    placeholder={t('dashboard.requestPlaceholder')}
+                    placeholder={t('ownerDashboard.requestPlaceholder')}
                     rows={4}
                     value={requestNote}
                     onChange={(e) => setRequestNote(e.target.value)}
@@ -338,7 +338,7 @@ export function OwnerDashboardPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   {submitting && <Loader2 className="animate-spin" size={14} />}
-                  <span>{t('dashboard.submitRequest')}</span>
+                  <span>{t('ownerDashboard.submitRequest')}</span>
                 </button>
               </div>
             </form>

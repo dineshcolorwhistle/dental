@@ -290,24 +290,24 @@ export function TechnicianWorkOrdersPage() {
     else if (action === 'resume') actionLoadingKey = 'resumingProcess';
     else if (action === 'end') actionLoadingKey = 'endingProcess';
 
-    const loadingToast = toast.loading(t(`dashboard.${actionLoadingKey}`));
+    const loadingToast = toast.loading(t(`techDashboard.${actionLoadingKey}`));
     try {
       if (action === 'start') {
         await technicianPortalService.startProcess(processId);
-        toast.success(t('dashboard.processActionStarted'), { id: loadingToast });
+        toast.success(t('techDashboard.processStarted'), { id: loadingToast });
       } else if (action === 'pause') {
         await technicianPortalService.pauseProcess(processId);
-        toast.success(t('dashboard.processActionPaused'), { id: loadingToast });
+        toast.success(t('techDashboard.processPaused'), { id: loadingToast });
       } else if (action === 'resume') {
         await technicianPortalService.resumeProcess(processId);
-        toast.success(t('dashboard.processActionResumed'), { id: loadingToast });
+        toast.success(t('techDashboard.processResumed'), { id: loadingToast });
       } else if (action === 'end') {
         await technicianPortalService.endProcess(processId);
-        toast.success(t('dashboard.processActionEnded'), { id: loadingToast });
+        toast.success(t('techDashboard.processEnded'), { id: loadingToast });
       }
       fetchWorkOrders();
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || t('dashboard.processActionFailed', { action: t(`dashboard.action.${action}`) });
+      const errMsg = err?.response?.data?.message || t('techDashboard.processActionFailed', { action: t(`techDashboard.action.${action}`) });
       toast.error(errMsg, { id: loadingToast });
     }
   };

@@ -1,11 +1,36 @@
 import { Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { getSubdomain } from '../utils/subdomain';
+import { authService } from '../services';
 
 export function AuthLayout() {
   const { t } = useTranslation();
+  const [tenantName, setTenantName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const subdomain = getSubdomain();
+    if (subdomain) {
+      authService.getTenantInfo(subdomain)
+        .then((data) => {
+          if (data && data.name) {
+            setTenantName(data.name);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to fetch tenant info:', err);
+        });
+    }
+  }, []);
 
   return (
     <div className="auth-layout">
+      {/* Language Switcher in Top Right */}
+      <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 10 }}>
+        <LanguageSwitcher />
+      </div>
+
       <div className="auth-layout__background">
         <div className="auth-layout__gradient-orb auth-layout__gradient-orb--1" />
         <div className="auth-layout__gradient-orb auth-layout__gradient-orb--2" />
@@ -25,8 +50,14 @@ export function AuthLayout() {
               </defs>
             </svg>
           </div>
-          <h1 className="auth-layout__title">{t('auth.dentalLab')}</h1>
-          <p className="auth-layout__subtitle">{t('auth.managementSystem')}</p>
+          {tenantName ? (
+            <h1 className="auth-layout__title">{tenantName}</h1>
+          ) : (
+            <>
+              <h1 className="auth-layout__title">{t('auth.dentalLab')}</h1>
+              <p className="auth-layout__subtitle">{t('auth.managementSystem')}</p>
+            </>
+          )}
         </div>
 
         <div className="auth-layout__card">
@@ -40,3 +71,4 @@ export function AuthLayout() {
     </div>
   );
 }
+

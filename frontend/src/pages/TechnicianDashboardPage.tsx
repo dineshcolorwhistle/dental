@@ -36,7 +36,7 @@ export function TechnicianDashboardPage() {
       setStats(statsData);
       setActiveJobs(jobsData);
     } catch {
-      toast.error(t('dashboard.failedLoadData'));
+      toast.error(t('techDashboard.failedLoadDashboard'));
     } finally {
       setLoading(false);
     }
@@ -79,24 +79,24 @@ export function TechnicianDashboardPage() {
     else if (action === 'resume') actionLoadingKey = 'resumingProcess';
     else if (action === 'end') actionLoadingKey = 'endingProcess';
 
-    const loadingToast = toast.loading(t(`dashboard.${actionLoadingKey}`));
+    const loadingToast = toast.loading(t(`techDashboard.${actionLoadingKey}`));
     try {
       if (action === 'start') {
         await technicianPortalService.startProcess(processId);
-        toast.success(t('dashboard.processActionStarted'), { id: loadingToast });
+        toast.success(t('techDashboard.processStarted'), { id: loadingToast });
       } else if (action === 'pause') {
         await technicianPortalService.pauseProcess(processId);
-        toast.success(t('dashboard.processActionPaused'), { id: loadingToast });
+        toast.success(t('techDashboard.processPaused'), { id: loadingToast });
       } else if (action === 'resume') {
         await technicianPortalService.resumeProcess(processId);
-        toast.success(t('dashboard.processActionResumed'), { id: loadingToast });
+        toast.success(t('techDashboard.processResumed'), { id: loadingToast });
       } else if (action === 'end') {
         await technicianPortalService.endProcess(processId);
-        toast.success(t('dashboard.processActionEnded'), { id: loadingToast });
+        toast.success(t('techDashboard.processEnded'), { id: loadingToast });
       }
       fetchDashboardData();
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || t('dashboard.processActionFailed', { action: t(`dashboard.action.${action}`) });
+      const errMsg = err?.response?.data?.message || t('techDashboard.processActionFailed', { action: t(`techDashboard.action.${action}`) });
       toast.error(errMsg, { id: loadingToast });
     }
   };
@@ -142,7 +142,7 @@ export function TechnicianDashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.pendingCount ?? 0}</span>
-            <span className="stat-card__label">{t('dashboard.pendingSteps')}</span>
+            <span className="stat-card__label">{t('techDashboard.pendingSteps')}</span>
           </div>
         </div>
 
@@ -152,7 +152,7 @@ export function TechnicianDashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.activeCount ?? 0}</span>
-            <span className="stat-card__label">{t('dashboard.activeSteps')}</span>
+            <span className="stat-card__label">{t('techDashboard.activeSteps')}</span>
           </div>
         </div>
 
@@ -162,7 +162,7 @@ export function TechnicianDashboardPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats?.pausedCount ?? 0}</span>
-            <span className="stat-card__label">{t('dashboard.pausedSteps')}</span>
+            <span className="stat-card__label">{t('techDashboard.pausedSteps')}</span>
           </div>
         </div>
 
@@ -184,22 +184,22 @@ export function TechnicianDashboardPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 className="dashboard-card__title" style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Activity size={18} style={{ color: 'var(--success)' }} />
-                {t('dashboard.myActiveQueue')}
+                {t('techDashboard.myActiveQueue')}
               </h3>
               <Link to="/tech/work-orders" className="btn btn--outline btn--sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {t('dashboard.viewAllQueue')} <ChevronRight size={14} />
+                {t('techDashboard.viewAllQueue')} <ChevronRight size={14} />
               </Link>
             </div>
 
             {activeJobs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <ClipboardList size={36} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                <h4 style={{ fontWeight: 500, fontSize: '0.95rem' }}>{t('dashboard.noActiveProcesses')}</h4>
+                <h4 style={{ fontWeight: 500, fontSize: '0.95rem' }}>{t('techDashboard.noActiveProcesses')}</h4>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '320px', margin: '0' }}>
-                  {t('dashboard.techNoActiveProcessesDesc')}
+                  {t('techDashboard.techNoActiveProcessesDesc')}
                 </p>
                 <Link to="/tech/work-orders" className="btn btn--primary btn--sm" style={{ marginTop: '0.5rem' }}>
-                  {t('dashboard.openMyWorkOrders')}
+                  {t('techDashboard.openMyWorkOrders')}
                 </Link>
               </div>
             ) : (
@@ -243,7 +243,7 @@ export function TechnicianDashboardPage() {
                             <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{wo.patient}</span>
                           </div>
                           <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                            {wo.prosthesisType?.name} • {t('dashboard.box')}: {wo.boxNumber || t('common.na')}
+                            {wo.prosthesisType?.name} • {t('workOrder.boxNo')}: {wo.boxNumber || t('common.na')}
                           </p>
                         </div>
 
@@ -287,7 +287,7 @@ export function TechnicianDashboardPage() {
                       }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {t('dashboard.currentStage')}
+                            {t('techDashboard.currentStep')}
                           </span>
                           <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
                             {proc.processName}
@@ -295,10 +295,10 @@ export function TechnicianDashboardPage() {
                         </div>
                         <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                            {t('dashboard.pauses')}
+                            {t('techDashboard.pauses')}
                           </span>
                           <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                            {t('dashboard.xTimes', { count: proc.pauseCount })}
+                            {t('techDashboard.xTimes', { count: proc.pauseCount })}
                           </span>
                         </div>
                       </div>
@@ -311,7 +311,7 @@ export function TechnicianDashboardPage() {
                             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                             onClick={(e) => handleAction(e, proc.id, 'resume')}
                           >
-                            <Play size={14} /> {t('dashboard.resumeProcess')}
+                            <Play size={14} /> {t('workOrder.resumeProcess')}
                           </button>
                         ) : (
                           <button
@@ -319,7 +319,7 @@ export function TechnicianDashboardPage() {
                             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                             onClick={(e) => handleAction(e, proc.id, 'pause')}
                           >
-                            <Pause size={14} /> {t('dashboard.pauseProcess')}
+                            <Pause size={14} /> {t('workOrder.pauseProcess')}
                           </button>
                         )}
                         <button
@@ -327,7 +327,7 @@ export function TechnicianDashboardPage() {
                           style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                           onClick={(e) => handleAction(e, proc.id, 'end')}
                         >
-                          <CheckCircle2 size={14} /> {t('dashboard.endProcess')}
+                          <CheckCircle2 size={14} /> {t('workOrder.endProcess')}
                         </button>
                       </div>
                     </div>
@@ -343,10 +343,10 @@ export function TechnicianDashboardPage() {
           <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
             <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertCircle size={18} style={{ color: 'var(--accent-primary)' }} />
-              {t('dashboard.quickQRScan')}
+              {t('techDashboard.quickQRScan')}
             </h3>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 1rem 0', lineHeight: '1.4' }}>
-              {t('dashboard.quickQRScanDesc')}
+              {t('techDashboard.quickQRScanDesc')}
             </p>
             <div style={{
               border: '2px dashed var(--border)',
@@ -365,10 +365,10 @@ export function TechnicianDashboardPage() {
                 <span style={{ fontSize: '1.5rem' }}>📷</span>
               </div>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                {t('dashboard.cameraScanDisabled')}
+                {t('techDashboard.cameraScanDisabled')}
               </span>
               <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                {t('dashboard.requiresHttpsApp')}
+                {t('techDashboard.requiresHttpsApp')}
               </span>
             </div>
           </div>
@@ -376,17 +376,17 @@ export function TechnicianDashboardPage() {
           <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
             <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertTriangle size={18} style={{ color: 'var(--warning)' }} />
-              {t('dashboard.workflowRules')}
+              {t('techDashboard.workflowRules')}
             </h3>
             <ul style={{ paddingLeft: '1.25rem', fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px', margin: '0' }}>
               <li>
-                <strong>{t('dashboard.ruleStrictSequencingTitle')}</strong> {t('dashboard.ruleStrictSequencingDesc')}
+                <strong>{t('techDashboard.ruleStrictSequencingTitle')}</strong> {t('techDashboard.ruleStrictSequencingDesc')}
               </li>
               <li>
-                <strong>{t('dashboard.ruleAutomaticHandoffTitle')}</strong> {t('dashboard.ruleAutomaticHandoffDesc')}
+                <strong>{t('techDashboard.ruleAutomaticHandoffTitle')}</strong> {t('techDashboard.ruleAutomaticHandoffDesc')}
               </li>
               <li>
-                <strong>{t('dashboard.rulePauseLoggingTitle')}</strong> {t('dashboard.rulePauseLoggingDesc')}
+                <strong>{t('techDashboard.rulePauseLoggingTitle')}</strong> {t('techDashboard.rulePauseLoggingDesc')}
               </li>
             </ul>
           </div>

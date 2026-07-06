@@ -619,7 +619,7 @@ export function TenantsPage() {
                   id="input-tenant-name"
                   className={`form-input ${formErrors.tenantName ? 'form-input--error' : ''}`}
                   type="text"
-                  placeholder="e.g., Smile Dental Lab"
+                  placeholder={t('tenants.labNamePlaceholder', { defaultValue: 'e.g., Smile Dental Lab' })}
                   value={form.tenantName}
                   onChange={(e) => handleInputChange('tenantName', e.target.value)}
                   disabled={creating}
@@ -640,7 +640,7 @@ export function TenantsPage() {
                   id="input-owner-name"
                   className={`form-input ${formErrors.ownerName ? 'form-input--error' : ''}`}
                   type="text"
-                  placeholder="e.g., John Doe"
+                  placeholder={t('tenants.ownerNamePlaceholder', { defaultValue: 'e.g., John Doe' })}
                   value={form.ownerName}
                   onChange={(e) => handleInputChange('ownerName', e.target.value)}
                   disabled={creating}
@@ -660,7 +660,7 @@ export function TenantsPage() {
                   id="input-owner-email"
                   className={`form-input ${formErrors.ownerEmail ? 'form-input--error' : ''}`}
                   type="email"
-                  placeholder="e.g., owner@smilelab.com"
+                  placeholder={t('tenants.ownerEmailPlaceholder', { defaultValue: 'e.g., owner@smilelab.com' })}
                   value={form.ownerEmail}
                   onChange={(e) => handleInputChange('ownerEmail', e.target.value)}
                   disabled={creating}
@@ -699,7 +699,7 @@ export function TenantsPage() {
                     className={`form-input ${formErrors.maxAdmins ? 'form-input--error' : ''}`}
                     type="number"
                     min="0"
-                    placeholder="e.g., 3"
+                    placeholder={t('tenants.adminLimitPlaceholder', { defaultValue: 'e.g., 3' })}
                     value={form.maxAdmins}
                     onChange={(e) => handleInputChange('maxAdmins', e.target.value)}
                     disabled={creating}
@@ -720,7 +720,7 @@ export function TenantsPage() {
                     className={`form-input ${formErrors.maxTechnicians ? 'form-input--error' : ''}`}
                     type="number"
                     min="0"
-                    placeholder="e.g., 6"
+                    placeholder={t('tenants.techLimitPlaceholder', { defaultValue: 'e.g., 6' })}
                     value={form.maxTechnicians}
                     onChange={(e) => handleInputChange('maxTechnicians', e.target.value)}
                     disabled={creating}
@@ -900,7 +900,7 @@ export function TenantsPage() {
                   id="input-edit-tenant-name"
                   className={`form-input ${editFormErrors.name ? 'form-input--error' : ''}`}
                   type="text"
-                  placeholder="e.g., Smile Dental Lab"
+                  placeholder={t('tenants.labNamePlaceholder', { defaultValue: 'e.g., Smile Dental Lab' })}
                   value={editForm.name}
                   onChange={(e) => handleEditInputChange('name', e.target.value)}
                   disabled={saving}
@@ -922,7 +922,7 @@ export function TenantsPage() {
                     id="input-edit-tenant-email"
                     className={`form-input ${editFormErrors.contactEmail ? 'form-input--error' : ''}`}
                     type="text"
-                    placeholder="e.g., contact@smilelab.com"
+                    placeholder={t('tenants.contactEmailPlaceholder', { defaultValue: 'e.g., contact@smilelab.com' })}
                     value={editForm.contactEmail}
                     onChange={(e) => handleEditInputChange('contactEmail', e.target.value)}
                     disabled={saving}
@@ -942,7 +942,7 @@ export function TenantsPage() {
                     id="input-edit-tenant-phone"
                     className="form-input"
                     type="text"
-                    placeholder="e.g., +91-9876543210"
+                    placeholder={t('tenants.contactPhonePlaceholder', { defaultValue: 'e.g., +91-9876543210' })}
                     value={editForm.contactPhone}
                     onChange={(e) => handleEditInputChange('contactPhone', e.target.value)}
                     disabled={saving}
@@ -958,7 +958,7 @@ export function TenantsPage() {
                   id="input-edit-tenant-address"
                   className="form-input"
                   style={{ minHeight: '80px', resize: 'vertical' }}
-                  placeholder="e.g., 123 Dental Street, City"
+                  placeholder={t('tenants.addressPlaceholder', { defaultValue: 'e.g., 123 Dental Street, City' })}
                   value={editForm.address}
                   onChange={(e) => handleEditInputChange('address', e.target.value)}
                   disabled={saving}
@@ -1006,7 +1006,7 @@ export function TenantsPage() {
                     className={`form-input ${editFormErrors.maxAdmins ? 'form-input--error' : ''}`}
                     type="number"
                     min="0"
-                    placeholder="e.g., 3"
+                    placeholder={t('tenants.adminLimitPlaceholder', { defaultValue: 'e.g., 3' })}
                     value={editForm.maxAdmins}
                     onChange={(e) => handleEditInputChange('maxAdmins', e.target.value)}
                     disabled={saving}
@@ -1027,7 +1027,7 @@ export function TenantsPage() {
                     className={`form-input ${editFormErrors.maxTechnicians ? 'form-input--error' : ''}`}
                     type="number"
                     min="0"
-                    placeholder="e.g., 6"
+                    placeholder={t('tenants.techLimitPlaceholder', { defaultValue: 'e.g., 6' })}
                     value={editForm.maxTechnicians}
                     onChange={(e) => handleEditInputChange('maxTechnicians', e.target.value)}
                     disabled={saving}

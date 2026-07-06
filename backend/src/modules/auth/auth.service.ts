@@ -554,4 +554,17 @@ export class AuthService {
 
     return { message: 'Language preference updated', language };
   }
+
+  async getTenantInfoBySubdomain(subdomain: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { subdomain },
+      select: { name: true, status: true },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    return tenant;
+  }
 }

@@ -788,7 +788,7 @@ export function WorkOrdersPage() {
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
               >
-                <option value="ALL">{t('branches.allBranches')}</option>
+                <option value="ALL">{t('common.allBranches')}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}

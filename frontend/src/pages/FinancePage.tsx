@@ -483,7 +483,7 @@ export function FinancePage() {
                 <Building2 size={16} />
                 <span>
                   {selectedBranches.length === 0
-                    ? t('branches.allBranches')
+                    ? t('common.allBranches')
                     : selectedBranches.length === 1
                     ? branches.find(b => b.id === selectedBranches[0])?.name || t('branches.oneSelected', { defaultValue: '1 Branch' })
                     : t('branches.nSelected', { count: selectedBranches.length, defaultValue: `${selectedBranches.length} Branches` })}
@@ -544,7 +544,7 @@ export function FinancePage() {
                         cursor: 'pointer',
                       }}
                     >
-                      {t('branches.allBranches')}
+                      {t('common.allBranches')}
                     </button>
                     {branches.map((b) => {
                       const isSel = selectedBranches.includes(b.id);
@@ -815,41 +815,7 @@ export function FinancePage() {
             </div>
           </div>
 
-          {/* Card: Top Performing Branch */}
-          {user?.role === 'OWNER' && (
-            <div style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: '16px',
-              padding: '1.25rem',
-              boxShadow: 'var(--shadow-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-            }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                backgroundColor: 'rgba(236, 72, 153, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#EC4899',
-              }}>
-                <Building2 size={24} />
-              </div>
-              <div style={{ overflow: 'hidden' }}>
-                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('finance.topBranch', { defaultValue: 'Top Branch' })}</span>
-                <h3 style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={stats.summary.topPerformingBranch.name}>
-                  {stats.summary.topPerformingBranch.name}
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  {formatCurrency(stats.summary.topPerformingBranch.revenue)}
-                </span>
-              </div>
-            </div>
-          )}
+
 
           {/* Card: Pending Payment Count */}
           <div style={{
