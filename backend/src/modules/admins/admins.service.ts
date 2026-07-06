@@ -117,7 +117,7 @@ export class AdminsService {
             email,
             passwordHash: ownerUser ? ownerUser.passwordHash : passwordHash,
             firstName,
-            lastName,
+            lastName: lastName || '',
             phone: phone || null,
             role: UserRole.ADMIN,
             status: UserStatus.ACTIVE,

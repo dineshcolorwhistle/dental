@@ -31,11 +31,12 @@ export class CreateAdminDto {
   @ApiProperty({
     example: 'Doe',
     description: 'Last name of the admin user',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(50)
-  lastName: string;
+  lastName?: string;
 
   @ApiProperty({
     example: '+919876543210',

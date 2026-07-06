@@ -134,7 +134,6 @@ export function AdminsPage() {
     const errors: Partial<Record<keyof CreateAdminPayload, string>> = {};
 
     if (!form.firstName.trim()) errors.firstName = t('validation.fieldRequired');
-    if (!form.lastName.trim()) errors.lastName = t('validation.fieldRequired');
 
     if (!isEdit) {
       if (!form.email.trim()) {
@@ -674,7 +673,7 @@ export function AdminsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-admin-last">
-                    {t('admins.lastName')} *
+                    {t('admins.lastName')} ({t('common.optional', { defaultValue: 'Optional' })})
                   </label>
                   <input
                     id="input-admin-last"
@@ -841,7 +840,7 @@ export function AdminsPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-admin-last">
-                    {t('admins.lastName')} *
+                    {t('admins.lastName')} ({t('common.optional', { defaultValue: 'Optional' })})
                   </label>
                   <input
                     id="input-edit-admin-last"
