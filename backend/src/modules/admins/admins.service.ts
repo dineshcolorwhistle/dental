@@ -101,83 +101,103 @@ export class AdminsService {
     const passwordHash = await bcrypt.hash(tempPassword, 12);
 
     // 4. Create user and password reset token in a transaction
-    const result = await this.prisma.$transaction(async (tx) => {
-      const branchDetails = await tx.branch.findUnique({
-        where: { id: branchId },
-        select: { defaultAdminId: true },
-      });
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const branchDetails = await tx.branch.findUnique({
+          where: { id: branchId },
+          select: { defaultAdminId: true },
+        });
 
-      const makeDefault = !branchDetails || !branchDetails.defaultAdminId;
+        const makeDefault = !branchDetails || !branchDetails.defaultAdminId;
 
-      const admin = await tx.user.create({
-        data: {
-          tenantId,
-          branchId,
-          email,
-          passwordHash: ownerUser ? ownerUser.passwordHash : passwordHash,
-          firstName,
-          lastName,
-          phone,
-          role: UserRole.ADMIN,
-          status: UserStatus.ACTIVE,
-        },
-        include: {
-          branch: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
+        const admin = await tx.user.create({
+          data: {
+            tenantId,
+            branchId,
+            email,
+            passwordHash: ownerUser ? ownerUser.passwordHash : passwordHash,
+            firstName,
+            lastName,
+            phone: phone || null,
+            role: UserRole.ADMIN,
+            status: UserStatus.ACTIVE,
+          },
+          include: {
+            branch: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
             },
           },
-        },
+        });
+
+        if (makeDefault) {
+          await tx.branch.update({
+            where: { id: branchId },
+            data: { defaultAdminId: admin.id },
+          });
+        }
+
+        let resetToken = null;
+        if (!ownerUser) {
+          // Create password reset token (24h expiry)
+          resetToken = uuidv4();
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24);
+
+          await tx.passwordResetToken.create({
+            data: {
+              userId: admin.id,
+              token: resetToken,
+              expiresAt,
+            },
+          });
+        }
+
+        return { admin, resetToken };
       });
 
-      if (makeDefault) {
-        await tx.branch.update({
-          where: { id: branchId },
-          data: { defaultAdminId: admin.id },
-        });
+      // 5. Send invitation email (non-blocking) only if not ownerUser
+      if (result.resetToken) {
+        try {
+          await this.emailQueue.add('send-admin-invite', {
+            email,
+            adminName: `${firstName} ${lastName}`,
+            tenantName: tenant.name,
+            branchName: branch.name,
+            resetToken: result.resetToken,
+            subdomain: tenant.subdomain,
+          });
+        } catch (emailError) {
+          this.logger.warn(
+            `Failed to queue invitation email for ${email}: ${emailError.message}`,
+          );
+          // Don't fail the entire operation if email queueing fails
+        }
       }
 
-      let resetToken = null;
-      if (!ownerUser) {
-        // Create password reset token (24h expiry)
-        resetToken = uuidv4();
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 24);
+      this.logger.log(
+        `Admin created: ${email} for branch ${branch.name} inside tenant ${tenantId}`,
+      );
 
-        await tx.passwordResetToken.create({
-          data: {
-            userId: admin.id,
-            token: resetToken,
-            expiresAt,
-          },
-        });
+      // Exclude passwordHash from response
+      const { passwordHash: _, ...adminWithoutPassword } = result.admin;
+
+      return {
+        ...adminWithoutPassword,
+        isOwnerAdmin: !!ownerUser,
+      };
+    } catch (error) {
+      // Handle Prisma unique constraint violation
+      if (error?.code === 'P2002') {
+        throw new ConflictException(
+          `A Lab Admin with the email "${email}" already exists in your organization.`,
+        );
       }
-
-      return { admin, resetToken };
-    });
-
-    // 5. Send invitation email (non-blocking) only if not ownerUser
-    if (result.resetToken) {
-      await this.emailQueue.add('send-admin-invite', {
-        email,
-        adminName: `${firstName} ${lastName}`,
-        tenantName: tenant.name,
-        branchName: branch.name,
-        resetToken: result.resetToken,
-        subdomain: tenant.subdomain,
-      });
+      throw error;
     }
-
-    this.logger.log(
-      `Admin created: ${email} for branch ${branch.name} inside tenant ${tenantId}`,
-    );
-
-    return {
-      ...result.admin,
-      isOwnerAdmin: !!ownerUser,
-    };
   }
 
   /**

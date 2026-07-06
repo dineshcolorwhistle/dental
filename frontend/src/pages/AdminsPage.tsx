@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { adminService, branchService, authService, type AdminListItem, type BranchListItem, type CreateAdminPayload, type TenantLimitsResponse } from '../services';
+import { adminService, branchService, authService, type AdminListItem, type BranchListItem, type CreateAdminPayload, type TenantLimitsResponse, type UserProfile } from '../services';
 import { Pagination, SearchableSelect } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
@@ -61,18 +61,22 @@ export function AdminsPage() {
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateAdminPayload, string>>>({});
 
   const [tenantLimits, setTenantLimits] = useState<TenantLimitsResponse | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
+  const [isOwnerEmailMatched, setIsOwnerEmailMatched] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [adminData, branchData, limitsData] = await Promise.all([
+      const [adminData, branchData, limitsData, profileData] = await Promise.all([
         adminService.getAll(),
         branchService.getAll(),
         authService.getTenantLimits(),
+        authService.getProfile(),
       ]);
       setAdmins(adminData);
       setBranches(branchData.filter((b) => b.isActive));
       setTenantLimits(limitsData);
+      setCurrentUserProfile(profileData);
     } catch (err) {
       toast.error(t('admins.failedLoad'));
       console.error(err);
@@ -156,6 +160,7 @@ export function AdminsPage() {
       phone: '',
       branchId: branches[0]?.id || '',
     });
+    setIsOwnerEmailMatched(false);
     setFormErrors({});
     setShowCreateModal(true);
   };
@@ -215,9 +220,45 @@ export function AdminsPage() {
   };
 
   const handleInputChange = (field: keyof CreateAdminPayload | 'status', value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (formErrors[field as keyof CreateAdminPayload]) {
-      setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    if (field === 'email') {
+      const emailVal = value;
+      const trimmedEmail = emailVal.trim().toLowerCase();
+      const matchesOwner = !!currentUserProfile && currentUserProfile.email.toLowerCase() === trimmedEmail;
+      
+      setIsOwnerEmailMatched(matchesOwner);
+      
+      if (matchesOwner) {
+        setForm((prev) => ({
+          ...prev,
+          email: emailVal,
+          firstName: currentUserProfile.firstName,
+          lastName: currentUserProfile.lastName,
+          phone: currentUserProfile.phone || '',
+        }));
+        setFormErrors((prev) => ({
+          ...prev,
+          email: undefined,
+          firstName: undefined,
+          lastName: undefined,
+        }));
+      } else {
+        setForm((prev) => {
+          const wasMatched = isOwnerEmailMatched;
+          return {
+            ...prev,
+            email: emailVal,
+            ...(wasMatched ? { firstName: '', lastName: '', phone: '' } : {}),
+          };
+        });
+        if (formErrors.email) {
+          setFormErrors((prev) => ({ ...prev, email: undefined }));
+        }
+      }
+    } else {
+      setForm((prev) => ({ ...prev, [field]: value }));
+      if (formErrors[field as keyof CreateAdminPayload]) {
+        setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+      }
     }
   };
 
@@ -598,6 +639,15 @@ export function AdminsPage() {
             </div>
 
             <form className="modal__body" onSubmit={handleCreate}>
+              {isOwnerEmailMatched && (
+                <div className="alert alert--info" style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--accent-primary)', background: 'var(--bg-base)', marginBottom: '1rem', color: 'var(--text-primary)', fontSize: '0.8125rem' }}>
+                  <AlertCircle size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    {t('admins.ownerAutoFillInfo')}
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-admin-first">
@@ -611,6 +661,8 @@ export function AdminsPage() {
                     value={form.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
                     disabled={saving}
+                    readOnly={isOwnerEmailMatched}
+                    style={isOwnerEmailMatched ? { backgroundColor: 'var(--bg-muted)', cursor: 'not-allowed' } : undefined}
                     autoFocus
                   />
                   {formErrors.firstName && (
@@ -632,6 +684,8 @@ export function AdminsPage() {
                     value={form.lastName}
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
                     disabled={saving}
+                    readOnly={isOwnerEmailMatched}
+                    style={isOwnerEmailMatched ? { backgroundColor: 'var(--bg-muted)', cursor: 'not-allowed' } : undefined}
                   />
                   {formErrors.lastName && (
                     <span className="form-error">
@@ -659,8 +713,18 @@ export function AdminsPage() {
                     <AlertCircle size={12} /> {formErrors.email}
                   </span>
                 )}
-                <span className="form-hint">
-                  <Mail size={12} /> {t('admins.inviteWelcomeEmailHint', { defaultValue: 'A welcome email with password reset link will be sent to this address.' })}
+                <span className="form-hint" style={isOwnerEmailMatched ? { color: 'var(--accent-primary)' } : undefined}>
+                  {isOwnerEmailMatched ? (
+                    <>
+                      <CheckCircle2 size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                      {t('admins.ownerAutoFillInfo')}
+                    </>
+                  ) : (
+                    <>
+                      <Mail size={12} />
+                      {t('admins.inviteWelcomeEmailHint', { defaultValue: 'A welcome email with password reset link will be sent to this address.' })}
+                    </>
+                  )}
                 </span>
               </div>
 

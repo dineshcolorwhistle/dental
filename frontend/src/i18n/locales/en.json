@@ -657,6 +657,7 @@
     "resendInvite": "Resend Invite",
     "assignedBranch": "ALL branch",
     "inviteWelcomeEmailHint": "A welcome email with password reset link will be sent to this address.",
+    "ownerAutoFillInfo": "This matches your email. Your first name, last name, and phone are automatically filled from your profile. You only need to select a branch.",
     "totalAdmins": "Total Admins",
     "invitedPending": "Invited (Pending Setup)"
   },

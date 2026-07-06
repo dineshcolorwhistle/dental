@@ -64,16 +64,86 @@ function App() {
             }
           >
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/tenants" element={<TenantsPage />} />
-            <Route path="/branches" element={<BranchesPage />} />
-            <Route path="/admins" element={<AdminsPage />} />
-            <Route path="/doctors" element={<DoctorsPage />} />
-            <Route path="/technicians" element={<TechniciansPage />} />
-            <Route path="/prosthesis-types" element={<ProsthesisTypesPage />} />
-            <Route path="/processes" element={<ProcessesPage />} />
-            <Route path="/work-orders" element={<WorkOrdersPage />} />
-            <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
-            <Route path="/tech/work-orders" element={<TechnicianWorkOrdersPage />} />
+            <Route
+              path="/tenants"
+              element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                  <TenantsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/branches"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER']}>
+                  <BranchesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admins"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER']}>
+                  <AdminsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/doctors"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <DoctorsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/technicians"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <TechniciansPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/prosthesis-types"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <ProsthesisTypesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/processes"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <ProcessesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/work-orders"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <WorkOrdersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/work-orders/:id"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <WorkOrderDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tech/work-orders"
+              element={
+                <ProtectedRoute allowedRoles={['TECHNICIAN']}>
+                  <TechnicianWorkOrdersPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/finance"
               element={

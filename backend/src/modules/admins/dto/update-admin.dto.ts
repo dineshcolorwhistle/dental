@@ -26,7 +26,6 @@ export class UpdateAdminDto {
   })
   @IsOptional()
   @IsString()
-  @MinLength(2)
   @MaxLength(50)
   lastName?: string;
 

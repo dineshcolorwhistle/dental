@@ -80,6 +80,23 @@ export function LoginPage() {
     return serverMessage || t('auth.invalidCredentials');
   };
 
+  const isRouteAllowedForRole = (pathname: string, role: string): boolean => {
+    if (pathname === '/dashboard' || pathname === '/') return true;
+    
+    switch (role) {
+      case 'SUPER_ADMIN':
+        return pathname.startsWith('/tenants');
+      case 'OWNER':
+        return !pathname.startsWith('/tenants') && !pathname.startsWith('/tech');
+      case 'ADMIN':
+        return !pathname.startsWith('/tenants') && !pathname.startsWith('/branches') && !pathname.startsWith('/admins') && !pathname.startsWith('/tech');
+      case 'TECHNICIAN':
+        return pathname.startsWith('/tech') || pathname === '/dashboard';
+      default:
+        return false;
+    }
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     try {
@@ -99,7 +116,11 @@ export function LoginPage() {
         });
       } else {
         toast.success(t('auth.loginSuccess'));
-        navigate(from, { replace: true });
+        const userRole = res?.user?.role;
+        const targetPath = userRole && isRouteAllowedForRole(from, userRole) 
+          ? from 
+          : (userRole === 'SUPER_ADMIN' ? '/tenants' : '/dashboard');
+        navigate(targetPath, { replace: true });
       }
     } catch (error: any) {
       toast.error(getErrorMessage(error));
@@ -119,7 +140,8 @@ export function LoginPage() {
         role: role,
       });
       toast.success(t('auth.loginSuccess'));
-      navigate(from, { replace: true });
+      const targetPath = isRouteAllowedForRole(from, role) ? from : '/dashboard';
+      navigate(targetPath, { replace: true });
     } catch (error: any) {
       toast.error(getErrorMessage(error));
     } finally {

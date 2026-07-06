@@ -657,6 +657,7 @@
     "resendInvite": "Reenviar Invitación",
     "assignedBranch": "Todas las sucursales",
     "inviteWelcomeEmailHint": "Se enviará un correo electrónico de bienvenida con un enlace de restablecimiento de contraseña a esta dirección.",
+    "ownerAutoFillInfo": "Esto coincide con su correo electrónico. Su nombre, apellido y teléfono se completan automáticamente a partir de su perfil. Solo necesita seleccionar una sucursal.",
     "totalAdmins": "Total de Administradores",
     "invitedPending": "Invitado (Pendiente de Configuración)"
   },
