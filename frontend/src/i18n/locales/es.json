@@ -146,7 +146,19 @@
     "invalidCredentials": "Credenciales inválidas. Intenta de nuevo.",
     "dentalLab": "DentalLab",
     "managementSystem": "Sistema de Gestión",
-    "copyright": "© {{year}} Sistema de Gestión de Laboratorio Dental"
+    "copyright": "© {{year}} Sistema de Gestión de Laboratorio Dental",
+    "selectRole": "Seleccionar Rol",
+    "selectRoleSubtitle": "Por favor, elija el rol con el que desea iniciar sesión",
+    "backToLogin": "Volver al inicio de sesión",
+    "errors": {
+      "primaryDomainOnlySuperAdmin": "Solo los Super Administradores pueden iniciar sesión a través del dominio principal.",
+      "superAdminSubdomainDenied": "Los Súper Administradores no pueden iniciar sesión a través de los subdominios de inquilinos.",
+      "tenantSubdomainOnlyTenantUsers": "No tienes acceso a este subdominio de inquilino.",
+      "invalidTenant": "Inquilino no válido.",
+      "tenantInactive": "El inquilino está inactivo o suspendido.",
+      "accountInactive": "La cuenta está inactiva.",
+      "roleNotAvailable": "El rol seleccionado no está disponible para esta cuenta."
+    }
   },
   "resetPassword": {
     "setYourPassword": "Establece Tu Contraseña",

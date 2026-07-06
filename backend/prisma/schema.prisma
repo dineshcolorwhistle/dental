@@ -166,7 +166,7 @@ model User {
   initiatedRepetitions RepetitionLog[]     @relation("RepetitionInitiator")
   pushSubscriptions   PushSubscription[]
 
-  @@unique([email, tenantId])
+  @@unique([email, tenantId, role])
   @@map("users")
 }
 

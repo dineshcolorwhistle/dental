@@ -146,7 +146,19 @@
     "invalidCredentials": "Invalid credentials. Please try again.",
     "dentalLab": "DentalLab",
     "managementSystem": "Management System",
-    "copyright": "© {{year}} Dental Lab Management System"
+    "copyright": "© {{year}} Dental Lab Management System",
+    "selectRole": "Select Role",
+    "selectRoleSubtitle": "Please choose the role you want to sign in as",
+    "backToLogin": "Back to Login",
+    "errors": {
+      "primaryDomainOnlySuperAdmin": "Only Super Admins can log in through the primary domain.",
+      "superAdminSubdomainDenied": "Super Admins cannot log in through tenant subdomains.",
+      "tenantSubdomainOnlyTenantUsers": "You do not have access to this tenant subdomain.",
+      "invalidTenant": "Invalid tenant.",
+      "tenantInactive": "Tenant is inactive or suspended.",
+      "accountInactive": "Account is inactive.",
+      "roleNotAvailable": "Selected role is not available for this account."
+    }
   },
   "resetPassword": {
     "setYourPassword": "Set Your Password",

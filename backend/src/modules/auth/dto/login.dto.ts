@@ -27,4 +27,13 @@ export class LoginDto {
   @IsOptional()
   @IsString()
   subdomain?: string;
+
+  @ApiProperty({
+    example: 'OWNER',
+    required: false,
+    description: 'Selected role when user has multiple roles (optional)',
+  })
+  @IsOptional()
+  @IsString()
+  role?: string;
 }

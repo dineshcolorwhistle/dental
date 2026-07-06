@@ -61,14 +61,39 @@ export class AdminsService {
     }
 
     // 2. Check if a user with this email already exists inside this tenant
-    const existingUser = await this.prisma.user.findFirst({
+    const existingUsers = await this.prisma.user.findMany({
       where: { email, tenantId },
     });
 
-    if (existingUser) {
-      throw new ConflictException(
-        `A user with the email "${email}" already exists in your organization.`,
-      );
+    let ownerUser = null;
+
+    if (existingUsers.length > 0) {
+      // If there is already an ADMIN, throw conflict
+      const hasAdmin = existingUsers.some((u) => u.role === UserRole.ADMIN);
+      if (hasAdmin) {
+        throw new ConflictException(
+          `A user with the email "${email}" already exists in your organization.`,
+        );
+      }
+
+      // Check if there is an OWNER
+      ownerUser = existingUsers.find((u) => u.role === UserRole.OWNER);
+      if (ownerUser) {
+        // Owner is allowed to be Admin. Make sure there are no other roles
+        const hasOtherNonOwnerRoles = existingUsers.some(
+          (u) => u.role !== UserRole.OWNER && u.role !== UserRole.ADMIN,
+        );
+        if (hasOtherNonOwnerRoles) {
+          throw new ConflictException(
+            `A user with the email "${email}" already exists in your organization with another role.`,
+          );
+        }
+      } else {
+        // If there's no owner but they already exist (e.g. as technician), throw conflict
+        throw new ConflictException(
+          `A user with the email "${email}" already exists in your organization.`,
+        );
+      }
     }
 
     // 3. Generate password hash for temporary password
@@ -89,7 +114,7 @@ export class AdminsService {
           tenantId,
           branchId,
           email,
-          passwordHash,
+          passwordHash: ownerUser ? ownerUser.passwordHash : passwordHash,
           firstName,
           lastName,
           phone,
@@ -114,37 +139,45 @@ export class AdminsService {
         });
       }
 
-      // Create password reset token (24h expiry)
-      const resetToken = uuidv4();
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24);
+      let resetToken = null;
+      if (!ownerUser) {
+        // Create password reset token (24h expiry)
+        resetToken = uuidv4();
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
 
-      await tx.passwordResetToken.create({
-        data: {
-          userId: admin.id,
-          token: resetToken,
-          expiresAt,
-        },
-      });
+        await tx.passwordResetToken.create({
+          data: {
+            userId: admin.id,
+            token: resetToken,
+            expiresAt,
+          },
+        });
+      }
 
       return { admin, resetToken };
     });
 
-    // 5. Send invitation email (non-blocking)
-    await this.emailQueue.add('send-admin-invite', {
-      email,
-      adminName: `${firstName} ${lastName}`,
-      tenantName: tenant.name,
-      branchName: branch.name,
-      resetToken: result.resetToken,
-      subdomain: tenant.subdomain,
-    });
+    // 5. Send invitation email (non-blocking) only if not ownerUser
+    if (result.resetToken) {
+      await this.emailQueue.add('send-admin-invite', {
+        email,
+        adminName: `${firstName} ${lastName}`,
+        tenantName: tenant.name,
+        branchName: branch.name,
+        resetToken: result.resetToken,
+        subdomain: tenant.subdomain,
+      });
+    }
 
     this.logger.log(
       `Admin created: ${email} for branch ${branch.name} inside tenant ${tenantId}`,
     );
 
-    return result.admin;
+    return {
+      ...result.admin,
+      isOwnerAdmin: !!ownerUser,
+    };
   }
 
   /**

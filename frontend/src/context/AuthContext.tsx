@@ -14,7 +14,7 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (payload: LoginPayload) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<any>;
   logout: () => Promise<void>;
 }
 
@@ -81,17 +81,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (payload: LoginPayload) => {
     const data = await authService.login(payload);
 
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    localStorage.setItem('user', JSON.stringify(data.user));
-
-    setUser(data.user);
-
-    // Sync i18n language from user preference on login
-    const lang = (data.user.preferredLanguage || 'ES').toLowerCase();
-    if (i18n.language !== lang) {
-      i18n.changeLanguage(lang);
+    if (data.requiresRoleSelection) {
+      return data;
     }
+
+    if (data.accessToken && data.refreshToken && data.user) {
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      setUser(data.user);
+
+      // Sync i18n language from user preference on login
+      const lang = (data.user.preferredLanguage || 'ES').toLowerCase();
+      if (i18n.language !== lang) {
+        i18n.changeLanguage(lang);
+      }
+    }
+
+    return data;
   }, []);
 
   const logout = useCallback(async () => {

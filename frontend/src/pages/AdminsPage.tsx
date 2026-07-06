@@ -180,8 +180,12 @@ export function AdminsPage() {
 
     try {
       setSaving(true);
-      await adminService.create(form);
-      toast.success(t('admins.inviteSent'));
+      const newAdmin = await adminService.create(form);
+      if (newAdmin && (newAdmin as any).isOwnerAdmin) {
+        toast.success(t('admins.createSuccess'));
+      } else {
+        toast.success(t('admins.inviteSent'));
+      }
       setShowCreateModal(false);
       await fetchData();
     } catch (err: any) {

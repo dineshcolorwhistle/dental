@@ -15,6 +15,12 @@ export function LoginPage() {
   const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [roleSelectionData, setRoleSelectionData] = useState<{
+    roles: ('OWNER' | 'ADMIN')[];
+    email: string;
+    password: string;
+    subdomain?: string;
+  } | null>(null);
 
   const loginSchema = z.object({
     email: z.string().email(t('validation.emailRequired')),
@@ -71,25 +77,139 @@ export function LoginPage() {
     return undefined;
   };
 
+  const getErrorMessage = (error: any) => {
+    const serverMessage = error?.response?.data?.message;
+    if (serverMessage === 'Only Super Admins can log in through the primary domain') {
+      return t('auth.errors.primaryDomainOnlySuperAdmin');
+    }
+    if (serverMessage === 'Super Admins cannot log in through tenant subdomains') {
+      return t('auth.errors.superAdminSubdomainDenied');
+    }
+    if (serverMessage === 'You do not have access to this tenant subdomain') {
+      return t('auth.errors.tenantSubdomainOnlyTenantUsers');
+    }
+    if (serverMessage === 'Invalid tenant') {
+      return t('auth.errors.invalidTenant');
+    }
+    if (serverMessage === 'Tenant is inactive or suspended') {
+      return t('auth.errors.tenantInactive');
+    }
+    if (serverMessage === 'Account is inactive') {
+      return t('auth.errors.accountInactive');
+    }
+    if (serverMessage === 'Selected role is not available for this account') {
+      return t('auth.errors.roleNotAvailable');
+    }
+    if (serverMessage === 'Invalid credentials') {
+      return t('auth.invalidCredentials');
+    }
+    return serverMessage || t('auth.invalidCredentials');
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     try {
       const extractedSubdomain = getSubdomain();
-      await login({
+      const res = await login({
         email: data.email,
         password: data.password,
         subdomain: extractedSubdomain,
       });
-      toast.success(t('auth.loginSuccess'));
-      navigate(from, { replace: true });
+
+      if (res && res.requiresRoleSelection) {
+        setRoleSelectionData({
+          roles: res.roles,
+          email: data.email,
+          password: data.password,
+          subdomain: extractedSubdomain,
+        });
+      } else {
+        toast.success(t('auth.loginSuccess'));
+        navigate(from, { replace: true });
+      }
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message || t('auth.invalidCredentials');
-      toast.error(message);
+      toast.error(getErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleRoleSelect = async (role: 'OWNER' | 'ADMIN') => {
+    if (!roleSelectionData) return;
+    setIsSubmitting(true);
+    try {
+      await login({
+        email: roleSelectionData.email,
+        password: roleSelectionData.password,
+        subdomain: roleSelectionData.subdomain,
+        role: role,
+      });
+      toast.success(t('auth.loginSuccess'));
+      navigate(from, { replace: true });
+    } catch (error: any) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (roleSelectionData) {
+    return (
+      <div className="login-page">
+        <h2 className="login-page__heading">{t('auth.selectRole')}</h2>
+        <p className="login-page__subheading">
+          {t('auth.selectRoleSubtitle')}
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+          {roleSelectionData.roles.map((role) => (
+            <button
+              key={role}
+              type="button"
+              className="btn btn--primary btn--full animate-fade-in"
+              style={{
+                padding: '1.25rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'linear-gradient(135deg, var(--accent-primary, #3B82F6), var(--accent-secondary, #1D4ED8))',
+                borderRadius: '12px',
+                border: 'none',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
+                transition: 'all 0.2s ease-in-out',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.15)';
+              }}
+              onClick={() => handleRoleSelect(role)}
+              disabled={isSubmitting}
+            >
+              <span style={{ fontWeight: 600, fontSize: '1rem' }}>
+                {t(`enums.userRole.${role}`)}
+              </span>
+              <LogIn size={18} />
+            </button>
+          ))}
+
+          <button
+            type="button"
+            className="btn btn--ghost btn--full"
+            style={{ marginTop: '1rem', border: '1px solid var(--border)', cursor: 'pointer' }}
+            onClick={() => setRoleSelectionData(null)}
+            disabled={isSubmitting}
+          >
+            {t('auth.backToLogin')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-page">

@@ -28,9 +28,8 @@ export class AuthService {
    * Supports tenant-scoped login (via subdomain) and super admin login.
    */
   async login(dto: LoginDto) {
-    const { email, password, subdomain } = dto;
+    const { email, password, subdomain, role } = dto;
 
-    // Build query — super admins have no tenant
     let user;
 
     if (subdomain) {
@@ -47,61 +46,105 @@ export class AuthService {
         throw new UnauthorizedException('Tenant is inactive or suspended');
       }
 
-      // Check if global Super Admin is logging in
-      user = await this.prisma.user.findFirst({
-        where: { email, tenantId: null, role: 'SUPER_ADMIN' },
+      // Query all matching users in this tenant only
+      const matchingUsers = await this.prisma.user.findMany({
+        where: { email, tenantId: tenant.id },
       });
 
-      if (!user) {
-        user = await this.prisma.user.findUnique({
-          where: {
-            email_tenantId: { email, tenantId: tenant.id },
-          },
+      if (matchingUsers.length === 0) {
+        // If no matching users in this tenant, but a Super Admin exists with this email, deny subdomain access
+        const superAdminExists = await this.prisma.user.findFirst({
+          where: { email, tenantId: null, role: UserRole.SUPER_ADMIN },
         });
+        if (superAdminExists) {
+          throw new UnauthorizedException('Super Admins cannot log in through tenant subdomains');
+        }
+
+        // Also check if the user exists but belongs to a different tenant
+        const differentTenantUser = await this.prisma.user.findFirst({
+          where: { email, NOT: { tenantId: tenant.id } },
+        });
+        if (differentTenantUser) {
+          throw new UnauthorizedException('You do not have access to this tenant subdomain');
+        }
+
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // Check passwords for matching users
+      let verifiedUser = null;
+      for (const u of matchingUsers) {
+        if (await bcrypt.compare(password, u.passwordHash)) {
+          verifiedUser = u;
+          break;
+        }
+      }
+
+      if (!verifiedUser) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // Filter to only active accounts
+      const activeUsers = matchingUsers.filter(u => u.status === 'ACTIVE');
+      if (activeUsers.length === 0) {
+        throw new UnauthorizedException('Account is inactive');
+      }
+
+      // Filter active users to allowed roles: OWNER, ADMIN, TECHNICIAN
+      const allowedRoles: UserRole[] = [UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN];
+      const activeTenantUsers = activeUsers.filter(u => allowedRoles.includes(u.role));
+
+      if (activeTenantUsers.length === 0) {
+        throw new UnauthorizedException('You do not have access to this tenant subdomain');
+      }
+
+      // If they have multiple active roles in this tenant (e.g. OWNER and ADMIN)
+      if (activeTenantUsers.length > 1) {
+        if (role) {
+          const selectedUser = activeTenantUsers.find(u => u.role === role);
+          if (!selectedUser) {
+            throw new UnauthorizedException('Selected role is not available for this account');
+          }
+          user = selectedUser;
+        } else {
+          // Send response indicating role selection is required
+          return {
+            requiresRoleSelection: true,
+            roles: activeTenantUsers.map(u => u.role),
+            email,
+            subdomain,
+          };
+        }
+      } else {
+        user = activeTenantUsers[0];
       }
     } else {
       // Super admin login (tenantId is null)
       user = await this.prisma.user.findFirst({
-        where: { email, tenantId: null, role: 'SUPER_ADMIN' },
+        where: { email, tenantId: null, role: UserRole.SUPER_ADMIN },
       });
 
-      // Smart automatic tenant resolution if not super admin
       if (!user) {
-        const matchingUsers = await this.prisma.user.findMany({
-          where: { email },
-          include: { tenant: true },
+        // If a non-super admin tries to log in on the primary domain, deny access
+        const regularUser = await this.prisma.user.findFirst({
+          where: { email, NOT: { role: UserRole.SUPER_ADMIN } },
         });
-
-        if (matchingUsers.length === 1) {
-          const singleUser = matchingUsers[0];
-          if (singleUser.tenant) {
-            if (singleUser.tenant.status !== 'ACTIVE') {
-              throw new UnauthorizedException(
-                'Tenant is inactive or suspended',
-              );
-            }
-            user = singleUser;
-          }
-        } else if (matchingUsers.length > 1) {
-          throw new UnauthorizedException(
-            'Multiple accounts found. Please log in using your specific laboratory subdomain.',
-          );
+        if (regularUser) {
+          throw new UnauthorizedException('Only Super Admins can log in through the primary domain');
         }
+
+        throw new UnauthorizedException('Invalid credentials');
       }
-    }
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Account is inactive');
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      if (user.status !== 'ACTIVE') {
+        throw new UnauthorizedException('Account is inactive');
+      }
     }
 
     // Update last login
@@ -251,9 +294,12 @@ export class AuthService {
     // Hash the new password
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
-    // Update user password and set status to ACTIVE (if they were INVITED)
-    await this.prisma.user.update({
-      where: { id: resetToken.userId },
+    // Update user password and set status to ACTIVE (if they were INVITED) for all accounts with this email/tenantId
+    await this.prisma.user.updateMany({
+      where: {
+        email: resetToken.user.email,
+        tenantId: resetToken.user.tenantId,
+      },
       data: {
         passwordHash,
         status: 'ACTIVE',
@@ -489,10 +535,23 @@ export class AuthService {
    * Update user's preferred language
    */
   async updateLanguage(userId: string, language: 'EN' | 'ES') {
-    await this.prisma.user.update({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      data: { preferredLanguage: language },
+      select: { email: true, tenantId: true },
     });
+
+    if (user && user.tenantId) {
+      await this.prisma.user.updateMany({
+        where: { email: user.email, tenantId: user.tenantId },
+        data: { preferredLanguage: language },
+      });
+    } else {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { preferredLanguage: language },
+      });
+    }
+
     return { message: 'Language preference updated', language };
   }
 }

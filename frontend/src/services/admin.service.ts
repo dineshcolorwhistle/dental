@@ -28,6 +28,7 @@ export interface AdminListItem {
     code: string;
     defaultAdminId?: string | null;
   } | null;
+  isOwnerAdmin?: boolean;
 }
 
 // ─── Service ─────────────────────────────────────────────

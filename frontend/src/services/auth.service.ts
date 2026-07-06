@@ -4,6 +4,7 @@ export interface LoginPayload {
   email: string;
   password: string;
   subdomain?: string;
+  role?: 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'DELIVERY' | 'DOCTOR';
 }
 
 export interface AuthUser {
@@ -22,9 +23,11 @@ export interface AuthUser {
 }
 
 export interface AuthResponse {
-  user: AuthUser;
-  accessToken: string;
-  refreshToken: string;
+  user?: AuthUser;
+  accessToken?: string;
+  refreshToken?: string;
+  requiresRoleSelection?: boolean;
+  roles?: ('OWNER' | 'ADMIN')[];
 }
 
 export interface UserProfile extends AuthUser {
