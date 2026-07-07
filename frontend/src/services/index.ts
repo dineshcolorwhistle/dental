@@ -46,3 +46,6 @@ export type {
   GetFinanceParams,
   GetPendingPaymentsParams,
 } from './finance.service';
+export { inventoryService } from './inventory.service';
+export type { InventoryCategory, InventoryItem, CreateInventoryPayload, UpdateInventoryPayload } from './inventory.service';
+

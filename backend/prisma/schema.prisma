@@ -82,6 +82,8 @@ model Tenant {
   workOrders      WorkOrder[]
   notifications   Notification[]
   auditLogs       AuditLog[]
+  inventoryItems  InventoryItem[]
+  inventoryCategories InventoryCategory[]
 
   @@map("tenants")
 }
@@ -127,6 +129,7 @@ model Branch {
   prosthesisTypes ProsthesisType[]
   processes       Process[]
   workOrders      WorkOrder[]
+  inventoryItems  InventoryItem[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -459,4 +462,49 @@ model PushSubscription {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("push_subscriptions")
+}
+
+model InventoryCategory {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  status      String   @default("active")
+  productType String   @default("for_use") @map("product_type") // e.g. "for_use", "for_sale"
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventoryItems InventoryItem[]
+
+  @@unique([tenantId, name])
+  @@map("inventory_categories")
+}
+
+model InventoryItem {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  branchId        String?  @map("branch_id")
+  name            String
+  sku             String
+  categoryId      String   @map("category_id")
+  status          String   // e.g. "IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK", "DISCONTINUED"
+  currentQuantity Int      @default(0) @map("current_quantity")
+  minQuantity     Int      @default(5) @map("min_quantity")
+  unitPrice       Float    @map("unit_price")
+  brand           String?
+  supplier        String?
+  expiryDate      DateTime? @map("expiry_date")
+  description     String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch   Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  category InventoryCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, branchId, sku])
+  @@map("inventory_items")
 }

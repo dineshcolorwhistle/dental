@@ -23,6 +23,7 @@ import {
   Check,
   Trash2,
   DollarSign,
+  Package,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, type NotificationItem } from '../services';
@@ -320,6 +321,17 @@ export function DashboardLayout() {
                 <ClipboardList size={20} />
                 <span>{t('navigation.workOrders')}</span>
               </NavLink>
+
+              <NavLink
+                to="/inventory"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Package size={20} />
+                <span>{t('navigation.inventory')}</span>
+              </NavLink>
             </>
           )}
 
@@ -385,6 +397,17 @@ export function DashboardLayout() {
               >
                 <ClipboardList size={20} />
                 <span>{t('navigation.workOrders')}</span>
+              </NavLink>
+
+              <NavLink
+                to="/inventory"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Package size={20} />
+                <span>{t('navigation.inventory')}</span>
               </NavLink>
             </>
           )}

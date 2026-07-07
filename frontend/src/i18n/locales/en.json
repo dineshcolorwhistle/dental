@@ -139,9 +139,22 @@
       "END": "Process Completed",
       "REWORK_ASSIGNED": "Rework Assigned",
       "REWORK_COMPLETED": "Rework Completed",
-      "REWORK_APPROVED": "Rework Approved",
       "REPETITION_RESET": "Process Repeated (Reset)",
       "REPETITION_TRIGGERED": "Repetition Triggered"
+    },
+    "inventoryStatus": {
+      "IN_STOCK": "In Stock",
+      "LOW_STOCK": "Low Stock",
+      "OUT_OF_STOCK": "Out of Stock",
+      "DISCONTINUED": "Discontinued"
+    },
+    "categoryStatus": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "productType": {
+      "for_use": "For Use",
+      "for_sale": "For Sale"
     }
   },
   "navigation": {
@@ -156,7 +169,8 @@
     "prosthesisTypes": "Prosthesis Types",
     "workOrders": "Work Orders",
     "myWorkOrders": "My Work Orders",
-    "tenants": "Tenants"
+    "tenants": "Tenants",
+    "inventory": "Inventory"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -953,5 +967,73 @@
     "languageChanged": "Language changed to {{language}}",
     "en": "EN",
     "es": "ES"
+  },
+  "inventory": {
+    "title": "Inventory Management",
+    "description": "Manage your laboratory items, raw materials, stock quantities, and categories.",
+    "tabs": {
+      "items": "Inventory Items",
+      "categories": "Categories"
+    },
+    "metrics": {
+      "totalItems": "Total Items",
+      "lowStock": "Low Stock Items",
+      "outOfStock": "Out of Stock"
+    },
+    "fields": {
+      "name": "Item Name",
+      "sku": "SKU",
+      "category": "Category",
+      "status": "Status",
+      "currentQuantity": "Current Quantity",
+      "minQuantity": "Minimum Quantity",
+      "unitPrice": "Unit Price",
+      "brand": "Brand",
+      "supplier": "Supplier",
+      "expiryDate": "Expiry Date",
+      "description": "Description",
+      "branch": "Branch",
+      "categoryName": "Category Name",
+      "categoryDescription": "Category Description",
+      "categoryStatus": "Category Status",
+      "productType": "Product Type"
+    },
+    "placeholders": {
+      "name": "Enter item name",
+      "sku": "INV-YYYYMMDD-XXXX",
+      "selectCategory": "Select Category",
+      "selectStatus": "Select Status",
+      "brand": "Enter brand name (optional)",
+      "supplier": "Enter supplier name (optional)",
+      "description": "Enter item description (optional)",
+      "categoryName": "Enter category name",
+      "categoryDescription": "Enter category description (optional)",
+      "selectProductType": "Select Product Type"
+    },
+    "buttons": {
+      "addItem": "Add Item",
+      "editItem": "Edit Item",
+      "addCategory": "Add Category",
+      "createItem": "Create Item",
+      "updateItem": "Update Item",
+      "deleteItem": "Delete Item"
+    },
+    "alerts": {
+      "lowStock": "Low Stock alert threshold reached",
+      "outOfStock": "No stock available"
+    },
+    "messages": {
+      "createSuccess": "Inventory item created successfully!",
+      "updateSuccess": "Inventory item updated successfully!",
+      "deleteSuccess": "Inventory item deleted successfully!",
+      "categoryCreateSuccess": "Category created successfully!",
+      "categoryUpdateSuccess": "Category updated successfully!",
+      "categoryDeleteSuccess": "Category deleted successfully!",
+      "categoryDeleteError": "Failed to delete category (it may be in use).",
+      "confirmDelete": "Are you sure you want to delete this inventory item?",
+      "confirmDeleteCategory": "Are you sure you want to delete this category?",
+      "noItems": "No inventory items found.",
+      "noCategories": "No categories found."
+    }
   }
 }

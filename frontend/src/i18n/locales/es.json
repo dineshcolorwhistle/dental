@@ -139,9 +139,22 @@
       "END": "Proceso Completado",
       "REWORK_ASSIGNED": "Retrabajo Asignado",
       "REWORK_COMPLETED": "Retrabajo Completado",
-      "REWORK_APPROVED": "Retrabajo Aprobado",
       "REPETITION_RESET": "Proceso Repetido (Reiniciado)",
       "REPETITION_TRIGGERED": "Repetición Activada"
+    },
+    "inventoryStatus": {
+      "IN_STOCK": "En Stock",
+      "LOW_STOCK": "Stock Bajo",
+      "OUT_OF_STOCK": "Agotado",
+      "DISCONTINUED": "Discontinuado"
+    },
+    "categoryStatus": {
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "productType": {
+      "for_use": "Para Uso",
+      "for_sale": "Para Venta"
     }
   },
   "navigation": {
@@ -156,7 +169,8 @@
     "prosthesisTypes": "Tipos de Prótesis",
     "workOrders": "Órdenes de Trabajo",
     "myWorkOrders": "Mis Órdenes de Trabajo",
-    "tenants": "Inquilinos"
+    "tenants": "Inquilinos",
+    "inventory": "Inventario"
   },
   "auth": {
     "welcomeBack": "Bienvenido de nuevo",
@@ -953,5 +967,73 @@
     "languageChanged": "Idioma cambiado a {{language}}",
     "en": "EN",
     "es": "ES"
+  },
+  "inventory": {
+    "title": "Gestión de Inventario",
+    "description": "Gestione los artículos de su laboratorio, materias primas, cantidades en stock y categorías.",
+    "tabs": {
+      "items": "Artículos de Inventario",
+      "categories": "Categorías"
+    },
+    "metrics": {
+      "totalItems": "Artículos Totales",
+      "lowStock": "Artículos Bajo Stock",
+      "outOfStock": "Agotado"
+    },
+    "fields": {
+      "name": "Nombre del Artículo",
+      "sku": "SKU",
+      "category": "Categoría",
+      "status": "Estado",
+      "currentQuantity": "Cantidad Actual",
+      "minQuantity": "Cantidad Mínima",
+      "unitPrice": "Precio Unitario",
+      "brand": "Marca",
+      "supplier": "Proveedor",
+      "expiryDate": "Fecha de Expiración",
+      "description": "Descripción",
+      "branch": "Sucursal",
+      "categoryName": "Nombre de la Categoría",
+      "categoryDescription": "Descripción de la Categoría",
+      "categoryStatus": "Estado de la Categoría",
+      "productType": "Tipo de Producto"
+    },
+    "placeholders": {
+      "name": "Ingrese nombre del artículo",
+      "sku": "INV-YYYYMMDD-XXXX",
+      "selectCategory": "Seleccione Categoría",
+      "selectStatus": "Seleccione Estado",
+      "brand": "Ingrese marca (opcional)",
+      "supplier": "Ingrese proveedor (opcional)",
+      "description": "Ingrese descripción del artículo (opcional)",
+      "categoryName": "Ingrese nombre de la categoría",
+      "categoryDescription": "Ingrese descripción de la categoría (opcional)",
+      "selectProductType": "Seleccione Tipo de Producto"
+    },
+    "buttons": {
+      "addItem": "Agregar Artículo",
+      "editItem": "Editar Artículo",
+      "addCategory": "Agregar Categoría",
+      "createItem": "Crear Artículo",
+      "updateItem": "Actualizar Artículo",
+      "deleteItem": "Eliminar Artículo"
+    },
+    "alerts": {
+      "lowStock": "Umbral de stock bajo alcanzado",
+      "outOfStock": "Sin stock disponible"
+    },
+    "messages": {
+      "createSuccess": "¡Artículo de inventario creado con éxito!",
+      "updateSuccess": "¡Artículo de inventario actualizado con éxito!",
+      "deleteSuccess": "¡Artículo de inventario eliminado con éxito!",
+      "categoryCreateSuccess": "¡Categoría creada con éxito!",
+      "categoryUpdateSuccess": "¡Categoría actualizada con éxito!",
+      "categoryDeleteSuccess": "¡Categoría eliminada con éxito!",
+      "categoryDeleteError": "Error al eliminar la categoría (puede estar en uso).",
+      "confirmDelete": "¿Está seguro de que desea eliminar este artículo de inventario?",
+      "confirmDeleteCategory": "¿Está seguro de que desea eliminar esta categoría?",
+      "noItems": "No se encontraron artículos de inventario.",
+      "noCategories": "No se encontraron categorías."
+    }
   }
 }
