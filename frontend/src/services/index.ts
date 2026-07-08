@@ -48,4 +48,6 @@ export type {
 } from './finance.service';
 export { inventoryService } from './inventory.service';
 export type { InventoryCategory, InventoryItem, CreateInventoryPayload, UpdateInventoryPayload } from './inventory.service';
+export { expenseService } from './expense.service';
+export type { ExpenseCategory, Expense, CreateExpensePayload, CreateExpenseCategoryPayload } from './expense.service';
 

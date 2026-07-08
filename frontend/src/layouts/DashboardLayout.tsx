@@ -409,6 +409,16 @@ export function DashboardLayout() {
                 <Package size={20} />
                 <span>{t('navigation.inventory')}</span>
               </NavLink>
+              <NavLink
+                to="/expenses"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <DollarSign size={20} />
+                <span>{t('navigation.expenses')}</span>
+              </NavLink>
             </>
           )}
 

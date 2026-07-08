@@ -17,6 +17,7 @@ import { TechnicianPortalModule } from './modules/technician-portal/technician-p
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { WebsocketsModule } from './modules/websockets/websockets.module';
@@ -52,6 +53,7 @@ import { QueuesModule } from './modules/queues/queues.module';
     TechnicianPortalModule,
     FinanceModule,
     InventoryModule,
+    ExpensesModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default

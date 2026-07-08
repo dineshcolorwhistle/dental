@@ -170,7 +170,8 @@
     "workOrders": "Órdenes de Trabajo",
     "myWorkOrders": "Mis Órdenes de Trabajo",
     "tenants": "Inquilinos",
-    "inventory": "Inventario"
+    "inventory": "Inventario",
+    "expenses": "Gastos"
   },
   "auth": {
     "welcomeBack": "Bienvenido de nuevo",
@@ -1034,6 +1035,52 @@
       "confirmDeleteCategory": "¿Está seguro de que desea eliminar esta categoría?",
       "noItems": "No se encontraron artículos de inventario.",
       "noCategories": "No se encontraron categorías."
+    }
+  },
+  "expenses": {
+    "title": "Gestión de Gastos",
+    "subtitle": "Seguimiento y gestión de los gastos operativos de su sucursal",
+    "addExpense": "Agregar Gasto",
+    "editExpense": "Editar Gasto",
+    "deleteExpense": "Eliminar Gasto",
+    "addCategory": "Agregar Categoría de Gasto",
+    "editCategory": "Editar Categoría de Gasto",
+    "deleteCategory": "Eliminar Categoría de Gasto",
+    "viewAll": "Ver Todos los Gastos",
+    "expensesTab": "Gastos",
+    "categoriesTab": "Categorías",
+    "fields": {
+      "date": "Fecha del Gasto",
+      "title": "Título",
+      "category": "Categoría",
+      "description": "Descripción",
+      "amount": "Monto",
+      "paymentMethod": "Método de Pago",
+      "branch": "Sucursal",
+      "categoryName": "Nombre de la Categoría",
+      "categoryDescription": "Descripción de la Categoría"
+    },
+    "placeholders": {
+      "enterTitle": "Ingrese título del gasto",
+      "selectCategory": "Seleccione Categoría",
+      "enterDescription": "Ingrese descripción detallada del gasto",
+      "enterAmount": "Monto",
+      "selectPaymentMethod": "Seleccione Método de Pago",
+      "enterCategoryName": "Ingrese nombre de la categoría",
+      "enterCategoryDescription": "Ingrese descripción de la categoría (opcional)"
+    },
+    "messages": {
+      "createSuccess": "¡Gasto creado con éxito!",
+      "updateSuccess": "¡Gasto actualizado con éxito!",
+      "deleteSuccess": "¡Gasto eliminado con éxito!",
+      "categoryCreateSuccess": "¡Categoría de gasto creada con éxito!",
+      "categoryUpdateSuccess": "¡Categoría de gasto actualizada con éxito!",
+      "categoryDeleteSuccess": "¡Categoría de gasto eliminada con éxito!",
+      "categoryDeleteError": "Error al eliminar la categoría de gasto (puede estar en uso).",
+      "confirmDelete": "¿Está seguro de que desea eliminar este gasto?",
+      "confirmDeleteCategory": "¿Está seguro de que desea eliminar esta categoría de gasto?",
+      "noExpenses": "No se encontraron gastos.",
+      "noCategories": "No se encontraron categorías de gastos."
     }
   }
 }

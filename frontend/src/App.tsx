@@ -18,6 +18,7 @@ import { WorkOrdersPage } from './pages/WorkOrdersPage';
 import { TechnicianWorkOrdersPage } from './pages/TechnicianWorkOrdersPage';
 import { FinancePage } from './pages/FinancePage';
 import { InventoryPage } from './pages/InventoryPage';
+import { ExpensesPage } from './pages/ExpensesPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { QRRedirectPage } from './pages/QRRedirectPage';
@@ -158,6 +159,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <InventoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/expenses"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <ExpensesPage />
                 </ProtectedRoute>
               }
             />

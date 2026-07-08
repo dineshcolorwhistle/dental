@@ -52,6 +52,7 @@ export function InventoryPage() {
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [selectedCategoryStatusFilter, setSelectedCategoryStatusFilter] = useState('ALL');
   const [selectedCategoryProductTypeFilter, setSelectedCategoryProductTypeFilter] = useState('ALL');
+  const [categoryCurrentPage, setCategoryCurrentPage] = useState(0);
 
   // Modals
   const [showItemModal, setShowItemModal] = useState(false);
@@ -114,10 +115,13 @@ export function InventoryPage() {
     }
   }, [isAdmin, user?.branchId, t]);
 
-  // Reset pagination on filter changes
   useEffect(() => {
     setCurrentPage(0);
   }, [searchQuery, selectedBranchFilter, selectedCategoryFilter, selectedStatusFilter]);
+
+  useEffect(() => {
+    setCategoryCurrentPage(0);
+  }, [categorySearchQuery, selectedCategoryStatusFilter, selectedCategoryProductTypeFilter]);
 
   useEffect(() => {
     fetchData();
@@ -401,6 +405,11 @@ export function InventoryPage() {
     });
   }, [categories, selectedCategoryStatusFilter, selectedCategoryProductTypeFilter, categorySearchQuery]);
 
+  const paginatedCategories = useMemo(() => {
+    const start = categoryCurrentPage * PAGE_SIZE;
+    return filteredCategories.slice(start, start + PAGE_SIZE);
+  }, [filteredCategories, categoryCurrentPage]);
+
   // Format Price
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
@@ -421,61 +430,46 @@ export function InventoryPage() {
   return (
     <div className="admins-page">
       {/* Page Header */}
-      <div className="page-header">
-        <div className="page-header__left">
-          <h1 className="page-header__title">{t('inventory.title')}</h1>
-          <p className="page-header__subtitle">{t('inventory.description')}</p>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('inventory.title')}</h1>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{t('inventory.description')}</p>
         </div>
-        {canEdit && activeTab === 'ITEMS' && (
-          <button className="btn btn--primary" onClick={handleOpenCreateModal}>
-            <Plus size={18} />
-            <span>{t('inventory.buttons.addItem')}</span>
-          </button>
-        )}
-      </div>
 
-      {/* Tabs */}
-      <div className="tabs-container" style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
-        <button
-          className={`tab-btn ${activeTab === 'ITEMS' ? 'active' : ''}`}
-          style={{
-            padding: '0.75rem 1rem',
-            borderBottom: activeTab === 'ITEMS' ? '2px solid var(--accent-primary)' : 'none',
-            color: activeTab === 'ITEMS' ? 'var(--accent-primary)' : 'var(--text-muted)',
-            fontWeight: 600,
-            cursor: 'pointer',
-            backgroundColor: 'transparent',
-            border: 'none',
-          }}
-          onClick={() => setActiveTab('ITEMS')}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Package size={16} />
-            <span>{t('inventory.tabs.items')}</span>
-          </div>
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'CATEGORIES' ? 'active' : ''}`}
-          style={{
-            padding: '0.75rem 1rem',
-            borderBottom: activeTab === 'CATEGORIES' ? '2px solid var(--accent-primary)' : 'none',
-            color: activeTab === 'CATEGORIES' ? 'var(--accent-primary)' : 'var(--text-muted)',
-            fontWeight: 600,
-            cursor: 'pointer',
-            backgroundColor: 'transparent',
-            border: 'none',
-          }}
-          onClick={() => setActiveTab('CATEGORIES')}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Layers size={16} />
-            <span>{t('inventory.tabs.categories')}</span>
-          </div>
-        </button>
-      </div>
+        <div className="tab-navigation" style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'var(--bg-light)', padding: '0.25rem', borderRadius: '8px' }}>
+          <button
+            className={`btn ${activeTab === 'ITEMS' ? 'btn--primary' : 'btn--ghost'}`}
+            onClick={() => setActiveTab('ITEMS')}
+            style={{ padding: '0.5rem 1rem', borderRadius: '6px' }}
+          >
+            <Package size={16} style={{ marginRight: '0.5rem' }} />
+            {t('inventory.tabs.items')}
+          </button>
+          <button
+            className={`btn ${activeTab === 'CATEGORIES' ? 'btn--primary' : 'btn--ghost'}`}
+            onClick={() => setActiveTab('CATEGORIES')}
+            style={{ padding: '0.5rem 1rem', borderRadius: '6px' }}
+          >
+            <Layers size={16} style={{ marginRight: '0.5rem' }} />
+            {t('inventory.tabs.categories')}
+          </button>
+        </div>
+      </header>
 
       {activeTab === 'ITEMS' ? (
         <>
+          {canEdit && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <button
+                className="btn btn--primary"
+                onClick={handleOpenCreateModal}
+              >
+                <Plus size={18} />
+                <span>{t('inventory.buttons.addItem')}</span>
+              </button>
+            </div>
+          )}
+
           {/* Stats */}
           <div className="tenants-page__stats">
             <div className="stat-card">
@@ -573,6 +567,20 @@ export function InventoryPage() {
                   <option value="DISCONTINUED">{t('enums.inventoryStatus.DISCONTINUED')}</option>
                 </select>
               </div>
+
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedBranchFilter('ALL');
+                  setSelectedCategoryFilter('ALL');
+                  setSelectedStatusFilter('ALL');
+                }}
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                {t('common.reset')}
+              </button>
             </div>
           </div>
 
@@ -676,7 +684,7 @@ export function InventoryPage() {
         </>
       ) : (
         /* Categories Tab */
-        <div style={{ maxWidth: '900px' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           {/* Add Category Button */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             {canEdit && (
@@ -736,6 +744,19 @@ export function InventoryPage() {
                   <option value="inactive">{t('enums.categoryStatus.inactive')}</option>
                 </select>
               </div>
+
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => {
+                  setCategorySearchQuery('');
+                  setSelectedCategoryStatusFilter('ALL');
+                  setSelectedCategoryProductTypeFilter('ALL');
+                }}
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                {t('common.reset')}
+              </button>
             </div>
           </div>
 
@@ -749,73 +770,65 @@ export function InventoryPage() {
               {t('inventory.messages.noCategories')}
             </p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-              {filteredCategories.map((cat) => {
-                const count = items.filter((i) => i.categoryId === cat.id).length;
-                return (
-                  <div
-                    key={cat.id}
-                    className="stat-card"
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.75rem',
-                      padding: '1.25rem',
-                      border: '1px solid var(--border)',
-                      borderRadius: '12px',
-                      background: 'var(--bg-surface)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--accent-primary-light)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Layers size={20} />
-                        </div>
-                        <div>
-                          <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{cat.name}</h3>
-                          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                            {count === 1 ? `1 ${t('inventory.fields.name').toLowerCase()}` : `${count} ${t('inventory.tabs.items').toLowerCase()}`}
+            <>
+              <div className="data-table-wrap" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>{t('inventory.fields.categoryName')}</th>
+                      <th>{t('inventory.fields.description')}</th>
+                      <th>{t('inventory.fields.productType')}</th>
+                      <th>{t('inventory.fields.categoryStatus')}</th>
+                      {canEdit && <th>{t('common.actions')}</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedCategories.map((cat) => (
+                      <tr key={cat.id}>
+                        <td style={{ fontWeight: 600 }}>{cat.name}</td>
+                        <td>{cat.description || '-'}</td>
+                        <td>
+                          <span className={`badge ${cat.productType === 'for_sale' ? 'badge--info' : 'badge--primary'}`}>
+                            {t(`enums.productType.${cat.productType}`, { defaultValue: cat.productType })}
                           </span>
-                        </div>
-                      </div>
-                      {canEdit && (
-                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                          <button
-                            className="btn btn--icon btn--ghost"
-                            onClick={() => handleOpenCategoryEditModal(cat)}
-                            title={t('common.edit')}
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            className="btn btn--icon btn--ghost btn--icon-danger"
-                            onClick={() => handleOpenCategoryDeleteModal(cat)}
-                            title={t('common.delete')}
-                          >
-                            <Trash2 size={16} style={{ color: 'var(--danger)' }} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {cat.description && (
-                      <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.3, minHeight: '1.6rem' }}>
-                        {cat.description}
-                      </p>
-                    )}
-
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-                      <span className={`badge ${cat.productType === 'for_sale' ? 'badge--info' : 'badge--primary'}`}>
-                        {t(`enums.productType.${cat.productType}`, { defaultValue: cat.productType })}
-                      </span>
-                      <span className={`badge ${cat.status === 'active' ? 'badge--success' : 'badge--neutral'}`}>
-                        {t(`enums.categoryStatus.${cat.status}`, { defaultValue: cat.status })}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                        </td>
+                        <td>
+                          <span className={`badge ${cat.status === 'active' ? 'badge--success' : 'badge--neutral'}`}>
+                            {t(`enums.categoryStatus.${cat.status}`, { defaultValue: cat.status })}
+                          </span>
+                        </td>
+                        {canEdit && (
+                          <td>
+                            <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
+                              <button
+                                className="btn btn--icon btn--ghost"
+                                onClick={() => handleOpenCategoryEditModal(cat)}
+                                title={t('common.edit')}
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                className="btn btn--icon btn--ghost btn--icon-danger"
+                                onClick={() => handleOpenCategoryDeleteModal(cat)}
+                                title={t('common.delete')}
+                              >
+                                <Trash2 size={16} style={{ color: 'var(--danger)' }} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                currentPage={categoryCurrentPage}
+                totalItems={filteredCategories.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setCategoryCurrentPage}
+              />
+            </>
           )}
         </div>
       )}

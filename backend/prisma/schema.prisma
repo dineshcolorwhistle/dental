@@ -84,6 +84,8 @@ model Tenant {
   auditLogs       AuditLog[]
   inventoryItems  InventoryItem[]
   inventoryCategories InventoryCategory[]
+  expenseCategories ExpenseCategory[]
+  expenses          Expense[]
 
   @@map("tenants")
 }
@@ -130,6 +132,7 @@ model Branch {
   processes       Process[]
   workOrders      WorkOrder[]
   inventoryItems  InventoryItem[]
+  expenses        Expense[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -507,4 +510,41 @@ model InventoryItem {
 
   @@unique([tenantId, branchId, sku])
   @@map("inventory_items")
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([tenantId, name])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id            String          @id @default(uuid())
+  tenantId      String          @map("tenant_id")
+  branchId      String?         @map("branch_id")
+  categoryId    String          @map("category_id")
+  title         String
+  description   String?
+  amount        Float
+  date          DateTime
+  paymentMethod String          @map("payment_method")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch   Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  category ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@map("expenses")
 }

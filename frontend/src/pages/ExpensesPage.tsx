@@ -1,0 +1,793 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  Plus,
+  Search,
+  X,
+  Loader2,
+  Trash2,
+  Edit2,
+  DollarSign,
+  Layers,
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
+import {
+  expenseService,
+  type Expense,
+  type ExpenseCategory,
+} from '../services';
+import { Pagination } from '../components';
+
+const PAGE_SIZE = 10;
+type ActiveTab = 'EXPENSES' | 'CATEGORIES';
+
+export function ExpensesPage() {
+  const { t, i18n } = useTranslation();
+
+  // State
+  const [activeTab, setActiveTab] = useState<ActiveTab>('EXPENSES');
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(0);
+
+  // Category search & pagination
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
+  const [categoryCurrentPage, setCategoryCurrentPage] = useState(0);
+
+  // Category Form Modal State
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+  });
+
+  // Expense Form State (matches screenshot)
+  const [savingExpense, setSavingExpense] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [expenseForm, setExpenseForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    title: '',
+    categoryId: '',
+    description: '',
+    amount: '',
+    paymentMethod: 'BBVA Crédito',
+  });
+
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Fetch initial data
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [expensesData, categoriesData] = await Promise.all([
+        expenseService.getAllExpenses(),
+        expenseService.getCategories(),
+      ]);
+      setExpenses(expensesData);
+      setCategories(categoriesData);
+    } catch (err) {
+      toast.error(t('common.failedLoadReference'));
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Reset pagination on filter changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter]);
+
+  useEffect(() => {
+    setCategoryCurrentPage(0);
+  }, [categorySearchQuery]);
+
+  // Format price helper
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+      style: 'currency',
+      currency: i18n.language?.startsWith('es') ? 'MXN' : 'USD',
+    }).format(price);
+  };
+
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString(
+      i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
+      { day: 'numeric', month: 'long', year: 'numeric' }
+    );
+  };
+
+  // Open create expense view
+  const handleOpenCreateExpense = () => {
+    setEditingExpense(null);
+    setExpenseForm({
+      date: new Date().toISOString().split('T')[0],
+      title: '',
+      categoryId: categories[0]?.id || '',
+      description: '',
+      amount: '',
+      paymentMethod: 'BBVA Crédito',
+    });
+    setFormErrors({});
+    setShowExpenseModal(true);
+  };
+
+  // Open edit expense view
+  const handleOpenEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setExpenseForm({
+      date: new Date(expense.date).toISOString().split('T')[0],
+      title: expense.title,
+      categoryId: expense.categoryId,
+      description: expense.description || '',
+      amount: expense.amount.toString(),
+      paymentMethod: expense.paymentMethod,
+    });
+    setFormErrors({});
+    setShowExpenseModal(true);
+  };
+
+  // Validate expense form
+  const validateExpenseForm = () => {
+    const errors: Record<string, string> = {};
+    if (!expenseForm.date) errors.date = t('validation.required', { defaultValue: 'Required' });
+    if (!expenseForm.title.trim()) errors.title = t('validation.required', { defaultValue: 'Required' });
+    if (!expenseForm.categoryId) errors.categoryId = t('validation.required', { defaultValue: 'Required' });
+    if (!expenseForm.amount || parseFloat(expenseForm.amount) <= 0) errors.amount = t('validation.required', { defaultValue: 'Required' });
+    if (!expenseForm.paymentMethod) errors.paymentMethod = t('validation.required', { defaultValue: 'Required' });
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Save Expense
+  const handleSaveExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateExpenseForm()) return;
+
+    try {
+      setSavingExpense(true);
+      const payload = {
+        title: expenseForm.title.trim(),
+        description: expenseForm.description.trim() || undefined,
+        amount: parseFloat(expenseForm.amount),
+        date: new Date(expenseForm.date).toISOString(),
+        paymentMethod: expenseForm.paymentMethod,
+        categoryId: expenseForm.categoryId,
+      };
+
+      if (editingExpense) {
+        await expenseService.updateExpense(editingExpense.id, payload);
+        toast.success(t('expenses.messages.updateSuccess'));
+      } else {
+        await expenseService.createExpense(payload);
+        toast.success(t('expenses.messages.createSuccess'));
+      }
+
+      setShowExpenseModal(false);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('common.failedLoadReference'));
+    } finally {
+      setSavingExpense(false);
+    }
+  };
+
+  // Delete Expense
+  const handleDeleteExpense = async (id: string) => {
+    if (!window.confirm(t('expenses.messages.confirmDelete'))) return;
+    try {
+      await expenseService.deleteExpense(id);
+      toast.success(t('expenses.messages.deleteSuccess'));
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('common.failedLoadReference'));
+    }
+  };
+
+  // Open create category modal
+  const handleOpenCategoryCreateModal = () => {
+    setEditingCategory(null);
+    setCategoryForm({ name: '', description: '' });
+    setShowCategoryModal(true);
+  };
+
+  // Open edit category modal
+  const handleOpenCategoryEditModal = (category: ExpenseCategory) => {
+    setEditingCategory(category);
+    setCategoryForm({
+      name: category.name,
+      description: category.description || '',
+    });
+    setShowCategoryModal(true);
+  };
+
+  // Save Category
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryForm.name.trim()) return;
+
+    try {
+      setCategorySaving(true);
+      const payload = {
+        name: categoryForm.name.trim(),
+        description: categoryForm.description.trim() || undefined,
+      };
+
+      if (editingCategory) {
+        await expenseService.updateCategory(editingCategory.id, payload);
+        toast.success(t('expenses.messages.categoryUpdateSuccess'));
+      } else {
+        await expenseService.createCategory(payload);
+        toast.success(t('expenses.messages.categoryCreateSuccess'));
+      }
+
+      setShowCategoryModal(false);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('common.failedLoadReference'));
+    } finally {
+      setCategorySaving(false);
+    }
+  };
+
+  // Delete Category
+  const handleDeleteCategory = async (id: string) => {
+    if (!window.confirm(t('expenses.messages.confirmDeleteCategory'))) return;
+    try {
+      await expenseService.deleteCategory(id);
+      toast.success(t('expenses.messages.categoryDeleteSuccess'));
+      fetchData();
+    } catch (err: any) {
+      toast.error(t('expenses.messages.categoryDeleteError'));
+    }
+  };
+
+  // Filter logic
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((exp) => {
+      const matchesSearch =
+        exp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (exp.description && exp.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        exp.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesCategory =
+        selectedCategoryFilter === 'ALL' || exp.categoryId === selectedCategoryFilter;
+
+      const expDate = new Date(exp.date);
+      const matchesStartDate = !startDateFilter || expDate >= new Date(startDateFilter);
+      const matchesEndDate = !endDateFilter || expDate <= new Date(endDateFilter + 'T23:59:59');
+
+      return matchesSearch && matchesCategory && matchesStartDate && matchesEndDate;
+    });
+  }, [expenses, searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter]);
+
+  const paginatedExpenses = useMemo(() => {
+    const start = currentPage * PAGE_SIZE;
+    return filteredExpenses.slice(start, start + PAGE_SIZE);
+  }, [filteredExpenses, currentPage]);
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((cat) => {
+      if (!categorySearchQuery) return true;
+      const query = categorySearchQuery.toLowerCase();
+      return (
+        cat.name.toLowerCase().includes(query) ||
+        (cat.description && cat.description.toLowerCase().includes(query))
+      );
+    });
+  }, [categories, categorySearchQuery]);
+
+  const paginatedCategories = useMemo(() => {
+    const start = categoryCurrentPage * PAGE_SIZE;
+    return filteredCategories.slice(start, start + PAGE_SIZE);
+  }, [filteredCategories, categoryCurrentPage]);
+
+  return (
+    <div className="page-container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Header */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            {t('expenses.title')}
+          </h1>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+            {t('expenses.subtitle')}
+          </p>
+        </div>
+
+        <div className="tab-navigation" style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'var(--bg-light)', padding: '0.25rem', borderRadius: '8px' }}>
+          <button
+            className={`btn ${activeTab === 'EXPENSES' ? 'btn--primary' : 'btn--ghost'}`}
+            onClick={() => setActiveTab('EXPENSES')}
+            style={{ padding: '0.5rem 1rem', borderRadius: '6px' }}
+          >
+            <DollarSign size={16} style={{ marginRight: '0.5rem' }} />
+            {t('expenses.expensesTab')}
+          </button>
+          <button
+            className={`btn ${activeTab === 'CATEGORIES' ? 'btn--primary' : 'btn--ghost'}`}
+            onClick={() => setActiveTab('CATEGORIES')}
+            style={{ padding: '0.5rem 1rem', borderRadius: '6px' }}
+          >
+            <Layers size={16} style={{ marginRight: '0.5rem' }} />
+            {t('expenses.categoriesTab')}
+          </button>
+        </div>
+      </header>
+
+      {/* EXPENSES TAB */}
+      {activeTab === 'EXPENSES' && (
+        <div>
+          {/* Toolbar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <button className="btn btn--primary" onClick={handleOpenCreateExpense}>
+              <Plus size={18} />
+              <span>{t('expenses.addExpense')}</span>
+            </button>
+          </div>
+
+          {/* Filters toolbar */}
+          <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="search-input-wrap" style={{ flexGrow: 1, minWidth: '250px' }}>
+              <Search size={16} className="search-input__icon" />
+              <input
+                type="text"
+                className="form-input search-input"
+                placeholder={t('common.search')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: '100%' }}
+              />
+              {searchQuery && (
+                <button className="search-input__clear" onClick={() => setSearchQuery('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="table-toolbar__filters" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Category Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('expenses.fields.category')}:</span>
+                <select
+                  className="form-input"
+                  value={selectedCategoryFilter}
+                  onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                >
+                  <option value="ALL">{t('common.all')}</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Start Date */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.startDate')}:</span>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={startDateFilter}
+                  onChange={(e) => setStartDateFilter(e.target.value)}
+                />
+              </div>
+
+              {/* End Date */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.endDate')}:</span>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={endDateFilter}
+                  onChange={(e) => setEndDateFilter(e.target.value)}
+                />
+              </div>
+
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => {
+                  setSelectedCategoryFilter('ALL');
+                  setStartDateFilter('');
+                  setEndDateFilter('');
+                  setSearchQuery('');
+                }}
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                {t('common.reset')}
+              </button>
+            </div>
+          </div>
+
+          {/* Data Table */}
+          <div className="data-table-wrap" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+            {loading ? (
+              <div className="loading-state" style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                <Loader2 size={36} className="spinner" />
+              </div>
+            ) : filteredExpenses.length === 0 ? (
+              <div className="empty-state" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                <DollarSign size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+                <p>{t('expenses.messages.noExpenses')}</p>
+              </div>
+            ) : (
+              <>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>{t('expenses.fields.date')}</th>
+                      <th>{t('expenses.fields.title')}</th>
+                      <th>{t('expenses.fields.category')}</th>
+                      <th>{t('expenses.fields.amount')}</th>
+                      <th>{t('expenses.fields.paymentMethod')}</th>
+                      <th>{t('common.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedExpenses.map((exp) => (
+                      <tr key={exp.id}>
+                        <td style={{ fontWeight: 500 }}>{formatDate(exp.date)}</td>
+                        <td>
+                          <div className="cell-primary" style={{ fontWeight: 600 }}>{exp.title}</div>
+                          {exp.description && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exp.description}</div>}
+                        </td>
+                        <td>
+                          <span className="badge badge--neutral" style={{ fontWeight: 500 }}>{exp.category?.name}</span>
+                        </td>
+                        <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatPrice(exp.amount)}</td>
+                        <td>{exp.paymentMethod}</td>
+                        <td>
+                          <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
+                            <button
+                              className="btn btn--icon btn--ghost"
+                              onClick={() => handleOpenEditExpense(exp)}
+                              title={t('common.edit')}
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              className="btn btn--icon btn--ghost btn--icon-danger"
+                              onClick={() => handleDeleteExpense(exp.id)}
+                              title={t('common.delete')}
+                            >
+                              <Trash2 size={16} style={{ color: 'var(--danger)' }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredExpenses.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setCurrentPage}
+                />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORIES TAB */}
+      {activeTab === 'CATEGORIES' && (
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <button className="btn btn--primary" onClick={handleOpenCategoryCreateModal}>
+              <Plus size={18} />
+              <span>{t('expenses.addCategory')}</span>
+            </button>
+          </div>
+
+          {/* Category Toolbar */}
+          <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="search-input-wrap" style={{ flexGrow: 1 }}>
+              <Search size={16} className="search-input__icon" />
+              <input
+                type="text"
+                className="form-input search-input"
+                placeholder={t('common.search')}
+                value={categorySearchQuery}
+                onChange={(e) => setCategorySearchQuery(e.target.value)}
+                style={{ width: '100%' }}
+              />
+              {categorySearchQuery && (
+                <button className="search-input__clear" onClick={() => setCategorySearchQuery('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setCategorySearchQuery('')}
+              style={{ padding: '0.5rem 1rem' }}
+            >
+              {t('common.reset')}
+            </button>
+          </div>
+
+          {/* Categories Grid Table UI */}
+          <div>
+            {loading ? (
+              <div className="loading-state" style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                <Loader2 size={36} className="spinner" />
+              </div>
+            ) : filteredCategories.length === 0 ? (
+              <div className="empty-state" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                <Layers size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+                <p>{t('expenses.messages.noCategories')}</p>
+              </div>
+            ) : (
+              <>
+                <div className="data-table-wrap" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>{t('expenses.fields.categoryName')}</th>
+                        <th>{t('expenses.fields.categoryDescription')}</th>
+                        <th>{t('common.actions')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedCategories.map((cat) => (
+                        <tr key={cat.id}>
+                          <td style={{ fontWeight: 600 }}>{cat.name}</td>
+                          <td>{cat.description || '-'}</td>
+                          <td>
+                            <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
+                              <button
+                                className="btn btn--icon btn--ghost"
+                                onClick={() => handleOpenCategoryEditModal(cat)}
+                                title={t('common.edit')}
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                className="btn btn--icon btn--ghost btn--icon-danger"
+                                onClick={() => handleDeleteCategory(cat.id)}
+                                title={t('common.delete')}
+                              >
+                                <Trash2 size={16} style={{ color: 'var(--danger)' }} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  currentPage={categoryCurrentPage}
+                  totalItems={filteredCategories.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setCategoryCurrentPage}
+                />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* EXPENSE FORM MODAL OVERLAY */}
+      {showExpenseModal && (
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, padding: '1rem' }}>
+          <div className="modal" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '800px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {editingExpense ? t('expenses.editExpense') : t('expenses.addExpense')}
+              </h3>
+              <button className="btn btn--icon btn--ghost" onClick={() => setShowExpenseModal(false)} style={{ padding: 0 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveExpense} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Row 1: Date, Title, Category */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                    {t('expenses.fields.date')} *
+                  </label>
+                  <input
+                    type="date"
+                    className={`form-input ${formErrors.date ? 'form-input--error' : ''}`}
+                    value={expenseForm.date}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
+                    required
+                    style={{ width: '100%' }}
+                  />
+                  {formErrors.date && <span className="form-error">{formErrors.date}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                    {t('expenses.fields.title')} *
+                  </label>
+                  <input
+                    type="text"
+                    className={`form-input ${formErrors.title ? 'form-input--error' : ''}`}
+                    placeholder={t('expenses.placeholders.enterTitle')}
+                    value={expenseForm.title}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, title: e.target.value })}
+                    required
+                    style={{ width: '100%' }}
+                  />
+                  {formErrors.title && <span className="form-error">{formErrors.title}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                    {t('expenses.fields.category')} *
+                  </label>
+                  <select
+                    className={`form-input ${formErrors.categoryId ? 'form-input--error' : ''}`}
+                    value={expenseForm.categoryId}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, categoryId: e.target.value })}
+                    required
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">{t('expenses.placeholders.selectCategory')}</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  {formErrors.categoryId && <span className="form-error">{formErrors.categoryId}</span>}
+                </div>
+              </div>
+
+              {/* Description Textarea */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                  {t('expenses.fields.description')}
+                </label>
+                <textarea
+                  className="form-input"
+                  rows={3}
+                  placeholder={t('expenses.placeholders.enterDescription')}
+                  value={expenseForm.description}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                  style={{ width: '100%', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Row 3: Amount, Payment Method */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                    {t('expenses.fields.amount')} *
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <span style={{ position: 'absolute', left: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>
+                      MXN
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      className={`form-input ${formErrors.amount ? 'form-input--error' : ''}`}
+                      placeholder={t('expenses.placeholders.enterAmount')}
+                      value={expenseForm.amount}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                      required
+                      style={{ width: '100%', paddingLeft: '3.5rem' }}
+                    />
+                  </div>
+                  {formErrors.amount && <span className="form-error">{formErrors.amount}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                    {t('expenses.fields.paymentMethod')} *
+                  </label>
+                  <select
+                    className={`form-input ${formErrors.paymentMethod ? 'form-input--error' : ''}`}
+                    value={expenseForm.paymentMethod}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
+                    required
+                    style={{ width: '100%' }}
+                  >
+                    <option value="BBVA Crédito">BBVA Crédito</option>
+                    <option value="Efectivo">{i18n.language?.startsWith('es') ? 'Efectivo' : 'Cash'}</option>
+                    <option value="Transferencia">{i18n.language?.startsWith('es') ? 'Transferencia' : 'Wire Transfer'}</option>
+                    <option value="Tarjeta de Débito">{i18n.language?.startsWith('es') ? 'Tarjeta de Débito' : 'Debit Card'}</option>
+                    <option value="Tarjeta de Crédito">{i18n.language?.startsWith('es') ? 'Tarjeta de Crédito' : 'Credit Card'}</option>
+                  </select>
+                  {formErrors.paymentMethod && <span className="form-error">{formErrors.paymentMethod}</span>}
+                </div>
+              </div>
+
+              {/* Form Buttons */}
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <button type="button" className="btn btn--secondary" onClick={() => setShowExpenseModal(false)}>
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn--primary" disabled={savingExpense}>
+                  {savingExpense ? <Loader2 size={16} className="spinner" /> : null}
+                  <span>{editingExpense ? t('common.saveChanges') : t('common.submit')}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY FORM MODAL */}
+      {showCategoryModal && (
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, padding: '1rem' }}>
+          <div className="modal" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>
+                {editingCategory ? t('expenses.editCategory') : t('expenses.addCategory')}
+              </h3>
+              <button className="btn btn--icon btn--ghost" onClick={() => setShowCategoryModal(false)} style={{ padding: 0 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCategory} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                  {t('expenses.fields.categoryName')} *
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder={t('expenses.placeholders.enterCategoryName')}
+                  value={categoryForm.name}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                  required
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                  {t('expenses.fields.categoryDescription')}
+                </label>
+                <textarea
+                  className="form-input"
+                  rows={3}
+                  placeholder={t('expenses.placeholders.enterCategoryDescription')}
+                  value={categoryForm.description}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                  style={{ width: '100%', resize: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <button type="button" className="btn btn--secondary" onClick={() => setShowCategoryModal(false)}>
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn--primary" disabled={categorySaving || !categoryForm.name.trim()}>
+                  {categorySaving ? <Loader2 size={16} className="spinner" /> : null}
+                  <span>{editingCategory ? t('common.saveChanges') : t('common.submit')}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

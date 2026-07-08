@@ -170,7 +170,8 @@
     "workOrders": "Work Orders",
     "myWorkOrders": "My Work Orders",
     "tenants": "Tenants",
-    "inventory": "Inventory"
+    "inventory": "Inventory",
+    "expenses": "Expenses"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -1034,6 +1035,52 @@
       "confirmDeleteCategory": "Are you sure you want to delete this category?",
       "noItems": "No inventory items found.",
       "noCategories": "No categories found."
+    }
+  },
+  "expenses": {
+    "title": "Expenses Management",
+    "subtitle": "Track and manage your branch's operational expenditures",
+    "addExpense": "Add Expense",
+    "editExpense": "Edit Expense",
+    "deleteExpense": "Delete Expense",
+    "addCategory": "Add Expense Category",
+    "editCategory": "Edit Expense Category",
+    "deleteCategory": "Delete Expense Category",
+    "viewAll": "View All Expenses",
+    "expensesTab": "Expenses",
+    "categoriesTab": "Categories",
+    "fields": {
+      "date": "Expense Date",
+      "title": "Title",
+      "category": "Category",
+      "description": "Description",
+      "amount": "Amount",
+      "paymentMethod": "Payment Method",
+      "branch": "Branch",
+      "categoryName": "Category Name",
+      "categoryDescription": "Category Description"
+    },
+    "placeholders": {
+      "enterTitle": "Enter expense title",
+      "selectCategory": "Select Category",
+      "enterDescription": "Enter detailed description of the expense",
+      "enterAmount": "Amount",
+      "selectPaymentMethod": "Select Payment Method",
+      "enterCategoryName": "Enter category name",
+      "enterCategoryDescription": "Enter category description (optional)"
+    },
+    "messages": {
+      "createSuccess": "Expense created successfully!",
+      "updateSuccess": "Expense updated successfully!",
+      "deleteSuccess": "Expense deleted successfully!",
+      "categoryCreateSuccess": "Expense category created successfully!",
+      "categoryUpdateSuccess": "Expense category updated successfully!",
+      "categoryDeleteSuccess": "Expense category deleted successfully!",
+      "categoryDeleteError": "Failed to delete expense category (it may be in use).",
+      "confirmDelete": "Are you sure you want to delete this expense?",
+      "confirmDeleteCategory": "Are you sure you want to delete this expense category?",
+      "noExpenses": "No expenses found.",
+      "noCategories": "No expense categories found."
     }
   }
 }
