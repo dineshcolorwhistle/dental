@@ -67,6 +67,17 @@ export function ExpensesPage() {
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Delete Modals State
+  const [showDeleteExpenseModal, setShowDeleteExpenseModal] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState(false);
+
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<ExpenseCategory | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
+
+  const [showCategoryInUseModal, setShowCategoryInUseModal] = useState(false);
+
   // Fetch initial data
   const fetchData = useCallback(async () => {
     try {
@@ -191,18 +202,6 @@ export function ExpensesPage() {
     }
   };
 
-  // Delete Expense
-  const handleDeleteExpense = async (id: string) => {
-    if (!window.confirm(t('expenses.messages.confirmDelete'))) return;
-    try {
-      await expenseService.deleteExpense(id);
-      toast.success(t('expenses.messages.deleteSuccess'));
-      fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || t('common.failedLoadReference'));
-    }
-  };
-
   // Open create category modal
   const handleOpenCategoryCreateModal = () => {
     setEditingCategory(null);
@@ -249,15 +248,55 @@ export function ExpensesPage() {
     }
   };
 
-  // Delete Category
-  const handleDeleteCategory = async (id: string) => {
-    if (!window.confirm(t('expenses.messages.confirmDeleteCategory'))) return;
+  // Open Delete Expense Modal
+  const handleOpenDeleteExpense = (expense: Expense) => {
+    setExpenseToDelete(expense);
+    setShowDeleteExpenseModal(true);
+  };
+
+  // Confirm Delete Expense
+  const handleConfirmDeleteExpense = async () => {
+    if (!expenseToDelete) return;
     try {
-      await expenseService.deleteCategory(id);
-      toast.success(t('expenses.messages.categoryDeleteSuccess'));
+      setDeletingExpense(true);
+      await expenseService.deleteExpense(expenseToDelete.id);
+      toast.success(t('expenses.messages.deleteSuccess'));
+      setShowDeleteExpenseModal(false);
+      setExpenseToDelete(null);
       fetchData();
     } catch (err: any) {
-      toast.error(t('expenses.messages.categoryDeleteError'));
+      toast.error(err?.response?.data?.message || t('common.failedLoadReference'));
+    } finally {
+      setDeletingExpense(false);
+    }
+  };
+
+  // Open Delete Category Modal
+  const handleOpenDeleteCategory = (category: ExpenseCategory) => {
+    // Check if category is assigned to any expenses
+    const isAssigned = expenses.some((exp) => exp.categoryId === category.id);
+    if (isAssigned) {
+      setShowCategoryInUseModal(true);
+      return;
+    }
+    setCategoryToDelete(category);
+    setShowDeleteCategoryModal(true);
+  };
+
+  // Confirm Delete Category
+  const handleConfirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    try {
+      setDeletingCategory(true);
+      await expenseService.deleteCategory(categoryToDelete.id);
+      toast.success(t('expenses.messages.categoryDeleteSuccess'));
+      setShowDeleteCategoryModal(false);
+      setCategoryToDelete(null);
+      fetchData();
+    } catch (err: any) {
+      setShowCategoryInUseModal(true);
+    } finally {
+      setDeletingCategory(false);
     }
   };
 
@@ -466,7 +505,7 @@ export function ExpensesPage() {
                             </button>
                             <button
                               className="btn btn--icon btn--ghost btn--icon-danger"
-                              onClick={() => handleDeleteExpense(exp.id)}
+                              onClick={() => handleOpenDeleteExpense(exp)}
                               title={t('common.delete')}
                             >
                               <Trash2 size={16} style={{ color: 'var(--danger)' }} />
@@ -565,7 +604,7 @@ export function ExpensesPage() {
                               </button>
                               <button
                                 className="btn btn--icon btn--ghost btn--icon-danger"
-                                onClick={() => handleDeleteCategory(cat.id)}
+                                onClick={() => handleOpenDeleteCategory(cat)}
                                 title={t('common.delete')}
                               >
                                 <Trash2 size={16} style={{ color: 'var(--danger)' }} />
@@ -785,6 +824,90 @@ export function ExpensesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Expense Confirm Modal */}
+      {showDeleteExpenseModal && expenseToDelete && (
+        <div className="modal-overlay" onClick={() => !deletingExpense && setShowDeleteExpenseModal(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, padding: '1rem' }}>
+          <div className="modal" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 className="modal__title" style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t('common.delete')}</h2>
+              <button className="modal__close" onClick={() => !deletingExpense && setShowDeleteExpenseModal(false)} style={{ padding: 0, background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '0 0 1.5rem 0', overflow: 'visible' }}>
+              <p style={{ margin: 0, color: 'var(--text-primary)' }}>
+                {t('expenses.messages.confirmDelete')}
+                <br />
+                <strong style={{ color: 'var(--danger)' }}>{expenseToDelete.title}</strong>
+              </p>
+            </div>
+            <div className="modal__footer" style={{ padding: 0, border: 'none', marginTop: 0 }}>
+              <button className="btn btn--ghost" onClick={() => setShowDeleteExpenseModal(false)} disabled={deletingExpense} style={{ marginRight: '0.75rem' }}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn btn--danger" onClick={handleConfirmDeleteExpense} disabled={deletingExpense}>
+                {deletingExpense ? <Loader2 size={16} className="spinner" style={{ marginRight: '0.5rem' }} /> : <Trash2 size={16} style={{ marginRight: '0.5rem' }} />}
+                <span>{t('common.delete')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Category Confirm Modal */}
+      {showDeleteCategoryModal && categoryToDelete && (
+        <div className="modal-overlay" onClick={() => !deletingCategory && setShowDeleteCategoryModal(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, padding: '1rem' }}>
+          <div className="modal" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 className="modal__title" style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t('common.delete')}</h2>
+              <button className="modal__close" onClick={() => !deletingCategory && setShowDeleteCategoryModal(false)} style={{ padding: 0, background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '0 0 1.5rem 0', overflow: 'visible' }}>
+              <p style={{ margin: 0, color: 'var(--text-primary)' }}>
+                {t('expenses.messages.confirmDeleteCategory')}
+                <br />
+                <strong style={{ color: 'var(--danger)' }}>{categoryToDelete.name}</strong>
+              </p>
+            </div>
+            <div className="modal__footer" style={{ padding: 0, border: 'none', marginTop: 0 }}>
+              <button className="btn btn--ghost" onClick={() => setShowDeleteCategoryModal(false)} disabled={deletingCategory} style={{ marginRight: '0.75rem' }}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn btn--danger" onClick={handleConfirmDeleteCategory} disabled={deletingCategory}>
+                {deletingCategory ? <Loader2 size={16} className="spinner" style={{ marginRight: '0.5rem' }} /> : <Trash2 size={16} style={{ marginRight: '0.5rem' }} />}
+                <span>{t('common.delete')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category In Use Warning Modal */}
+      {showCategoryInUseModal && (
+        <div className="modal-overlay" onClick={() => setShowCategoryInUseModal(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, padding: '1rem' }}>
+          <div className="modal" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 className="modal__title" style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--warning)' }}>{t('common.warning')}</h2>
+              <button className="modal__close" onClick={() => setShowCategoryInUseModal(false)} style={{ padding: 0, background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '0 0 1.5rem 0', overflow: 'visible' }}>
+              <p style={{ margin: 0, color: 'var(--text-primary)' }}>
+                {t('expenses.messages.categoryDeleteError')}
+              </p>
+            </div>
+            <div className="modal__footer" style={{ padding: 0, border: 'none', marginTop: 0 }}>
+              <button className="btn btn--primary" onClick={() => setShowCategoryInUseModal(false)}>
+                {t('common.close')}
+              </button>
+            </div>
           </div>
         </div>
       )}

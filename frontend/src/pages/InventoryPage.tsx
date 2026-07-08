@@ -66,6 +66,7 @@ export function InventoryPage() {
   const [categorySaving, setCategorySaving] = useState(false);
   const [showCategoryDeleteModal, setShowCategoryDeleteModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<InventoryCategory | null>(null);
+  const [showCategoryInUseModal, setShowCategoryInUseModal] = useState(false);
   const [categoryForm, setCategoryForm] = useState({
     name: '',
     description: '',
@@ -319,7 +320,7 @@ export function InventoryPage() {
     // Check if category is assigned to any inventory items
     const isAssigned = items.some((item) => item.categoryId === category.id);
     if (isAssigned) {
-      toast.error(t('inventory.messages.categoryDeleteError'));
+      setShowCategoryInUseModal(true);
       return;
     }
     setCategoryToDelete(category);
@@ -335,7 +336,7 @@ export function InventoryPage() {
       setCategoryToDelete(null);
       fetchData();
     } catch (err) {
-      toast.error(t('inventory.messages.categoryDeleteError'));
+      setShowCategoryInUseModal(true);
     }
   };
 
@@ -502,8 +503,8 @@ export function InventoryPage() {
           </div>
 
           {/* Filters Toolbar */}
-          <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
-            <div className="search-input-wrap">
+          <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="search-input-wrap" style={{ flexGrow: 1, minWidth: '250px' }}>
               <Search size={16} className="search-input__icon" />
               <input
                 type="text"
@@ -511,6 +512,7 @@ export function InventoryPage() {
                 placeholder={t('common.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: '100%' }}
               />
               {searchQuery && (
                 <button className="search-input__clear" onClick={() => setSearchQuery('')}>
@@ -519,7 +521,7 @@ export function InventoryPage() {
               )}
             </div>
 
-            <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-start', flexWrap: 'wrap', alignItems: 'center' }}>
               {/* Branch Filter dropdown (Owners only) */}
               {!isAdmin && branches.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -684,7 +686,7 @@ export function InventoryPage() {
         </>
       ) : (
         /* Categories Tab */
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           {/* Add Category Button */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             {canEdit && (
@@ -699,8 +701,8 @@ export function InventoryPage() {
           </div>
 
           {/* Category Toolbar */}
-          <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
-            <div className="search-input-wrap">
+          <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="search-input-wrap" style={{ flexGrow: 1, minWidth: '250px' }}>
               <Search size={16} className="search-input__icon" />
               <input
                 type="text"
@@ -708,6 +710,7 @@ export function InventoryPage() {
                 placeholder={t('common.search')}
                 value={categorySearchQuery}
                 onChange={(e) => setCategorySearchQuery(e.target.value)}
+                style={{ width: '100%' }}
               />
               {categorySearchQuery && (
                 <button className="search-input__clear" onClick={() => setCategorySearchQuery('')}>
@@ -716,7 +719,7 @@ export function InventoryPage() {
               )}
             </div>
 
-            <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-start', flexWrap: 'wrap', alignItems: 'center' }}>
               {/* Product Type Filter */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('inventory.fields.productType')}:</span>
@@ -766,9 +769,10 @@ export function InventoryPage() {
               <Loader2 size={24} className="spinner" />
             </div>
           ) : filteredCategories.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
-              {t('inventory.messages.noCategories')}
-            </p>
+            <div className="empty-state" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+              <Layers size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+              <p>{t('inventory.messages.noCategories')}</p>
+            </div>
           ) : (
             <>
               <div className="data-table-wrap" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
@@ -1112,6 +1116,30 @@ export function InventoryPage() {
               </button>
               <button className="btn btn--danger" onClick={handleConfirmCategoryDelete}>
                 {t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category In Use Warning Modal */}
+      {showCategoryInUseModal && (
+        <div className="modal-overlay" onClick={() => setShowCategoryInUseModal(false)}>
+          <div className="modal" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <h2 className="modal__title" style={{ color: 'var(--warning)' }}>{t('common.warning')}</h2>
+              <button className="modal__close" onClick={() => setShowCategoryInUseModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-primary)' }}>
+                {t('inventory.messages.categoryDeleteError')}
+              </p>
+            </div>
+            <div className="modal__footer" style={{ padding: '1rem 1.75rem' }}>
+              <button className="btn btn--primary" onClick={() => setShowCategoryInUseModal(false)}>
+                {t('common.close')}
               </button>
             </div>
           </div>
