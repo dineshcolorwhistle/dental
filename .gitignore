@@ -147,3 +147,9 @@ backend/inspect*.js
 backend/get-token.js
 test*.js
 inspect*.js
+
+# Project specification and credentials documents (local only)
+credentials.md
+Instructions.md
+doctor_integration_plan.md
+
