@@ -166,18 +166,23 @@ export function DashboardPage() {
           </p>
         </div>
         <div style={{
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
           gap: '8px',
-          padding: '6px 12px',
-          borderRadius: '20px',
-          backgroundColor: 'rgba(59, 130, 246, 0.08)',
-          border: '1px solid rgba(59, 130, 246, 0.15)',
+          padding: '4px 10px',
+          borderRadius: '6px',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
           fontSize: '0.75rem',
           fontWeight: 600,
-          color: 'var(--accent-primary, #3B82F6)'
+          color: '#10B981'
         }}>
-          <Clock size={14} className="animate-spin-slow" />
+          <span style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: '#10B981',
+            display: 'inline-block'
+          }} />
           <span>{t('dashboard.realTimeMonitoring')}</span>
         </div>
       </div>

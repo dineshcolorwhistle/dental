@@ -81,16 +81,15 @@ export function OwnerDashboardPage() {
           </p>
         </div>
         <div style={{
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
           gap: '8px',
-          padding: '6px 12px',
-          borderRadius: '20px',
-          backgroundColor: 'rgba(111, 174, 217, 0.08)',
-          border: '1px solid rgba(111, 174, 217, 0.15)',
+          padding: '4px 10px',
+          borderRadius: '6px',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
           fontSize: '0.75rem',
           fontWeight: 600,
-          color: 'var(--accent-primary)'
+          color: '#3B82F6'
         }}>
           <Building2 size={14} />
           <span>{t('ownerDashboard.tenantConfigMode')}</span>
