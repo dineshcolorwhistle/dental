@@ -64,6 +64,14 @@ export class DoctorsController {
     return this.doctorsService.findAll(tenantId, branchIdFilter);
   }
 
+  @Get('external')
+  @ApiOperation({ summary: 'Fetch doctors list from external Doctor Portal' })
+  async getExternalDoctors(
+    @CurrentUser('branchId') branchIdContext: string | null,
+  ) {
+    return this.doctorsService.getExternal(branchIdContext);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get details of a specific doctor/clinic' })
   async findOne(

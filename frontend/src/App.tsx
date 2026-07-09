@@ -23,6 +23,7 @@ import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { QRRedirectPage } from './pages/QRRedirectPage';
 import { WorkOrderDetailPage } from './pages/WorkOrderDetailPage';
+import { ApiKeysPage } from './pages/ApiKeysPage';
 
 function App() {
   return (
@@ -167,6 +168,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <ExpensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/api-keys"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <ApiKeysPage />
                 </ProtectedRoute>
               }
             />

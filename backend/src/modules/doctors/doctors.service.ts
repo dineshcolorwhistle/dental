@@ -175,4 +175,64 @@ export class DoctorsService {
     this.logger.log(`Doctor deleted: ${id} inside tenant ${tenantId}`);
     return { success: true };
   }
+
+  async getExternal(branchIdContext?: string | null) {
+    const portalUrl = 'https://dental-staging.eduwhistle.com/api/doctors';
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+    };
+
+    if (branchIdContext) {
+      const activeKeyRecord = await this.prisma.apiKey.findFirst({
+        where: { branchId: branchIdContext, isActive: true },
+      });
+      if (activeKeyRecord) {
+        headers['X-API-Key'] = activeKeyRecord.key;
+        this.logger.log(`Using active API Key for branch: ${branchIdContext}`);
+      } else {
+        this.logger.warn(`No active API Key found for branch: ${branchIdContext}`);
+      }
+    }
+
+    try {
+      this.logger.log(`Fetching external doctors from: ${portalUrl}`);
+      // Use native fetch (available in Node.js 18+)
+      const response = await fetch(portalUrl, { headers });
+
+      if (response.ok) {
+        const text = await response.text();
+        try {
+          const data = JSON.parse(text);
+          if (Array.isArray(data)) {
+            this.logger.log(`Successfully fetched ${data.length} doctors from portal.`);
+            return data;
+          }
+          throw new BadRequestException(
+            'Doctor portal response is valid JSON but not an array.'
+          );
+        } catch (e) {
+          if (e instanceof BadRequestException) {
+            throw e;
+          }
+          // Likely returned HTML login page due to redirect
+          const snippet = text.slice(0, 100).replace(/\s+/g, ' ');
+          throw new BadRequestException(
+            `Doctor portal response is not JSON. Portal might have redirected to a login screen. Response snippet: "${snippet}..."`
+          );
+        }
+      } else {
+        throw new BadRequestException(
+          `Doctor portal request failed with status code: ${response.status}`
+        );
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error fetching external doctors: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to connect to Doctor Portal: ${error.message}`
+      );
+    }
+  }
 }

@@ -86,6 +86,7 @@ model Tenant {
   inventoryCategories InventoryCategory[]
   expenseCategories ExpenseCategory[]
   expenses          Expense[]
+  apiKeys           ApiKey[]
 
   @@map("tenants")
 }
@@ -133,6 +134,7 @@ model Branch {
   workOrders      WorkOrder[]
   inventoryItems  InventoryItem[]
   expenses        Expense[]
+  apiKeys         ApiKey[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -214,6 +216,7 @@ model Doctor {
   id           String   @id @default(uuid())
   tenantId     String   @map("tenant_id")
   branchId     String?  @map("branch_id")
+  externalId   String?  @map("external_id")
   name         String
   clinicName   String?  @map("clinic_name")
   email        String?
@@ -547,4 +550,24 @@ model Expense {
   category ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@map("expenses")
+}
+
+// ─── API Key (Integration) ──────────────────────────────
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  branchId  String   @map("branch_id")
+  name      String
+  key       String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, isActive])
+  @@map("api_keys")
 }

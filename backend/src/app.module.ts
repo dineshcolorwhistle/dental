@@ -18,6 +18,8 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { IntegrationModule } from './modules/integration/integration.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { WebsocketsModule } from './modules/websockets/websockets.module';
@@ -54,6 +56,8 @@ import { QueuesModule } from './modules/queues/queues.module';
     FinanceModule,
     InventoryModule,
     ExpensesModule,
+    ApiKeysModule,
+    IntegrationModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default

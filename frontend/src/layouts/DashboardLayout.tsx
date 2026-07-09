@@ -24,6 +24,7 @@ import {
   Trash2,
   DollarSign,
   Package,
+  Key,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, type NotificationItem } from '../services';
@@ -407,6 +408,16 @@ export function DashboardLayout() {
               >
                 <DollarSign size={20} />
                 <span>{t('navigation.expenses')}</span>
+              </NavLink>
+              <NavLink
+                to="/api-keys"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Key size={20} />
+                <span>{t('navigation.apiKeys')}</span>
               </NavLink>
             </>
           )}
