@@ -171,7 +171,8 @@
     "myWorkOrders": "My Work Orders",
     "tenants": "Tenants",
     "inventory": "Inventory",
-    "expenses": "Expenses"
+    "expenses": "Expenses",
+    "apiKeys": "API Keys"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -425,6 +426,7 @@
   },
   "workOrders": {
     "title": "Work Orders",
+    "externalDoctor": "External Doctor (from Doctor Portal)",
     "subtitle": "Manage dental lab work orders and workflows",
     "createNew": "Create New Work Order",
     "processStepsAssignment": "Process Steps Assignment",
@@ -621,6 +623,7 @@
     "activeClinics": "Active Clinics",
     "createDoctorSubtitle": "Register an external doctor or dental clinic",
     "selectDoctor": "Select a doctor",
+    "selectExternalDoctor": "Select a doctor from Doctor Portal",
     "selectedDoctor": "Selected Doctor"
   },
   "technicians": {
@@ -1081,6 +1084,41 @@
       "confirmDeleteCategory": "Are you sure you want to delete this expense category?",
       "noExpenses": "No expenses found.",
       "noCategories": "No expense categories found."
+    },
+    "totalExpenses": "Total Expenses",
+    "averageExpense": "Average Expense",
+    "expenseCount": "Expense Count",
+    "dateFilters": {
+      "all": "All Time",
+      "thisWeek": "This Week",
+      "thisMonth": "This Month",
+      "custom": "Custom Range"
     }
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "subtitle": "Manage integration API keys for the Doctor Portal",
+    "generateKey": "Generate Key",
+    "generateKeySubtitle": "Create a new API key for external integrations",
+    "keyName": "Key Name",
+    "keyNamePlaceholder": "e.g. Doctor Portal Key",
+    "replaceWarning": "Generating a new key will deactivate the current active key. The Doctor Portal will need to be updated with the new key.",
+    "createSuccess": "API key generated successfully!",
+    "createError": "Failed to generate API key.",
+    "deleteSuccess": "API key deleted successfully!",
+    "deleteError": "Failed to delete API key.",
+    "deleteConfirm": "Are you sure you want to delete the API key \"{{name}}\"? This action cannot be undone.",
+    "fetchError": "Failed to load API keys.",
+    "keyCopied": "API key copied to clipboard!",
+    "copyError": "Failed to copy key.",
+    "copyKey": "Copy Key",
+    "showKey": "Show Key",
+    "hideKey": "Hide Key",
+    "noKeys": "No API Keys",
+    "noKeysDescription": "Generate an API key to allow the Doctor Portal to integrate with your lab.",
+    "infoTitle": "Integration Authentication",
+    "infoDescription": "API keys are used by the Doctor Portal to authenticate with your lab system. Each branch can have one active key at a time. Include the key in the X-API-Key header of integration requests.",
+    "previousKeys": "Previous Keys",
+    "createdOn": "Created on"
   }
 }

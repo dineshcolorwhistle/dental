@@ -171,7 +171,8 @@
     "myWorkOrders": "Mis Órdenes de Trabajo",
     "tenants": "Inquilinos",
     "inventory": "Inventario",
-    "expenses": "Gastos"
+    "expenses": "Gastos",
+    "apiKeys": "Claves API"
   },
   "auth": {
     "welcomeBack": "Bienvenido de nuevo",
@@ -425,6 +426,7 @@
   },
   "workOrders": {
     "title": "Órdenes de Trabajo",
+    "externalDoctor": "Doctor Externo (desde el Portal de Doctores)",
     "subtitle": "Administrar órdenes de trabajo y flujos de trabajo del laboratorio dental",
     "createNew": "Crear Nueva Orden de Trabajo",
     "processStepsAssignment": "Asignación de Pasos del Proceso",
@@ -621,6 +623,7 @@
     "activeClinics": "Clínicas Activas",
     "createDoctorSubtitle": "Registrar un doctor externo o clínica dental",
     "selectDoctor": "Seleccione un doctor",
+    "selectExternalDoctor": "Seleccione un doctor del Portal de Doctores",
     "selectedDoctor": "Doctor Seleccionado"
   },
   "technicians": {
@@ -1081,6 +1084,41 @@
       "confirmDeleteCategory": "¿Está seguro de que desea eliminar esta categoría de gasto?",
       "noExpenses": "No se encontraron gastos.",
       "noCategories": "No se encontraron categorías de gastos."
+    },
+    "totalExpenses": "Total de Gastos",
+    "averageExpense": "Gasto Promedio",
+    "expenseCount": "Cantidad de Gastos",
+    "dateFilters": {
+      "all": "Todos",
+      "thisWeek": "Esta Semana",
+      "thisMonth": "Este Mes",
+      "custom": "Rango Personalizado"
     }
+  },
+  "apiKeys": {
+    "title": "Claves API",
+    "subtitle": "Administra las claves API de integración para el Portal de Doctores",
+    "generateKey": "Generar Clave",
+    "generateKeySubtitle": "Crear una nueva clave API para integraciones externas",
+    "keyName": "Nombre de la Clave",
+    "keyNamePlaceholder": "ej. Clave del Portal de Doctores",
+    "replaceWarning": "Generar una nueva clave desactivará la clave activa actual. El Portal de Doctores deberá actualizarse con la nueva clave.",
+    "createSuccess": "¡Clave API generada con éxito!",
+    "createError": "Error al generar la clave API.",
+    "deleteSuccess": "¡Clave API eliminada con éxito!",
+    "deleteError": "Error al eliminar la clave API.",
+    "deleteConfirm": "¿Está seguro de que desea eliminar la clave API \"{{name}}\"? Esta acción no se puede deshacer.",
+    "fetchError": "Error al cargar las claves API.",
+    "keyCopied": "¡Clave API copiada al portapapeles!",
+    "copyError": "Error al copiar la clave.",
+    "copyKey": "Copiar Clave",
+    "showKey": "Mostrar Clave",
+    "hideKey": "Ocultar Clave",
+    "noKeys": "Sin Claves API",
+    "noKeysDescription": "Genera una clave API para permitir que el Portal de Doctores se integre con tu laboratorio.",
+    "infoTitle": "Autenticación de Integración",
+    "infoDescription": "Las claves API son utilizadas por el Portal de Doctores para autenticarse con el sistema de tu laboratorio. Cada sucursal puede tener una clave activa a la vez. Incluye la clave en el encabezado X-API-Key de las solicitudes de integración.",
+    "previousKeys": "Claves Anteriores",
+    "createdOn": "Creada el"
   }
 }

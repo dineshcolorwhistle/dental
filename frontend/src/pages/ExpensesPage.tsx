@@ -8,6 +8,7 @@ import {
   Edit2,
   DollarSign,
   Layers,
+  TrendingDown,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -34,6 +35,7 @@ export function ExpensesPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+  const [dateFilterType, setDateFilterType] = useState<'ALL' | 'THIS_WEEK' | 'THIS_MONTH' | 'CUSTOM'>('ALL');
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
 
@@ -103,7 +105,7 @@ export function ExpensesPage() {
   // Reset pagination on filter changes
   useEffect(() => {
     setCurrentPage(0);
-  }, [searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter]);
+  }, [searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter, dateFilterType]);
 
   useEffect(() => {
     setCategoryCurrentPage(0);
@@ -312,12 +314,44 @@ export function ExpensesPage() {
         selectedCategoryFilter === 'ALL' || exp.categoryId === selectedCategoryFilter;
 
       const expDate = new Date(exp.date);
-      const matchesStartDate = !startDateFilter || expDate >= new Date(startDateFilter);
-      const matchesEndDate = !endDateFilter || expDate <= new Date(endDateFilter + 'T23:59:59');
+      let matchesDateRange = true;
 
-      return matchesSearch && matchesCategory && matchesStartDate && matchesEndDate;
+      if (dateFilterType === 'THIS_WEEK') {
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday is start of week
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        matchesDateRange = expDate >= startOfWeek && expDate <= endOfWeek;
+      } else if (dateFilterType === 'THIS_MONTH') {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        matchesDateRange = expDate >= startOfMonth && expDate <= endOfMonth;
+      } else if (dateFilterType === 'CUSTOM') {
+        const matchesStartDate = !startDateFilter || expDate >= new Date(startDateFilter);
+        const matchesEndDate = !endDateFilter || expDate <= new Date(endDateFilter + 'T23:59:59');
+        matchesDateRange = matchesStartDate && matchesEndDate;
+      }
+
+      return matchesSearch && matchesCategory && matchesDateRange;
     });
-  }, [expenses, searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter]);
+  }, [expenses, searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter, dateFilterType]);
+
+  const totalAmount = useMemo(() => {
+    return filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  }, [filteredExpenses]);
+
+  const averageAmount = useMemo(() => {
+    if (filteredExpenses.length === 0) return 0;
+    return totalAmount / filteredExpenses.length;
+  }, [filteredExpenses, totalAmount]);
 
   const paginatedExpenses = useMemo(() => {
     const start = currentPage * PAGE_SIZE;
@@ -376,6 +410,108 @@ export function ExpensesPage() {
       {/* EXPENSES TAB */}
       {activeTab === 'EXPENSES' && (
         <div>
+          {/* KPI Widgets Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+            {/* Card: Total Expenses */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--danger)',
+              }}>
+                <DollarSign size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('expenses.totalExpenses')}
+                </span>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {formatPrice(totalAmount)}
+                </h3>
+              </div>
+            </div>
+
+            {/* Card: Average Expense */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--accent-primary)',
+              }}>
+                <TrendingDown size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('expenses.averageExpense')}
+                </span>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {formatPrice(averageAmount)}
+                </h3>
+              </div>
+            </div>
+
+            {/* Card: Expense Count */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--success)',
+              }}>
+                <Layers size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('expenses.expenseCount')}
+                </span>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {filteredExpenses.length}
+                </h3>
+              </div>
+            </div>
+          </div>
+
           {/* Toolbar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             <button className="btn btn--primary" onClick={handleOpenCreateExpense}>
@@ -419,33 +555,77 @@ export function ExpensesPage() {
                 </select>
               </div>
 
-              {/* Start Date */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.startDate')}:</span>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={startDateFilter}
-                  onChange={(e) => setStartDateFilter(e.target.value)}
-                />
+              {/* Date Filter Selector */}
+              <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-surface)' }}>
+                {([
+                  { type: 'ALL', label: t('expenses.dateFilters.all') },
+                  { type: 'THIS_WEEK', label: t('expenses.dateFilters.thisWeek') },
+                  { type: 'THIS_MONTH', label: t('expenses.dateFilters.thisMonth') },
+                  { type: 'CUSTOM', label: t('expenses.dateFilters.custom') }
+                ] as const).map(({ type, label }) => {
+                  const isActive = dateFilterType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setDateFilterType(type);
+                        if (type !== 'CUSTOM') {
+                          setStartDateFilter('');
+                          setEndDateFilter('');
+                        }
+                      }}
+                      style={{
+                        border: 'none',
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
+                        color: isActive ? '#fff' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all var(--transition-fast)',
+                        borderRight: type !== 'CUSTOM' ? '1px solid var(--border)' : 'none',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* End Date */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.endDate')}:</span>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={endDateFilter}
-                  onChange={(e) => setEndDateFilter(e.target.value)}
-                />
-              </div>
+              {/* Custom Date Inputs (Rendered only if Date Range is Custom) */}
+              {dateFilterType === 'CUSTOM' && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {/* Start Date */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.startDate')}:</span>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={startDateFilter}
+                      onChange={(e) => setStartDateFilter(e.target.value)}
+                    />
+                  </div>
+
+                  {/* End Date */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.endDate')}:</span>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={endDateFilter}
+                      onChange={(e) => setEndDateFilter(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
 
               <button
                 type="button"
                 className="btn btn--secondary"
                 onClick={() => {
                   setSelectedCategoryFilter('ALL');
+                  setDateFilterType('ALL');
                   setStartDateFilter('');
                   setEndDateFilter('');
                   setSearchQuery('');
