@@ -188,17 +188,53 @@ export class DoctorsService {
       });
       if (activeKeyRecord) {
         headers['x-api-key'] = activeKeyRecord.key;
-        headers['X-API-Key'] = activeKeyRecord.key;
         this.logger.log(`Using active API Key for branch: ${branchIdContext}`);
       } else {
         this.logger.warn(`No active API Key found for branch: ${branchIdContext}`);
       }
+    } else {
+      this.logger.warn('No branch context provided — request will be sent without API key');
     }
 
     try {
       this.logger.log(`Fetching external doctors from: ${portalUrl}`);
-      // Use native fetch (available in Node.js 18+)
-      const response = await fetch(portalUrl, { headers });
+
+      // Manually follow redirects to preserve custom headers (x-api-key).
+      // Node.js fetch strips custom headers on cross-protocol redirects (HTTPS→HTTP).
+      let currentUrl = portalUrl;
+      let response: Response | null = null;
+      const maxRedirects = 5;
+
+      for (let i = 0; i <= maxRedirects; i++) {
+        this.logger.log(`Request #${i}: ${currentUrl}`);
+        response = await fetch(currentUrl, {
+          headers,
+          redirect: 'manual',
+        });
+
+        // Follow 3xx redirects manually
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get('location');
+          if (!location) {
+            throw new BadRequestException(
+              `Doctor portal returned ${response.status} redirect but no Location header`,
+            );
+          }
+          // Resolve relative URLs against current URL
+          currentUrl = new URL(location, currentUrl).href;
+          this.logger.log(`Following redirect (${response.status}) → ${currentUrl}`);
+          continue;
+        }
+
+        // Non-redirect response — break out
+        break;
+      }
+
+      if (!response) {
+        throw new BadRequestException('No response received from Doctor Portal');
+      }
+
+      this.logger.log(`Final response status: ${response.status} from ${currentUrl}`);
 
       if (response.ok) {
         const text = await response.text();
@@ -230,14 +266,16 @@ export class DoctorsService {
             throw e;
           }
           // Likely returned HTML login page due to redirect
-          const snippet = text.slice(0, 100).replace(/\s+/g, ' ');
+          const snippet = text.slice(0, 200).replace(/\s+/g, ' ');
           throw new BadRequestException(
-            `Doctor portal response is not JSON. Portal might have redirected to a login screen. Response snippet: "${snippet}..."`
+            `Doctor portal response is not JSON. Portal might have redirected to a login screen. Response snippet: "${snippet}..."`,
           );
         }
       } else {
+        const errorBody = await response.text().catch(() => '');
+        this.logger.error(`Doctor portal error response (${response.status}): ${errorBody.slice(0, 300)}`);
         throw new BadRequestException(
-          `Doctor portal request failed with status code: ${response.status}`
+          `Doctor portal request failed with status code: ${response.status}`,
         );
       }
     } catch (error) {
@@ -246,7 +284,7 @@ export class DoctorsService {
       }
       this.logger.error(`Error fetching external doctors: ${error.message}`);
       throw new BadRequestException(
-        `Failed to connect to Doctor Portal: ${error.message}`
+        `Failed to connect to Doctor Portal: ${error.message}`,
       );
     }
   }
