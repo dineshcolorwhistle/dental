@@ -1112,7 +1112,8 @@ export function WorkOrdersPage() {
             <div className="modal__body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {modalTab === 'details' ? (
                 <>
-                   {/* External Doctor from Doctor Portal */}
+                   {/* External Doctor from Doctor Portal — hidden for now */}
+                  <div style={{ display: 'none' }}>
                   <div className="form-group" style={{ marginBottom: '1rem' }}>
                     <label className="form-label" htmlFor="select-wo-external-doctor">
                       {t('workOrders.externalDoctor', { defaultValue: 'External Doctor (from Doctor Portal)' })}
@@ -1143,6 +1144,7 @@ export function WorkOrdersPage() {
                           : t('doctors.selectExternalDoctor', { defaultValue: 'Select a doctor from Doctor Portal' })
                       }
                     />
+                  </div>
                   </div>
 
                   {/* Row 1: Doctor + Patient */}
