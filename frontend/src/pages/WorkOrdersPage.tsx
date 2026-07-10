@@ -1121,7 +1121,7 @@ export function WorkOrdersPage() {
                       id="select-wo-external-doctor"
                       options={externalDoctors.map((d) => ({
                         value: d.id,
-                        label: `${d.name}${d.clinicName ? ` — ${d.clinicName}` : ''}`,
+                        label: d.clinicName ? `${d.name} - ${d.clinicName}` : d.name,
                       }))}
                       value={form.externalDoctorId || ''}
                       onChange={(val) => {

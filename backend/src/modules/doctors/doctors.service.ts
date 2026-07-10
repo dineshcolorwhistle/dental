@@ -177,7 +177,7 @@ export class DoctorsService {
   }
 
   async getExternal(branchIdContext?: string | null) {
-    const portalUrl = 'https://dental-staging.eduwhistle.com/api/doctors';
+    const portalUrl = 'https://dental-staging.eduwhistle.com/api/doctor/';
     const headers: Record<string, string> = {
       'Accept': 'application/json',
     };
@@ -187,6 +187,7 @@ export class DoctorsService {
         where: { branchId: branchIdContext, isActive: true },
       });
       if (activeKeyRecord) {
+        headers['x-api-key'] = activeKeyRecord.key;
         headers['X-API-Key'] = activeKeyRecord.key;
         this.logger.log(`Using active API Key for branch: ${branchIdContext}`);
       } else {
@@ -203,13 +204,27 @@ export class DoctorsService {
         const text = await response.text();
         try {
           const data = JSON.parse(text);
+          let rawDoctors: any[] = [];
+
           if (Array.isArray(data)) {
-            this.logger.log(`Successfully fetched ${data.length} doctors from portal.`);
-            return data;
+            rawDoctors = data;
+          } else if (data && Array.isArray(data.doctors)) {
+            rawDoctors = data.doctors;
+          } else {
+            throw new BadRequestException(
+              'Doctor portal response is valid JSON but does not contain a list of doctors.'
+            );
           }
-          throw new BadRequestException(
-            'Doctor portal response is valid JSON but not an array.'
-          );
+
+          // Map the doctor objects to the format expected by the frontend
+          const mappedDoctors = rawDoctors.map((doc: any) => ({
+            id: doc.id?.toString() || '',
+            name: doc.full_name || doc.username || '',
+            clinicName: doc.clinic_name || doc.qualification || null,
+          }));
+
+          this.logger.log(`Successfully fetched and mapped ${mappedDoctors.length} doctors from portal.`);
+          return mappedDoctors;
         } catch (e) {
           if (e instanceof BadRequestException) {
             throw e;
