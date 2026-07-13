@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context';
+import { useAuth, useSocket } from '../context';
 import {
   Search,
   Clock,
@@ -200,6 +200,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any, t: any) => {
 export function TechnicianWorkOrdersPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { socket, isConnected } = useSocket();
   const [workOrders, setWorkOrders] = useState<TechnicianWorkOrderListItem[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<TechnicianWorkOrderListItem | null>(null);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
@@ -268,6 +269,28 @@ export function TechnicianWorkOrdersPage() {
   useEffect(() => {
     fetchWorkOrders();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSocketUpdate = () => {
+      fetchWorkOrders();
+    };
+
+    socket.on('work_order_created', handleSocketUpdate);
+    socket.on('work_order_updated', handleSocketUpdate);
+
+    return () => {
+      socket.off('work_order_created', handleSocketUpdate);
+      socket.off('work_order_updated', handleSocketUpdate);
+    };
+  }, [socket, fetchWorkOrders]);
+
+  useEffect(() => {
+    if (isConnected) {
+      fetchWorkOrders();
+    }
+  }, [isConnected, fetchWorkOrders]);
 
   // Drawer clicked backdrop is handled directly via overlay onClick event.
 
