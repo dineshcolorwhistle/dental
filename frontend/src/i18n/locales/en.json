@@ -1130,5 +1130,15 @@
     "infoDescription": "API keys are used by the Doctor Portal to authenticate with your lab system. Each branch can have one active key at a time. Include the key in the X-API-Key header of integration requests.",
     "previousKeys": "Previous Keys",
     "createdOn": "Created on"
+  },
+  "superAdminDashboard": {
+    "title": "Super Admin Dashboard",
+    "subtitle": "Global system administration console",
+    "totalTenants": "Total Tenants",
+    "activeTenants": "Active Tenants",
+    "systemStatus": "System Status",
+    "systemStatusActive": "Operational",
+    "manageTenants": "Manage Tenants",
+    "welcome": "Welcome back, Super Admin! Select an action to view and manage laboratory tenants on the platform."
   }
 }

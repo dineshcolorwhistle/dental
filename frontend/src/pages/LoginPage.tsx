@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,7 +13,7 @@ import { getSubdomain } from '../utils/subdomain';
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+
   const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,9 +32,7 @@ export function LoginPage() {
 
   type LoginFormData = z.infer<typeof loginSchema>;
 
-  const searchParams = new URLSearchParams(location.search);
-  const redirectParam = searchParams.get('redirect');
-  const from = redirectParam || (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+
 
   const {
     register,
@@ -80,22 +78,7 @@ export function LoginPage() {
     return serverMessage || t('auth.invalidCredentials');
   };
 
-  const isRouteAllowedForRole = (pathname: string, role: string): boolean => {
-    if (pathname === '/dashboard' || pathname === '/') return true;
-    
-    switch (role) {
-      case 'SUPER_ADMIN':
-        return pathname.startsWith('/tenants');
-      case 'OWNER':
-        return !pathname.startsWith('/tenants') && !pathname.startsWith('/tech');
-      case 'ADMIN':
-        return !pathname.startsWith('/tenants') && !pathname.startsWith('/branches') && !pathname.startsWith('/admins') && !pathname.startsWith('/tech');
-      case 'TECHNICIAN':
-        return pathname.startsWith('/tech') || pathname === '/dashboard';
-      default:
-        return false;
-    }
-  };
+
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
@@ -116,10 +99,7 @@ export function LoginPage() {
         });
       } else {
         toast.success(t('auth.loginSuccess'));
-        const userRole = res?.user?.role;
-        const targetPath = userRole && isRouteAllowedForRole(from, userRole) 
-          ? from 
-          : (userRole === 'SUPER_ADMIN' ? '/tenants' : '/dashboard');
+        const targetPath = '/dashboard';
         navigate(targetPath, { replace: true });
       }
     } catch (error: any) {
@@ -140,7 +120,7 @@ export function LoginPage() {
         role: role,
       });
       toast.success(t('auth.loginSuccess'));
-      const targetPath = isRouteAllowedForRole(from, role) ? from : '/dashboard';
+      const targetPath = '/dashboard';
       navigate(targetPath, { replace: true });
     } catch (error: any) {
       toast.error(getErrorMessage(error));

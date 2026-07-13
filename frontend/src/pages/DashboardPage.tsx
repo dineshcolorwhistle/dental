@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
 import { TechnicianDashboardPage } from './TechnicianDashboardPage';
 import { OwnerDashboardPage } from './OwnerDashboardPage';
+import { SuperAdminDashboardPage } from './SuperAdminDashboardPage';
 import {
   Activity,
   ClipboardList,
@@ -32,7 +33,7 @@ export function DashboardPage() {
   const isAdmin = user?.role === 'ADMIN';
 
   if (user?.role === 'SUPER_ADMIN') {
-    return <Navigate to="/tenants" replace />;
+    return <SuperAdminDashboardPage />;
   }
 
   if (user?.role === 'TECHNICIAN') {

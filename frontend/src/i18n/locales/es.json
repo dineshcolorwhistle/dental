@@ -1130,5 +1130,15 @@
     "infoDescription": "Las claves API son utilizadas por el Portal de Doctores para autenticarse con el sistema de tu laboratorio. Cada sucursal puede tener una clave activa a la vez. Incluye la clave en el encabezado X-API-Key de las solicitudes de integración.",
     "previousKeys": "Claves Anteriores",
     "createdOn": "Creada el"
+  },
+  "superAdminDashboard": {
+    "title": "Panel de Súper Administrador",
+    "subtitle": "Consola de administración global del sistema",
+    "totalTenants": "Total de Inquilinos",
+    "activeTenants": "Inquilinos Activos",
+    "systemStatus": "Estado del Sistema",
+    "systemStatusActive": "Operativo",
+    "manageTenants": "Administrar Inquilinos",
+    "welcome": "¡Bienvenido de nuevo, Súper Administrador! Seleccione una acción para ver y administrar los inquilinos del laboratorio en la plataforma."
   }
 }
