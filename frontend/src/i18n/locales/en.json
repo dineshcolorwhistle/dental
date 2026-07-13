@@ -711,7 +711,9 @@
     "availableProcesses": "Available Processes",
     "noProcessesBranch": "No processes found for this branch. Create them in the Processes Page first.",
     "selectedSequence": "Selected Workflow Sequence",
-    "noProcessesAddedDesc": "No processes added yet. Click available processes on the left to build the sequence."
+    "noProcessesAddedDesc": "No processes added yet. Click available processes on the left to build the sequence.",
+    "searchProcessesPlaceholder": "Search processes...",
+    "searchProcesses": "Search"
   },
   "processesPage": {
     "title": "Processes",
@@ -1090,9 +1092,17 @@
     "expenseCount": "Expense Count",
     "dateFilters": {
       "all": "All Time",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
       "thisWeek": "This Week",
       "thisMonth": "This Month",
-      "custom": "Custom Range"
+      "lastMonth": "Last Month",
+      "thisYear": "This Year",
+      "lastYear": "Last Year",
+      "custom": "Custom Range",
+      "dateRangeLabel": "Date Range"
     }
   },
   "apiKeys": {

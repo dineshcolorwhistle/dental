@@ -494,7 +494,25 @@ a:hover { color: var(--accent-primary-hover); }
   display: flex;
   flex-direction: column;
   z-index: 100;
-  transition: transform var(--transition-base);
+  transition: transform var(--transition-base), width var(--transition-base);
+}
+
+.sidebar__toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.sidebar__toggle:hover {
+  background: rgba(111, 174, 217, 0.1);
+  color: var(--text-primary);
 }
 
 .sidebar__header {
@@ -661,6 +679,7 @@ a:hover { color: var(--accent-primary-hover); }
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: margin-left var(--transition-base);
 }
 
 .topbar {
@@ -2329,6 +2348,291 @@ a:hover { color: var(--accent-primary-hover); }
 
 .push-status-bar__toggle:hover {
   text-decoration: underline;
+}
+
+/* Collapsed Layout Styles for Desktop */
+@media (min-width: 769px) {
+  .sidebar__toggle {
+    display: flex;
+  }
+
+  .dashboard-layout.layout--collapsed {
+    --sidebar-width: 72px;
+  }
+
+  .layout--collapsed .sidebar__brand-text {
+    display: none;
+  }
+
+  .layout--collapsed .sidebar__header {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem 0.5rem;
+  }
+
+  .layout--collapsed .sidebar__link {
+    justify-content: center;
+    padding: 0.625rem 0.5rem;
+  }
+
+  .layout--collapsed .sidebar__link span {
+    display: none;
+  }
+
+  .layout--collapsed .sidebar__user-details {
+    display: none;
+  }
+
+  .layout--collapsed .sidebar__user-profile {
+    justify-content: center;
+  }
+
+  .layout--collapsed .sidebar__logout-btn-full span {
+    display: none;
+  }
+
+  .layout--collapsed .sidebar__logout-btn-full {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .layout--collapsed .sidebar__footer {
+    padding: 1.25rem 0.5rem;
+    align-items: center;
+  }
+}
+
+/* ─── Date Range Picker ────────────────────────────────────── */
+.date-range-picker-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.drp-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.875rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  height: 38px;
+  min-width: 260px;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.drp-trigger-btn:hover {
+  border-color: var(--border-hover);
+  background-color: var(--bg-overlay);
+}
+
+.drp-trigger-btn--active {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-glow);
+}
+
+.drp-trigger-btn__icon {
+  color: var(--text-muted);
+}
+
+.drp-trigger-btn__text {
+  flex-grow: 1;
+}
+
+.drp-trigger-btn__chevron {
+  color: var(--text-muted);
+}
+
+.drp-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: dropdownIn 0.2s ease;
+}
+
+.drp-popover__body {
+  display: flex;
+  flex-direction: row;
+}
+
+.drp-presets {
+  width: 170px;
+  border-right: 1px solid var(--border);
+  padding: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background-color: var(--bg-overlay);
+}
+
+.drp-presets__btn {
+  border: none;
+  background: none;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.drp-presets__btn:hover {
+  background-color: rgba(111, 174, 217, 0.08);
+  color: var(--text-primary);
+}
+
+.drp-presets__btn--active {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.drp-presets__btn--active:hover {
+  background-color: var(--accent-primary-hover);
+  color: #ffffff;
+}
+
+.drp-calendars {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  background-color: var(--bg-surface);
+}
+
+.drp-calendar {
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+.drp-calendar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  height: 28px;
+}
+
+.drp-calendar__nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.drp-calendar__nav-btn:hover {
+  background-color: rgba(111, 174, 217, 0.1);
+  color: var(--text-primary);
+}
+
+.drp-calendar__month-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.drp-calendar__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 0.375rem;
+}
+
+.drp-calendar__weekday {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.drp-calendar__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.drp-calendar__day {
+  aspect-ratio: 1;
+  border: none;
+  background: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.1s ease;
+  padding: 0;
+}
+
+.drp-calendar__day span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+}
+
+.drp-calendar__day:hover span {
+  background-color: rgba(111, 174, 217, 0.15);
+}
+
+.drp-calendar__day--muted {
+  color: var(--text-muted);
+  opacity: 0.35;
+}
+
+.drp-calendar__day--start span,
+.drp-calendar__day--end span {
+  background-color: var(--accent-primary) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.drp-calendar__day--range {
+  background-color: rgba(111, 174, 217, 0.12);
+  color: var(--accent-primary-hover);
+  border-radius: 0;
+}
+
+.drp-calendar__day--range span {
+  border-radius: 0;
+}
+
+.drp-calendar__day--hovered {
+  background-color: rgba(111, 174, 217, 0.08);
+  border-radius: 0;
+}
+
+.drp-calendar__day--hovered span {
+  border-radius: 0;
 }
 
 

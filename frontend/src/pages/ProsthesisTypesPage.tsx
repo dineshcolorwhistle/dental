@@ -77,6 +77,7 @@ export function ProsthesisTypesPage() {
     processIds: [],
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateProsthesisTypePayload, string>>>({});
+  const [processSearch, setProcessSearch] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -148,6 +149,7 @@ export function ProsthesisTypesPage() {
       processIds: [],
     });
     setFormErrors({});
+    setProcessSearch('');
     setShowCreateModal(true);
   };
 
@@ -160,6 +162,7 @@ export function ProsthesisTypesPage() {
       processIds: (item.processAssignments || []).map((a) => a.process.id),
     });
     setFormErrors({});
+    setProcessSearch('');
     setShowEditModal(true);
   };
 
@@ -323,6 +326,11 @@ export function ProsthesisTypesPage() {
   // Computed values
   const activeBranchId = isAdmin ? user?.branchId : form.branchId;
   const branchProcesses = allBranchProcesses.filter((p) => p.branchId === activeBranchId);
+  const filteredBranchProcesses = branchProcesses.filter((p) => {
+    if (!processSearch.trim()) return true;
+    const query = processSearch.toLowerCase();
+    return p.name.toLowerCase().includes(query) || (p.processArea && p.processArea.toLowerCase().includes(query));
+  });
 
   return (
     <div className="admins-page">
@@ -695,15 +703,49 @@ export function ProsthesisTypesPage() {
                     {/* Left Column: Available Processes */}
                     <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-overlay, #F8FAFC)', display: 'flex', flexDirection: 'column' }}>
                       <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })} ({branchProcesses.length})
+                        {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })} ({filteredBranchProcesses.length})
                       </span>
-                      {branchProcesses.length === 0 ? (
+                      
+                      {/* Search Bar */}
+                      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
+                        <div className="search-input-wrap" style={{ flexGrow: 1, height: '32px' }}>
+                          <Search size={14} className="search-input__icon" style={{ left: '8px' }} />
+                          <input
+                            type="text"
+                            className="form-input search-input"
+                            style={{ height: '32px', fontSize: '0.75rem', paddingLeft: '28px', paddingRight: '24px', borderRadius: '6px', width: '100%' }}
+                            placeholder={t('prosthesisTypes.searchProcessesPlaceholder', { defaultValue: 'Search processes...' })}
+                            value={processSearch}
+                            onChange={(e) => setProcessSearch(e.target.value)}
+                          />
+                          {processSearch && (
+                            <button
+                              type="button"
+                              className="search-input__clear"
+                              style={{ right: '8px' }}
+                              onClick={() => setProcessSearch('')}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn--primary"
+                          style={{ height: '32px', padding: '0 0.5rem', fontSize: '0.75rem', minWidth: 'auto', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Search size={12} />
+                          <span>{t('prosthesisTypes.searchProcesses', { defaultValue: 'Search' })}</span>
+                        </button>
+                      </div>
+
+                      {filteredBranchProcesses.length === 0 ? (
                         <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {t('prosthesisTypes.noProcessesBranch', { defaultValue: 'No processes found for this branch. Create them in the Processes Page first.' })}
+                          {processSearch ? t('common.noResults') : t('prosthesisTypes.noProcessesBranch', { defaultValue: 'No processes found for this branch. Create them in the Processes Page first.' })}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
-                          {branchProcesses.map((p) => {
+                          {filteredBranchProcesses.map((p) => {
                             const isSelected = (form.processIds || []).includes(p.id);
                             return (
                               <button
@@ -965,15 +1007,49 @@ export function ProsthesisTypesPage() {
                     {/* Left Column: Available Processes */}
                     <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-overlay, #F8FAFC)', display: 'flex', flexDirection: 'column' }}>
                       <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })} ({branchProcesses.length})
+                        {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })} ({filteredBranchProcesses.length})
                       </span>
-                      {branchProcesses.length === 0 ? (
+                      
+                      {/* Search Bar */}
+                      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
+                        <div className="search-input-wrap" style={{ flexGrow: 1, height: '32px' }}>
+                          <Search size={14} className="search-input__icon" style={{ left: '8px' }} />
+                          <input
+                            type="text"
+                            className="form-input search-input"
+                            style={{ height: '32px', fontSize: '0.75rem', paddingLeft: '28px', paddingRight: '24px', borderRadius: '6px', width: '100%' }}
+                            placeholder={t('prosthesisTypes.searchProcessesPlaceholder', { defaultValue: 'Search processes...' })}
+                            value={processSearch}
+                            onChange={(e) => setProcessSearch(e.target.value)}
+                          />
+                          {processSearch && (
+                            <button
+                              type="button"
+                              className="search-input__clear"
+                              style={{ right: '8px' }}
+                              onClick={() => setProcessSearch('')}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn--primary"
+                          style={{ height: '32px', padding: '0 0.5rem', fontSize: '0.75rem', minWidth: 'auto', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Search size={12} />
+                          <span>{t('prosthesisTypes.searchProcesses', { defaultValue: 'Search' })}</span>
+                        </button>
+                      </div>
+
+                      {filteredBranchProcesses.length === 0 ? (
                         <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {t('prosthesisTypes.noProcessesBranch', { defaultValue: 'No processes found for this branch. Create them in the Processes Page first.' })}
+                          {processSearch ? t('common.noResults') : t('prosthesisTypes.noProcessesBranch', { defaultValue: 'No processes found for this branch. Create them in the Processes Page first.' })}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
-                          {branchProcesses.map((p) => {
+                          {filteredBranchProcesses.map((p) => {
                             const isSelected = (form.processIds || []).includes(p.id);
                             return (
                               <button

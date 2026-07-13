@@ -711,7 +711,9 @@
     "availableProcesses": "Procesos Disponibles",
     "noProcessesBranch": "No se encontraron procesos para esta sucursal. Créelos primero en la página de Procesos.",
     "selectedSequence": "Secuencia de Flujo de Trabajo Seleccionada",
-    "noProcessesAddedDesc": "Aún no se han agregado procesos. Haga clic en los procesos disponibles a la izquierda para construir la secuencia."
+    "noProcessesAddedDesc": "Aún no se han agregado procesos. Haga clic en los procesos disponibles a la izquierda para construir la secuencia.",
+    "searchProcessesPlaceholder": "Buscar procesos...",
+    "searchProcesses": "Buscar"
   },
   "processesPage": {
     "title": "Procesos",
@@ -1090,9 +1092,17 @@
     "expenseCount": "Cantidad de Gastos",
     "dateFilters": {
       "all": "Todos",
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "last7Days": "Últimos 7 días",
+      "last30Days": "Últimos 30 días",
       "thisWeek": "Esta Semana",
       "thisMonth": "Este Mes",
-      "custom": "Rango Personalizado"
+      "lastMonth": "Mes Pasado",
+      "thisYear": "Este Año",
+      "lastYear": "Año Pasado",
+      "custom": "Rango Personalizado",
+      "dateRangeLabel": "Rango de Fechas"
     }
   },
   "apiKeys": {

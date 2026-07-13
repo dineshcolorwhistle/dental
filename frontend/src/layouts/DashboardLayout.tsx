@@ -9,6 +9,8 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Moon,
   Sun,
   Bell,
@@ -38,6 +40,14 @@ export function DashboardLayout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebar_collapsed');
+    return saved === null ? true : saved === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_collapsed', sidebarCollapsed.toString());
+  }, [sidebarCollapsed]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -186,7 +196,7 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="dashboard-layout">
+    <div className={`dashboard-layout ${sidebarCollapsed ? 'layout--collapsed' : ''}`}>
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
         <div className="sidebar__header">
@@ -200,23 +210,33 @@ export function DashboardLayout() {
                 </linearGradient>
               </defs>
             </svg>
-            <span className="sidebar__brand-text" style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-              <span>
-                {user?.role === 'SUPER_ADMIN' ? 'DentalLab' : (user?.tenantName || 'DentalLab')}
-              </span>
-              {(user?.role === 'ADMIN' || user?.role === 'TECHNICIAN') && user?.branchName && (
-                <span style={{
-                  fontSize: '0.6875rem',
-                  fontWeight: 500,
-                  color: 'var(--accent-primary)',
-                  letterSpacing: '0.02em',
-                  marginTop: '2px'
-                }}>
-                  {user.branchName}
+            {!sidebarCollapsed && (
+              <span className="sidebar__brand-text" style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                <span>
+                  {user?.role === 'SUPER_ADMIN' ? 'DentalLab' : (user?.tenantName || 'DentalLab')}
                 </span>
-              )}
-            </span>
+                {(user?.role === 'ADMIN' || user?.role === 'TECHNICIAN') && user?.branchName && (
+                  <span style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 500,
+                    color: 'var(--accent-primary)',
+                    letterSpacing: '0.02em',
+                    marginTop: '2px'
+                  }}>
+                    {user.branchName}
+                  </span>
+                )}
+              </span>
+            )}
           </div>
+          <button
+            type="button"
+            className="sidebar__toggle"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
           <button
             className="sidebar__close"
             onClick={() => setSidebarOpen(false)}

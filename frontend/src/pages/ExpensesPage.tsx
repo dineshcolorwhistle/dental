@@ -17,7 +17,7 @@ import {
   type Expense,
   type ExpenseCategory,
 } from '../services';
-import { Pagination } from '../components';
+import { Pagination, DateRangePicker } from '../components';
 
 const PAGE_SIZE = 10;
 type ActiveTab = 'EXPENSES' | 'CATEGORIES';
@@ -35,9 +35,27 @@ export function ExpensesPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
-  const [dateFilterType, setDateFilterType] = useState<'ALL' | 'THIS_WEEK' | 'THIS_MONTH' | 'CUSTOM'>('ALL');
-  const [startDateFilter, setStartDateFilter] = useState('');
-  const [endDateFilter, setEndDateFilter] = useState('');
+  const [datePreset, setDatePreset] = useState<string>('thisMonth');
+  
+  const getInitialThisMonthRange = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const fmt = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    return {
+      start: fmt(firstDay),
+      end: fmt(lastDay)
+    };
+  };
+
+  const initialRange = getInitialThisMonthRange();
+  const [startDateFilter, setStartDateFilter] = useState<string>(initialRange.start);
+  const [endDateFilter, setEndDateFilter] = useState<string>(initialRange.end);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
@@ -105,7 +123,7 @@ export function ExpensesPage() {
   // Reset pagination on filter changes
   useEffect(() => {
     setCurrentPage(0);
-  }, [searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter, dateFilterType]);
+  }, [searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter, datePreset]);
 
   useEffect(() => {
     setCategoryCurrentPage(0);
@@ -314,35 +332,23 @@ export function ExpensesPage() {
         selectedCategoryFilter === 'ALL' || exp.categoryId === selectedCategoryFilter;
 
       const expDate = new Date(exp.date);
-      let matchesDateRange = true;
+      
+      const parseLocalDate = (dateStr: string, isEnd: boolean) => {
+        if (!dateStr) return null;
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return isEnd ? new Date(year, month - 1, day, 23, 59, 59, 999) : new Date(year, month - 1, day, 0, 0, 0, 0);
+      };
 
-      if (dateFilterType === 'THIS_WEEK') {
-        const now = new Date();
-        const startOfWeek = new Date(now);
-        const day = now.getDay();
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday is start of week
-        startOfWeek.setDate(diff);
-        startOfWeek.setHours(0, 0, 0, 0);
+      const start = parseLocalDate(startDateFilter, false);
+      const end = parseLocalDate(endDateFilter, true);
 
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-
-        matchesDateRange = expDate >= startOfWeek && expDate <= endOfWeek;
-      } else if (dateFilterType === 'THIS_MONTH') {
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        matchesDateRange = expDate >= startOfMonth && expDate <= endOfMonth;
-      } else if (dateFilterType === 'CUSTOM') {
-        const matchesStartDate = !startDateFilter || expDate >= new Date(startDateFilter);
-        const matchesEndDate = !endDateFilter || expDate <= new Date(endDateFilter + 'T23:59:59');
-        matchesDateRange = matchesStartDate && matchesEndDate;
-      }
+      const matchesStartDate = !start || expDate >= start;
+      const matchesEndDate = !end || expDate <= end;
+      const matchesDateRange = matchesStartDate && matchesEndDate;
 
       return matchesSearch && matchesCategory && matchesDateRange;
     });
-  }, [expenses, searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter, dateFilterType]);
+  }, [expenses, searchQuery, selectedCategoryFilter, startDateFilter, endDateFilter]);
 
   const totalAmount = useMemo(() => {
     return filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -410,7 +416,81 @@ export function ExpensesPage() {
       {/* EXPENSES TAB */}
       {activeTab === 'EXPENSES' && (
         <div>
-          {/* KPI Widgets Grid */}
+          {/* Toolbar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <button className="btn btn--primary" onClick={handleOpenCreateExpense}>
+              <Plus size={18} />
+              <span>{t('expenses.addExpense')}</span>
+            </button>
+          </div>
+
+          {/* Filters toolbar */}
+          <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="search-input-wrap" style={{ flexGrow: 1, minWidth: '250px' }}>
+              <Search size={16} className="search-input__icon" />
+              <input
+                type="text"
+                className="form-input search-input"
+                placeholder={t('common.search')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: '100%' }}
+              />
+              {searchQuery && (
+                <button className="search-input__clear" onClick={() => setSearchQuery('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="table-toolbar__filters" style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              {/* Category Filter */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600 }}>{t('expenses.fields.category')}:</span>
+                <select
+                  className="form-input"
+                  value={selectedCategoryFilter}
+                  onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                  style={{ height: '38px', borderRadius: '8px', minWidth: '150px' }}
+                >
+                  <option value="ALL">{t('common.all')}</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date Range Picker */}
+              <DateRangePicker
+                startDate={startDateFilter}
+                endDate={endDateFilter}
+                presetType={datePreset}
+                onChange={(start, end, preset) => {
+                  setStartDateFilter(start);
+                  setEndDateFilter(end);
+                  setDatePreset(preset);
+                }}
+              />
+
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => {
+                  setSelectedCategoryFilter('ALL');
+                  const range = getInitialThisMonthRange();
+                  setStartDateFilter(range.start);
+                  setEndDateFilter(range.end);
+                  setDatePreset('thisMonth');
+                  setSearchQuery('');
+                }}
+                style={{ height: '38px', padding: '0 1.25rem', borderRadius: '8px' }}
+              >
+                {t('common.reset')}
+              </button>
+            </div>
+          </div>
+
+          {/* KPI Widgets Grid - Placed BELOW the filter section */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
             {/* Card: Total Expenses */}
             <div style={{
@@ -509,131 +589,6 @@ export function ExpensesPage() {
                   {filteredExpenses.length}
                 </h3>
               </div>
-            </div>
-          </div>
-
-          {/* Toolbar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <button className="btn btn--primary" onClick={handleOpenCreateExpense}>
-              <Plus size={18} />
-              <span>{t('expenses.addExpense')}</span>
-            </button>
-          </div>
-
-          {/* Filters toolbar */}
-          <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div className="search-input-wrap" style={{ flexGrow: 1, minWidth: '250px' }}>
-              <Search size={16} className="search-input__icon" />
-              <input
-                type="text"
-                className="form-input search-input"
-                placeholder={t('common.search')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ width: '100%' }}
-              />
-              {searchQuery && (
-                <button className="search-input__clear" onClick={() => setSearchQuery('')}>
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            <div className="table-toolbar__filters" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Category Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('expenses.fields.category')}:</span>
-                <select
-                  className="form-input"
-                  value={selectedCategoryFilter}
-                  onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                >
-                  <option value="ALL">{t('common.all')}</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Date Filter Selector */}
-              <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-surface)' }}>
-                {([
-                  { type: 'ALL', label: t('expenses.dateFilters.all') },
-                  { type: 'THIS_WEEK', label: t('expenses.dateFilters.thisWeek') },
-                  { type: 'THIS_MONTH', label: t('expenses.dateFilters.thisMonth') },
-                  { type: 'CUSTOM', label: t('expenses.dateFilters.custom') }
-                ] as const).map(({ type, label }) => {
-                  const isActive = dateFilterType === type;
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => {
-                        setDateFilterType(type);
-                        if (type !== 'CUSTOM') {
-                          setStartDateFilter('');
-                          setEndDateFilter('');
-                        }
-                      }}
-                      style={{
-                        border: 'none',
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
-                        color: isActive ? '#fff' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        transition: 'all var(--transition-fast)',
-                        borderRight: type !== 'CUSTOM' ? '1px solid var(--border)' : 'none',
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Date Inputs (Rendered only if Date Range is Custom) */}
-              {dateFilterType === 'CUSTOM' && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  {/* Start Date */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.startDate')}:</span>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={startDateFilter}
-                      onChange={(e) => setStartDateFilter(e.target.value)}
-                    />
-                  </div>
-
-                  {/* End Date */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.endDate')}:</span>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={endDateFilter}
-                      onChange={(e) => setEndDateFilter(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => {
-                  setSelectedCategoryFilter('ALL');
-                  setDateFilterType('ALL');
-                  setStartDateFilter('');
-                  setEndDateFilter('');
-                  setSearchQuery('');
-                }}
-                style={{ padding: '0.5rem 1rem' }}
-              >
-                {t('common.reset')}
-              </button>
             </div>
           </div>
 
