@@ -1099,6 +1099,8 @@
       "thisWeek": "Esta Semana",
       "thisMonth": "Este Mes",
       "lastMonth": "Mes Pasado",
+      "last3Months": "Últimos 3 Meses",
+      "last6Months": "Últimos 6 Meses",
       "thisYear": "Este Año",
       "lastYear": "Año Pasado",
       "custom": "Rango Personalizado",

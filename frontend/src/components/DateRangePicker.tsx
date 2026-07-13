@@ -7,9 +7,10 @@ interface DateRangePickerProps {
   endDate: string; // 'YYYY-MM-DD'
   presetType: string; // 'today', 'thisMonth', 'custom', etc.
   onChange: (startDate: string, endDate: string, presetType: string) => void;
+  allowedPresets?: string[];
 }
 
-export function DateRangePicker({ startDate, endDate, presetType, onChange }: DateRangePickerProps) {
+export function DateRangePicker({ startDate, endDate, presetType, onChange, allowedPresets }: DateRangePickerProps) {
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,17 +65,23 @@ export function DateRangePicker({ startDate, endDate, presetType, onChange }: Da
   }, [startDate, endDate]);
 
   // Presets definition
-  const presets = [
+  const allPresets = [
     { value: 'today', label: t('expenses.dateFilters.today', { defaultValue: 'Today' }) },
     { value: 'yesterday', label: t('expenses.dateFilters.yesterday', { defaultValue: 'Yesterday' }) },
     { value: 'last7Days', label: t('expenses.dateFilters.last7Days', { defaultValue: 'Last 7 Days' }) },
     { value: 'last30Days', label: t('expenses.dateFilters.last30Days', { defaultValue: 'Last 30 Days' }) },
     { value: 'thisMonth', label: t('expenses.dateFilters.thisMonth', { defaultValue: 'This Month' }) },
     { value: 'lastMonth', label: t('expenses.dateFilters.lastMonth', { defaultValue: 'Last Month' }) },
+    { value: 'last3Months', label: t('expenses.dateFilters.last3Months', { defaultValue: 'Last 3 Months' }) },
+    { value: 'last6Months', label: t('expenses.dateFilters.last6Months', { defaultValue: 'Last 6 Months' }) },
     { value: 'thisYear', label: t('expenses.dateFilters.thisYear', { defaultValue: 'This Year' }) },
     { value: 'lastYear', label: t('expenses.dateFilters.lastYear', { defaultValue: 'Last Year' }) },
     { value: 'custom', label: t('expenses.dateFilters.custom', { defaultValue: 'Custom Range' }) },
   ];
+
+  const presets = allowedPresets
+    ? allPresets.filter((p) => allowedPresets.includes(p.value))
+    : allPresets;
 
   // Get dates for presets
   const getPresetRange = (val: string) => {
@@ -106,6 +113,14 @@ export function DateRangePicker({ startDate, endDate, presetType, onChange }: Da
       case 'lastMonth':
         start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         end = new Date(now.getFullYear(), now.getMonth(), 0);
+        break;
+      case 'last3Months':
+        start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        break;
+      case 'last6Months':
+        start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         break;
       case 'thisYear':
         start = new Date(now.getFullYear(), 0, 1);

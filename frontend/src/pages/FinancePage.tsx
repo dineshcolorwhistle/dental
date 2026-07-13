@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { financeService, branchService } from '../services';
 import type { FinanceStats, PendingPaymentWorkOrder } from '../services';
 import { useAuth } from '../context';
+import { DateRangePicker } from '../components';
 
 interface BranchItem {
   id: string;
@@ -23,19 +24,30 @@ interface BranchItem {
   code: string;
 }
 
-type DateRangeType = 'current-month' | 'previous-month' | 'last-3-months' | 'last-6-months' | 'current-year' | 'custom';
-
 export function FinancePage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   // --- State Variables ---
   const [branches, setBranches] = useState<BranchItem[]>([]);
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]); // Empty means ALL
-  const [dateRangeType, setDateRangeType] = useState<DateRangeType>('current-month');
-  
-  // Custom Date inputs
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+
+  const [startDateFilter, setStartDateFilter] = useState<string>(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const year = start.getFullYear();
+    const month = String(start.getMonth() + 1).padStart(2, '0');
+    const day = String(start.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+  const [endDateFilter, setEndDateFilter] = useState<string>(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const year = end.getFullYear();
+    const month = String(end.getMonth() + 1).padStart(2, '0');
+    const day = String(end.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+  const [datePreset, setDatePreset] = useState<string>('thisMonth');
 
   // Finance Stats data
   const [stats, setStats] = useState<FinanceStats | null>(null);
@@ -82,46 +94,14 @@ export function FinancePage() {
 
   // --- Date Range Calculations ---
   const dateRange = useMemo(() => {
-    const now = new Date();
-    let start = new Date();
-    let end = new Date();
+    const [sYear, sMonth, sDay] = startDateFilter.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
 
-    switch (dateRangeType) {
-      case 'current-month':
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        break;
-      case 'previous-month':
-        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-        break;
-      case 'last-3-months':
-        start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        break;
-      case 'last-6-months':
-        start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        break;
-      case 'current-year':
-        start = new Date(now.getFullYear(), 0, 1);
-        end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-        break;
-      case 'custom':
-        if (customStartDate && customEndDate) {
-          start = new Date(customStartDate);
-          start.setHours(0, 0, 0, 0);
-          end = new Date(customEndDate);
-          end.setHours(23, 59, 59, 999);
-        } else {
-          // Fallback to current month if custom dates are empty
-          start = new Date(now.getFullYear(), now.getMonth(), 1);
-          end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        }
-        break;
-    }
+    const [eYear, eMonth, eDay] = endDateFilter.split('-').map(Number);
+    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+
     return { startDate: start.toISOString(), endDate: end.toISOString() };
-  }, [dateRangeType, customStartDate, customEndDate]);
+  }, [startDateFilter, endDateFilter]);
 
   // --- Fetch Initial Data ---
   useEffect(() => {
@@ -458,228 +438,145 @@ export function FinancePage() {
         </div>
 
         {/* Filters Group */}
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           
           {/* Branch Filter Dropdown */}
           {user?.role === 'OWNER' && (
-            <div ref={branchDropdownRef} style={{ position: 'relative' }}>
-              <button
-                onClick={() => setBranchFilterOpen(!branchFilterOpen)}
-                className="btn btn--secondary"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  padding: '0.5rem 1rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                }}
-              >
-                <Building2 size={16} />
-                <span>
-                  {selectedBranches.length === 0
-                    ? t('common.allBranches')
-                    : selectedBranches.length === 1
-                    ? branches.find(b => b.id === selectedBranches[0])?.name || t('branches.oneSelected', { defaultValue: '1 Branch' })
-                    : t('branches.nSelected', { count: selectedBranches.length, defaultValue: `${selectedBranches.length} Branches` })}
-                </span>
-                {selectedBranches.length > 0 && (
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      clearBranchFilter();
-                    }}
-                    style={{
-                      marginLeft: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '2px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      color: 'var(--danger)',
-                    }}
-                    title={t('branches.clearFilter', { defaultValue: 'Clear branch filter' })}
-                  >
-                    <X size={12} />
-                  </span>
-                )}
-              </button>
-
-              {branchFilterOpen && (
-                <div
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600 }}>{t('common.branch', { defaultValue: 'Branch' })}:</span>
+              <div ref={branchDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setBranchFilterOpen(!branchFilterOpen)}
+                  className="btn btn--secondary"
                   style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: '6px',
-                    minWidth: '220px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
                     backgroundColor: 'var(--bg-surface)',
                     border: '1px solid var(--border)',
-                    borderRadius: '12px',
-                    boxShadow: 'var(--shadow-lg)',
-                    padding: '0.5rem',
-                    zIndex: 40,
+                    borderRadius: '8px',
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    height: '38px',
                   }}
                 >
-                  <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <button
-                      onClick={() => {
+                  <Building2 size={16} />
+                  <span>
+                    {selectedBranches.length === 0
+                      ? t('common.allBranches')
+                      : selectedBranches.length === 1
+                      ? branches.find(b => b.id === selectedBranches[0])?.name || t('branches.oneSelected', { defaultValue: '1 Branch' })
+                      : t('branches.nSelected', { count: selectedBranches.length, defaultValue: `${selectedBranches.length} Branches` })}
+                  </span>
+                  {selectedBranches.length > 0 && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
                         clearBranchFilter();
-                        setBranchFilterOpen(false);
                       }}
                       style={{
-                        width: '100%',
-                        padding: '0.5rem 0.75rem',
-                        textAlign: 'left',
-                        border: 'none',
-                        backgroundColor: selectedBranches.length === 0 ? 'rgba(111, 174, 217, 0.1)' : 'transparent',
-                        color: selectedBranches.length === 0 ? 'var(--accent-primary)' : 'var(--text-primary)',
-                        fontWeight: selectedBranches.length === 0 ? 700 : 500,
-                        borderRadius: '6px',
-                        cursor: 'pointer',
+                        marginLeft: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '2px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        color: 'var(--danger)',
                       }}
+                      title={t('branches.clearFilter', { defaultValue: 'Clear branch filter' })}
                     >
-                      {t('common.allBranches')}
-                    </button>
-                    {branches.map((b) => {
-                      const isSel = selectedBranches.includes(b.id);
-                      return (
-                        <button
-                          key={b.id}
-                          onClick={() => handleBranchSelect(b.id)}
-                          style={{
-                            width: '100%',
-                            padding: '0.5rem 0.75rem',
-                            textAlign: 'left',
-                            border: 'none',
-                            backgroundColor: isSel ? 'rgba(111, 174, 217, 0.1)' : 'transparent',
-                            color: isSel ? 'var(--accent-primary)' : 'var(--text-primary)',
-                            fontWeight: isSel ? 700 : 500,
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'between',
-                          }}
-                        >
-                          <span style={{ flex: 1 }}>{b.name}</span>
-                          {isSel && <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>✓</span>}
-                        </button>
-                      );
-                    })}
+                      <X size={12} />
+                    </span>
+                  )}
+                </button>
+
+                {branchFilterOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: '6px',
+                      minWidth: '220px',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px',
+                      boxShadow: 'var(--shadow-lg)',
+                      padding: '0.5rem',
+                      zIndex: 40,
+                    }}
+                  >
+                    <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <button
+                        onClick={() => {
+                          clearBranchFilter();
+                          setBranchFilterOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem 0.75rem',
+                          textAlign: 'left',
+                          border: 'none',
+                          backgroundColor: selectedBranches.length === 0 ? 'rgba(111, 174, 217, 0.1)' : 'transparent',
+                          color: selectedBranches.length === 0 ? 'var(--accent-primary)' : 'var(--text-primary)',
+                          fontWeight: selectedBranches.length === 0 ? 700 : 500,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t('common.allBranches')}
+                      </button>
+                      {branches.map((b) => {
+                        const isSel = selectedBranches.includes(b.id);
+                        return (
+                          <button
+                            key={b.id}
+                            onClick={() => handleBranchSelect(b.id)}
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem 0.75rem',
+                              textAlign: 'left',
+                              border: 'none',
+                              backgroundColor: isSel ? 'rgba(111, 174, 217, 0.1)' : 'transparent',
+                              color: isSel ? 'var(--accent-primary)' : 'var(--text-primary)',
+                              fontWeight: isSel ? 700 : 500,
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'between',
+                            }}
+                          >
+                            <span style={{ flex: 1 }}>{b.name}</span>
+                            {isSel && <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
-          {/* Date Range Dropdown / Toggle Buttons */}
-          <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-surface)' }}>
-            {(['current-month', 'previous-month', 'last-3-months', 'last-6-months', 'current-year', 'custom'] as const).map((type) => {
-              const labels: Record<DateRangeType, string> = {
-                'current-month': t('finance.dateRanges.thisMonth', { defaultValue: 'This Month' }),
-                'previous-month': t('finance.dateRanges.lastMonth', { defaultValue: 'Last Month' }),
-                'last-3-months': t('finance.dateRanges.last3M', { defaultValue: 'Last 3M' }),
-                'last-6-months': t('finance.dateRanges.last6M', { defaultValue: 'Last 6M' }),
-                'current-year': t('finance.dateRanges.year', { defaultValue: 'Year' }),
-                'custom': t('common.custom', { defaultValue: 'Custom' }),
-              };
-
-              const isActive = dateRangeType === type;
-
-              return (
-                <button
-                  key={type}
-                  onClick={() => setDateRangeType(type)}
-                  style={{
-                    border: 'none',
-                    padding: '0.5rem 0.75rem',
-                    fontSize: '0.8125rem',
-                    fontWeight: 600,
-                    backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
-                    color: isActive ? '#fff' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all var(--transition-fast)',
-                    borderRight: type !== 'custom' ? '1px solid var(--border)' : 'none',
-                  }}
-                >
-                  {labels[type]}
-                </button>
-              );
-            })}
-          </div>
+          {/* Date Range Picker */}
+          <DateRangePicker
+            startDate={startDateFilter}
+            endDate={endDateFilter}
+            presetType={datePreset}
+            allowedPresets={['thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'custom']}
+            onChange={(start, end, preset) => {
+              setStartDateFilter(start);
+              setEndDateFilter(end);
+              setDatePreset(preset);
+            }}
+          />
 
         </div>
       </div>
-
-      {/* Custom Date Inputs (Rendered only if Date Range is Custom) */}
-      {dateRangeType === 'custom' && (
-        <div
-          style={{
-            display: 'flex',
-            gap: '1rem',
-            alignItems: 'flex-end',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            padding: '1rem',
-            borderRadius: '12px',
-            width: 'fit-content',
-            animation: 'dropdownIn 0.2s ease',
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('common.startDate')}</span>
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="form-input"
-              style={{ padding: '0.375rem 0.75rem', borderRadius: '6px' }}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('common.endDate')}</span>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="form-input"
-              style={{ padding: '0.375rem 0.75rem', borderRadius: '6px' }}
-            />
-          </div>
-          <button
-            onClick={() => {
-              setCustomStartDate('');
-              setCustomEndDate('');
-              setDateRangeType('current-month');
-            }}
-            className="btn btn--secondary"
-            style={{
-              padding: '0.375rem 0.875rem',
-              height: '38px',
-              borderRadius: '6px',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              color: 'var(--danger)',
-              backgroundColor: 'rgba(239, 68, 68, 0.05)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-            }}
-            title={t('common.reset')}
-          >
-            <X size={14} />
-            <span>{t('common.reset')}</span>
-          </button>
-        </div>
-      )}
 
       {/* KPI Widgets Grid */}
       {statsLoading ? (

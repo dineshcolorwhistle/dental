@@ -1,7 +1,7 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context';
+import { useAuth, useSocket } from '../context';
 import {
   X,
   Loader2,
@@ -144,6 +144,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { socket, isConnected } = useSocket();
   const isAdmin = user?.role === 'ADMIN';
   const isLabAdminOrOwner = user?.role === 'ADMIN' || user?.role === 'OWNER';
 
@@ -155,6 +156,16 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
   const [addFundNotes, setAddFundNotes] = useState('');
   const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  const fetchWorkOrderDetails = useCallback(async () => {
+    if (!workOrderId) return;
+    try {
+      const data = await workOrderService.getById(workOrderId);
+      setSelectedWO(data);
+    } catch (err) {
+      console.error('Failed to reload work order details silently', err);
+    }
+  }, [workOrderId]);
 
   useEffect(() => {
     if (isOpen && workOrderId) {
@@ -181,6 +192,28 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
       setSelectedWO(null);
     }
   }, [isOpen, workOrderId, onClose, t]);
+
+  useEffect(() => {
+    if (!socket || !workOrderId || !isOpen) return;
+
+    const handleSocketUpdate = (payload: { id: string }) => {
+      if (payload.id === workOrderId) {
+        fetchWorkOrderDetails();
+      }
+    };
+
+    socket.on('work_order_updated', handleSocketUpdate);
+
+    return () => {
+      socket.off('work_order_updated', handleSocketUpdate);
+    };
+  }, [socket, workOrderId, isOpen, fetchWorkOrderDetails]);
+
+  useEffect(() => {
+    if (isConnected && isOpen && workOrderId) {
+      fetchWorkOrderDetails();
+    }
+  }, [isConnected, isOpen, workOrderId, fetchWorkOrderDetails]);
 
   if (!isOpen || !workOrderId) return null;
 

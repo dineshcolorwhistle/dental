@@ -44,7 +44,7 @@ import {
   type AdminListItem,
 } from '../services';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context';
+import { useAuth, useSocket } from '../context';
 import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal } from '../components';
 
 type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
@@ -108,6 +108,7 @@ interface ProcessFormItem {
 export function WorkOrdersPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { socket, isConnected } = useSocket();
   const location = useLocation();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
@@ -204,9 +205,9 @@ export function WorkOrdersPage() {
   const [verificationTechnicianId, setVerificationTechnicianId] = useState('');
 
   // ─── Data Fetching ───────────────────────────
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
       const [woData, branchData] = await Promise.all([
         workOrderService.getAll(branchScope),
@@ -218,11 +219,33 @@ export function WorkOrdersPage() {
       toast.error(t('workOrders.failedLoad', { defaultValue: 'Failed to load work orders' }));
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [isAdmin, user?.branchId, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSocketUpdate = () => {
+      fetchData(true);
+    };
+
+    socket.on('work_order_created', handleSocketUpdate);
+    socket.on('work_order_updated', handleSocketUpdate);
+
+    return () => {
+      socket.off('work_order_created', handleSocketUpdate);
+      socket.off('work_order_updated', handleSocketUpdate);
+    };
+  }, [socket, fetchData]);
+
+  useEffect(() => {
+    if (isConnected) {
+      fetchData(true);
+    }
+  }, [isConnected, fetchData]);
 
   useEffect(() => {
     if (location.state?.editWorkOrderId) {
