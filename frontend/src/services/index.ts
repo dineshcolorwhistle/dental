@@ -52,4 +52,6 @@ export { expenseService } from './expense.service';
 export type { ExpenseCategory, Expense, CreateExpensePayload, CreateExpenseCategoryPayload } from './expense.service';
 export { apiKeyService } from './api-key.service';
 export type { ApiKeyItem, CreateApiKeyPayload } from './api-key.service';
+export { messagingService } from './messaging.service';
+export type { Contact, ConversationSummary, ChatMessage, ConversationParticipant, GroupMember } from './messaging.service';
 

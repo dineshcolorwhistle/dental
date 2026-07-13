@@ -3,6 +3,7 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Injectable, Logger } from '@nestjs/common';
@@ -163,6 +164,59 @@ export class WebsocketsGateway
     );
   }
 
+  // ─── Messaging: Typing Indicator ─────────────────────────
+
+  @SubscribeMessage('typing')
+  async handleTyping(
+    client: Socket,
+    payload: { conversationId: string },
+  ) {
+    const userId = client.data?.userId;
+    if (!userId || !payload?.conversationId) return;
+
+    try {
+      // Verify user is a participant
+      const participant =
+        await this.prisma.conversationParticipant.findUnique({
+          where: {
+            conversationId_userId: {
+              conversationId: payload.conversationId,
+              userId,
+            },
+          },
+        });
+
+      if (!participant) return;
+
+      // Get user name for display
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true },
+      });
+
+      // Notify all other participants
+      const participants =
+        await this.prisma.conversationParticipant.findMany({
+          where: { conversationId: payload.conversationId },
+          select: { userId: true },
+        });
+
+      for (const p of participants) {
+        if (p.userId !== userId) {
+          this.sendToUser(p.userId, 'user_typing', {
+            conversationId: payload.conversationId,
+            userId,
+            firstName: user?.firstName || '',
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error handling typing event:', error.message);
+    }
+  }
+
+  // ─── Broadcast Helpers ──────────────────────────────────
+
   /**
    * Broadcast an event to a specific tenant
    */
@@ -207,5 +261,23 @@ export class WebsocketsGateway
       return;
     }
     this.server.to(`user:${userId}`).emit(event, payload);
+  }
+
+  /**
+   * Check if a user is currently connected via WebSocket
+   */
+  isUserOnline(userId: string): boolean {
+    if (!this.server) return false;
+    return this.server.sockets.adapter.rooms.has(`user:${userId}`);
+  }
+
+  /**
+   * Get list of online user IDs from a given set
+   */
+  getOnlineUserIds(userIds: string[]): string[] {
+    if (!this.server) return [];
+    return userIds.filter((id) =>
+      this.server.sockets.adapter.rooms.has(`user:${id}`),
+    );
   }
 }

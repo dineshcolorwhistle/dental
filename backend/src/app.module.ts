@@ -20,6 +20,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { IntegrationModule } from './modules/integration/integration.module';
+import { MessagesModule } from './modules/messages/messages.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { WebsocketsModule } from './modules/websockets/websockets.module';
@@ -58,6 +59,7 @@ import { QueuesModule } from './modules/queues/queues.module';
     ExpensesModule,
     ApiKeysModule,
     IntegrationModule,
+    MessagesModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default

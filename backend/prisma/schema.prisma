@@ -87,6 +87,7 @@ model Tenant {
   expenseCategories ExpenseCategory[]
   expenses          Expense[]
   apiKeys           ApiKey[]
+  conversations     Conversation[]
 
   @@map("tenants")
 }
@@ -173,6 +174,10 @@ model User {
   technicianReworks   ReworkLog[]          @relation("ReworkTechnician")
   initiatedRepetitions RepetitionLog[]     @relation("RepetitionInitiator")
   pushSubscriptions   PushSubscription[]
+  conversationParticipants  ConversationParticipant[]
+  sentMessages              Message[]              @relation("MessageSender")
+  createdConversations      Conversation[]         @relation("ConversationCreatedBy")
+  messageReadReceipts       MessageReadReceipt[]
 
   @@unique([email, tenantId, role])
   @@map("users")
@@ -570,4 +575,70 @@ model ApiKey {
 
   @@unique([branchId, isActive])
   @@map("api_keys")
+}
+
+// ─── Messaging ──────────────────────────────────────────
+
+model Conversation {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  name        String?
+  isGroup     Boolean   @default(false) @map("is_group")
+  createdById String?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy    User?                     @relation("ConversationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id              String    @id @default(uuid())
+  conversationId  String    @map("conversation_id")
+  userId          String    @map("user_id")
+  lastReadAt      DateTime? @map("last_read_at")
+  clearedAt       DateTime? @map("cleared_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id              String   @id @default(uuid())
+  conversationId  String   @map("conversation_id")
+  senderId        String   @map("sender_id")
+  content         String
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  conversation Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User               @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  readReceipts MessageReadReceipt[]
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  readAt    DateTime @default(now()) @map("read_at")
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_read_receipts")
 }

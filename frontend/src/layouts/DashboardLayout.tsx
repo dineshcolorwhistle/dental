@@ -32,6 +32,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, type NotificationItem } from '../services';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { ChatWidget } from '../components/ChatWidget';
 import toast from 'react-hot-toast';
 
 export function DashboardLayout() {
@@ -696,6 +697,7 @@ export function DashboardLayout() {
         <main className="dashboard-content">
           <Outlet />
         </main>
+        <ChatWidget />
       </div>
     </div>
   );
