@@ -18,7 +18,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { branchService, adminService, type BranchListItem, type CreateBranchPayload, type AdminListItem } from '../services';
-import { Pagination } from '../components';
+import { Pagination, PhoneInput } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
@@ -616,13 +616,10 @@ export function BranchesPage() {
                 <label className="form-label" htmlFor="input-branch-phone">
                   {t('branches.branchPhone', { defaultValue: 'Branch Phone' })} ({t('common.optional')})
                 </label>
-                <input
+                <PhoneInput
                   id="input-branch-phone"
-                  className="form-input"
-                  type="text"
-                  placeholder="e.g., +919876543210"
                   value={form.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(val) => handleInputChange('phone', val)}
                   disabled={saving}
                 />
               </div>
@@ -759,13 +756,10 @@ export function BranchesPage() {
                 <label className="form-label" htmlFor="input-edit-branch-phone">
                   {t('branches.branchPhone', { defaultValue: 'Branch Phone' })} ({t('common.optional')})
                 </label>
-                <input
+                <PhoneInput
                   id="input-edit-branch-phone"
-                  className="form-input"
-                  type="text"
-                  placeholder="e.g., +919876543210"
                   value={form.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(val) => handleInputChange('phone', val)}
                   disabled={saving}
                 />
               </div>

@@ -1,5 +1,11 @@
 export const getSubdomain = () => {
-  const hostname = window.location.hostname;
+  let hostname = window.location.hostname;
+  
+  // Ignore leading "www." prefix if present
+  if (hostname.startsWith('www.')) {
+    hostname = hostname.substring(4);
+  }
+  
   const parts = hostname.split('.');
   
   // Ignore IP addresses and single-segment hosts like "localhost"

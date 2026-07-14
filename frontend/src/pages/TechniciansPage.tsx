@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { technicianService, branchService, authService, type TechnicianListItem, type BranchListItem, type CreateTechnicianPayload, type UpdateTechnicianPayload, type TenantLimitsResponse } from '../services';
 import { useAuth } from '../context';
-import { Pagination, SearchableSelect } from '../components';
+import { Pagination, SearchableSelect, PhoneInput } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
@@ -651,13 +651,10 @@ export function TechniciansPage() {
                 <label className="form-label" htmlFor="input-tech-phone">
                   {t('common.phone')}
                 </label>
-                <input
+                <PhoneInput
                   id="input-tech-phone"
-                  className="form-input"
-                  type="text"
-                  placeholder="e.g., +919876543210"
                   value={form.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(val) => handleInputChange('phone', val)}
                   disabled={saving}
                 />
               </div>
@@ -797,12 +794,10 @@ export function TechniciansPage() {
                 <label className="form-label" htmlFor="input-edit-tech-phone">
                   {t('common.phone')}
                 </label>
-                <input
+                <PhoneInput
                   id="input-edit-tech-phone"
-                  className="form-input"
-                  type="text"
                   value={form.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(val) => handleInputChange('phone', val)}
                   disabled={saving}
                 />
               </div>

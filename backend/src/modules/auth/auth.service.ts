@@ -212,7 +212,16 @@ export class AuthService {
       include: { user: true },
     });
 
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+    if (!stored || stored.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Allow a 15-second grace period for concurrent refresh requests (avoids page-load race conditions)
+    const gracePeriodMs = 15000;
+    const isRevoked = stored.revokedAt !== null;
+    const isWithinGracePeriod = isRevoked && stored.revokedAt!.getTime() > Date.now() - gracePeriodMs;
+
+    if (isRevoked && !isWithinGracePeriod) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 

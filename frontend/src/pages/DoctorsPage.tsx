@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { doctorService, branchService, type DoctorListItem, type BranchListItem, type CreateDoctorPayload } from '../services';
 import { useAuth } from '../context';
-import { Pagination, SearchableSelect } from '../components';
+import { Pagination, SearchableSelect, PhoneInput } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
@@ -624,13 +624,10 @@ export function DoctorsPage() {
                   <label className="form-label" htmlFor="input-doctor-phone">
                     {t('common.phone')}
                   </label>
-                  <input
+                  <PhoneInput
                     id="input-doctor-phone"
-                    className="form-input"
-                    type="text"
-                    placeholder="e.g., +919876543210"
                     value={form.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    onChange={(val) => handleInputChange('phone', val)}
                     disabled={saving}
                   />
                 </div>
@@ -784,12 +781,10 @@ export function DoctorsPage() {
                   <label className="form-label" htmlFor="input-edit-doctor-phone">
                     {t('common.phone')}
                   </label>
-                  <input
+                  <PhoneInput
                     id="input-edit-doctor-phone"
-                    className="form-input"
-                    type="text"
                     value={form.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    onChange={(val) => handleInputChange('phone', val)}
                     disabled={saving}
                   />
                 </div>

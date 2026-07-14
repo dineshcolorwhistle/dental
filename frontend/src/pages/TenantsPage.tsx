@@ -22,7 +22,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { tenantService, type TenantListItem, type CreateTenantPayload } from '../services';
-import { Pagination } from '../components';
+import { Pagination, PhoneInput } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
@@ -938,13 +938,10 @@ export function TenantsPage() {
                   <label className="form-label" htmlFor="input-edit-tenant-phone">
                     {t('tenants.contactPhone', { defaultValue: 'Contact Phone' })}
                   </label>
-                  <input
+                  <PhoneInput
                     id="input-edit-tenant-phone"
-                    className="form-input"
-                    type="text"
-                    placeholder={t('tenants.contactPhonePlaceholder', { defaultValue: 'e.g., +91-9876543210' })}
                     value={editForm.contactPhone}
-                    onChange={(e) => handleEditInputChange('contactPhone', e.target.value)}
+                    onChange={(val) => handleEditInputChange('contactPhone', val)}
                     disabled={saving}
                   />
                 </div>

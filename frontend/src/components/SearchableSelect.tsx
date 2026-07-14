@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -37,6 +38,33 @@ export function SearchableSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const optionsListRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+
+  const updateCoords = useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+  }, []);
+
+  // Update coords on open, window resize, or scroll events
+  useEffect(() => {
+    if (isOpen) {
+      updateCoords();
+      window.addEventListener('resize', updateCoords);
+      document.addEventListener('scroll', updateCoords, { capture: true });
+    }
+    return () => {
+      window.removeEventListener('resize', updateCoords);
+      document.removeEventListener('scroll', updateCoords, { capture: true });
+    };
+  }, [isOpen, updateCoords]);
 
   // Find currently selected option
   const selectedOption = options.find((opt) => opt.value === value);
@@ -59,10 +87,14 @@ export function SearchableSelect({
     }
   }, [isOpen]);
 
-  // Click outside to close
+  // Click outside to close (supporting portal dropdown container)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideContainer = containerRef.current && containerRef.current.contains(target);
+      const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(target);
+
+      if (!isInsideContainer && !isInsideDropdown) {
         setIsOpen(false);
       }
     }
@@ -155,8 +187,18 @@ export function SearchableSelect({
         />
       </button>
 
-      {isOpen && (
-        <div className="searchable-select__dropdown">
+      {isOpen && createPortal(
+        <div
+          ref={dropdownRef}
+          className="searchable-select__dropdown"
+          style={{
+            position: 'fixed',
+            top: `${coords.top + 4}px`,
+            left: `${coords.left}px`,
+            width: `${coords.width}px`,
+            zIndex: 9999,
+          }}
+        >
           <div className="searchable-select__search-wrapper">
             <Search size={14} className="searchable-select__search-icon" />
             <input
@@ -209,7 +251,8 @@ export function SearchableSelect({
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

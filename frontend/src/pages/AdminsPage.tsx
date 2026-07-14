@@ -17,7 +17,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { adminService, branchService, authService, type AdminListItem, type BranchListItem, type CreateAdminPayload, type TenantLimitsResponse, type UserProfile } from '../services';
-import { Pagination, SearchableSelect } from '../components';
+import { Pagination, SearchableSelect, PhoneInput } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
@@ -731,13 +731,10 @@ export function AdminsPage() {
                 <label className="form-label" htmlFor="input-admin-phone">
                   {t('common.phone')} ({t('common.optional', { defaultValue: 'Optional' })})
                 </label>
-                <input
+                <PhoneInput
                   id="input-admin-phone"
-                  className="form-input"
-                  type="text"
-                  placeholder="e.g., +919876543210"
                   value={form.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(val) => handleInputChange('phone', val)}
                   disabled={saving}
                 />
               </div>
@@ -862,12 +859,10 @@ export function AdminsPage() {
                 <label className="form-label" htmlFor="input-edit-admin-phone">
                   {t('common.phone')} ({t('common.optional', { defaultValue: 'Optional' })})
                 </label>
-                <input
+                <PhoneInput
                   id="input-edit-admin-phone"
-                  className="form-input"
-                  type="text"
                   value={form.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(val) => handleInputChange('phone', val)}
                   disabled={saving}
                 />
               </div>
