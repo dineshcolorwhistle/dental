@@ -219,7 +219,19 @@
     "passwordMinLength": "Password must be at least 8 characters long",
     "passwordsDoNotMatch": "Passwords do not match",
     "resetSuccess": "Password reset successfully!",
-    "resetFailed": "Failed to reset password"
+    "resetFailed": "Failed to reset password",
+    "tokenExpiredOrInvalid": "The password reset link has expired or is invalid. Please request a new link.",
+    "requestNewLink": "Request a new link"
+  },
+  "forgotPassword": {
+    "title": "Forgot Password?",
+    "subtitle": "Enter your email address to receive a secure password reset link.",
+    "emailAddress": "Email Address",
+    "sendResetLink": "Send Reset Link",
+    "backToLogin": "Back to Login",
+    "successTitle": "Reset Link Sent",
+    "successMessage": "If your email is registered, you will receive an email shortly with instructions to reset your password.",
+    "requestFailed": "Failed to request password reset. Please try again."
   },
   "validation": {
     "emailRequired": "Please enter a valid email address",

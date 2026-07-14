@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshTokenDto, ResetPasswordDto } from './dto';
+import { LoginDto, RefreshTokenDto, ResetPasswordDto, ForgotPasswordDto } from './dto';
 import { Public, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Authentication')
@@ -25,6 +25,22 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset link' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Public()
+  @Get('validate-reset-token/:token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Validate password reset token' })
+  async validateResetToken(@Param('token') token: string) {
+    return this.authService.validateResetToken(token);
   }
 
   @Public()

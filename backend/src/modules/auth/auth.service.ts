@@ -9,9 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto, ResetPasswordDto } from './dto';
+import { LoginDto, ResetPasswordDto, ForgotPasswordDto } from './dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { UserRole } from '@prisma/client';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -274,6 +276,104 @@ export class AuthService {
     });
 
     return { message: 'Logged out successfully' };
+  }
+
+  /**
+   * Request a password reset link by email.
+   * Scoped to subdomain if tenant login, otherwise primary (Super Admin).
+   */
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const { email, subdomain } = dto;
+
+    try {
+      let user = null;
+
+      if (subdomain) {
+        // Scope search to this tenant subdomain
+        const tenant = await this.prisma.tenant.findUnique({
+          where: { subdomain },
+        });
+
+        if (tenant && tenant.status === 'ACTIVE') {
+          // Find active user with this email in the tenant
+          user = await this.prisma.user.findFirst({
+            where: {
+              email,
+              tenantId: tenant.id,
+              status: 'ACTIVE',
+            },
+          });
+        }
+      } else {
+        // Primary domain: Search for active Super Admin
+        user = await this.prisma.user.findFirst({
+          where: {
+            email,
+            tenantId: null,
+            role: UserRole.SUPER_ADMIN,
+            status: 'ACTIVE',
+          },
+        });
+      }
+
+      // If user exists, generate token and send email
+      if (user) {
+        const resetToken = uuidv4();
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 2); // 2 hours expiration
+
+        await this.prisma.passwordResetToken.create({
+          data: {
+            userId: user.id,
+            token: resetToken,
+            expiresAt,
+          },
+        });
+
+        // Get tenant and subdomain information for building URLs
+        let tenantName = 'DentalLab';
+        let tenantSubdomain = subdomain || '';
+        if (user.tenantId) {
+          const tenant = await this.prisma.tenant.findUnique({
+            where: { id: user.tenantId },
+          });
+          if (tenant) {
+            tenantName = tenant.name;
+            tenantSubdomain = tenant.subdomain;
+          }
+        }
+
+        // Send email
+        await this.mailService.sendForgotPassword(
+          user.email,
+          `${user.firstName} ${user.lastName}`,
+          resetToken,
+          tenantSubdomain,
+          tenantName,
+        );
+      }
+    } catch (err) {
+      // Log error but don't expose it to client to avoid leaking info or errors
+      this.logger.error(`Error in forgotPassword for ${email}: ${err.message}`, err.stack);
+    }
+
+    // Always return success to avoid user/account enumeration
+    return { message: 'If this email is registered, we have sent a reset link.' };
+  }
+
+  /**
+   * Validate password reset token.
+   */
+  async validateResetToken(token: string) {
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token },
+    });
+
+    if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    return { valid: true };
   }
 
   /**

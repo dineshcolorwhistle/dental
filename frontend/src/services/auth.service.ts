@@ -76,6 +76,16 @@ export const authService = {
     return data;
   },
 
+  forgotPassword: async (payload: { email: string; subdomain?: string }): Promise<{ message: string }> => {
+    const { data } = await api.post<{ message: string }>('/auth/forgot-password', payload);
+    return data;
+  },
+
+  validateResetToken: async (token: string): Promise<{ valid: boolean }> => {
+    const { data } = await api.get<{ valid: boolean }>(`/auth/validate-reset-token/${token}`);
+    return data;
+  },
+
   logout: async (): Promise<void> => {
     await api.post('/auth/logout');
   },

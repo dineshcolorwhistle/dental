@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { authService } from '../services';
@@ -16,12 +16,34 @@ export function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  
+  const [isValidating, setIsValidating] = useState(true);
+  const [isTokenValid, setIsTokenValid] = useState(false);
 
   useEffect(() => {
     if (!token) {
       toast.error(t('resetPassword.invalidToken'));
       navigate('/login');
+      return;
     }
+
+    const verifyToken = async () => {
+      try {
+        setIsValidating(true);
+        const res = await authService.validateResetToken(token);
+        if (res && res.valid) {
+          setIsTokenValid(true);
+        } else {
+          setIsTokenValid(false);
+        }
+      } catch (err) {
+        setIsTokenValid(false);
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    verifyToken();
   }, [token, navigate, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,11 +71,40 @@ export function ResetPasswordPage() {
     }
   };
 
+  if (isValidating) {
+    return (
+      <div className="login-page animate-fade-in" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+        <div className="btn__spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', margin: '0 auto 1.5rem', animation: 'spin 1s linear infinite' }} />
+        <h2 className="login-page__heading">{t('common.loading')}</h2>
+      </div>
+    );
+  }
+
+  if (!isTokenValid) {
+    return (
+      <div className="login-page animate-fade-in">
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <AlertCircle size={48} style={{ color: 'var(--danger)', marginBottom: '1rem', display: 'inline-block' }} />
+          <h2 className="login-page__heading">{t('errors.verificationFailed')}</h2>
+          <p className="login-page__subheading" style={{ marginTop: '0.5rem' }}>
+            {t('resetPassword.tokenExpiredOrInvalid')}
+          </p>
+        </div>
+        <button
+          className="btn btn--primary btn--full"
+          onClick={() => navigate('/forgot-password')}
+        >
+          {t('resetPassword.requestNewLink')}
+        </button>
+      </div>
+    );
+  }
+
   if (success) {
     return (
-      <div className="login-page">
+      <div className="login-page animate-fade-in">
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <CheckCircle2 size={48} style={{ color: 'var(--success)', marginBottom: '1rem' }} />
+          <CheckCircle2 size={48} style={{ color: 'var(--success)', marginBottom: '1rem', display: 'inline-block' }} />
           <h2 className="login-page__heading">{t('resetPassword.passwordResetComplete')}</h2>
           <p className="login-page__subheading">
             {t('resetPassword.passwordSetSuccess')}
@@ -70,7 +121,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="login-page">
+    <div className="login-page animate-fade-in">
       <h2 className="login-page__heading">{t('resetPassword.setYourPassword')}</h2>
       <p className="login-page__subheading">
         {t('resetPassword.createNewPassword')}

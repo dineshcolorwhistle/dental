@@ -162,6 +162,46 @@ export class MailService {
   }
 
   /**
+   * Send a password reset email with a link.
+   */
+  async sendForgotPassword(
+    email: string,
+    userName: string,
+    resetToken: string,
+    subdomain: string,
+    tenantName: string,
+  ): Promise<void> {
+    const frontendUrl = this.buildSubdomainUrl(subdomain);
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+    const lang = await this.getUserLanguage(email);
+
+    const subject =
+      lang === 'ES'
+        ? 'Restablece tu contraseña — DentalLab'
+        : 'Reset your password — DentalLab';
+
+    const template = lang === 'ES' ? 'forgot-password-es' : 'forgot-password';
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject,
+        template,
+        context: {
+          userName,
+          tenantName,
+          resetLink,
+          year: new Date().getFullYear(),
+        },
+      });
+
+      this.logger.log(`Forgot password email sent to ${email} (Lang: ${lang})`);
+    } catch (error) {
+      this.logger.error(`Failed to send forgot password email to ${email}`, error);
+    }
+  }
+
+  /**
    * Build a subdomain-specific frontend URL.
    * e.g., http://localhost:5173 -> http://happy-dental.localhost:5173
    */

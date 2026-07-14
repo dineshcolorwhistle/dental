@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -216,9 +216,17 @@ export function LoginPage() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="password" className="form-label">
-            {t('auth.password')}
-          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <label htmlFor="password" className="form-label" style={{ marginBottom: 0 }}>
+              {t('auth.password')}
+            </label>
+            <Link
+              to="/forgot-password"
+              style={{ fontSize: '0.875rem', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 500, textDecoration: 'none' }}
+            >
+              {t('forgotPassword.title')}
+            </Link>
+          </div>
           <div className="form-input-wrapper">
             <input
               id="password"

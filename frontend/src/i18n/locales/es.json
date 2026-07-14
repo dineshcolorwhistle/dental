@@ -219,7 +219,19 @@
     "passwordMinLength": "La contraseña debe tener al menos 8 caracteres",
     "passwordsDoNotMatch": "Las contraseñas no coinciden",
     "resetSuccess": "¡Contraseña restablecida exitosamente!",
-    "resetFailed": "Error al restablecer la contraseña"
+    "resetFailed": "Error al restablecer la contraseña",
+    "tokenExpiredOrInvalid": "El enlace de restablecimiento de contraseña ha expirado o no es válido. Por favor, solicita un nuevo enlace.",
+    "requestNewLink": "Solicitar un nuevo enlace"
+  },
+  "forgotPassword": {
+    "title": "¿Olvidaste tu contraseña?",
+    "subtitle": "Ingresa tu correo electrónico para recibir un enlace seguro para restablecer tu contraseña.",
+    "emailAddress": "Correo Electrónico",
+    "sendResetLink": "Enviar Enlace de Restablecimiento",
+    "backToLogin": "Volver al inicio de sesión",
+    "successTitle": "Enlace de restablecimiento enviado",
+    "successMessage": "Si tu correo electrónico está registrado en nuestro sistema, recibirás un correo en breve con instrucciones para restablecer tu contraseña.",
+    "requestFailed": "No se pudo solicitar el restablecimiento de la contraseña. Intente de nuevo."
   },
   "validation": {
     "emailRequired": "Ingresa un correo electrónico válido",
