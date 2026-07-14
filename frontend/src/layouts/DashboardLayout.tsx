@@ -321,21 +321,25 @@ export function DashboardLayout() {
         </div>
 
         <nav className="sidebar__nav">
+          {/* Dashboard menu item visible to SUPER_ADMIN, OWNER, ADMIN, and TECHNICIAN */}
+          {(user?.role === 'SUPER_ADMIN' || user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'TECHNICIAN') && (
+            <NavLink
+              to="/dashboard"
+              end
+              className={({ isActive }) =>
+                `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+              }
+              onClick={() => setSidebarOpen(false)}
+              data-tooltip={t('navigation.dashboard')}
+            >
+              <LayoutDashboard size={20} />
+              <span>{t('navigation.dashboard')}</span>
+            </NavLink>
+          )}
+
           {/* OWNER & ADMIN navigation */}
           {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (
             <>
-              <NavLink
-                to="/dashboard"
-                end
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-                data-tooltip={t('navigation.dashboard')}
-              >
-                <LayoutDashboard size={20} />
-                <span>{t('navigation.dashboard')}</span>
-              </NavLink>
 
               <NavLink
                 to="/work-orders"
