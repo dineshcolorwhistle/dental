@@ -584,7 +584,7 @@ export function ProcessesPage() {
                     id="input-process-name"
                     className={`form-input ${formErrors.name ? 'form-input--error' : ''}`}
                     type="text"
-                    placeholder="e.g., CAD Design Stage"
+                    placeholder={t('processesPage.enterProcessNamePlaceholder', { defaultValue: 'e.g., CAD Design Stage' })}
                     value={form.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     disabled={saving}
@@ -744,6 +744,7 @@ export function ProcessesPage() {
                     id="input-edit-process-name"
                     className={`form-input ${formErrors.name ? 'form-input--error' : ''}`}
                     type="text"
+                    placeholder={t('processesPage.enterProcessNamePlaceholder', { defaultValue: 'e.g., CAD Design Stage' })}
                     value={form.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     disabled={saving}

@@ -20,7 +20,7 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @ApiTags('Expenses')
 @ApiBearerAuth()
 @Controller('expenses')
-@Roles(UserRole.ADMIN)
+@Roles(UserRole.ADMIN, UserRole.OWNER)
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 

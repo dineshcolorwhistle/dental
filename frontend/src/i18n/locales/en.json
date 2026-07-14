@@ -604,7 +604,8 @@
     "oneSelected": "1 Branch",
     "nSelected": "{{count}} Branches",
     "clearFilter": "Clear branch filter",
-    "totalBranches": "Total Branches"
+    "totalBranches": "Total Branches",
+    "deleteConfirmText": "Are you sure you want to delete branch {{name}}? This action will permanently remove the branch. Users associated with this branch will have their branch reference set to null."
   },
   "doctors": {
     "title": "Doctors",
@@ -630,7 +631,8 @@
     "createDoctorSubtitle": "Register an external doctor or dental clinic",
     "selectDoctor": "Select a doctor",
     "selectExternalDoctor": "Select a doctor from Doctor Portal",
-    "selectedDoctor": "Selected Doctor"
+    "selectedDoctor": "Selected Doctor",
+    "deleteConfirmText": "Are you sure you want to delete doctor {{name}}? This action will permanently remove the record from the database."
   },
   "technicians": {
     "title": "Technicians",
@@ -655,7 +657,10 @@
     "emailChangeHint": "Email cannot be changed after invitation.",
     "totalTechnicians": "Total Technicians",
     "pendingInvites": "Pending Invites",
-    "createTechnicianSubtitle": "Invite a new technician to this dental laboratory"
+    "createTechnicianSubtitle": "Invite a new technician to this dental laboratory",
+    "limitReachedTitle": "Technician Limit Reached",
+    "limitReachedDesc": "Your organization has reached the limit of {{count}} Lab Technician(s). To invite more, please contact your laboratory administrator or support to upgrade your plan.",
+    "deleteConfirmText": "Are you sure you want to delete technician {{name}}? This action will permanently remove the record from the database."
   },
   "admins": {
     "title": "Lab Admins",
@@ -683,7 +688,12 @@
     "inviteWelcomeEmailHint": "A welcome email with password reset link will be sent to this address.",
     "ownerAutoFillInfo": "This matches your email. Your first name, last name, and phone are automatically filled from your profile. You only need to select a branch.",
     "totalAdmins": "Total Admins",
-    "invitedPending": "Invited (Pending Setup)"
+    "invitedPending": "Invited (Pending Setup)",
+    "limitReachedTitle": "Lab Admin Limit Reached",
+    "limitReachedDesc": "Your organization has reached the limit of {{count}} Lab Administrator(s). To invite more, please contact support to upgrade your plan.",
+    "noBranchesTitle": "No Active Branches Found",
+    "noBranchesDesc": "You need to create at least one active branch before inviting or managing branch administrators. Go to the Branches tab to create a branch.",
+    "deleteConfirmText": "Are you sure you want to delete administrator {{name}}? This action will permanently remove their user account."
   },
   "prosthesisTypes": {
     "title": "Prosthesis Types",
@@ -719,7 +729,8 @@
     "selectedSequence": "Selected Workflow Sequence",
     "noProcessesAddedDesc": "No processes added yet. Click available processes on the left to build the sequence.",
     "searchProcessesPlaceholder": "Search processes...",
-    "searchProcesses": "Search"
+    "searchProcesses": "Search",
+    "deleteConfirmLongText": "Are you sure you want to delete {{name}}? This action will permanently remove this work type and delete its assigned workflow step orders. Existing work orders already using this type will remain."
   },
   "processesPage": {
     "title": "Processes",
@@ -742,7 +753,16 @@
     "durationHours": "hours",
     "durationMinutes": "minutes",
     "totalStages": "Total Workflow Stages",
-    "createProcessSubtitle": "Define a manufacturing step and link a default technician"
+    "createProcessSubtitle": "Define a manufacturing step and link a default technician",
+    "processArea": "Process Area",
+    "selectDefaultTechnician": "Select pre-assigned default technician",
+    "noAreasBranch": "No process areas in this branch",
+    "selectBranchFirst": "Select a branch first",
+    "noTechniciansBranch": "No technicians in this branch",
+    "selectArea": "Select Process Area",
+    "loadingAreas": "Loading areas...",
+    "enterProcessNamePlaceholder": "e.g., CAD Design Stage",
+    "deleteConfirmText": "Are you sure you want to delete process stage {{name}}?"
   },
   "financePage": {
     "title": "Finance",
@@ -1208,7 +1228,11 @@
     "failedLoad": "Failed to load process areas",
     "branch": "Branch",
     "viewOnlyMode": "View Only",
-    "cannotDeleteAssignedArea": "Cannot delete process area because it is assigned to one or more processes."
+    "cannotDeleteAssignedArea": "Cannot delete process area because it is assigned to one or more processes.",
+    "totalAreas": "Total Classification Areas",
+    "loading": "Loading process areas...",
+    "namePlaceholder": "e.g., Scanning, Design, Milling, QC",
+    "descriptionPlaceholder": "Provide a brief description of what gets done in this area..."
   },
   "generalSettings": {
     "title": "General Lab Settings",

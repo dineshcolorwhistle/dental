@@ -23,7 +23,7 @@ import { useAuth } from '../context';
 import { Pagination } from '../components';
 
 export function ProcessAreasPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const canEdit = user?.role === 'ADMIN';
@@ -258,7 +258,7 @@ export function ProcessAreasPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{processAreas.length}</span>
-            <span className="stat-card__label">Total Classification Areas</span>
+            <span className="stat-card__label">{t('processAreasPage.totalAreas', { defaultValue: 'Total Classification Areas' })}</span>
           </div>
         </div>
       </div>
@@ -308,7 +308,7 @@ export function ProcessAreasPage() {
       {loading ? (
         <div className="table-loading">
           <Loader2 size={32} className="spinner" />
-          <span>{t('processesPage.loading', { defaultValue: 'Loading process areas...' })}</span>
+          <span>{t('processAreasPage.loading', { defaultValue: 'Loading process areas...' })}</span>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -373,11 +373,14 @@ export function ProcessAreasPage() {
                     </td>
                   )}
                   <td>
-                    {new Date(area.createdAt).toLocaleDateString(undefined, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+                    {new Date(area.createdAt).toLocaleDateString(
+                      i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
+                      {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      }
+                    )}
                   </td>
                   {canEdit && (
                     <td>
@@ -462,7 +465,7 @@ export function ProcessAreasPage() {
                   id="input-area-name"
                   className={`form-input ${formErrors.name ? 'form-input--error' : ''}`}
                   type="text"
-                  placeholder="e.g., Scanning, Design, Milling, QC"
+                  placeholder={t('processAreasPage.namePlaceholder', { defaultValue: 'e.g., Scanning, Design, Milling, QC' })}
                   value={form.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   disabled={saving}
@@ -483,7 +486,7 @@ export function ProcessAreasPage() {
                   id="input-area-description"
                   className="form-input"
                   rows={3}
-                  placeholder="Provide a brief description of what gets done in this area..."
+                  placeholder={t('processAreasPage.descriptionPlaceholder', { defaultValue: 'Provide a brief description of what gets done in this area...' })}
                   value={form.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   disabled={saving}
@@ -559,6 +562,7 @@ export function ProcessAreasPage() {
                   id="input-edit-area-name"
                   className={`form-input ${formErrors.name ? 'form-input--error' : ''}`}
                   type="text"
+                  placeholder={t('processAreasPage.namePlaceholder', { defaultValue: 'e.g., Scanning, Design, Milling, QC' })}
                   value={form.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   disabled={saving}
@@ -579,6 +583,7 @@ export function ProcessAreasPage() {
                   id="input-edit-area-description"
                   className="form-input"
                   rows={3}
+                  placeholder={t('processAreasPage.descriptionPlaceholder', { defaultValue: 'Provide a brief description of what gets done in this area...' })}
                   value={form.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   disabled={saving}

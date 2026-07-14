@@ -604,7 +604,8 @@
     "oneSelected": "1 Sucursal",
     "nSelected": "{{count}} Sucursales",
     "clearFilter": "Limpiar filtro de sucursales",
-    "totalBranches": "Total de Sucursales"
+    "totalBranches": "Total de Sucursales",
+    "deleteConfirmText": "¿Está seguro de que desea eliminar la sucursal {{name}}? Esta acción eliminará permanentemente la sucursal. Los usuarios asociados con esta sucursal tendrán su referencia de sucursal establecida como nula."
   },
   "doctors": {
     "title": "Doctores",
@@ -630,7 +631,8 @@
     "createDoctorSubtitle": "Registrar un doctor externo o clínica dental",
     "selectDoctor": "Seleccione un doctor",
     "selectExternalDoctor": "Seleccione un doctor del Portal de Doctores",
-    "selectedDoctor": "Doctor Seleccionado"
+    "selectedDoctor": "Doctor Seleccionado",
+    "deleteConfirmText": "¿Está seguro de que desea eliminar al doctor {{name}}? Esta acción eliminará permanentemente el registro de la base de datos."
   },
   "technicians": {
     "title": "Técnicos",
@@ -655,7 +657,10 @@
     "emailChangeHint": "El correo electrónico no se puede cambiar después de la invitación.",
     "totalTechnicians": "Total de Técnicos",
     "pendingInvites": "Invitaciones Pendientes",
-    "createTechnicianSubtitle": "Invite a un nuevo técnico a este laboratorio dental"
+    "createTechnicianSubtitle": "Invite a un nuevo técnico a este laboratorio dental",
+    "limitReachedTitle": "Límite de Técnicos Alcanzado",
+    "limitReachedDesc": "Su organización ha alcanzado el límite de {{count}} Técnico(s) de Laboratorio. Para invitar a más, por favor contacte a su administrador de laboratorio o soporte para actualizar su plan.",
+    "deleteConfirmText": "¿Está seguro de que desea eliminar al técnico {{name}}? Esta acción eliminará permanentemente el registro de la base de datos."
   },
   "admins": {
     "title": "Administradores de Laboratorio",
@@ -683,7 +688,12 @@
     "inviteWelcomeEmailHint": "Se enviará un correo electrónico de bienvenida con un enlace de restablecimiento de contraseña a esta dirección.",
     "ownerAutoFillInfo": "Esto coincide con su correo electrónico. Su nombre, apellido y teléfono se completan automáticamente a partir de su perfil. Solo necesita seleccionar una sucursal.",
     "totalAdmins": "Total de Administradores",
-    "invitedPending": "Invitado (Pendiente de Configuración)"
+    "invitedPending": "Invitado (Pendiente de Configuración)",
+    "limitReachedTitle": "Límite de Administradores Alcanzado",
+    "limitReachedDesc": "Su organización ha alcanzado el límite de {{count}} Administrador(es) de Laboratorio. Para invitar a más, por favor contacte a soporte para actualizar su plan.",
+    "noBranchesTitle": "No se encontraron sucursales activas",
+    "noBranchesDesc": "Debe crear al menos una sucursal activa antes de invitar o administrar administradores de sucursales. Vaya a la pestaña Sucursales para crear una sucursal.",
+    "deleteConfirmText": "¿Está seguro de que desea eliminar al administrador {{name}}? Esta acción eliminará permanentemente su cuenta de usuario."
   },
   "prosthesisTypes": {
     "title": "Tipos de Prótesis",
@@ -719,7 +729,8 @@
     "selectedSequence": "Secuencia de Flujo de Trabajo Seleccionada",
     "noProcessesAddedDesc": "Aún no se han agregado procesos. Haga clic en los procesos disponibles a la izquierda para construir la secuencia.",
     "searchProcessesPlaceholder": "Buscar procesos...",
-    "searchProcesses": "Buscar"
+    "searchProcesses": "Buscar",
+    "deleteConfirmLongText": "¿Está seguro de que desea eliminar {{name}}? Esta acción eliminará permanentemente este tipo de trabajo y borrará los órdenes de pasos del flujo de trabajo asignados. Las órdenes de trabajo existentes que ya usan este tipo permanecerán."
   },
   "processesPage": {
     "title": "Procesos",
@@ -742,7 +753,16 @@
     "durationHours": "horas",
     "durationMinutes": "minutos",
     "totalStages": "Total de Etapas del Flujo de Trabajo",
-    "createProcessSubtitle": "Defina un paso de fabricación y asocie un técnico predeterminado"
+    "createProcessSubtitle": "Defina un paso de fabricación y asocie un técnico predeterminado",
+    "processArea": "Área de Proceso",
+    "selectDefaultTechnician": "Seleccione el técnico predeterminado preasignado",
+    "noAreasBranch": "No hay áreas de proceso en esta sucursal",
+    "selectBranchFirst": "Seleccione una sucursal primero",
+    "noTechniciansBranch": "No hay técnicos en esta sucursal",
+    "selectArea": "Seleccionar Área de Proceso",
+    "loadingAreas": "Cargando áreas...",
+    "enterProcessNamePlaceholder": "ej., CAD Design Stage",
+    "deleteConfirmText": "¿Está seguro de que desea eliminar la etapa de proceso {{name}}?"
   },
   "financePage": {
     "title": "Finanzas",
@@ -1208,7 +1228,11 @@
     "failedLoad": "Error al cargar las áreas de proceso",
     "branch": "Sucursal",
     "viewOnlyMode": "Solo Lectura",
-    "cannotDeleteAssignedArea": "No se puede eliminar el área de proceso porque está asignada a uno o más procesos."
+    "cannotDeleteAssignedArea": "No se puede eliminar el área de proceso porque está asignada a uno o más procesos.",
+    "totalAreas": "Total de Áreas de Clasificación",
+    "loading": "Cargando áreas de proceso...",
+    "namePlaceholder": "ej., Escaneo, Diseño, Fresado, Control de Calidad",
+    "descriptionPlaceholder": "Proporcione una breve descripción de lo que se hace en esta área..."
   },
   "generalSettings": {
     "title": "Configuración General de Laboratorio",
