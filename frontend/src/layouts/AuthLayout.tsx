@@ -8,14 +8,20 @@ import { authService } from '../services';
 export function AuthLayout() {
   const { t } = useTranslation();
   const [tenantName, setTenantName] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const subdomain = getSubdomain();
     if (subdomain) {
       authService.getTenantInfo(subdomain)
         .then((data) => {
-          if (data && data.name) {
-            setTenantName(data.name);
+          if (data) {
+            if (data.name) {
+              setTenantName(data.name);
+            }
+            if (data.logoUrl) {
+              setLogoUrl(data.logoUrl);
+            }
           }
         })
         .catch((err) => {
@@ -40,15 +46,28 @@ export function AuthLayout() {
       <div className="auth-layout__container">
         <div className="auth-layout__brand">
           <div className="auth-layout__logo">
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-              <path d="M24 4C18 4 14 8 12 14C10 20 10 28 14 34C17 38 20 42 24 44C28 42 31 38 34 34C38 28 38 20 36 14C34 8 30 4 24 4Z" fill="url(#tooth-gradient)" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5"/>
-              <defs>
-                <linearGradient id="tooth-gradient" x1="12" y1="4" x2="36" y2="44">
-                  <stop stopColor="#6366f1"/>
-                  <stop offset="1" stopColor="#8b5cf6"/>
-                </linearGradient>
-              </defs>
-            </svg>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="Logo"
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  objectFit: 'contain',
+                  borderRadius: 'var(--radius-sm)'
+                }}
+              />
+            ) : (
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <path d="M24 4C18 4 14 8 12 14C10 20 10 28 14 34C17 38 20 42 24 44C28 42 31 38 34 34C38 28 38 20 36 14C34 8 30 4 24 4Z" fill="url(#tooth-gradient)" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5"/>
+                <defs>
+                  <linearGradient id="tooth-gradient" x1="12" y1="4" x2="36" y2="44">
+                    <stop stopColor="#6366f1"/>
+                    <stop offset="1" stopColor="#8b5cf6"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            )}
           </div>
           {tenantName ? (
             <h1 className="auth-layout__title">{tenantName}</h1>

@@ -495,6 +495,7 @@ a:hover { color: var(--accent-primary-hover); }
   flex-direction: column;
   z-index: 100;
   transition: transform var(--transition-base), width var(--transition-base);
+  overflow-x: hidden;
 }
 
 .sidebar__toggle {
@@ -560,6 +561,7 @@ a:hover { color: var(--accent-primary-hover); }
   flex-direction: column;
   gap: 0.25rem;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar__link {
@@ -3568,6 +3570,135 @@ a:hover { color: var(--accent-primary-hover); }
   .chat-fab {
     bottom: 16px;
     right: 16px;
+  }
+}
+
+/* ─── Sidebar Submenus & Tooltips ────────────────────────── */
+
+/* Active Parent Style for Settings */
+.sidebar__link--active-parent {
+  color: var(--accent-primary) !important;
+  background: rgba(111, 174, 217, 0.05);
+}
+
+/* Sidebar Submenu list container */
+.sidebar__submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-left: 1.25rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+  border-left: 1.5px solid var(--border);
+  margin-left: 1.75rem;
+  animation: slideDownSubmenu 0.2s ease-out;
+}
+
+@keyframes slideDownSubmenu {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Collapsed sidebar adjustments for submenus */
+.layout--collapsed .sidebar__submenu {
+  padding-left: 0;
+  margin-left: 0;
+  border-left: none;
+}
+
+.sidebar__submenu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.sidebar__submenu-link:hover {
+  background: rgba(111, 174, 217, 0.06);
+  color: var(--text-primary);
+}
+
+.sidebar__submenu-link--active {
+  background: rgba(111, 174, 217, 0.1);
+  color: var(--accent-primary-hover);
+  font-weight: 600;
+}
+
+.sidebar__submenu-link--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.layout--collapsed .sidebar__submenu-link {
+  justify-content: center;
+  padding: 0.625rem 0.5rem;
+}
+
+.layout--collapsed .sidebar__submenu-link span {
+  display: none;
+}
+
+/* ─── Premium Tooltips for Collapsed Sidebar ──────────────── */
+@media (min-width: 769px) {
+  /* Tooltip Container Positioning */
+  .layout--collapsed [data-tooltip] {
+    position: relative;
+  }
+
+  /* Tooltip Bubble */
+  .layout--collapsed [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: fixed;
+    left: 80px; /* 72px collapsed sidebar width + 8px gap */
+    background: #0f172a; /* Slate 900 for dark, premium aesthetic */
+    color: #f8fafc; /* Slate 50 */
+    padding: 0.5rem 0.875rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    transform: translateX(-8px) translateY(-50%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: inline-block;
+    margin-top: 20px; /* Center relative to parent height */
+  }
+
+  /* Tooltip Left Arrow */
+  .layout--collapsed [data-tooltip]::before {
+    content: '';
+    position: fixed;
+    left: 74px; /* Placed exactly between sidebar and bubble */
+    border-width: 6px 6px 6px 0;
+    border-style: solid;
+    border-color: transparent #0f172a transparent transparent;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 9999;
+    transform: translateX(-8px) translateY(-50%);
+    margin-top: 20px; /* Center relative to parent height */
+  }
+
+  /* Hover States to show Tooltip */
+  .layout--collapsed [data-tooltip]:hover::after {
+    opacity: 1;
+    transform: translateX(0) translateY(-50%);
+  }
+
+  .layout--collapsed [data-tooltip]:hover::before {
+    opacity: 1;
+    transform: translateX(0) translateY(-50%);
   }
 }
 

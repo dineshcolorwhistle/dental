@@ -16,10 +16,12 @@ import {
   processService,
   technicianService,
   branchService,
+  processAreaService,
   type ProcessListItem,
   type TechnicianListItem,
   type BranchListItem,
   type CreateProcessPayload,
+  type ProcessAreaListItem,
 } from '../services';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect } from '../components';
@@ -54,6 +56,8 @@ export function ProcessesPage() {
   // Form dropdown data
   const [formTechnicians, setFormTechnicians] = useState<TechnicianListItem[]>([]);
   const [loadingTechs, setLoadingTechs] = useState(false);
+  const [processAreas, setProcessAreas] = useState<ProcessAreaListItem[]>([]);
+  const [loadingAreas, setLoadingAreas] = useState(false);
 
   // Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -63,7 +67,7 @@ export function ProcessesPage() {
   // Form states
   const [form, setForm] = useState<CreateProcessPayload>({
     name: '',
-    processArea: '',
+    processAreaId: '',
     defaultTechnicianId: '',
     branchId: '',
   });
@@ -110,17 +114,35 @@ export function ProcessesPage() {
     }
   }, []);
 
-  // Sync technicians dropdown when form branchId changes
+  // Sync technicians and process areas dropdowns when form branchId changes
+  const fetchProcessAreasForBranch = useCallback(async (branchId: string) => {
+    if (!branchId) {
+      setProcessAreas([]);
+      return;
+    }
+    try {
+      setLoadingAreas(true);
+      const areas = await processAreaService.getAll(branchId);
+      setProcessAreas(areas);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingAreas(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (showCreateModal || showEditModal) {
       const activeBranchId = isAdmin ? user?.branchId : form.branchId;
       if (activeBranchId) {
         fetchTechniciansForBranch(activeBranchId);
+        fetchProcessAreasForBranch(activeBranchId);
       } else {
         setFormTechnicians([]);
+        setProcessAreas([]);
       }
     }
-  }, [form.branchId, showCreateModal, showEditModal, isAdmin, user, fetchTechniciansForBranch]);
+  }, [form.branchId, showCreateModal, showEditModal, isAdmin, user, fetchTechniciansForBranch, fetchProcessAreasForBranch]);
 
   // ─── Filtering & Sorting ────────────────────────────
 
@@ -153,7 +175,7 @@ export function ProcessesPage() {
     const errors: Partial<Record<keyof CreateProcessPayload, string>> = {};
 
     if (!form.name.trim()) errors.name = t('validation.fieldRequired');
-    if (!form.processArea.trim()) errors.processArea = t('validation.fieldRequired');
+    if (!form.processAreaId) errors.processAreaId = t('validation.fieldRequired');
     if (!form.defaultTechnicianId) errors.defaultTechnicianId = t('validation.fieldRequired');
     if (!isAdmin && !form.branchId) {
       errors.branchId = t('validation.fieldRequired');
@@ -167,7 +189,7 @@ export function ProcessesPage() {
     const defaultBranchId = isAdmin ? user?.branchId || '' : branches[0]?.id || '';
     setForm({
       name: '',
-      processArea: '',
+      processAreaId: '',
       defaultTechnicianId: '',
       branchId: defaultBranchId,
     });
@@ -179,7 +201,7 @@ export function ProcessesPage() {
     setSelectedProcess(proc);
     setForm({
       name: proc.name,
-      processArea: proc.processArea,
+      processAreaId: (proc as any).processAreaId || '',
       defaultTechnicianId: proc.defaultTechnicianId,
       branchId: proc.branchId || '',
     });
@@ -195,7 +217,7 @@ export function ProcessesPage() {
       setSaving(true);
       const payload: CreateProcessPayload = {
         name: form.name,
-        processArea: form.processArea,
+        processAreaId: form.processAreaId,
         defaultTechnicianId: form.defaultTechnicianId,
         branchId: isAdmin ? user?.branchId || undefined : form.branchId,
       };
@@ -219,7 +241,7 @@ export function ProcessesPage() {
       setSaving(true);
       const payload: Partial<CreateProcessPayload> = {
         name: form.name,
-        processArea: form.processArea,
+        processAreaId: form.processAreaId,
         defaultTechnicianId: form.defaultTechnicianId,
         branchId: isAdmin ? user?.branchId || undefined : form.branchId || undefined,
       };
@@ -576,21 +598,32 @@ export function ProcessesPage() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="input-process-area">
+                  <label className="form-label" htmlFor="select-process-area">
                     {t('processesPage.processArea', { defaultValue: 'Process Area' })} *
                   </label>
-                  <input
-                    id="input-process-area"
-                    className={`form-input ${formErrors.processArea ? 'form-input--error' : ''}`}
-                    type="text"
-                    placeholder="e.g., Design"
-                    value={form.processArea}
-                    onChange={(e) => handleInputChange('processArea', e.target.value)}
-                    disabled={saving}
+                  <SearchableSelect
+                    id="select-process-area"
+                    options={processAreas.map((area) => ({
+                      value: area.id,
+                      label: area.name,
+                    }))}
+                    value={form.processAreaId}
+                    onChange={(val) => handleInputChange('processAreaId', val)}
+                    disabled={saving || loadingAreas || (!isAdmin && !form.branchId)}
+                    placeholder={
+                      loadingAreas
+                        ? t('processesPage.loadingAreas', { defaultValue: 'Loading areas...' })
+                        : !isAdmin && !form.branchId
+                        ? t('processesPage.selectBranchFirst', { defaultValue: 'Select a branch first' })
+                        : processAreas.length === 0
+                        ? t('processesPage.noAreasBranch', { defaultValue: 'No process areas in this branch' })
+                        : t('processesPage.selectArea', { defaultValue: 'Select Process Area' })
+                    }
+                    error={!!formErrors.processAreaId}
                   />
-                  {formErrors.processArea && (
+                  {formErrors.processAreaId && (
                     <span className="form-error">
-                      <AlertCircle size={12} /> {formErrors.processArea}
+                      <AlertCircle size={12} /> {formErrors.processAreaId}
                     </span>
                   )}
                 </div>
@@ -724,20 +757,30 @@ export function ProcessesPage() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="input-edit-process-area">
+                  <label className="form-label" htmlFor="select-edit-process-area">
                     {t('processesPage.processArea', { defaultValue: 'Process Area' })} *
                   </label>
-                  <input
-                    id="input-edit-process-area"
-                    className={`form-input ${formErrors.processArea ? 'form-input--error' : ''}`}
-                    type="text"
-                    value={form.processArea}
-                    onChange={(e) => handleInputChange('processArea', e.target.value)}
-                    disabled={saving}
+                  <SearchableSelect
+                    id="select-edit-process-area"
+                    options={processAreas.map((area) => ({
+                      value: area.id,
+                      label: area.name,
+                    }))}
+                    value={form.processAreaId}
+                    onChange={(val) => handleInputChange('processAreaId', val)}
+                    disabled={saving || loadingAreas}
+                    placeholder={
+                      loadingAreas
+                        ? t('processesPage.loadingAreas', { defaultValue: 'Loading areas...' })
+                        : processAreas.length === 0
+                        ? t('processesPage.noAreasBranch', { defaultValue: 'No process areas in this branch' })
+                        : t('processesPage.selectArea', { defaultValue: 'Select Process Area' })
+                    }
+                    error={!!formErrors.processAreaId}
                   />
-                  {formErrors.processArea && (
+                  {formErrors.processAreaId && (
                     <span className="form-error">
-                      <AlertCircle size={12} /> {formErrors.processArea}
+                      <AlertCircle size={12} /> {formErrors.processAreaId}
                     </span>
                   )}
                 </div>

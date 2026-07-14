@@ -356,6 +356,55 @@ export class TenantsService {
   }
 
   /**
+   * Get tenant profile details for settings page.
+   */
+  async findMyTenant(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        name: true,
+        subdomain: true,
+        logoUrl: true,
+      },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException(`Organization with ID "${tenantId}" not found`);
+    }
+
+    return tenant;
+  }
+
+  /**
+   * Update tenant logo url.
+   */
+  async updateMyTenant(tenantId: string, dto: { logoUrl: string }) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+
+    if (!tenant) {
+      throw new NotFoundException(`Organization with ID "${tenantId}" not found`);
+    }
+
+    const updated = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        logoUrl: dto.logoUrl,
+      },
+      select: {
+        id: true,
+        name: true,
+        subdomain: true,
+        logoUrl: true,
+      },
+    });
+
+    this.logger.log(`Tenant logo updated for: ${updated.name} (${updated.id})`);
+
+    return updated;
+  }
+
+  /**
    * Generate branch code from branch name.
    * "Main Branch" → "MAIN"
    */

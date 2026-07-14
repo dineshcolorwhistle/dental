@@ -8,12 +8,13 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole, TenantStatus } from '@prisma/client';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
-import { Roles } from '../../common/decorators';
+import { Roles, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Tenants')
 @ApiBearerAuth()
@@ -21,6 +22,29 @@ import { Roles } from '../../common/decorators';
 @Roles(UserRole.SUPER_ADMIN)
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
+
+  @Get('my/profile')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get current tenant profile details (for settings)' })
+  async getMyProfile(@CurrentUser('tenantId') tenantId: string) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.tenantsService.findMyTenant(tenantId);
+  }
+
+  @Patch('my/profile')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update current tenant logo' })
+  async updateMyProfile(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: { logoUrl: string },
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.tenantsService.updateMyTenant(tenantId, dto);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

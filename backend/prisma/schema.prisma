@@ -79,6 +79,7 @@ model Tenant {
   doctors         Doctor[]
   prosthesisTypes ProsthesisType[]
   processes       Process[]
+  processAreas    ProcessArea[]
   workOrders      WorkOrder[]
   notifications   Notification[]
   auditLogs       AuditLog[]
@@ -132,6 +133,7 @@ model Branch {
   doctors         Doctor[]
   prosthesisTypes ProsthesisType[]
   processes       Process[]
+  processAreas    ProcessArea[]
   workOrders      WorkOrder[]
   inventoryItems  InventoryItem[]
   expenses        Expense[]
@@ -268,6 +270,7 @@ model Process {
   branchId            String?  @map("branch_id")
   name                String
   processArea         String   @map("process_area") // e.g. "Scanning", "Design", "Milling", "QC"
+  processAreaId       String?  @map("process_area_id")
   defaultTechnicianId String   @map("default_technician_id")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
@@ -275,10 +278,31 @@ model Process {
   // Relations
   tenant                    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branch                    Branch?                 @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  processAreaRelation       ProcessArea?            @relation(fields: [processAreaId], references: [id], onDelete: SetNull)
   defaultTechnician         User                    @relation("ProcessDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: Cascade)
   prosthesisTypeAssignments ProsthesisTypeProcess[]
 
   @@map("processes")
+}
+
+// ─── Process Area ────────────────────────────────────────
+
+model ProcessArea {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String?  @map("branch_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  processes Process[]
+
+  @@unique([tenantId, branchId, name])
+  @@map("process_areas")
 }
 
 // ─── Prosthesis Type ↔ Process (Junction) ────────────────

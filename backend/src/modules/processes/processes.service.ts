@@ -20,7 +20,7 @@ export class ProcessesService {
     userRole: string,
     dto: CreateProcessDto,
   ) {
-    const { name, processArea, defaultTechnicianId, branchId } = dto;
+    const { name, processAreaId, defaultTechnicianId, branchId } = dto;
 
     // Force branch for Administrators
     let finalBranchId = branchId;
@@ -45,6 +45,21 @@ export class ProcessesService {
       }
     }
 
+    // Verify process area exists and belongs to correct tenant/branch
+    const processAreaRecord = await this.prisma.processArea.findFirst({
+      where: {
+        id: processAreaId,
+        tenantId,
+        ...(finalBranchId && { branchId: finalBranchId }),
+      },
+    });
+
+    if (!processAreaRecord) {
+      throw new BadRequestException(
+        'Selected Process Area is invalid or does not belong to the selected branch.',
+      );
+    }
+
     // 2. Verify default technician exists, has role TECHNICIAN, belongs to same tenant, and same branch
     const technician = await this.prisma.user.findFirst({
       where: {
@@ -66,7 +81,8 @@ export class ProcessesService {
         tenantId,
         branchId: finalBranchId || null,
         name,
-        processArea,
+        processArea: processAreaRecord.name, // Sync legacy column
+        processAreaId,
         defaultTechnicianId,
       },
       include: {
@@ -161,7 +177,7 @@ export class ProcessesService {
     // Verify existence
     const existingProcess = await this.findOne(tenantId, id, branchIdContext);
 
-    const { name, processArea, defaultTechnicianId, branchId } = dto;
+    const { name, processAreaId, defaultTechnicianId, branchId } = dto;
 
     const finalBranchId =
       branchId !== undefined ? branchId : existingProcess.branchId;
@@ -176,6 +192,24 @@ export class ProcessesService {
           `Branch with ID "${finalBranchId}" does not exist in your organization.`,
         );
       }
+    }
+
+    // Verify process area exists and belongs to correct tenant/branch if updated
+    let resolvedProcessAreaName = undefined;
+    if (processAreaId) {
+      const processAreaRecord = await this.prisma.processArea.findFirst({
+        where: {
+          id: processAreaId,
+          tenantId,
+          ...(finalBranchId && { branchId: finalBranchId }),
+        },
+      });
+      if (!processAreaRecord) {
+        throw new BadRequestException(
+          'Selected Process Area is invalid or does not belong to the selected branch.',
+        );
+      }
+      resolvedProcessAreaName = processAreaRecord.name;
     }
 
     // 2. Verify default technician exists, has role TECHNICIAN, belongs to same tenant, and same branch
@@ -200,7 +234,8 @@ export class ProcessesService {
       where: { id },
       data: {
         ...(name && { name }),
-        ...(processArea && { processArea }),
+        ...(processAreaId && { processAreaId }),
+        ...(resolvedProcessAreaName && { processArea: resolvedProcessAreaName }), // Sync legacy column
         ...(defaultTechnicianId && { defaultTechnicianId }),
         ...(branchId !== undefined && { branchId: finalBranchId || null }),
       },

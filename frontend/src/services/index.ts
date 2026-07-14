@@ -54,4 +54,7 @@ export { apiKeyService } from './api-key.service';
 export type { ApiKeyItem, CreateApiKeyPayload } from './api-key.service';
 export { messagingService } from './messaging.service';
 export type { Contact, ConversationSummary, ChatMessage, ConversationParticipant, GroupMember } from './messaging.service';
+export { processAreaService } from './process-area.service';
+export type { ProcessAreaListItem, CreateProcessAreaPayload } from './process-area.service';
+
 

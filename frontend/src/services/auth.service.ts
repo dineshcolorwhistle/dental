@@ -98,8 +98,8 @@ export const authService = {
     const { data } = await api.patch('/auth/language', { language });
     return data;
   },
-  getTenantInfo: async (subdomain: string): Promise<{ name: string; status: string }> => {
-    const { data } = await api.get<{ name: string; status: string }>(`/auth/tenant-info/${subdomain}`);
+  getTenantInfo: async (subdomain: string): Promise<{ name: string; status: string; logoUrl: string | null }> => {
+    const { data } = await api.get<{ name: string; status: string; logoUrl: string | null }>(`/auth/tenant-info/${subdomain}`);
     return data;
   },
 };

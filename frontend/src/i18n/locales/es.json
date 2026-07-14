@@ -172,7 +172,13 @@
     "tenants": "Inquilinos",
     "inventory": "Inventario",
     "expenses": "Gastos",
-    "apiKeys": "Claves API"
+    "apiKeys": "Claves API",
+    "settings": "Configuración",
+    "users": "Usuarios",
+    "processAreas": "Áreas de Proceso",
+    "deliveryManagement": "Gestión de Entregas",
+    "otherConfigurations": "Otras Configuraciones",
+    "workTypes": "Tipos de Trabajo"
   },
   "auth": {
     "welcomeBack": "Bienvenido de nuevo",
@@ -1186,5 +1192,36 @@
     "seenBy": "Visto por {{count}}/{{total}}",
     "creator": "Creador",
     "you": "Tú"
+  },
+  "processAreasPage": {
+    "title": "Áreas de Proceso",
+    "subtitle": "Gestionar las categorías de clasificación de las etapas de trabajo (ej. Escaneo, Control de Calidad, Diseño, Fresado)",
+    "addArea": "Agregar Área de Proceso",
+    "editArea": "Editar Área de Proceso",
+    "areaName": "Nombre del Área",
+    "description": "Descripción",
+    "createSuccess": "Área de proceso creada con éxito",
+    "updateSuccess": "Área de proceso actualizada con éxito",
+    "deleteSuccess": "Área de proceso eliminada con éxito",
+    "deleteConfirmTitle": "Eliminar Área de Proceso",
+    "deleteConfirmMessage": "¿Está seguro de que desea eliminar esta área de proceso? Esta acción no se puede deshacer.",
+    "failedLoad": "Error al cargar las áreas de proceso",
+    "branch": "Sucursal",
+    "viewOnlyMode": "Solo Lectura",
+    "cannotDeleteAssignedArea": "No se puede eliminar el área de proceso porque está asignada a uno o más procesos."
+  },
+  "generalSettings": {
+    "title": "Configuración General de Laboratorio",
+    "subtitle": "Gestionar la información y configuración del laboratorio a nivel de inquilino",
+    "labName": "Nombre del Laboratorio",
+    "subdomain": "Subdominio (Solo Lectura)",
+    "labLogo": "Logotipo del Laboratorio",
+    "logoHint": "Suba una imagen de alta calidad. Tamaño sugerido: 256x256 píxeles. Formatos soportados: PNG, JPG, WEBP, SVG.",
+    "uploadLogo": "Subir Logotipo",
+    "removeLogo": "Eliminar Logotipo",
+    "saveSuccess": "Logotipo del laboratorio actualizado con éxito",
+    "saveFailed": "Error al actualizar el logotipo del laboratorio",
+    "logoRequired": "El logotipo es obligatorio",
+    "loading": "Cargando configuración..."
   }
 }

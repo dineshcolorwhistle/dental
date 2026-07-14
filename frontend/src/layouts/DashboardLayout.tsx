@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +17,6 @@ import {
   Building2,
   GitBranch,
   Users,
-  Wrench,
   Stethoscope,
   Sparkles,
   GitMerge,
@@ -27,9 +26,13 @@ import {
   DollarSign,
   Package,
   Key,
+  Settings as SettingsIcon,
+  Layers,
+  Truck,
+  Sliders,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { notificationService, type NotificationItem } from '../services';
+import { notificationService, tenantService, type NotificationItem } from '../services';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { ChatWidget } from '../components/ChatWidget';
@@ -52,6 +55,63 @@ export function DashboardLayout() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [usersExpanded, setUsersExpanded] = useState(false);
+  const location = useLocation();
+
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && user.role !== 'SUPER_ADMIN') {
+      tenantService.getMyProfile()
+        .then((data) => {
+          setLogoUrl(data.logoUrl);
+        })
+        .catch((err) => {
+          console.error('Failed to load logo in layout', err);
+        });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleLogoUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<string | null>;
+      setLogoUrl(customEvent.detail);
+    };
+
+    window.addEventListener('tenantLogoUpdated', handleLogoUpdate);
+    return () => window.removeEventListener('tenantLogoUpdated', handleLogoUpdate);
+  }, []);
+
+  const isSettingsRoute = [
+    '/branches',
+    '/admins',
+    '/technicians',
+    '/doctors',
+    '/prosthesis-types',
+    '/processes',
+    '/process-areas',
+    '/settings/general',
+    '/settings/delivery'
+  ].some(path => location.pathname.startsWith(path));
+
+  const isUsersRoute = [
+    '/admins',
+    '/technicians'
+  ].some(path => location.pathname.startsWith(path));
+
+  useEffect(() => {
+    if (isSettingsRoute) {
+      setSettingsExpanded(true);
+    }
+  }, [location.pathname, isSettingsRoute]);
+
+  useEffect(() => {
+    if (isUsersRoute) {
+      setUsersExpanded(true);
+    }
+  }, [location.pathname, isUsersRoute]);
 
   // Push notifications hook integration
   const {
@@ -202,15 +262,28 @@ export function DashboardLayout() {
       <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
         <div className="sidebar__header">
           <div className="sidebar__brand">
-            <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
-              <path d="M24 4C18 4 14 8 12 14C10 20 10 28 14 34C17 38 20 42 24 44C28 42 31 38 34 34C38 28 38 20 36 14C34 8 30 4 24 4Z" fill="url(#sidebar-tooth)" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
-              <defs>
-                <linearGradient id="sidebar-tooth" x1="12" y1="4" x2="36" y2="44">
-                  <stop stopColor="#6FAED9" />
-                  <stop offset="1" stopColor="#A9CFE8" />
-                </linearGradient>
-              </defs>
-            </svg>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="Logo"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  objectFit: 'contain',
+                  borderRadius: 'var(--radius-sm)'
+                }}
+              />
+            ) : (
+              <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+                <path d="M24 4C18 4 14 8 12 14C10 20 10 28 14 34C17 38 20 42 24 44C28 42 31 38 34 34C38 28 38 20 36 14C34 8 30 4 24 4Z" fill="url(#sidebar-tooth)" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
+                <defs>
+                  <linearGradient id="sidebar-tooth" x1="12" y1="4" x2="36" y2="44">
+                    <stop stopColor="#6FAED9" />
+                    <stop offset="1" stopColor="#A9CFE8" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            )}
             {!sidebarCollapsed && (
               <span className="sidebar__brand-text" style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
                 <span>
@@ -248,89 +321,20 @@ export function DashboardLayout() {
         </div>
 
         <nav className="sidebar__nav">
-          <NavLink
-            to="/dashboard"
-            end
-            className={({ isActive }) =>
-              `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-            }
-            onClick={() => setSidebarOpen(false)}
-          >
-            <LayoutDashboard size={20} />
-            <span>{t('navigation.dashboard')}</span>
-          </NavLink>
-
-          {user?.role === 'OWNER' && (
+          {/* OWNER & ADMIN navigation */}
+          {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (
             <>
               <NavLink
-                to="/finance"
+                to="/dashboard"
+                end
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
                 onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.dashboard')}
               >
-                <DollarSign size={20} />
-                <span>{t('navigation.finance')}</span>
-              </NavLink>
-              <NavLink
-                to="/branches"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <GitBranch size={20} />
-                <span>{t('navigation.branches')}</span>
-              </NavLink>
-              <NavLink
-                to="/admins"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Users size={20} />
-                <span>{t('navigation.labAdmins')}</span>
-              </NavLink>
-              <NavLink
-                to="/technicians"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Wrench size={20} />
-                <span>{t('navigation.technicians')}</span>
-              </NavLink>
-              <NavLink
-                to="/doctors"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Stethoscope size={20} />
-                <span>{t('navigation.doctors')}</span>
-              </NavLink>
-              <NavLink
-                to="/processes"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <GitMerge size={20} />
-                <span>{t('navigation.processes')}</span>
-              </NavLink>
-              <NavLink
-                to="/prosthesis-types"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Sparkles size={20} />
-                <span>{t('navigation.prosthesisTypes')}</span>
+                <LayoutDashboard size={20} />
+                <span>{t('navigation.dashboard')}</span>
               </NavLink>
 
               <NavLink
@@ -339,75 +343,22 @@ export function DashboardLayout() {
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
                 onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.workOrders')}
               >
                 <ClipboardList size={20} />
                 <span>{t('navigation.workOrders')}</span>
               </NavLink>
-            </>
-          )}
 
-          {user?.role === 'ADMIN' && (
-            <>
               <NavLink
                 to="/finance"
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
                 onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.finance')}
               >
                 <DollarSign size={20} />
                 <span>{t('navigation.finance')}</span>
-              </NavLink>
-              <NavLink
-                to="/technicians"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Wrench size={20} />
-                <span>{t('navigation.technician')}</span>
-              </NavLink>
-              <NavLink
-                to="/doctors"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Stethoscope size={20} />
-                <span>{t('navigation.doctors')}</span>
-              </NavLink>
-              <NavLink
-                to="/processes"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <GitMerge size={20} />
-                <span>{t('navigation.processes')}</span>
-              </NavLink>
-              <NavLink
-                to="/prosthesis-types"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Sparkles size={20} />
-                <span>{t('navigation.prosthesisTypes')}</span>
-              </NavLink>
-
-              <NavLink
-                to="/work-orders"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <ClipboardList size={20} />
-                <span>{t('navigation.workOrders')}</span>
               </NavLink>
 
               <NavLink
@@ -416,30 +367,197 @@ export function DashboardLayout() {
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
                 onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.inventory')}
               >
                 <Package size={20} />
                 <span>{t('navigation.inventory')}</span>
               </NavLink>
+
               <NavLink
                 to="/expenses"
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
                 onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.expenses')}
               >
                 <DollarSign size={20} />
                 <span>{t('navigation.expenses')}</span>
               </NavLink>
+
               <NavLink
                 to="/api-keys"
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
                 onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.apiKeys')}
               >
                 <Key size={20} />
                 <span>{t('navigation.apiKeys')}</span>
               </NavLink>
+
+              {/* Settings Submenu */}
+              <div className="sidebar__submenu-container">
+                <div
+                  className={`sidebar__link sidebar__settings-toggle ${isSettingsRoute ? 'sidebar__link--active-parent' : ''}`}
+                  onClick={() => setSettingsExpanded(!settingsExpanded)}
+                  style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  data-tooltip={t('navigation.settings')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <SettingsIcon size={20} />
+                    {!sidebarCollapsed && <span>{t('navigation.settings')}</span>}
+                  </div>
+                  {!sidebarCollapsed && (
+                    settingsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+                  )}
+                </div>
+
+                {settingsExpanded && (
+                  <div className="sidebar__submenu">
+                    {/* Branches - Owner only */}
+                    {user?.role === 'OWNER' && (
+                      <NavLink
+                        to="/branches"
+                        className={({ isActive }) =>
+                          `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                        }
+                        onClick={() => setSidebarOpen(false)}
+                        data-tooltip={t('navigation.branches')}
+                      >
+                        <GitBranch size={16} />
+                        <span>{t('navigation.branches')}</span>
+                      </NavLink>
+                    )}
+
+                    {/* Users submenu */}
+                    <div className="sidebar__sub-submenu-container">
+                      <div
+                        className={`sidebar__submenu-link sidebar__users-toggle ${isUsersRoute ? 'sidebar__submenu-link--active-parent' : ''}`}
+                        onClick={() => setUsersExpanded(!usersExpanded)}
+                        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        data-tooltip={t('navigation.users')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <Users size={16} />
+                          {!sidebarCollapsed && <span>{t('navigation.users')}</span>}
+                        </div>
+                        {!sidebarCollapsed && (
+                          usersExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />
+                        )}
+                      </div>
+
+                      {usersExpanded && (
+                        <div className="sidebar__sub-submenu" style={{ paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '2px', borderLeft: '1px solid var(--border)', marginLeft: '1.25rem', marginTop: '2px' }}>
+                          {/* Lab Admins - Owner only */}
+                          {user?.role === 'OWNER' && (
+                            <NavLink
+                              to="/admins"
+                              className={({ isActive }) =>
+                                `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                              }
+                              onClick={() => setSidebarOpen(false)}
+                              data-tooltip={t('navigation.labAdmins')}
+                              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                            >
+                              <span>{t('navigation.labAdmins')}</span>
+                            </NavLink>
+                          )}
+                          <NavLink
+                            to="/technicians"
+                            className={({ isActive }) =>
+                              `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                            }
+                            onClick={() => setSidebarOpen(false)}
+                            data-tooltip={t('navigation.technicians')}
+                            style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                          >
+                            <span>{t('navigation.technicians')}</span>
+                          </NavLink>
+                        </div>
+                      )}
+                    </div>
+
+                    <NavLink
+                      to="/doctors"
+                      className={({ isActive }) =>
+                        `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                      }
+                      onClick={() => setSidebarOpen(false)}
+                      data-tooltip={t('navigation.doctors')}
+                    >
+                      <Stethoscope size={16} />
+                      <span>{t('navigation.doctors')}</span>
+                    </NavLink>
+
+                    <NavLink
+                      to="/prosthesis-types"
+                      className={({ isActive }) =>
+                        `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                      }
+                      onClick={() => setSidebarOpen(false)}
+                      data-tooltip={t('navigation.prosthesisTypes')}
+                    >
+                      <Sparkles size={16} />
+                      <span>{t('navigation.prosthesisTypes')}</span>
+                    </NavLink>
+
+                    <NavLink
+                      to="/processes"
+                      className={({ isActive }) =>
+                        `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                      }
+                      onClick={() => setSidebarOpen(false)}
+                      data-tooltip={t('navigation.processes')}
+                    >
+                      <GitMerge size={16} />
+                      <span>{t('navigation.processes')}</span>
+                    </NavLink>
+
+                    <NavLink
+                      to="/process-areas"
+                      className={({ isActive }) =>
+                        `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                      }
+                      onClick={() => setSidebarOpen(false)}
+                      data-tooltip={t('navigation.processAreas')}
+                    >
+                      <Layers size={16} />
+                      <span>{t('navigation.processAreas')}</span>
+                    </NavLink>
+
+                    {/* Delivery Management */}
+                    <NavLink
+                      to="/settings/delivery"
+                      className={({ isActive }) =>
+                        `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                      }
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toast(t('common.comingSoon', { defaultValue: 'Feature coming soon!' }));
+                      }}
+                      data-tooltip={t('navigation.deliveryManagement')}
+                    >
+                      <Truck size={16} />
+                      <span>{t('navigation.deliveryManagement')}</span>
+                    </NavLink>
+
+                    {/* Other Configurations */}
+                    <NavLink
+                      to="/settings/general"
+                      className={({ isActive }) =>
+                        `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                      }
+                      onClick={() => setSidebarOpen(false)}
+                      data-tooltip={t('navigation.otherConfigurations')}
+                    >
+                      <Sliders size={16} />
+                      <span>{t('navigation.otherConfigurations')}</span>
+                    </NavLink>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -450,6 +568,7 @@ export function DashboardLayout() {
                 `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
               }
               onClick={() => setSidebarOpen(false)}
+              data-tooltip={t('navigation.myWorkOrders')}
             >
               <ClipboardList size={20} />
               <span>{t('navigation.myWorkOrders')}</span>
@@ -463,6 +582,7 @@ export function DashboardLayout() {
                 `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
               }
               onClick={() => setSidebarOpen(false)}
+              data-tooltip={t('navigation.tenants')}
             >
               <Building2 size={20} />
               <span>{t('navigation.tenants')}</span>
@@ -506,6 +626,7 @@ export function DashboardLayout() {
             className="sidebar__logout-btn-full"
             onClick={handleLogout}
             aria-label={t('common.logout')}
+            data-tooltip={t('common.logout')}
           >
             <LogOut size={16} />
             <span>{t('common.logout')}</span>

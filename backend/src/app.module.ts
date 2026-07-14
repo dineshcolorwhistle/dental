@@ -25,6 +25,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { WebsocketsModule } from './modules/websockets/websockets.module';
 import { QueuesModule } from './modules/queues/queues.module';
+import { ProcessAreasModule } from './modules/process-areas/process-areas.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { QueuesModule } from './modules/queues/queues.module';
     TechniciansModule,
     ProsthesisTypesModule,
     ProcessesModule,
+    ProcessAreasModule,
     WorkOrdersModule,
     NotificationsModule,
     TechnicianPortalModule,

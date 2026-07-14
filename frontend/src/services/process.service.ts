@@ -6,6 +6,7 @@ export interface ProcessListItem {
   branchId: string | null;
   name: string;
   processArea: string;
+  processAreaId?: string | null;
   defaultTechnicianId: string;
   createdAt: string;
   updatedAt: string;
@@ -31,7 +32,7 @@ export interface ProcessListItem {
 
 export interface CreateProcessPayload {
   name: string;
-  processArea: string;
+  processAreaId: string;
   defaultTechnicianId: string;
   branchId?: string;
 }

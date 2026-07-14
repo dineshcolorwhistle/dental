@@ -20,15 +20,21 @@ export class CreateProcessDto {
   name: string;
 
   @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'Process Area ID',
+  })
+  @IsUUID()
+  @IsNotEmpty()
+  processAreaId: string;
+
+  @ApiProperty({
     example: 'Design',
-    description:
-      'Workflow execution category/area (e.g. Scanning, Design, Milling, QC)',
+    description: 'Legacy process area name (optional)',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
-  @MinLength(2)
-  @MaxLength(100)
-  processArea: string;
+  @IsOptional()
+  processArea?: string;
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',

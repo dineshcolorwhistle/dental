@@ -172,7 +172,13 @@
     "tenants": "Tenants",
     "inventory": "Inventory",
     "expenses": "Expenses",
-    "apiKeys": "API Keys"
+    "apiKeys": "API Keys",
+    "settings": "Settings",
+    "users": "Users",
+    "processAreas": "Process Areas",
+    "deliveryManagement": "Delivery Management",
+    "otherConfigurations": "Other Configurations",
+    "workTypes": "Work Types"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -1186,5 +1192,36 @@
     "seenBy": "Seen by {{count}}/{{total}}",
     "creator": "Creator",
     "you": "You"
+  },
+  "processAreasPage": {
+    "title": "Process Areas",
+    "subtitle": "Manage work stages classification categories (e.g., Scanning, QC, Design, Milling)",
+    "addArea": "Add Process Area",
+    "editArea": "Edit Process Area",
+    "areaName": "Area Name",
+    "description": "Description",
+    "createSuccess": "Process Area created successfully",
+    "updateSuccess": "Process Area updated successfully",
+    "deleteSuccess": "Process Area deleted successfully",
+    "deleteConfirmTitle": "Delete Process Area",
+    "deleteConfirmMessage": "Are you sure you want to delete this process area? This action cannot be undone.",
+    "failedLoad": "Failed to load process areas",
+    "branch": "Branch",
+    "viewOnlyMode": "View Only",
+    "cannotDeleteAssignedArea": "Cannot delete process area because it is assigned to one or more processes."
+  },
+  "generalSettings": {
+    "title": "General Lab Settings",
+    "subtitle": "Manage tenant-level laboratory information and configuration",
+    "labName": "Laboratory Name",
+    "subdomain": "Subdomain (Read-Only)",
+    "labLogo": "Laboratory Logo",
+    "logoHint": "Upload a high-quality image. Suggested size: 256x256 pixels. Supported formats: PNG, JPG, WEBP, SVG.",
+    "uploadLogo": "Upload Logo",
+    "removeLogo": "Remove Logo",
+    "saveSuccess": "Lab logo updated successfully",
+    "saveFailed": "Failed to update lab logo",
+    "logoRequired": "Logo is required",
+    "loading": "Loading settings..."
   }
 }

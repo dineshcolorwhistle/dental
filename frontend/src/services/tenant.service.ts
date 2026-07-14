@@ -105,4 +105,14 @@ export const tenantService = {
   delete: async (id: string): Promise<void> => {
     await api.delete(`/tenants/${id}`);
   },
+
+  getMyProfile: async (): Promise<{ id: string; name: string; subdomain: string; logoUrl: string | null }> => {
+    const { data } = await api.get<{ id: string; name: string; subdomain: string; logoUrl: string | null }>('/tenants/my/profile');
+    return data;
+  },
+
+  updateMyProfile: async (payload: { logoUrl: string }): Promise<{ id: string; name: string; subdomain: string; logoUrl: string | null }> => {
+    const { data } = await api.patch<{ id: string; name: string; subdomain: string; logoUrl: string | null }>('/tenants/my/profile', payload);
+    return data;
+  },
 };

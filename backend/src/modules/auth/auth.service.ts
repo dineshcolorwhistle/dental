@@ -558,7 +558,7 @@ export class AuthService {
   async getTenantInfoBySubdomain(subdomain: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { subdomain },
-      select: { name: true, status: true },
+      select: { name: true, status: true, logoUrl: true },
     });
 
     if (!tenant) {

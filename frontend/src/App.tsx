@@ -24,6 +24,9 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { QRRedirectPage } from './pages/QRRedirectPage';
 import { WorkOrderDetailPage } from './pages/WorkOrderDetailPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
+import { ProcessAreasPage } from './pages/ProcessAreasPage';
+import { GeneralSettingsPage } from './pages/GeneralSettingsPage';
+
 
 function App() {
   return (
@@ -158,7 +161,7 @@ function App() {
             <Route
               path="/inventory"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <InventoryPage />
                 </ProtectedRoute>
               }
@@ -166,7 +169,7 @@ function App() {
             <Route
               path="/expenses"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <ExpensesPage />
                 </ProtectedRoute>
               }
@@ -174,8 +177,24 @@ function App() {
             <Route
               path="/api-keys"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <ApiKeysPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/process-areas"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <ProcessAreasPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/general"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <GeneralSettingsPage />
                 </ProtectedRoute>
               }
             />
