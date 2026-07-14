@@ -86,9 +86,6 @@ jobs:
 
             npx prisma migrate deploy
 
-            echo "🌱 Running seed..."
-            SEED_ONLY_SUPER_ADMIN=true npm run seed
-
             echo "🏗️ Building backend..."
             npm run build
 

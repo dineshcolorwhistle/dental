@@ -133,14 +133,21 @@ export class TechniciansService {
     });
 
     // 5. Send invitation email (non-blocking)
-    await this.emailQueue.add('send-technician-invite', {
-      email,
-      technicianName: `${firstName} ${lastName}`,
-      tenantName: tenant.name,
-      branchName: branch.name,
-      resetToken: result.resetToken,
-      subdomain: tenant.subdomain,
-    });
+    try {
+      await this.emailQueue.add('send-technician-invite', {
+        email,
+        technicianName: `${firstName} ${lastName}`,
+        tenantName: tenant.name,
+        branchName: branch.name,
+        resetToken: result.resetToken,
+        subdomain: tenant.subdomain,
+      });
+    } catch (emailError) {
+      this.logger.warn(
+        `Failed to queue invitation email for ${email}: ${emailError.message}`,
+      );
+      // Don't fail the entire operation if email queueing fails (e.g. if Redis is down locally)
+    }
 
     this.logger.log(
       `Technician created: ${email} for branch ${branch.name} inside tenant ${tenantId}`,

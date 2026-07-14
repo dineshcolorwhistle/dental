@@ -126,13 +126,20 @@ export class TenantsService {
     });
 
     // 5. Send invite email (outside transaction — non-blocking)
-    await this.emailQueue.add('send-owner-invite', {
-      email: ownerEmail,
-      ownerName: `${firstName} ${lastName}`,
-      tenantName,
-      resetToken: result.resetToken,
-      subdomain,
-    });
+    try {
+      await this.emailQueue.add('send-owner-invite', {
+        email: ownerEmail,
+        ownerName: `${firstName} ${lastName}`,
+        tenantName,
+        resetToken: result.resetToken,
+        subdomain,
+      });
+    } catch (emailError) {
+      this.logger.warn(
+        `Failed to queue invitation email for ${ownerEmail}: ${emailError.message}`,
+      );
+      // Don't fail the entire operation if email queueing fails (e.g. if Redis is down locally)
+    }
 
     this.logger.log(
       `Tenant created: ${tenantName} (${subdomain}) with owner ${ownerEmail}`,
