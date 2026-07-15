@@ -109,6 +109,7 @@ export interface WorkOrderListItem {
     firstName: string;
     lastName: string;
     email: string;
+    role: string;
   };
   processes: WorkOrderProcessItem[];
   reworkLogs?: ReworkLogItem[];

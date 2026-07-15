@@ -21,6 +21,7 @@ import {
   Sparkles,
   GitMerge,
   ClipboardList,
+  PlusCircle,
   Check,
   Trash2,
   DollarSign,
@@ -401,6 +402,18 @@ export function DashboardLayout() {
                 <span>{t('navigation.apiKeys')}</span>
               </NavLink>
 
+              <NavLink
+                to="/clinics"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.connectedClinics')}
+              >
+                <Building2 size={20} />
+                <span>{t('navigation.connectedClinics')}</span>
+              </NavLink>
+
               {/* Settings Submenu */}
               <div className="sidebar__submenu-container">
                 <div
@@ -566,17 +579,30 @@ export function DashboardLayout() {
           )}
 
           {user?.role === 'TECHNICIAN' && (
-            <NavLink
-              to="/tech/work-orders"
-              className={({ isActive }) =>
-                `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-              }
-              onClick={() => setSidebarOpen(false)}
-              data-tooltip={t('navigation.myWorkOrders')}
-            >
-              <ClipboardList size={20} />
-              <span>{t('navigation.myWorkOrders')}</span>
-            </NavLink>
+            <>
+              <NavLink
+                to="/tech/work-orders"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.myWorkOrders')}
+              >
+                <ClipboardList size={20} />
+                <span>{t('navigation.myWorkOrders')}</span>
+              </NavLink>
+              <NavLink
+                to="/tech/requested-work-orders"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.requestedWorkOrders')}
+              >
+                <PlusCircle size={20} />
+                <span>{t('navigation.requestedWorkOrders')}</span>
+              </NavLink>
+            </>
           )}
 
           {user?.role === 'SUPER_ADMIN' && (

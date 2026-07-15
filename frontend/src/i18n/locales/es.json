@@ -161,6 +161,7 @@
     "dashboard": "Panel",
     "finance": "Finanzas",
     "branches": "Sucursales",
+    "connectedClinics": "Clínicas Conectadas",
     "labAdmins": "Administradores",
     "technicians": "Técnicos",
     "technician": "Técnico",
@@ -169,6 +170,7 @@
     "prosthesisTypes": "Tipos de Prótesis",
     "workOrders": "Órdenes de Trabajo",
     "myWorkOrders": "Mis Órdenes de Trabajo",
+    "requestedWorkOrders": "Órdenes de Trabajo Solicitadas",
     "tenants": "Inquilinos",
     "inventory": "Inventario",
     "expenses": "Gastos",
@@ -454,6 +456,7 @@
       "processSteps": "2. Pasos del Proceso"
     },
     "editWorkOrder": "Editar Orden de Trabajo",
+    "createdBy": "Creado Por",
     "searchPlaceholder": "Buscar por folio, paciente, doctor...",
     "folioNumber": "Número de Folio",
     "patient": "Paciente",
@@ -592,6 +595,19 @@
     "doctorClinic": "Doctor / Clínica",
     "estDueDate": "Fecha Estimada de Entrega",
     "folio": "Folio"
+  },
+  "requestedWorkOrders": {
+    "title": "Órdenes de Trabajo Solicitadas",
+    "subtitle": "Cree y realice el seguimiento de sus solicitudes de órdenes de trabajo para revisión",
+    "createNew": "Crear Solicitud de Orden de Trabajo",
+    "createSuccess": "¡Solicitud de orden de trabajo creada exitosamente!",
+    "failedCreate": "Error al crear la solicitud de orden de trabajo",
+    "validationDoctorRequired": "El doctor es obligatorio",
+    "validationPatientRequired": "El nombre del paciente es obligatorio",
+    "validationProsthesisTypeRequired": "El tipo de prótesis es obligatorio",
+    "validationColorRequired": "El color es obligatorio",
+    "popupTitle": "Nueva Solicitud de Orden de Trabajo",
+    "popupSubtitle": "Envíe los detalles básicos para la revisión del Administrador del Laboratorio"
   },
   "branches": {
     "title": "Sucursales",
@@ -1259,5 +1275,22 @@
     "saveFailed": "Error al actualizar el logotipo del laboratorio",
     "logoRequired": "El logotipo es obligatorio",
     "loading": "Cargando configuración..."
+  },
+  "connectedClinics": {
+    "title": "Clínicas Conectadas",
+    "subtitle": "Ver y gestionar clínicas integradas con este laboratorio",
+    "clinicName": "Nombre de la Clínica",
+    "clinicUrl": "URL de la Clínica",
+    "registeredAt": "Fecha de Integración",
+    "doctorsCount": "Doctores",
+    "totalOrders": "Total de Órdenes",
+    "activeOrders": "Órdenes Activas",
+    "noClinics": "No se encontraron clínicas conectadas.",
+    "branch": "Sucursal",
+    "details": "Doctores y Actividad",
+    "doctorName": "Nombre del Doctor",
+    "doctorEmail": "Correo",
+    "doctorPhone": "Teléfono",
+    "noDoctors": "Aún no hay doctores registrados para esta clínica."
   }
 }

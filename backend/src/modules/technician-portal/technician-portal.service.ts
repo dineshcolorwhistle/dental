@@ -8,12 +8,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { MailService } from '../mail/mail.service';
 import {
   ProcessStatus,
   WorkOrderStatus,
   ProcessActivityAction,
   UserRole,
 } from '@prisma/client';
+
+import { CreateRequestedWorkOrderDto } from './dto';
 
 @Injectable()
 export class TechnicianPortalService {
@@ -24,7 +27,9 @@ export class TechnicianPortalService {
     private readonly notificationsService: NotificationsService,
     private readonly auditLogsService: AuditLogsService,
     private readonly websocketsGateway: WebsocketsGateway,
+    private readonly mailService: MailService,
   ) {}
+
 
   /**
    * Scans and aggregates queue metrics for the logged-in technician.
@@ -160,16 +165,195 @@ export class TechnicianPortalService {
   }
 
   /**
-   * Fetches details of a specific work order if the technician is assigned to a process in it.
+   * Fetches work orders created by this technician.
+   */
+  async getCreatedWorkOrders(tenantId: string, userId: string) {
+    return this.prisma.workOrder.findMany({
+      where: {
+        tenantId,
+        createdById: userId,
+      },
+      include: {
+        doctor: { select: { id: true, name: true, clinicName: true } },
+        prosthesisType: { select: { id: true, name: true } },
+        branch: { select: { id: true, name: true, code: true } },
+        processes: {
+          orderBy: { sequence: 'asc' },
+          include: {
+            technician: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Creates a new work order requested/created by a technician.
+   */
+  async createWorkOrder(
+    tenantId: string,
+    branchIdContext: string | null,
+    userId: string,
+    dto: CreateRequestedWorkOrderDto,
+  ) {
+    const {
+      doctorId,
+      patient,
+      boxNumber,
+      prosthesisTypeId,
+      specification,
+      color,
+      notes,
+    } = dto;
+
+    if (!branchIdContext) {
+      throw new BadRequestException('Branch context is required for technicians.');
+    }
+
+    // 1. Verify branch exists
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchIdContext, tenantId },
+      select: { code: true },
+    });
+    if (!branch) {
+      throw new NotFoundException(`Branch not found in your organization.`);
+    }
+
+    // 2. Verify doctor exists
+    const doctor = await this.prisma.doctor.findFirst({
+      where: { id: doctorId, tenantId },
+    });
+    if (!doctor) {
+      throw new NotFoundException(`Doctor not found.`);
+    }
+
+    // 3. Verify prosthesis type exists
+    const prosthesisType = await this.prisma.prosthesisType.findFirst({
+      where: { id: prosthesisTypeId, tenantId },
+    });
+    if (!prosthesisType) {
+      throw new NotFoundException(`Prosthesis type not found.`);
+    }
+
+    // 3.5. Load prosthesis type processes
+    const assignments = await this.prisma.prosthesisTypeProcess.findMany({
+      where: { prosthesisTypeId },
+      include: {
+        process: {
+          select: {
+            name: true,
+            defaultTechnicianId: true,
+          },
+        },
+      },
+      orderBy: { sequence: 'asc' },
+    });
+
+    const mappedProcesses = assignments.map((assign) => ({
+      processName: assign.process.name,
+      technicianId: assign.process.defaultTechnicianId || null,
+      sequence: assign.sequence,
+      isVerification: false,
+      status: ProcessStatus.NOT_STARTED,
+    }));
+
+    // 4. Generate folio number
+    const count = await this.prisma.workOrder.count({
+      where: { tenantId, branchId: branchIdContext },
+    });
+    const nextNumber = (count + 1).toString().padStart(4, '0');
+    const folioNumber = `${branch.code}${nextNumber}`;
+
+    // 5. Create work order with CREATED status and 0 quote/payment
+    const workOrder = await this.prisma.workOrder.create({
+      data: {
+        tenantId,
+        branchId: branchIdContext,
+        folioNumber,
+        doctorId,
+        patient,
+        boxNumber: boxNumber || null,
+        prosthesisTypeId,
+        specification: specification || null,
+        color,
+        notes: notes || null,
+        totalQuote: 0,
+        initialPayment: 0,
+        status: WorkOrderStatus.CREATED,
+        createdById: userId,
+        processes: {
+          create: mappedProcesses,
+        },
+      },
+      include: {
+        doctor: { select: { id: true, name: true, clinicName: true } },
+        prosthesisType: { select: { id: true, name: true } },
+        branch: { select: { id: true, name: true, code: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+        processes: {
+          orderBy: { sequence: 'asc' },
+          include: {
+            technician: {
+              select: { id: true, firstName: true, lastName: true, email: true },
+            },
+            activityLogs: {
+              orderBy: { timestamp: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    // 6. Write Audit Log
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'WORK_ORDER_CREATE',
+      entityName: 'WORK_ORDER',
+      entityId: workOrder.id,
+      details: {
+        folioNumber,
+        patient,
+        createdByType: 'TECHNICIAN',
+      },
+    });
+
+    // 7. Emit WS event
+    this.websocketsGateway.sendToBranch(
+      tenantId,
+      branchIdContext,
+      'work_order_created',
+      {
+        id: workOrder.id,
+        folioNumber,
+        patient,
+        status: workOrder.status,
+      },
+    );
+
+    return workOrder;
+  }
+
+  /**
+   * Fetches details of a specific work order if the technician is assigned to a process in it or is the creator.
    */
   async getWorkOrderDetail(tenantId: string, userId: string, id: string) {
     const workOrder = await this.prisma.workOrder.findFirst({
       where: {
         id,
         tenantId,
-        processes: {
-          some: { technicianId: userId },
-        },
+        OR: [
+          { processes: { some: { technicianId: userId } } },
+          { createdById: userId },
+        ],
       },
       include: {
         doctor: { select: { id: true, name: true, clinicName: true } },
@@ -572,7 +756,24 @@ export class TechnicianPortalService {
               notes: 'Started automatically after previous step completion',
             },
           });
+
+          // Notify clinic doctor of pending external verification via email
+          const woWithDoctor = await this.prisma.workOrder.findUnique({
+            where: { id: process.workOrderId },
+            include: { doctor: true, tenant: true },
+          });
+          if (woWithDoctor && woWithDoctor.doctor && woWithDoctor.doctor.email) {
+            await this.mailService.sendExternalVerificationPending(
+              woWithDoctor.doctor.email,
+              woWithDoctor.doctor.name,
+              woWithDoctor.patient,
+              woWithDoctor.folioNumber,
+              nextProcess.processName,
+              woWithDoctor.tenant.name,
+            );
+          }
         }
+
 
         // Verification step reached! Notify all branch admins of the tenant
         const wo = await this.prisma.workOrder.findUnique({

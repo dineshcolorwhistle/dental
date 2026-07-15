@@ -14,6 +14,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { TechnicianPortalService } from './technician-portal.service';
 import { Roles, CurrentUser } from '../../common/decorators';
+import { CreateRequestedWorkOrderDto } from './dto';
 
 @ApiTags('Technician Portal')
 @ApiBearerAuth()
@@ -142,6 +143,38 @@ export class TechnicianPortalController {
       userId,
       id,
       body.notes,
+    );
+  }
+
+  @Get('requested-work-orders')
+  @ApiOperation({ summary: 'List all requested/created work orders for the technician' })
+  async getCreatedWorkOrders(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.portalService.getCreatedWorkOrders(tenantId, userId);
+  }
+
+  @Post('work-orders')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a requested work order by technician' })
+  async createWorkOrder(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateRequestedWorkOrderDto,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.portalService.createWorkOrder(
+      tenantId,
+      branchIdContext,
+      userId,
+      dto,
     );
   }
 }

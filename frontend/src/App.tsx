@@ -17,6 +17,7 @@ import { ProsthesisTypesPage } from './pages/ProsthesisTypesPage';
 import { ProcessesPage } from './pages/ProcessesPage';
 import { WorkOrdersPage } from './pages/WorkOrdersPage';
 import { TechnicianWorkOrdersPage } from './pages/TechnicianWorkOrdersPage';
+import { RequestedWorkOrdersPage } from './pages/RequestedWorkOrdersPage';
 import { FinancePage } from './pages/FinancePage';
 import { InventoryPage } from './pages/InventoryPage';
 import { ExpensesPage } from './pages/ExpensesPage';
@@ -27,6 +28,7 @@ import { WorkOrderDetailPage } from './pages/WorkOrderDetailPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { ProcessAreasPage } from './pages/ProcessAreasPage';
 import { GeneralSettingsPage } from './pages/GeneralSettingsPage';
+import { ConnectedClinicsPage } from './pages/ConnectedClinicsPage';
 
 
 function App() {
@@ -153,6 +155,14 @@ function App() {
               }
             />
             <Route
+              path="/tech/requested-work-orders"
+              element={
+                <ProtectedRoute allowedRoles={['TECHNICIAN']}>
+                  <RequestedWorkOrdersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/finance"
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
@@ -181,6 +191,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <ApiKeysPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clinics"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <ConnectedClinicsPage />
                 </ProtectedRoute>
               }
             />

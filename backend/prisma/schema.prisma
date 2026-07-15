@@ -77,6 +77,7 @@ model Tenant {
   users           User[]
   settings        TenantSettings?
   doctors         Doctor[]
+  clinics         Clinic[]
   prosthesisTypes ProsthesisType[]
   processes       Process[]
   processAreas    ProcessArea[]
@@ -131,6 +132,7 @@ model Branch {
   defaultAdminId  String?          @map("default_admin_id")
   defaultAdmin    User?            @relation("BranchDefaultAdmin", fields: [defaultAdminId], references: [id], onDelete: SetNull)
   doctors         Doctor[]
+  clinics         Clinic[]
   prosthesisTypes ProsthesisType[]
   processes       Process[]
   processAreas    ProcessArea[]
@@ -223,6 +225,7 @@ model Doctor {
   id           String   @id @default(uuid())
   tenantId     String   @map("tenant_id")
   branchId     String?  @map("branch_id")
+  clinicId     String?  @map("clinic_id")
   externalId   String?  @map("external_id")
   name         String
   clinicName   String?  @map("clinic_name")
@@ -236,9 +239,28 @@ model Doctor {
   // Relations
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branch     Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  clinic     Clinic?     @relation(fields: [clinicId], references: [id], onDelete: SetNull)
   workOrders WorkOrder[]
 
   @@map("doctors")
+}
+
+model Clinic {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  branchId   String   @map("branch_id")
+  name       String   @map("name")
+  url        String   @map("url")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  doctors    Doctor[]
+
+  @@unique([branchId, url])
+  @@map("clinics")
 }
 
 // ─── Prosthesis Type ──────────────────────────────────────

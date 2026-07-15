@@ -78,11 +78,22 @@ export class NotificationsService implements OnModuleInit {
     let translatedTitle = title;
     let translatedMessage = message;
 
-    if (title === 'New Work Order Assigned') {
+    if (title === 'New Work Order from Clinic') {
+      translatedTitle = 'Nueva orden de trabajo de la clínica';
+      // Match: Work Order "WO-0001" (Patient: John Doe) has been received from the Clinic application.
+      const regex =
+        /^Work Order "([^"]+)" \(Patient: ([^)]+)\) has been received from the Clinic application\.?$/;
+      const match = message.match(regex);
+      if (match) {
+        const [, folioNumber, patient] = match;
+        translatedMessage = `La orden de trabajo "${folioNumber}" (Paciente: ${patient}) ha sido recibida desde la aplicación de la clínica.`;
+      }
+    } else if (title === 'New Work Order Assigned') {
       translatedTitle = 'Nueva orden de trabajo asignada';
       // Match: You have been assigned to "Metal Casting" for work order WO-0001 (Patient: John Doe) (Box: 12).
       // or without box: You have been assigned to "Metal Casting" for work order WO-0001 (Patient: John Doe).
       const regex =
+
         /^You have been assigned to "([^"]+)" for work order ([^\s]+) \(Patient: ([^)]+)\)(?: \(Box: ([^)]+)\))?\.?$/;
       const match = message.match(regex);
       if (match) {

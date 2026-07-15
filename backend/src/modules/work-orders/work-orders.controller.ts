@@ -78,6 +78,7 @@ export class WorkOrdersController {
   }
 
   @Get('next-folio')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.TECHNICIAN)
   @ApiOperation({
     summary: 'Get the next auto-generated folio number for a branch',
   })
@@ -91,7 +92,9 @@ export class WorkOrdersController {
       throw new BadRequestException('Organization context is required.');
     }
     const finalBranchId =
-      userRole === 'ADMIN' ? branchIdContext : branchIdQuery;
+      userRole === 'ADMIN' || userRole === 'TECHNICIAN'
+        ? branchIdContext
+        : branchIdQuery;
     if (!finalBranchId) {
       throw new BadRequestException('Branch ID is required.');
     }

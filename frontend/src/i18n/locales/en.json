@@ -161,6 +161,7 @@
     "dashboard": "Dashboard",
     "finance": "Finance",
     "branches": "Branches",
+    "connectedClinics": "Connected Clinics",
     "labAdmins": "Lab Admins",
     "technicians": "Technicians",
     "technician": "Technician",
@@ -169,6 +170,7 @@
     "prosthesisTypes": "Prosthesis Types",
     "workOrders": "Work Orders",
     "myWorkOrders": "My Work Orders",
+    "requestedWorkOrders": "Requested Work Orders",
     "tenants": "Tenants",
     "inventory": "Inventory",
     "expenses": "Expenses",
@@ -454,6 +456,7 @@
       "processSteps": "2. Process Steps"
     },
     "editWorkOrder": "Edit Work Order",
+    "createdBy": "Created By",
     "searchPlaceholder": "Search by folio, patient, doctor...",
     "folioNumber": "Folio Number",
     "patient": "Patient",
@@ -592,6 +595,19 @@
     "doctorClinic": "Doctor / Clinic",
     "estDueDate": "Est. Due Date",
     "folio": "Folio"
+  },
+  "requestedWorkOrders": {
+    "title": "Requested Work Orders",
+    "subtitle": "Create and track your work order requests for review",
+    "createNew": "Create Work Order Request",
+    "createSuccess": "Work order request created successfully!",
+    "failedCreate": "Failed to create work order request",
+    "validationDoctorRequired": "Doctor is required",
+    "validationPatientRequired": "Patient name is required",
+    "validationProsthesisTypeRequired": "Prosthesis type is required",
+    "validationColorRequired": "Color is required",
+    "popupTitle": "New Work Order Request",
+    "popupSubtitle": "Submit basic details for review by Lab Admin"
   },
   "branches": {
     "title": "Branches",
@@ -1259,5 +1275,22 @@
     "saveFailed": "Failed to update lab logo",
     "logoRequired": "Logo is required",
     "loading": "Loading settings..."
+  },
+  "connectedClinics": {
+    "title": "Connected Clinics",
+    "subtitle": "View and manage clinics integrated with this lab",
+    "clinicName": "Clinic Name",
+    "clinicUrl": "Clinic URL",
+    "registeredAt": "Integration Date",
+    "doctorsCount": "Doctors",
+    "totalOrders": "Total Orders",
+    "activeOrders": "Active Orders",
+    "noClinics": "No connected clinics found.",
+    "branch": "Branch",
+    "details": "Doctors & Activity",
+    "doctorName": "Doctor Name",
+    "doctorEmail": "Email",
+    "doctorPhone": "Phone",
+    "noDoctors": "No doctors registered for this clinic yet."
   }
 }

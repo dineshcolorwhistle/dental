@@ -41,6 +41,7 @@ export class DoctorsController {
   }
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.TECHNICIAN)
   @ApiOperation({ summary: 'List all doctors/clinics' })
   async findAll(
     @CurrentUser('tenantId') tenantId: string,
@@ -52,8 +53,8 @@ export class DoctorsController {
       throw new BadRequestException('Organization context is required.');
     }
 
-    // For branch admin, implicitly force branch scoping
-    if (userRole === 'ADMIN') {
+    // For branch admin or technician, implicitly force branch scoping
+    if (userRole === 'ADMIN' || userRole === 'TECHNICIAN') {
       return this.doctorsService.findAll(
         tenantId,
         branchIdContext || undefined,

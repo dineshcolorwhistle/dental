@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { MailService } from '../mail/mail.service';
 import { CreateWorkOrderDto, UpdateWorkOrderDto } from './dto';
 import {
   WorkOrderStatus,
@@ -25,7 +26,9 @@ export class WorkOrdersService {
     private readonly notificationsService: NotificationsService,
     private readonly auditLogsService: AuditLogsService,
     private readonly websocketsGateway: WebsocketsGateway,
+    private readonly mailService: MailService,
   ) {}
+
 
   /**
    * Helper to calculate overall Work Order status from underlying processes.
@@ -98,7 +101,7 @@ export class WorkOrdersService {
       select: { id: true, name: true, code: true, defaultAdminId: true },
     },
     createdBy: {
-      select: { id: true, firstName: true, lastName: true, email: true },
+      select: { id: true, firstName: true, lastName: true, email: true, role: true },
     },
     processes: {
       orderBy: { sequence: 'asc' as const },
@@ -334,10 +337,26 @@ export class WorkOrdersService {
 
         await this.updateWorkOrderStatus(workOrder.id);
 
+        // Notify clinic doctor of pending external verification via email
+        if (doctor && doctor.email) {
+          const tenantRecord = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+          });
+          await this.mailService.sendExternalVerificationPending(
+            doctor.email,
+            doctor.name,
+            patient,
+            folioNumber,
+            firstProcess.processName,
+            tenantRecord?.name || 'DentalLab',
+          );
+        }
+
         const updatedWO = await this.findOne(
           tenantId,
           workOrder.id,
           null,
+
           userRole,
         );
         return updatedWO;
@@ -1722,9 +1741,26 @@ export class WorkOrdersService {
                 notes: 'Started automatically after previous step completion',
               },
             });
+
+            // Notify clinic doctor of pending external verification via email
+            const woWithDoctor = await this.prisma.workOrder.findUnique({
+              where: { id: workOrderId },
+              include: { doctor: true, tenant: true },
+            });
+            if (woWithDoctor && woWithDoctor.doctor && woWithDoctor.doctor.email) {
+              await this.mailService.sendExternalVerificationPending(
+                woWithDoctor.doctor.email,
+                woWithDoctor.doctor.name,
+                woWithDoctor.patient,
+                woWithDoctor.folioNumber,
+                nextProcess.processName,
+                woWithDoctor.tenant.name,
+              );
+            }
           }
 
           // Send verification pending alerts to admins
+
           const branchAdmins = await this.prisma.user.findMany({
             where: {
               tenantId,

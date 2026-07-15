@@ -202,6 +202,51 @@ export class MailService {
   }
 
   /**
+   * Send an email to the clinic doctor when a work order transitions to an external verification step.
+   */
+  async sendExternalVerificationPending(
+    email: string,
+    doctorName: string,
+    patientName: string,
+    folioNumber: string,
+    processName: string,
+    tenantName: string,
+  ): Promise<void> {
+    const lang = 'ES'; // Fallback to ES (Spanish) as default language for clinic integration
+
+    const subject =
+      lang === 'ES'
+        ? `Acción Requerida: Verificación pendiente para orden ${folioNumber}`
+        : `Action Required: Verification pending for order ${folioNumber}`;
+
+    const template =
+      lang === 'ES' ? 'external-verification-pending-es' : 'external-verification-pending';
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject,
+        template,
+        context: {
+          doctorName,
+          patientName,
+          folioNumber,
+          processName,
+          tenantName,
+          year: new Date().getFullYear(),
+        },
+      });
+
+      this.logger.log(`External verification notification email sent to ${email} (Lang: ${lang})`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send external verification notification email to ${email}`,
+        error,
+      );
+    }
+  }
+
+  /**
    * Build a subdomain-specific frontend URL.
    * e.g., http://localhost:5173 -> http://happy-dental.localhost:5173
    */
@@ -228,3 +273,4 @@ export class MailService {
     }
   }
 }
+

@@ -74,4 +74,22 @@ export const technicianPortalService = {
     const response = await api.patch<{ success: boolean; notes: string }>(`/technician-portal/work-orders/${id}/notes`, { notes });
     return response.data;
   },
+
+  getCreatedWorkOrders: async (): Promise<TechnicianWorkOrderListItem[]> => {
+    const response = await api.get<TechnicianWorkOrderListItem[]>('/technician-portal/requested-work-orders');
+    return response.data;
+  },
+
+  createWorkOrder: async (payload: {
+    doctorId: string;
+    patient: string;
+    boxNumber?: string;
+    prosthesisTypeId: string;
+    specification?: string;
+    color: string;
+    notes?: string;
+  }): Promise<TechnicianWorkOrderListItem> => {
+    const response = await api.post<TechnicianWorkOrderListItem>('/technician-portal/work-orders', payload);
+    return response.data;
+  },
 };

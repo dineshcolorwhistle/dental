@@ -113,7 +113,7 @@ export function WorkOrdersPage() {
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER';
-  const canCreate = isAdmin || isOwner;
+  const canCreate = isAdmin;
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
@@ -902,6 +902,7 @@ export function WorkOrdersPage() {
                 <th>{t('workOrders.color', { defaultValue: 'Color' })}</th>
                 {isOwner && <th>{t('common.branch')}</th>}
                 <th>{t('finance.quoted')}</th>
+                <th>{t('workOrders.createdBy', { defaultValue: 'Created By' })}</th>
                 <th>{t('common.status')}</th>
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('createdAt')}>
@@ -974,6 +975,20 @@ export function WorkOrdersPage() {
                         <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
                           {formatCurrency(wo.totalQuote)}
                         </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {wo.createdBy ? (
+                        <div>
+                          <span className="cell-primary__name" style={{ fontSize: '0.8125rem' }}>
+                            {wo.createdBy.firstName} {wo.createdBy.lastName}
+                          </span>
+                          <span className="cell-primary__meta" style={{ fontSize: '0.75rem' }}>
+                            {t(`enums.userRole.${wo.createdBy.role}`, { defaultValue: wo.createdBy.role })}
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-muted">—</span>
                       )}

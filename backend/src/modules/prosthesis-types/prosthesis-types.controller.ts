@@ -52,6 +52,7 @@ export class ProsthesisTypesController {
   }
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.TECHNICIAN)
   @ApiOperation({ summary: 'List all prosthesis/work types' })
   async findAll(
     @CurrentUser('tenantId') tenantId: string,
@@ -63,8 +64,8 @@ export class ProsthesisTypesController {
       throw new BadRequestException('Organization context is required.');
     }
 
-    // For branch admin, implicitly force branch scoping
-    if (userRole === 'ADMIN') {
+    // For branch admin or technician, implicitly force branch scoping
+    if (userRole === 'ADMIN' || userRole === 'TECHNICIAN') {
       return this.prosthesisTypesService.findAll(
         tenantId,
         branchIdContext || undefined,

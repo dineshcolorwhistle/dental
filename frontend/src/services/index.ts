@@ -56,5 +56,7 @@ export { messagingService } from './messaging.service';
 export type { Contact, ConversationSummary, ChatMessage, ConversationParticipant, GroupMember } from './messaging.service';
 export { processAreaService } from './process-area.service';
 export type { ProcessAreaListItem, CreateProcessAreaPayload } from './process-area.service';
+export { connectedClinicService } from './connected-clinic.service';
+export type { ConnectedClinicDoctorItem, ConnectedClinicListItem } from './connected-clinic.service';
 
 

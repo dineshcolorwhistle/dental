@@ -390,40 +390,44 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                 >
                   {t('workOrders.processes')}
                 </button>
-                <button
-                  type="button"
-                  className={`modal-tab-btn ${viewTab === 'rework' ? 'modal-tab-btn--active' : ''}`}
-                  onClick={() => setViewTab('rework')}
-                  style={{
-                    padding: '0.75rem 0.5rem',
-                    fontWeight: 600,
-                    border: 'none',
-                    borderBottom: viewTab === 'rework' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                    color: viewTab === 'rework' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                    backgroundColor: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  {t('dashboard.reworks')}
-                </button>
-                <button
-                  type="button"
-                  className={`modal-tab-btn ${viewTab === 'repetition' ? 'modal-tab-btn--active' : ''}`}
-                  onClick={() => setViewTab('repetition')}
-                  style={{
-                    padding: '0.75rem 0.5rem',
-                    fontWeight: 600,
-                    border: 'none',
-                    borderBottom: viewTab === 'repetition' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                    color: viewTab === 'repetition' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                    backgroundColor: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  {t('dashboard.repetitions')}
-                </button>
+                {user?.role !== 'TECHNICIAN' && (
+                  <button
+                    type="button"
+                    className={`modal-tab-btn ${viewTab === 'rework' ? 'modal-tab-btn--active' : ''}`}
+                    onClick={() => setViewTab('rework')}
+                    style={{
+                      padding: '0.75rem 0.5rem',
+                      fontWeight: 600,
+                      border: 'none',
+                      borderBottom: viewTab === 'rework' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                      color: viewTab === 'rework' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      backgroundColor: 'transparent',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    {t('dashboard.reworks')}
+                  </button>
+                )}
+                {user?.role !== 'TECHNICIAN' && (
+                  <button
+                    type="button"
+                    className={`modal-tab-btn ${viewTab === 'repetition' ? 'modal-tab-btn--active' : ''}`}
+                    onClick={() => setViewTab('repetition')}
+                    style={{
+                      padding: '0.75rem 0.5rem',
+                      fontWeight: 600,
+                      border: 'none',
+                      borderBottom: viewTab === 'repetition' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                      color: viewTab === 'repetition' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      backgroundColor: 'transparent',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    {t('dashboard.repetitions')}
+                  </button>
+                )}
                 {isLabAdminOrOwner && (
                   <button
                     type="button"
