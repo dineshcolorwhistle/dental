@@ -165,14 +165,9 @@ export function WorkOrdersPage() {
   const [availableProcesses, setAvailableProcesses] = useState<ProcessListItem[]>([]);
   const [admins, setAdmins] = useState<AdminListItem[]>([]);
 
-  // External doctors from Doctor Portal
-  const [externalDoctors, setExternalDoctors] = useState<Array<{ id: string; name: string; clinicName: string | null }>>([]);
-  const [loadingExternalDoctors, setLoadingExternalDoctors] = useState(false);
-
   // Form state
   const [form, setForm] = useState({
     doctorId: '',
-    externalDoctorId: '',
     patient: '',
     boxNumber: '',
     prosthesisTypeId: '',
@@ -372,27 +367,11 @@ export function WorkOrdersPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const fetchExternalDoctors = async () => {
-    try {
-      setLoadingExternalDoctors(true);
-      const data = await doctorService.getExternalDoctors();
-      setExternalDoctors(data);
-    } catch (err: any) {
-      console.error('Failed to fetch external doctors:', err);
-      const msg = err?.response?.data?.message || 'Failed to fetch doctors from external portal';
-      toast.error(msg);
-    } finally {
-      setLoadingExternalDoctors(false);
-    }
-  };
-
   const handleCreateOpen = async () => {
     await loadReferenceData();
-    fetchExternalDoctors();
     const branchId = isAdmin ? user?.branchId || '' : '';
     setForm({
       doctorId: '',
-      externalDoctorId: '',
       patient: '',
       boxNumber: '',
       prosthesisTypeId: '',
@@ -601,7 +580,6 @@ export function WorkOrdersPage() {
     const { userNotes } = parseNotesAndPayments(wo.notes);
     setForm({
       doctorId: wo.doctorId,
-      externalDoctorId: '',
       patient: wo.patient,
       boxNumber: wo.boxNumber || '',
       prosthesisTypeId: wo.prosthesisTypeId,
@@ -1150,40 +1128,7 @@ export function WorkOrdersPage() {
             <div className="modal__body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {modalTab === 'details' ? (
                 <>
-                   {/* External Doctor from Doctor Portal — hidden for now */}
-                  <div style={{ display: 'none' }}>
-                  <div className="form-group" style={{ marginBottom: '1rem' }}>
-                    <label className="form-label" htmlFor="select-wo-external-doctor">
-                      {t('workOrders.externalDoctor', { defaultValue: 'External Doctor (from Doctor Portal)' })}
-                    </label>
-                    <SearchableSelect
-                      id="select-wo-external-doctor"
-                      options={externalDoctors.map((d) => ({
-                        value: d.id,
-                        label: d.clinicName ? `${d.name} - ${d.clinicName}` : d.name,
-                      }))}
-                      value={form.externalDoctorId || ''}
-                      onChange={(val) => {
-                        handleInputChange('externalDoctorId', val);
-                        const selectedExtDoc = externalDoctors.find((ed) => ed.id === val);
-                        if (selectedExtDoc) {
-                          const matchedLocal = doctors.find(
-                            (ld) => ld.name.toLowerCase() === selectedExtDoc.name.toLowerCase()
-                          );
-                          if (matchedLocal) {
-                            handleInputChange('doctorId', matchedLocal.id);
-                          }
-                        }
-                      }}
-                      disabled={saving || loadingExternalDoctors}
-                      placeholder={
-                        loadingExternalDoctors
-                          ? t('common.loading')
-                          : t('doctors.selectExternalDoctor', { defaultValue: 'Select a doctor from Doctor Portal' })
-                      }
-                    />
-                  </div>
-                  </div>
+
 
                   {/* Row 1: Doctor + Patient */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

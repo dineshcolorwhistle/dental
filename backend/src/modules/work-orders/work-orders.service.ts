@@ -92,7 +92,7 @@ export class WorkOrdersService {
   // Standard includes for returning full work order data
   private readonly fullInclude = {
     doctor: {
-      select: { id: true, name: true, clinicName: true },
+      select: { id: true, name: true, clinicName: true, email: true },
     },
     prosthesisType: {
       select: { id: true, name: true },
@@ -134,6 +134,27 @@ export class WorkOrdersService {
       },
     },
   };
+
+  private mapWorkOrder(wo: any) {
+    if (!wo) return wo;
+    if (wo.isExternal && wo.doctor) {
+      return {
+        ...wo,
+        createdBy: {
+          id: wo.doctor.id,
+          firstName: wo.doctor.name,
+          lastName: '',
+          role: 'DOCTOR',
+          email: wo.doctor.email || '',
+        },
+      };
+    }
+    return wo;
+  }
+
+  private mapWorkOrders(wos: any[]) {
+    return wos.map((wo) => this.mapWorkOrder(wo));
+  }
 
   /**
    * Generate the next folio number for a branch.
@@ -395,7 +416,7 @@ export class WorkOrdersService {
       },
     );
 
-    return workOrder;
+    return this.mapWorkOrder(workOrder);
   }
 
   async findAll(
@@ -403,7 +424,7 @@ export class WorkOrdersService {
     branchIdFilter?: string,
     statusFilter?: string,
   ) {
-    return this.prisma.workOrder.findMany({
+    const list = await this.prisma.workOrder.findMany({
       where: {
         tenantId,
         ...(branchIdFilter &&
@@ -416,6 +437,7 @@ export class WorkOrdersService {
       include: this.fullInclude,
       orderBy: { createdAt: 'desc' },
     });
+    return this.mapWorkOrders(list);
   }
 
   async findOne(
@@ -442,10 +464,10 @@ export class WorkOrdersService {
       const sanitized = { ...workOrder } as any;
       sanitized.totalQuote = null;
       sanitized.initialPayment = null;
-      return sanitized;
+      return this.mapWorkOrder(sanitized);
     }
 
-    return workOrder;
+    return this.mapWorkOrder(workOrder);
   }
 
   async findOneByQrToken(
@@ -472,10 +494,10 @@ export class WorkOrdersService {
       const sanitized = { ...workOrder } as any;
       sanitized.totalQuote = null;
       sanitized.initialPayment = null;
-      return sanitized;
+      return this.mapWorkOrder(sanitized);
     }
 
-    return workOrder;
+    return this.mapWorkOrder(workOrder);
   }
 
   async update(

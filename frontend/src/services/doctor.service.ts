@@ -64,9 +64,4 @@ export const doctorService = {
     const response = await api.delete<{ success: boolean }>(`/doctors/${id}`);
     return response.data;
   },
-
-  getExternalDoctors: async (): Promise<Array<{ id: string; name: string; clinicName: string | null }>> => {
-    const response = await api.get<Array<{ id: string; name: string; clinicName: string | null }>>('/doctors/external');
-    return response.data;
-  },
 };

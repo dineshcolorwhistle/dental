@@ -295,7 +295,7 @@ export class IntegrationController {
       processName: assign.process.name,
       technicianId: assign.process.defaultTechnicianId || null,
       sequence: assign.sequence,
-      isVerification: assign.process.processArea === 'QC',
+      isVerification: false,
       status: ProcessStatus.NOT_STARTED,
     }));
 
@@ -352,6 +352,7 @@ export class IntegrationController {
           initialPayment: dto.initialPayment ?? null,
           status: WorkOrderStatus.CREATED,
           createdById,
+          isExternal: true,
           processes: {
             create: finalMappedProcesses,
           },
@@ -402,7 +403,16 @@ export class IntegrationController {
       );
     }
 
-    return workOrder;
+    return {
+      ...workOrder,
+      createdBy: {
+        id: doctor.id,
+        firstName: doctor.name,
+        lastName: '',
+        role: 'DOCTOR' as any,
+        email: doctor.email || '',
+      },
+    };
   }
 
   @Get('work-orders/pending-verifications')

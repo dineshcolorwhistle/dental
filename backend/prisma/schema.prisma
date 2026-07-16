@@ -364,6 +364,7 @@ model WorkOrder {
   status           WorkOrderStatus @default(CREATED)
   repetitionCount  Int             @default(0) @map("repetition_count")
   createdById      String          @map("created_by_id")
+  isExternal       Boolean         @default(false) @map("is_external")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
