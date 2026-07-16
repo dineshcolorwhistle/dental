@@ -88,6 +88,7 @@ export interface WorkOrderListItem {
   status: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   repetitionCount?: number;
   createdById: string;
+  isExternal: boolean;
   createdAt: string;
   updatedAt: string;
   doctor?: {

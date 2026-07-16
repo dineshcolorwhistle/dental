@@ -439,8 +439,21 @@ export function DoctorsPage() {
                         D
                       </div>
                       <div>
-                        <span className="cell-primary__name">
+                        <span className="cell-primary__name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {doctor.name}
+                          <span style={{
+                            fontSize: '0.6rem',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: doctor.clinicId ? 'rgba(99, 102, 241, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                            color: doctor.clinicId ? '#6366F1' : '#6B7280',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.02em',
+                            display: 'inline-block'
+                          }}>
+                            {doctor.clinicId ? t('doctors.integrated') : t('doctors.local')}
+                          </span>
                         </span>
                         <span className="cell-primary__meta">
                           {t('common.created')} {new Date(doctor.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {

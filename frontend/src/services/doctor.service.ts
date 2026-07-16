@@ -4,6 +4,8 @@ export interface DoctorListItem {
   id: string;
   tenantId: string;
   branchId: string | null;
+  clinicId: string | null;
+  externalId: string | null;
   name: string;
   clinicName: string | null;
   email: string | null;

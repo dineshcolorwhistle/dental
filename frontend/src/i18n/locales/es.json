@@ -446,6 +446,8 @@
   },
   "workOrders": {
     "title": "Órdenes de Trabajo",
+    "internal": "Interno",
+    "external": "Externo",
     "externalDoctor": "Doctor Externo (desde el Portal de Doctores)",
     "subtitle": "Administrar órdenes de trabajo y flujos de trabajo del laboratorio dental",
     "createNew": "Crear Nueva Orden de Trabajo",
@@ -637,6 +639,8 @@
   },
   "doctors": {
     "title": "Doctores",
+    "local": "Local",
+    "integrated": "Integrado",
     "subtitle": "Administrar registros de médicos dentistas y clínicas",
     "createDoctor": "Crear Doctor",
     "editDoctor": "Editar Doctor",

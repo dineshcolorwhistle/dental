@@ -446,6 +446,8 @@
   },
   "workOrders": {
     "title": "Work Orders",
+    "internal": "Internal",
+    "external": "External",
     "externalDoctor": "External Doctor (from Doctor Portal)",
     "subtitle": "Manage dental lab work orders and workflows",
     "createNew": "Create New Work Order",
@@ -637,6 +639,8 @@
   },
   "doctors": {
     "title": "Doctors",
+    "local": "Local",
+    "integrated": "Integrated",
     "subtitle": "Manage dental doctor and clinic records",
     "createDoctor": "Create Doctor",
     "editDoctor": "Edit Doctor",

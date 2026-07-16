@@ -901,8 +901,21 @@ export function WorkOrdersPage() {
                           <FileText size={14} />
                         </div>
                         <div>
-                          <span className="cell-primary__name" style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.03em' }}>
+                          <span className="cell-primary__name" style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.03em', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {wo.folioNumber}
+                            <span style={{
+                              fontSize: '0.6rem',
+                              fontWeight: 700,
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              backgroundColor: wo.isExternal ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                              color: wo.isExternal ? '#6366F1' : '#10B981',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.02em',
+                              display: 'inline-block'
+                            }}>
+                              {wo.isExternal ? t('workOrders.external') : t('workOrders.internal')}
+                            </span>
                           </span>
                           {wo.boxNumber && (
                             <span className="cell-primary__meta">{t('workOrders.boxNumber', { defaultValue: 'Box' })}: {wo.boxNumber}</span>
