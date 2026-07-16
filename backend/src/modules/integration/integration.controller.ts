@@ -83,83 +83,7 @@ export class IntegrationController {
     });
   }
 
-  @Get('work-orders/:id')
-  @ApiOperation({
-    summary: 'Retrieve work order status by ID for external clinic/doctors',
-  })
-  async getWorkOrderStatus(
-    @Req() req: any,
-    @Param('id') id: string,
-  ) {
-    const tenantId = req.apiKeyTenantId;
-    const branchId = req.apiKeyBranchId;
 
-    const workOrder = await this.prisma.workOrder.findFirst({
-      where: {
-        id,
-        tenantId,
-        branchId,
-      },
-      include: {
-        prosthesisType: {
-          select: { id: true, name: true },
-        },
-        doctor: {
-          select: { id: true, name: true, clinicName: true },
-        },
-        processes: {
-          include: {
-            technician: {
-              select: { firstName: true, lastName: true },
-            },
-          },
-          orderBy: { sequence: 'asc' },
-        },
-      },
-    });
-
-    if (!workOrder) {
-      throw new NotFoundException(`Work order with ID "${id}" not found.`);
-    }
-
-    return {
-      id: workOrder.id,
-      folioNumber: workOrder.folioNumber,
-      patient: workOrder.patient,
-      boxNumber: workOrder.boxNumber,
-      color: workOrder.color,
-      notes: workOrder.notes,
-      specification: workOrder.specification,
-      status: workOrder.status,
-      repetitionCount: workOrder.repetitionCount,
-      createdAt: workOrder.createdAt,
-      updatedAt: workOrder.updatedAt,
-      doctor: workOrder.doctor
-        ? {
-            id: workOrder.doctor.id,
-            name: workOrder.doctor.name,
-            clinicName: workOrder.doctor.clinicName,
-          }
-        : null,
-      prosthesisType: workOrder.prosthesisType
-        ? {
-            id: workOrder.prosthesisType.id,
-            name: workOrder.prosthesisType.name,
-          }
-        : null,
-      processes: workOrder.processes.map((p) => ({
-        id: p.id,
-        processName: p.processName,
-        sequence: p.sequence,
-        status: p.status,
-        startedAt: p.startedAt,
-        endedAt: p.endedAt,
-        technicianName: p.technician
-          ? `${p.technician.firstName} ${p.technician.lastName}`.trim()
-          : null,
-      })),
-    };
-  }
 
   @Post('config')
   @HttpCode(HttpStatus.OK)
@@ -815,6 +739,84 @@ export class IntegrationController {
     return {
       success: true,
       message: 'External verification start recorded successfully.',
+    };
+  }
+
+  @Get('work-orders/:id')
+  @ApiOperation({
+    summary: 'Retrieve work order status by ID for external clinic/doctors',
+  })
+  async getWorkOrderStatus(
+    @Req() req: any,
+    @Param('id') id: string,
+  ) {
+    const tenantId = req.apiKeyTenantId;
+    const branchId = req.apiKeyBranchId;
+
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: {
+        id,
+        tenantId,
+        branchId,
+      },
+      include: {
+        prosthesisType: {
+          select: { id: true, name: true },
+        },
+        doctor: {
+          select: { id: true, name: true, clinicName: true },
+        },
+        processes: {
+          include: {
+            technician: {
+              select: { firstName: true, lastName: true },
+            },
+          },
+          orderBy: { sequence: 'asc' },
+        },
+      },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException(`Work order with ID "${id}" not found.`);
+    }
+
+    return {
+      id: workOrder.id,
+      folioNumber: workOrder.folioNumber,
+      patient: workOrder.patient,
+      boxNumber: workOrder.boxNumber,
+      color: workOrder.color,
+      notes: workOrder.notes,
+      specification: workOrder.specification,
+      status: workOrder.status,
+      repetitionCount: workOrder.repetitionCount,
+      createdAt: workOrder.createdAt,
+      updatedAt: workOrder.updatedAt,
+      doctor: workOrder.doctor
+        ? {
+            id: workOrder.doctor.id,
+            name: workOrder.doctor.name,
+            clinicName: workOrder.doctor.clinicName,
+          }
+        : null,
+      prosthesisType: workOrder.prosthesisType
+        ? {
+            id: workOrder.prosthesisType.id,
+            name: workOrder.prosthesisType.name,
+          }
+        : null,
+      processes: workOrder.processes.map((p) => ({
+        id: p.id,
+        processName: p.processName,
+        sequence: p.sequence,
+        status: p.status,
+        startedAt: p.startedAt,
+        endedAt: p.endedAt,
+        technicianName: p.technician
+          ? `${p.technician.firstName} ${p.technician.lastName}`.trim()
+          : null,
+      })),
     };
   }
 }
