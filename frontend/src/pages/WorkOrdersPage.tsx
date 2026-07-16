@@ -453,7 +453,16 @@ export function WorkOrdersPage() {
 
   const updateProcessTechnician = (index: number, techId: string) => {
     setProcessList((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, technicianId: techId } : p)),
+      prev.map((p, i) => {
+        if (i === index) {
+          const updated = { ...p, technicianId: techId };
+          if (p.isVerification) {
+            updated.processName = techId ? 'Verification (Internal)' : 'Verification (External)';
+          }
+          return updated;
+        }
+        return p;
+      }),
     );
   };
 
@@ -599,17 +608,23 @@ export function WorkOrdersPage() {
     setVerificationTechnicianId('');
 
     // Populate existing process steps and verification steps
-    const items: ProcessFormItem[] = (wo.processes || []).map((p, idx) => ({
-      tempId: p.id || `proc-edit-${Date.now()}-${idx}`,
-      processName: p.processName,
-      technicianId: p.technicianId || '',
-      sequence: p.sequence,
-      isVerification: p.isVerification,
-      status: p.status,
-      rework: (p as any).reworkActive || false,
-      reworkCount: (p as any).reworkCount || 0,
-      reworkActive: (p as any).reworkActive || false,
-    }));
+    const items: ProcessFormItem[] = (wo.processes || []).map((p, idx) => {
+      let processName = p.processName;
+      if (p.isVerification) {
+        processName = p.technicianId ? 'Verification (Internal)' : 'Verification (External)';
+      }
+      return {
+        tempId: p.id || `proc-edit-${Date.now()}-${idx}`,
+        processName,
+        technicianId: p.technicianId || '',
+        sequence: p.sequence,
+        isVerification: p.isVerification,
+        status: p.status,
+        rework: (p as any).reworkActive || false,
+        reworkCount: (p as any).reworkCount || 0,
+        reworkActive: (p as any).reworkActive || false,
+      };
+    });
     setProcessList(items);
     
     setFormErrors({});
@@ -1402,7 +1417,13 @@ export function WorkOrdersPage() {
                           </div>
 
                           <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px' }}>
-                            <span>{proc.processName}</span>
+                            <span>
+                              {proc.isVerification
+                                ? proc.technicianId
+                                  ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
+                                  : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
+                                : proc.processName}
+                            </span>
                             {proc.isVerification && (
                               <span className="wo-process-item__tag" style={{
                                 backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
@@ -2151,7 +2172,13 @@ export function WorkOrdersPage() {
                             </div>
 
                             <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <span>{proc.processName}</span>
+                              <span>
+                              {proc.isVerification
+                                ? proc.technicianId
+                                  ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
+                                  : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
+                                : proc.processName}
+                            </span>
                               {proc.isVerification && (
                                 <span className="wo-process-item__tag" style={{
                                   backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',

@@ -605,7 +605,13 @@ export function WorkOrderDetailPage() {
                         <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-muted)' }}>{idx + 1}</td>
                         <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <span>{proc.processName}</span>
+                            <span>
+                              {proc.isVerification
+                                ? proc.technicianId
+                                  ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
+                                  : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
+                                : proc.processName}
+                            </span>
                             {proc.isVerification && (
                               <span style={{
                                 fontSize: '0.625rem',

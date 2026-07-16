@@ -333,15 +333,26 @@ export class IntegrationController {
     const workOrder = await this.prisma.$transaction(async (tx) => {
       // Determine starting statuses
       const finalMappedProcesses = mappedProcesses.map((p, idx) => {
+        const isVerification = p.isVerification || false;
+        const processName = isVerification
+          ? p.technicianId
+            ? 'Verification (Internal)'
+            : 'Verification (External)'
+          : p.processName;
+        const updated = {
+          ...p,
+          isVerification,
+          processName,
+        };
         // If it is the first step and is verification, set it to IN_PROGRESS
-        if (idx === 0 && p.isVerification && !p.technicianId) {
+        if (idx === 0 && updated.isVerification && !updated.technicianId) {
           return {
-            ...p,
+            ...updated,
             status: ProcessStatus.IN_PROGRESS,
             startedAt: new Date(),
           };
         }
-        return p;
+        return updated;
       });
 
       return tx.workOrder.create({
@@ -767,6 +778,13 @@ export class IntegrationController {
         doctor: {
           select: { id: true, name: true, clinicName: true },
         },
+        branch: {
+          select: {
+            defaultAdmin: {
+              select: { firstName: true, lastName: true },
+            },
+          },
+        },
         processes: {
           include: {
             technician: {
@@ -814,9 +832,21 @@ export class IntegrationController {
         status: p.status,
         startedAt: p.startedAt,
         endedAt: p.endedAt,
-        technicianName: p.technician
-          ? `${p.technician.firstName} ${p.technician.lastName}`.trim()
-          : null,
+        technicianName: (() => {
+          if (p.isVerification) {
+            if (p.technicianId) {
+              const defaultAdmin = (workOrder as any).branch?.defaultAdmin;
+              return defaultAdmin
+                ? `${defaultAdmin.firstName} ${defaultAdmin.lastName}`.trim()
+                : (p.technician ? `${p.technician.firstName} ${p.technician.lastName}`.trim() : 'Lab Admin');
+            } else {
+              return workOrder.doctor ? workOrder.doctor.name : 'Doctor';
+            }
+          }
+          return p.technician
+            ? `${p.technician.firstName} ${p.technician.lastName}`.trim()
+            : null;
+        })(),
       })),
     };
   }

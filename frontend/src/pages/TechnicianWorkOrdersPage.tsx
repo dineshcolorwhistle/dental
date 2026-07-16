@@ -547,7 +547,13 @@ export function TechnicianWorkOrdersPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)' }}>{t('workOrder.myStepAssignment')}</span>
                         <span style={{ fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span>{myStep.processName}</span>
+                          <span>
+                            {myStep.isVerification
+                              ? myStep.technicianId
+                                ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
+                                : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
+                              : myStep.processName}
+                          </span>
                           {myStep.reworkActive && (
                             <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>{t('dashboard.rework')}</span>
                           )}
@@ -957,7 +963,11 @@ export function TechnicianWorkOrdersPage() {
                               <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: (isActive || isPaused) ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
-                                    {proc.processName}
+                                    {proc.isVerification
+                                      ? proc.technicianId
+                                        ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
+                                        : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
+                                      : proc.processName}
                                   </span>
                                   {isAssignedToMe && (
                                     <span style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--success)', backgroundColor: 'rgba(46,204,113,0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(46,204,113,0.2)' }}>

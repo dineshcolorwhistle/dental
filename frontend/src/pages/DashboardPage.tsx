@@ -265,7 +265,7 @@ export function DashboardPage() {
                       </span>
                     </div>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      {t('dashboard.process')}: <strong>{alert.processName}</strong> • {t('dashboard.assignedEvaluator')}: <strong>{alert.assignedTo}</strong>
+                      {t('dashboard.process')}: <strong>{alert.type === 'INTERNAL' ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' }) : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })}</strong> • {t('dashboard.assignedEvaluator')}: <strong>{alert.assignedTo}</strong>
                     </span>
                   </div>
 
@@ -585,7 +585,7 @@ export function DashboardPage() {
                       }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {t('dashboard.verification')}: <strong>{activeVerification.processName}</strong>
+                            {t('dashboard.verification')}: <strong>{activeVerification.technicianId ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' }) : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })}</strong>
                           </span>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                             {t('dashboard.evaluator')}: <strong>{evaluator}</strong>
@@ -1000,7 +1000,7 @@ export function DashboardPage() {
                 marginBottom: '0.5rem'
               }}>
                 {t('dashboard.order')}: <strong>{selectedAlert.folioNumber} ({selectedAlert.patient})</strong><br />
-                {t('dashboard.verificationStage')}: <strong>{selectedAlert.processName}</strong>
+                {t('dashboard.verificationStage')}: <strong>{selectedAlert.type === 'INTERNAL' ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' }) : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })}</strong>
               </div>
 
               <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>{t('dashboard.selectTheOutcome')}</p>

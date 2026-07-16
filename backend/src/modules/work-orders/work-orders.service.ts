@@ -364,13 +364,21 @@ export class WorkOrdersService {
     const folioNumber = await this.generateFolioNumber(tenantId, finalBranchId);
 
     // 5. Determine processes and status
-    const mappedProcesses = processes.map((p) => ({
-      processName: p.processName,
-      technicianId: p.technicianId || null,
-      sequence: p.sequence,
-      isVerification: p.isVerification || false,
-      status: (p as any).status || ProcessStatus.NOT_STARTED,
-    }));
+    const mappedProcesses = processes.map((p) => {
+      const isVerification = p.isVerification || false;
+      const processName = isVerification
+        ? p.technicianId
+          ? 'Verification (Internal)'
+          : 'Verification (External)'
+        : p.processName;
+      return {
+        processName,
+        technicianId: p.technicianId || null,
+        sequence: p.sequence,
+        isVerification,
+        status: (p as any).status || ProcessStatus.NOT_STARTED,
+      };
+    });
 
     const status =
       action === 'create'
@@ -737,7 +745,11 @@ export class WorkOrdersService {
 
         return {
           id: ep?.id || null, // Preserve ID if it exists
-          processName: p.processName,
+          processName: (p.isVerification || false)
+            ? p.technicianId
+              ? 'Verification (Internal)'
+              : 'Verification (External)'
+            : p.processName,
           technicianId: p.technicianId || null,
           sequence: p.sequence,
           isVerification: p.isVerification || false,
