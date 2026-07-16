@@ -78,11 +78,20 @@ export class TechnicianPortalService {
       
       this.logger.log(`Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`);
       
+      const apiKeyRecord = workOrder.branchId ? await this.prisma.apiKey.findFirst({
+        where: {
+          branchId: workOrder.branchId,
+          isActive: true,
+        },
+      }) : null;
+      const apiKey = apiKeyRecord ? apiKeyRecord.key : '';
+
       try {
         const response = await (global as any).fetch(notificationUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(apiKey && { 'X-API-Key': apiKey }),
           },
           body: JSON.stringify({
             event: 'EXTERNAL_VERIFICATION_REQUESTED',
