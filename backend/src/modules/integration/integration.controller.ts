@@ -355,6 +355,7 @@ export class IntegrationController {
           prosthesisTypeId: prosthesisType.id,
           color: dto.color || 'A1',
           notes: dto.notes || null,
+          specification: dto.specification || '',
           totalQuote: dto.totalQuote ?? null,
           initialPayment: dto.initialPayment ?? null,
           status: WorkOrderStatus.CREATED,

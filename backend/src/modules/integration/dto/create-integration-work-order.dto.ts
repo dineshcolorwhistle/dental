@@ -49,7 +49,7 @@ export class CreateIntegrationWorkOrderDto {
   @MaxLength(100)
   boxNumber?: string;
 
-  @ApiProperty({ example: 'A2', description: 'Color specification', required: false })
+  @ApiProperty({ example: 'White', description: 'Color specification', required: false })
   @IsString()
   @IsOptional()
   @MaxLength(50)
@@ -59,6 +59,12 @@ export class CreateIntegrationWorkOrderDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiProperty({ example: 'Full anatomical crown', description: 'Specification details', required: false })
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
+  specification?: string;
 
   @ApiProperty({ example: 450.5, description: 'Total price quote', required: false })
   @IsNumber()
