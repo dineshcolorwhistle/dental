@@ -444,38 +444,46 @@ export class WorkOrdersService {
           },
         });
       } else if (firstProcess.isVerification && !firstProcess.technicianId) {
-        // Auto-start External Verification
-        const now = new Date();
-        await this.prisma.workOrderProcess.update({
-          where: { id: firstProcess.id },
-          data: {
-            status: ProcessStatus.IN_PROGRESS,
-            startedAt: now,
-            activityLogs: {
-              create: {
-                action: ProcessActivityAction.START,
-                timestamp: now,
-                notes: 'External verification started automatically',
+        const doctor = doctorId ? await this.prisma.doctor.findUnique({
+          where: { id: doctorId },
+          include: { clinic: true },
+        }) : null;
+        const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
+
+        if (!isExternal) {
+          // Auto-start External Verification (ONLY for local doctor)
+          const now = new Date();
+          await this.prisma.workOrderProcess.update({
+            where: { id: firstProcess.id },
+            data: {
+              status: ProcessStatus.IN_PROGRESS,
+              startedAt: now,
+              activityLogs: {
+                create: {
+                  action: ProcessActivityAction.START,
+                  timestamp: now,
+                  notes: 'External verification started automatically',
+                },
               },
             },
-          },
-        });
+          });
 
-        await this.auditLogsService.log({
-          tenantId,
-          userId,
-          action: 'VERIFICATION_START',
-          entityName: 'PROCESS',
-          entityId: firstProcess.id,
-          details: {
-            workOrderId: workOrder.id,
-            processName: firstProcess.processName,
-            type: 'EXTERNAL',
-            notes: 'Started automatically on assignment',
-          },
-        });
+          await this.auditLogsService.log({
+            tenantId,
+            userId,
+            action: 'VERIFICATION_START',
+            entityName: 'PROCESS',
+            entityId: firstProcess.id,
+            details: {
+              workOrderId: workOrder.id,
+              processName: firstProcess.processName,
+              type: 'EXTERNAL',
+              notes: 'Started automatically on assignment',
+            },
+          });
 
-        await this.updateWorkOrderStatus(workOrder.id);
+          await this.updateWorkOrderStatus(workOrder.id);
+        }
 
         // Notify clinic doctor / admins via triggerExternalVerification helper
         await this.triggerExternalVerification(
@@ -1009,38 +1017,54 @@ export class WorkOrdersService {
         firstProcess.isVerification &&
         !firstProcess.technicianId
       ) {
-        // Auto-start External Verification
-        const now = new Date();
-        await this.prisma.workOrderProcess.update({
-          where: { id: firstProcess.id },
-          data: {
-            status: ProcessStatus.IN_PROGRESS,
-            startedAt: now,
-            activityLogs: {
-              create: {
-                action: ProcessActivityAction.START,
-                timestamp: now,
-                notes: 'External verification started automatically',
+        const doctor = updated.doctorId ? await this.prisma.doctor.findUnique({
+          where: { id: updated.doctorId },
+          include: { clinic: true },
+        }) : null;
+        const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
+
+        if (!isExternal) {
+          // Auto-start External Verification (ONLY for local doctor)
+          const now = new Date();
+          await this.prisma.workOrderProcess.update({
+            where: { id: firstProcess.id },
+            data: {
+              status: ProcessStatus.IN_PROGRESS,
+              startedAt: now,
+              activityLogs: {
+                create: {
+                  action: ProcessActivityAction.START,
+                  timestamp: now,
+                  notes: 'External verification started automatically',
+                },
               },
             },
-          },
-        });
+          });
 
-        await this.auditLogsService.log({
+          await this.auditLogsService.log({
+            tenantId,
+            userId,
+            action: 'VERIFICATION_START',
+            entityName: 'PROCESS',
+            entityId: firstProcess.id,
+            details: {
+              workOrderId: updated.id,
+              processName: firstProcess.processName,
+              type: 'EXTERNAL',
+              notes: 'Started automatically on assignment',
+            },
+          });
+
+          await this.updateWorkOrderStatus(updated.id);
+        }
+
+        // Notify clinic doctor / admins via triggerExternalVerification helper
+        await this.triggerExternalVerification(
           tenantId,
-          userId,
-          action: 'VERIFICATION_START',
-          entityName: 'PROCESS',
-          entityId: firstProcess.id,
-          details: {
-            workOrderId: updated.id,
-            processName: firstProcess.processName,
-            type: 'EXTERNAL',
-            notes: 'Started automatically on assignment',
-          },
-        });
-
-        await this.updateWorkOrderStatus(updated.id);
+          updated.id,
+          firstProcess.id,
+          firstProcess.processName,
+        );
       }
 
       await this.auditLogsService.log({
@@ -1856,36 +1880,44 @@ export class WorkOrdersService {
       if (nextProcess) {
         if (nextProcess.isVerification) {
           if (!nextProcess.technicianId) {
-            // Auto-start External Verification
-            const autoStartNow = new Date();
-            await this.prisma.workOrderProcess.update({
-              where: { id: nextProcess.id },
-              data: {
-                status: ProcessStatus.IN_PROGRESS,
-                startedAt: autoStartNow,
-                activityLogs: {
-                  create: {
-                    action: ProcessActivityAction.START,
-                    timestamp: autoStartNow,
-                    notes: 'External verification started automatically',
+            const doctor = process.workOrder.doctorId ? await this.prisma.doctor.findUnique({
+              where: { id: process.workOrder.doctorId },
+              include: { clinic: true },
+            }) : null;
+            const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
+
+            if (!isExternal) {
+              // Auto-start External Verification (ONLY for local doctor)
+              const autoStartNow = new Date();
+              await this.prisma.workOrderProcess.update({
+                where: { id: nextProcess.id },
+                data: {
+                  status: ProcessStatus.IN_PROGRESS,
+                  startedAt: autoStartNow,
+                  activityLogs: {
+                    create: {
+                      action: ProcessActivityAction.START,
+                      timestamp: autoStartNow,
+                      notes: 'External verification started automatically',
+                    },
                   },
                 },
-              },
-            });
+              });
 
-            await this.auditLogsService.log({
-              tenantId,
-              userId,
-              action: 'VERIFICATION_START',
-              entityName: 'PROCESS',
-              entityId: nextProcess.id,
-              details: {
-                workOrderId,
-                processName: nextProcess.processName,
-                type: 'EXTERNAL',
-                notes: 'Started automatically after previous step completion',
-              },
-            });
+              await this.auditLogsService.log({
+                tenantId,
+                userId,
+                action: 'VERIFICATION_START',
+                entityName: 'PROCESS',
+                entityId: nextProcess.id,
+                details: {
+                  workOrderId,
+                  processName: nextProcess.processName,
+                  type: 'EXTERNAL',
+                  notes: 'Started automatically after previous step completion',
+                },
+              });
+            }
 
             // Trigger clinic notification or email / admin notifications via helper
             await this.triggerExternalVerification(

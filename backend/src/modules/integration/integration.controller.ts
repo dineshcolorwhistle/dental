@@ -344,14 +344,6 @@ export class IntegrationController {
           isVerification,
           processName,
         };
-        // If it is the first step and is verification, set it to IN_PROGRESS
-        if (idx === 0 && updated.isVerification && !updated.technicianId) {
-          return {
-            ...updated,
-            status: ProcessStatus.IN_PROGRESS,
-            startedAt: new Date(),
-          };
-        }
         return updated;
       });
 
@@ -502,7 +494,7 @@ export class IntegrationController {
         processes: {
           some: {
             isVerification: true,
-            status: ProcessStatus.IN_PROGRESS,
+            status: { in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS] },
             technicianId: null,
           },
         },
@@ -514,7 +506,7 @@ export class IntegrationController {
         processes: {
           where: {
             isVerification: true,
-            status: ProcessStatus.IN_PROGRESS,
+            status: { in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS] },
             technicianId: null,
           },
           select: {
@@ -710,19 +702,20 @@ export class IntegrationController {
     }
 
     const pendingVerification = workOrder.processes.find(
-      (p) => p.isVerification && p.status === ProcessStatus.IN_PROGRESS && !p.technicianId,
+      (p) => p.isVerification && p.status === ProcessStatus.NOT_STARTED && !p.technicianId,
     );
 
     if (!pendingVerification) {
       throw new BadRequestException('No pending external verification step found for this work order.');
     }
 
-    // Set startedAt if not set, and log the START activity
+    // Set status to IN_PROGRESS, startedAt, and log the START activity
     const now = new Date();
     await this.prisma.workOrderProcess.update({
       where: { id: pendingVerification.id },
       data: {
-        startedAt: pendingVerification.startedAt || now,
+        status: ProcessStatus.IN_PROGRESS,
+        startedAt: now,
         activityLogs: {
           create: {
             action: ProcessActivityAction.START,
