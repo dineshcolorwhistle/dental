@@ -640,19 +640,16 @@ export class WorkOrdersService {
     if (processes) {
       for (const ep of existing.processes) {
         if (ep.status !== ProcessStatus.NOT_STARTED) {
-          // This process has started. It must be present in the new processes list at the exact same sequence.
-          const p = processes.find((item) => item.sequence === ep.sequence);
+          // This process has started. It must be present in the new processes list.
+          // Match by processName + isVerification since we can't pass id through the DTO.
+          const p = processes.find(
+            (item) =>
+              item.processName === ep.processName &&
+              (item.isVerification || false) === ep.isVerification,
+          );
           if (!p) {
             throw new BadRequestException(
               `Cannot delete or reorder already started process step "${ep.processName}".`,
-            );
-          }
-          if (
-            p.processName !== ep.processName ||
-            (p.isVerification || false) !== ep.isVerification
-          ) {
-            throw new BadRequestException(
-              `Cannot modify configuration of already started process step "${ep.processName}".`,
             );
           }
           if ((p.technicianId || null) !== (ep.technicianId || null)) {
@@ -709,10 +706,19 @@ export class WorkOrdersService {
         minReworkSeq = Math.min(...reworkedItems.map((p) => p.sequence));
       }
 
+      const matchedIds = new Set<string>();
+
       mappedProcesses = processes.map((p) => {
-        const ep = existing.processes.find(
-          (item: any) => item.sequence === p.sequence,
-        );
+        const ep = existing.processes.find((item: any) => {
+          if (matchedIds.has(item.id)) return false;
+          if (p.isVerification) {
+            return item.isVerification;
+          }
+          return item.processName === p.processName && !item.isVerification;
+        });
+        if (ep) {
+          matchedIds.add(ep.id);
+        }
         const isReworked =
           p.rework === true &&
           ep &&
@@ -803,9 +809,9 @@ export class WorkOrdersService {
     const updated = await this.prisma.$transaction(async (tx) => {
       // 1. Delete processes that are not in incoming mappedProcesses list (only if NOT_STARTED)
       if (mappedProcesses) {
-        const incomingSequences = mappedProcesses.map((p) => p.sequence);
+        const incomingIds = mappedProcesses.map((p) => p.id).filter(Boolean);
         const toDelete = existing.processes.filter(
-          (ep: any) => !incomingSequences.includes(ep.sequence),
+          (ep: any) => !incomingIds.includes(ep.id),
         );
         for (const ep of toDelete) {
           await tx.workOrderProcess.delete({
@@ -819,6 +825,7 @@ export class WorkOrdersService {
             await tx.workOrderProcess.update({
               where: { id: p.id },
               data: {
+                processName: p.processName,
                 technicianId: p.technicianId,
                 sequence: p.sequence,
                 isVerification: p.isVerification,
