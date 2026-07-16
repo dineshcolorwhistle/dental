@@ -1291,6 +1291,8 @@
     "doctorName": "Nombre del Doctor",
     "doctorEmail": "Correo",
     "doctorPhone": "Teléfono",
-    "noDoctors": "Aún no hay doctores registrados para esta clínica."
+    "noDoctors": "Aún no hay doctores registrados para esta clínica.",
+    "totalClinics": "Total de Clínicas",
+    "totalDoctors": "Total de Doctores"
   }
 }

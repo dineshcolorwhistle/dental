@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { SearchableSelect } from './SearchableSelect';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 interface PhoneInputProps {
   id?: string;
@@ -50,12 +50,26 @@ export function PhoneInput({ id, value, onChange, disabled, placeholder, require
   const { code, num } = parsePhone(value);
   const [localCountryCode, setLocalCountryCode] = useState(code);
   const [localNumber, setLocalNumber] = useState(num);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const { code: newCode, num: newNum } = parsePhone(value);
     setLocalCountryCode(newCode);
     setLocalNumber(newNum);
   }, [value]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleCountryChange = (nextCode: string) => {
     setLocalCountryCode(nextCode);
@@ -74,32 +88,104 @@ export function PhoneInput({ id, value, onChange, disabled, placeholder, require
     }
   };
 
-  // Convert country codes to SearchableSelect options
-  const options = countryCodes.map((c) => ({
-    value: c.code,
-    label: `${c.code} (${c.name})`,
-  }));
-
-  // Append current custom code if not in static list
-  const dropdownOptions = [...options];
-  if (!countryCodes.some((c) => c.code === localCountryCode)) {
-    dropdownOptions.push({
-      value: localCountryCode,
-      label: localCountryCode,
+  // Get active list of country codes including custom selection
+  const listCodes = [...countryCodes];
+  if (localCountryCode && !countryCodes.some((c) => c.code === localCountryCode)) {
+    listCodes.push({
+      code: localCountryCode,
+      name: 'Custom',
     });
   }
 
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-      <div style={{ width: '150px', flexShrink: 0 }}>
-        <SearchableSelect
-          options={dropdownOptions}
-          value={localCountryCode}
-          onChange={handleCountryChange}
+    <div style={{ display: 'flex', gap: '0.5rem', width: '100%', position: 'relative' }}>
+      {/* Custom Country Code Dropdown */}
+      <div ref={dropdownRef} style={{ position: 'relative', width: '80px', flexShrink: 0 }}>
+        <button
+          type="button"
           disabled={disabled}
-          placeholder="+52"
-        />
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          className="form-input"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.625rem 0.5rem 0.625rem 0.75rem',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            textAlign: 'left',
+            width: '100%',
+            gap: '0.25rem',
+            backgroundColor: 'var(--bg-overlay)',
+          }}
+        >
+          <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+            {localCountryCode}
+          </span>
+          <ChevronDown
+            size={14}
+            style={{
+              color: 'var(--text-muted)',
+              transform: isOpen ? 'rotate(180deg)' : 'none',
+              transition: 'transform var(--transition-fast)',
+            }}
+          />
+        </button>
+
+        {isOpen && (
+          <div style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            width: '260px',
+            maxHeight: '220px',
+            overflowY: 'auto',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '0.375rem',
+          }}>
+            {listCodes.map((c) => (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => {
+                  handleCountryChange(c.code);
+                  setIsOpen(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.5rem 0.75rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8125rem',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  transition: 'background var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(111, 174, 217, 0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <span>{c.name}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{c.code}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Phone Number Input */}
       <input
         id={id}
         type="tel"

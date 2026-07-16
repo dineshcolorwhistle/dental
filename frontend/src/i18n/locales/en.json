@@ -1291,6 +1291,8 @@
     "doctorName": "Doctor Name",
     "doctorEmail": "Email",
     "doctorPhone": "Phone",
-    "noDoctors": "No doctors registered for this clinic yet."
+    "noDoctors": "No doctors registered for this clinic yet.",
+    "totalClinics": "Total Clinics",
+    "totalDoctors": "Total Doctors"
   }
 }
