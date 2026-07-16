@@ -30,6 +30,117 @@ export class TechnicianPortalService {
     private readonly mailService: MailService,
   ) {}
 
+  /**
+   * Triggers the external verification notification flow for a process step.
+   * If the associated doctor is an integrated doctor, it notifies the clinic portal
+   * and sends an email. It skips the internal admin notifications.
+   * If the doctor is local, it runs the standard admin notifications and email.
+   */
+  async triggerExternalVerification(
+    tenantId: string,
+    workOrderId: string,
+    processId: string,
+    processName: string,
+  ) {
+    const workOrder = await this.prisma.workOrder.findUnique({
+      where: { id: workOrderId },
+      include: {
+        doctor: {
+          include: {
+            clinic: true,
+          },
+        },
+        tenant: true,
+      },
+    });
+
+    if (!workOrder) return;
+
+    const doctor = workOrder.doctor;
+    const isIntegrated = doctor && doctor.clinicId && doctor.clinic?.url;
+
+    // 1. Send email notification to doctor's registered email address (applicable to both local and integrated)
+    if (doctor && doctor.email) {
+      await this.mailService.sendExternalVerificationPending(
+        doctor.email,
+        doctor.name,
+        workOrder.patient,
+        workOrder.folioNumber,
+        processName,
+        workOrder.tenant.name,
+      );
+    }
+
+    if (isIntegrated) {
+      // 2. For Integrated Doctors: Notify via Clinic Portal HTTP POST call
+      const clinicUrl = doctor.clinic!.url;
+      const notificationUrl = `${clinicUrl}/api/integration/notifications`;
+      
+      this.logger.log(`Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`);
+      
+      try {
+        const response = await (global as any).fetch(notificationUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event: 'EXTERNAL_VERIFICATION_REQUESTED',
+            workOrderId: workOrder.id,
+            folioNumber: workOrder.folioNumber,
+            patient: workOrder.patient,
+            processName: processName,
+            doctor: {
+              id: doctor.id,
+              name: doctor.name,
+              email: doctor.email,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          this.logger.error(`Failed to notify clinic: ${response.status} - ${response.statusText}`);
+        } else {
+          this.logger.log(`Successfully notified clinic at ${notificationUrl}`);
+        }
+      } catch (err: any) {
+        this.logger.error(`Error sending notification to clinic at ${notificationUrl}: ${err.message}`);
+      }
+    } else {
+      // 3. For Local Doctors: Notify all active branch admins
+      const branchAdmins = await this.prisma.user.findMany({
+        where: {
+          tenantId,
+          branchId: workOrder.branchId,
+          role: UserRole.ADMIN,
+          status: 'ACTIVE',
+        },
+      });
+
+      for (const admin of branchAdmins) {
+        await this.notificationsService.create({
+          tenantId,
+          userId: admin.id,
+          title: 'Verification Pending Alert',
+          message: `Work Order "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires verification step "${processName}".`,
+          type: 'VERIFICATION_PENDING',
+          referenceId: workOrderId,
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          action: 'NOTIFICATION_TRIGGERED',
+          entityName: 'NOTIFICATION',
+          entityId: workOrderId,
+          details: {
+            userId: admin.id,
+            title: 'Verification Pending Alert',
+          },
+        });
+      }
+    }
+  }
+
 
   /**
    * Scans and aggregates queue metrics for the logged-in technician.
@@ -757,61 +868,13 @@ export class TechnicianPortalService {
             },
           });
 
-          // Notify clinic doctor of pending external verification via email
-          const woWithDoctor = await this.prisma.workOrder.findUnique({
-            where: { id: process.workOrderId },
-            include: { doctor: true, tenant: true },
-          });
-          if (woWithDoctor && woWithDoctor.doctor && woWithDoctor.doctor.email) {
-            await this.mailService.sendExternalVerificationPending(
-              woWithDoctor.doctor.email,
-              woWithDoctor.doctor.name,
-              woWithDoctor.patient,
-              woWithDoctor.folioNumber,
-              nextProcess.processName,
-              woWithDoctor.tenant.name,
-            );
-          }
-        }
-
-
-        // Verification step reached! Notify all branch admins of the tenant
-        const wo = await this.prisma.workOrder.findUnique({
-          where: { id: process.workOrderId },
-          select: { branchId: true, folioNumber: true, boxNumber: true },
-        });
-
-        if (wo) {
-          const branchAdmins = await this.prisma.user.findMany({
-            where: {
-              tenantId,
-              branchId: wo.branchId,
-              role: UserRole.ADMIN,
-              status: 'ACTIVE',
-            },
-          });
-
-          for (const admin of branchAdmins) {
-            await this.notificationsService.create({
-              tenantId,
-              userId: admin.id,
-              title: 'Verification Pending Alert',
-              message: `Work Order "${wo.folioNumber}"${wo.boxNumber ? ` (Box: ${wo.boxNumber})` : ''} requires verification step "${nextProcess.processName}".`,
-              type: 'VERIFICATION_PENDING',
-              referenceId: process.workOrderId,
-            });
-
-            await this.auditLogsService.log({
-              tenantId,
-              action: 'NOTIFICATION_TRIGGERED',
-              entityName: 'NOTIFICATION',
-              entityId: process.workOrderId,
-              details: {
-                userId: admin.id,
-                title: 'Verification Pending Alert',
-              },
-            });
-          }
+          // Trigger clinic notification or email / admin notifications via helper
+          await this.triggerExternalVerification(
+            tenantId,
+            process.workOrderId,
+            nextProcess.id,
+            nextProcess.processName,
+          );
         }
       } else if (nextProcess.technicianId) {
         // Normal technician process

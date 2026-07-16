@@ -11,6 +11,7 @@ import {
   HttpStatus,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
@@ -19,10 +20,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WorkOrdersService } from '../work-orders/work-orders.service';
 import { MailService } from '../mail/mail.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import {
   ConfigureIntegrationDto,
   CreateIntegrationWorkOrderDto,
   VerifyIntegrationWorkOrderDto,
+  StartVerificationDto,
 } from './dto';
 import {
   UserRole,
@@ -47,6 +50,7 @@ export class IntegrationController {
     private readonly notificationsService: NotificationsService,
     private readonly workOrdersService: WorkOrdersService,
     private readonly mailService: MailService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   @Get('doctors')
@@ -465,21 +469,52 @@ export class IntegrationController {
       });
     }
 
-    // 6. Trigger verification email if starting with an external verification step
+    // 6. Trigger verification email and clinic notification if starting with an external verification step
     const sorted = [...workOrder.processes].sort((a, b) => a.sequence - b.sequence);
     const firstProcess = sorted[0];
-    if (firstProcess && firstProcess.isVerification && !firstProcess.technicianId && doctor.email) {
-      const tenantRecord = await this.prisma.tenant.findUnique({
-        where: { id: tenantId },
-      });
-      await this.mailService.sendExternalVerificationPending(
-        doctor.email,
-        doctor.name,
-        workOrder.patient,
-        workOrder.folioNumber,
-        firstProcess.processName,
-        tenantRecord?.name || 'DentalLab',
-      );
+    if (firstProcess && firstProcess.isVerification && !firstProcess.technicianId) {
+      if (doctor.email) {
+        const tenantRecord = await this.prisma.tenant.findUnique({
+          where: { id: tenantId },
+        });
+        await this.mailService.sendExternalVerificationPending(
+          doctor.email,
+          doctor.name,
+          workOrder.patient,
+          workOrder.folioNumber,
+          firstProcess.processName,
+          tenantRecord?.name || 'DentalLab',
+        );
+      }
+
+      // Notify the clinic system via HTTP POST since it's an integrated doctor
+      if (clinic.url) {
+        const notificationUrl = `${clinic.url}/api/integration/notifications`;
+        const logger = new Logger('IntegrationController');
+        logger.log(`Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`);
+        try {
+          await (global as any).fetch(notificationUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              event: 'EXTERNAL_VERIFICATION_REQUESTED',
+              workOrderId: workOrder.id,
+              folioNumber: workOrder.folioNumber,
+              patient: workOrder.patient,
+              processName: firstProcess.processName,
+              doctor: {
+                id: doctor.id,
+                name: doctor.name,
+                email: doctor.email,
+              },
+            }),
+          });
+        } catch (err: any) {
+          logger.error(`Error notifying clinic at ${notificationUrl}: ${err.message}`);
+        }
+      }
     }
 
     return {
@@ -641,6 +676,28 @@ export class IntegrationController {
       adminUserId,
     );
 
+    // Write Audit Log
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: workOrder.doctorId },
+    });
+    if (doctor) {
+      await this.auditLogsService.log({
+        tenantId,
+        userEmail: doctor.email || 'doctor@integration.com',
+        action: 'VERIFICATION_END_EXTERNAL',
+        entityName: 'PROCESS',
+        entityId: pendingVerification.id,
+        details: {
+          workOrderId: workOrder.id,
+          processName: pendingVerification.processName,
+          outcome: dto.outcome,
+          notes: dto.notes,
+          clinicUrl: dto.clinicUrl,
+          doctorName: doctor.name,
+        },
+      });
+    }
+
     // Fetch the updated next step if any
     const nextStep = await this.prisma.workOrderProcess.findFirst({
       where: {
@@ -658,6 +715,106 @@ export class IntegrationController {
       success: true,
       message: `Verification outcome ${dto.outcome} submitted successfully.`,
       nextStep: nextStep || null,
+    };
+  }
+
+  @Post('work-orders/start-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Notify that the external doctor has started the verification process',
+  })
+  async startVerification(
+    @Req() req: any,
+    @Body() dto: StartVerificationDto,
+  ) {
+    const tenantId = req.apiKeyTenantId;
+    const branchId = req.apiKeyBranchId;
+
+    const clinic = await this.prisma.clinic.findFirst({
+      where: {
+        url: dto.clinicUrl,
+        tenantId,
+        branchId,
+      },
+    });
+
+    if (!clinic) {
+      throw new NotFoundException(`Clinic with URL "${dto.clinicUrl}" not found.`);
+    }
+
+    const doctor = await this.prisma.doctor.findFirst({
+      where: {
+        id: dto.doctorId,
+        clinicId: clinic.id,
+        tenantId,
+        branchId,
+      },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException(`Doctor with ID "${dto.doctorId}" not found.`);
+    }
+
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: {
+        id: dto.workOrderId,
+        tenantId,
+        branchId,
+        doctorId: doctor.id,
+      },
+      include: {
+        processes: true,
+      },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException(
+        `Work order with ID "${dto.workOrderId}" not found for this doctor/clinic.`,
+      );
+    }
+
+    const pendingVerification = workOrder.processes.find(
+      (p) => p.isVerification && p.status === ProcessStatus.IN_PROGRESS && !p.technicianId,
+    );
+
+    if (!pendingVerification) {
+      throw new BadRequestException('No pending external verification step found for this work order.');
+    }
+
+    // Set startedAt if not set, and log the START activity
+    const now = new Date();
+    await this.prisma.workOrderProcess.update({
+      where: { id: pendingVerification.id },
+      data: {
+        startedAt: pendingVerification.startedAt || now,
+        activityLogs: {
+          create: {
+            action: ProcessActivityAction.START,
+            timestamp: now,
+            notes: 'Verification started by external doctor',
+          },
+        },
+      },
+    });
+
+    // Write Audit Log
+    await this.auditLogsService.log({
+      tenantId,
+      userEmail: doctor.email || 'doctor@integration.com',
+      action: 'VERIFICATION_START_EXTERNAL',
+      entityName: 'PROCESS',
+      entityId: pendingVerification.id,
+      details: {
+        workOrderId: workOrder.id,
+        processName: pendingVerification.processName,
+        clinicUrl: dto.clinicUrl,
+        doctorName: doctor.name,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'External verification start recorded successfully.',
     };
   }
 }
