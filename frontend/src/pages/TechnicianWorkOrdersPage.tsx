@@ -20,11 +20,14 @@ import {
   FileText,
   Save,
   QrCode,
+  MessageCircle,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import {
   technicianPortalService,
+  messagingService,
   type TechnicianWorkOrderListItem,
   type TechnicianProcessItem,
 } from '../services';
@@ -198,10 +201,12 @@ const getCombinedProcessLogs = (proc: any, workOrder: any, t: any) => {
 };
 
 export function TechnicianWorkOrdersPage() {
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { socket, isConnected } = useSocket();
   const [workOrders, setWorkOrders] = useState<TechnicianWorkOrderListItem[]>([]);
+  const [unreadChatCounts, setUnreadChatCounts] = useState<Record<string, number>>({});
   const [selectedOrder, setSelectedOrder] = useState<TechnicianWorkOrderListItem | null>(null);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -251,8 +256,12 @@ export function TechnicianWorkOrdersPage() {
 
   const fetchWorkOrders = useCallback(async () => {
     try {
-      const data = await technicianPortalService.getAssignedWorkOrders(activeTab);
+      const [data, counts] = await Promise.all([
+        technicianPortalService.getAssignedWorkOrders(activeTab),
+        messagingService.getWorkOrderUnreadCounts(),
+      ]);
       setWorkOrders(data);
+      setUnreadChatCounts(counts);
 
       // Refresh selected order details if drawer is open to update stepper and logs
       if (selectedOrder) {
@@ -277,12 +286,23 @@ export function TechnicianWorkOrdersPage() {
       fetchWorkOrders();
     };
 
+    const handleMessageReceived = (msg: any) => {
+      if (msg.conversation?.workOrderId) {
+        setUnreadChatCounts((prev) => ({
+          ...prev,
+          [msg.conversation.workOrderId]: (prev[msg.conversation.workOrderId] || 0) + 1,
+        }));
+      }
+    };
+
     socket.on('work_order_created', handleSocketUpdate);
     socket.on('work_order_updated', handleSocketUpdate);
+    socket.on('message_received', handleMessageReceived);
 
     return () => {
       socket.off('work_order_created', handleSocketUpdate);
       socket.off('work_order_updated', handleSocketUpdate);
+      socket.off('message_received', handleMessageReceived);
     };
   }, [socket, fetchWorkOrders]);
 
@@ -504,26 +524,60 @@ export function TechnicianWorkOrdersPage() {
                         </span>
                         <h4 style={{ display: 'inline', fontWeight: 600, fontSize: '0.9rem' }}>{wo.patient}</h4>
                       </div>
-                      <button
-                        type="button"
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          color: 'var(--text-muted)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          padding: '2px',
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setQrWO(wo);
-                          setShowQrModal(true);
-                        }}
-                        title={t('workOrder.printQRLabel')}
-                      >
-                        <QrCode size={16} />
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                          type="button"
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            color: 'var(--accent-primary, #6FAED9)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '2px',
+                            position: 'relative',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/work-orders/${wo.id}`);
+                          }}
+                          title={t('workOrderChat.title')}
+                        >
+                          <MessageCircle size={16} />
+                          {unreadChatCounts[wo.id] > 0 && (
+                            <span style={{
+                              position: 'absolute',
+                              top: '-2px',
+                              right: '-2px',
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: '#EF4444',
+                              border: '1.5px solid var(--bg-surface)'
+                            }} />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '2px',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQrWO(wo);
+                            setShowQrModal(true);
+                          }}
+                          title={t('workOrder.printQRLabel')}
+                        >
+                          <QrCode size={16} />
+                        </button>
+                      </div>
                     </div>
 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '0.75rem' }}>

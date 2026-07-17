@@ -26,7 +26,7 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @ApiTags('Messages')
 @ApiBearerAuth()
 @Controller('messages')
-@Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+@Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN, UserRole.DOCTOR)
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
@@ -255,5 +255,35 @@ export class MessagesController {
       branchId: user.branchId,
       role: user.role,
     });
+  }
+
+  @Get('work-orders/unread-counts')
+  @ApiOperation({ summary: 'Get unread chat counts for all dedicated Work Order conversations' })
+  async getWorkOrderUnreadCounts(
+    @CurrentUser() user: any,
+  ) {
+    return this.messagesService.getWorkOrderUnreadCounts({
+      id: user.id,
+      tenantId: user.tenantId,
+      branchId: user.branchId,
+      role: user.role,
+    });
+  }
+
+  @Get('work-orders/:workOrderId')
+  @ApiOperation({ summary: 'Get or create a dedicated Work Order conversation' })
+  async getWorkOrderConversation(
+    @CurrentUser() user: any,
+    @Param('workOrderId') workOrderId: string,
+  ) {
+    return this.messagesService.getOrCreateWorkOrderConversation(
+      {
+        id: user.id,
+        tenantId: user.tenantId,
+        branchId: user.branchId,
+        role: user.role,
+      },
+      workOrderId,
+    );
   }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context';
 import {
   Loader2,
   ArrowLeft,
@@ -20,7 +21,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService, type WorkOrderListItem } from '../services';
-import { QRLabelModal } from '../components';
+import { QRLabelModal, WorkOrderChat } from '../components';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ReactNode }> = {
   CREATED: { labelKey: 'enums.workOrderStatus.CREATED', color: '#6B7280', bg: '#F3F4F6', icon: <CircleDot size={12} /> },
@@ -146,6 +147,9 @@ export function WorkOrderDetailPage() {
   const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const chatOnly = searchParams.get('chatOnly') === 'true' || user?.role === 'TECHNICIAN';
   const [workOrder, setWorkOrder] = useState<WorkOrderListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
@@ -185,6 +189,53 @@ export function WorkOrderDetailPage() {
         <button className="btn btn--outline" onClick={() => navigate('/dashboard')} style={{ marginTop: '1rem' }}>
           {t('common.backToDashboard')}
         </button>
+      </div>
+    );
+  }
+
+  if (chatOnly) {
+    return (
+      <div className="work-order-detail-page" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px', margin: '0 auto', padding: '1rem 0' }}>
+        {/* Simple Page Header */}
+        <div className="page-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+          <div className="page-header__left" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <button className="btn btn--ghost btn--sm" onClick={() => navigate(-1)} style={{ padding: '8px' }} title={t('common.goBack')}>
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 className="page-header__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <span>{t('workOrderChat.title')}</span>
+                <span style={{ 
+                  fontSize: '0.85rem', 
+                  fontWeight: 700, 
+                  padding: '4px 10px', 
+                  borderRadius: '6px', 
+                  backgroundColor: 'rgba(111, 174, 217, 0.1)', 
+                  color: 'var(--accent-primary, #6FAED9)',
+                  fontFamily: 'monospace',
+                  border: '1px solid rgba(111, 174, 217, 0.2)'
+                }}>
+                  {t('workOrder.folio')}: {workOrder.folioNumber}
+                </span>
+                <span style={{ 
+                  fontSize: '0.85rem', 
+                  fontWeight: 700, 
+                  padding: '4px 10px', 
+                  borderRadius: '6px', 
+                  backgroundColor: 'rgba(148, 163, 184, 0.08)', 
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)'
+                }}>
+                  {workOrder.patient}
+                </span>
+              </h1>
+              <p className="page-header__subtitle">{t('workOrderChat.subtitle')}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Dedicated Chat Module */}
+        <WorkOrderChat workOrderId={workOrder.id} />
       </div>
     );
   }
@@ -362,6 +413,9 @@ export function WorkOrderDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Dedicated Chat Module */}
+        <WorkOrderChat workOrderId={workOrder.id} />
       </div>
 
       {/* Workflow Stepper Progress */}
@@ -802,7 +856,7 @@ export function WorkOrderDetailPage() {
           </div>
         )}
       </div>
-
+      
       {/* Printable QR Modal */}
       <QRLabelModal
         isOpen={isQrModalOpen}

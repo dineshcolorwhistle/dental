@@ -21,6 +21,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { WorkOrdersService } from '../work-orders/work-orders.service';
 import { MailService } from '../mail/mail.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { MessagesService } from '../messages/messages.service';
+import * as bcrypt from 'bcrypt';
 import {
   ConfigureIntegrationDto,
   CreateIntegrationWorkOrderDto,
@@ -51,6 +53,7 @@ export class IntegrationController {
     private readonly workOrdersService: WorkOrdersService,
     private readonly mailService: MailService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly messagesService: MessagesService,
   ) {}
 
   @Get('doctors')
@@ -855,5 +858,199 @@ export class IntegrationController {
         })(),
       })),
     };
+  }
+
+  // ─── Work Order Chat (Integration) ────────────────────────
+
+  private readonly chatLogger = new Logger('IntegrationChat');
+
+  /**
+   * Resolve or create a User record for a doctor so they can participate in chat.
+   */
+  private async getOrCreateDoctorUser(
+    tenantId: string,
+    branchId: string,
+    doctorId: string,
+  ) {
+    const doctor = await this.prisma.doctor.findFirst({
+      where: { id: doctorId, tenantId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        userId: true,
+        user: { select: { id: true } },
+      },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found.');
+    }
+
+    // If doctor already has a linked user, return it
+    if (doctor.userId && doctor.user) {
+      return doctor.user.id;
+    }
+
+    // Create a placeholder User with DOCTOR role
+    const dummyHash = await bcrypt.hash(`doctor-${doctor.id}-${Date.now()}`, 10);
+    const nameParts = doctor.name.split(' ');
+    const firstName = nameParts[0] || 'Doctor';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    const newUser = await this.prisma.user.create({
+      data: {
+        tenantId,
+        branchId,
+        email: doctor.email || `doctor-${doctor.id}@placeholder.local`,
+        passwordHash: dummyHash,
+        firstName,
+        lastName,
+        role: UserRole.DOCTOR,
+        status: UserStatus.ACTIVE,
+      },
+    });
+
+    // Link doctor to user
+    await this.prisma.doctor.update({
+      where: { id: doctor.id },
+      data: { userId: newUser.id },
+    });
+
+    this.chatLogger.log(
+      `Created placeholder User (${newUser.id}) for doctor ${doctor.name} (${doctor.id})`,
+    );
+
+    return newUser.id;
+  }
+
+  @Get('work-orders/:id/messages')
+  @ApiOperation({
+    summary: 'Retrieve chat messages for a work order (external clinic)',
+  })
+  async getWorkOrderMessages(
+    @Req() req: any,
+    @Param('id') workOrderId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const tenantId = req.apiKeyTenantId;
+    const branchId = req.apiKeyBranchId;
+
+    // Verify WO exists and belongs to this tenant/branch
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, tenantId, branchId },
+      select: {
+        id: true,
+        doctorId: true,
+        folioNumber: true,
+      },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException('Work order not found.');
+    }
+
+    // Ensure doctor has a user account
+    const doctorUserId = await this.getOrCreateDoctorUser(
+      tenantId,
+      branchId,
+      workOrder.doctorId,
+    );
+
+    // Get or create the WO conversation using the doctor's user context
+    const conversation =
+      await this.messagesService.getOrCreateWorkOrderConversation(
+        {
+          id: doctorUserId,
+          tenantId,
+          branchId,
+          role: UserRole.DOCTOR,
+        },
+        workOrderId,
+      );
+
+    // Fetch messages
+    const messages = await this.messagesService.getMessages(
+      {
+        id: doctorUserId,
+        tenantId,
+        branchId,
+        role: UserRole.DOCTOR,
+      },
+      conversation.id,
+      cursor,
+      limit ? parseInt(limit, 10) : 50,
+    );
+
+    return {
+      conversation: {
+        id: conversation.id,
+        name: conversation.name,
+        participants: conversation.participants,
+      },
+      ...messages,
+    };
+  }
+
+  @Post('work-orders/:id/messages')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Send a chat message for a work order (external clinic/doctor)',
+  })
+  async sendWorkOrderMessage(
+    @Req() req: any,
+    @Param('id') workOrderId: string,
+    @Body() body: { content: string },
+  ) {
+    const tenantId = req.apiKeyTenantId;
+    const branchId = req.apiKeyBranchId;
+
+    if (!body.content || !body.content.trim()) {
+      throw new BadRequestException('Message content is required.');
+    }
+
+    // Verify WO exists
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, tenantId, branchId },
+      select: { id: true, doctorId: true },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException('Work order not found.');
+    }
+
+    // Ensure doctor has a user account
+    const doctorUserId = await this.getOrCreateDoctorUser(
+      tenantId,
+      branchId,
+      workOrder.doctorId,
+    );
+
+    // Get or create the WO conversation
+    const conversation =
+      await this.messagesService.getOrCreateWorkOrderConversation(
+        {
+          id: doctorUserId,
+          tenantId,
+          branchId,
+          role: UserRole.DOCTOR,
+        },
+        workOrderId,
+      );
+
+    // Send the message as the doctor
+    const message = await this.messagesService.sendMessage(
+      {
+        id: doctorUserId,
+        tenantId,
+        branchId,
+        role: UserRole.DOCTOR,
+      },
+      conversation.id,
+      body.content.trim(),
+    );
+
+    return message;
   }
 }

@@ -41,6 +41,7 @@ export interface ChatMessage {
   createdAt: string;
   sender: { id: string; firstName: string; lastName: string };
   readReceipts: { userId: string; readAt: string }[];
+  conversation?: { workOrderId: string | null };
 }
 
 export interface GroupMember {
@@ -173,6 +174,22 @@ export const messagingService = {
     const { data } = await api.patch(
       `/messages/conversations/${conversationId}/name`,
       { name },
+    );
+    return data;
+  },
+
+  getOrCreateWorkOrderConversation: async (
+    workOrderId: string,
+  ): Promise<ConversationSummary> => {
+    const { data } = await api.get<ConversationSummary>(
+      `/messages/work-orders/${workOrderId}`,
+    );
+    return data;
+  },
+
+  getWorkOrderUnreadCounts: async (): Promise<Record<string, number>> => {
+    const { data } = await api.get<Record<string, number>>(
+      '/messages/work-orders/unread-counts',
     );
     return data;
   },

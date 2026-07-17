@@ -176,6 +176,11 @@ export function ChatWidget() {
     if (!socket) return;
 
     const handleMessageReceived = (msg: ChatMessage) => {
+      // Ignore messages belonging to a dedicated Work Order chat
+      if (msg.conversation?.workOrderId) {
+        return;
+      }
+
       // If we're in the active conversation, append the message
       if (activeConversation && msg.conversationId === activeConversation.id) {
         setMessages((prev) => {

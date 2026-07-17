@@ -23,11 +23,13 @@ import {
   Pencil,
   Lock,
   QrCode,
+  MessageCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   workOrderService,
   doctorService,
+  messagingService,
   prosthesisTypeService,
   technicianService,
   branchService,
@@ -128,7 +130,7 @@ export function WorkOrdersPage() {
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter>('ALL');
   const [branches, setBranches] = useState<BranchListItem[]>([]);
-
+  const [unreadChatCounts, setUnreadChatCounts] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
 
@@ -204,12 +206,14 @@ export function WorkOrdersPage() {
     try {
       if (!silent) setLoading(true);
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
-      const [woData, branchData] = await Promise.all([
+      const [woData, branchData, chatCounts] = await Promise.all([
         workOrderService.getAll(branchScope),
         isAdmin ? Promise.resolve([]) : branchService.getAll(),
+        messagingService.getWorkOrderUnreadCounts(),
       ]);
       setWorkOrders(woData);
       setBranches(branchData.filter((b) => b.isActive));
+      setUnreadChatCounts(chatCounts);
     } catch (err) {
       toast.error(t('workOrders.failedLoad', { defaultValue: 'Failed to load work orders' }));
       console.error(err);
@@ -227,12 +231,23 @@ export function WorkOrdersPage() {
       fetchData(true);
     };
 
+    const handleMessageReceived = (msg: any) => {
+      if (msg.conversation?.workOrderId) {
+        setUnreadChatCounts((prev) => ({
+          ...prev,
+          [msg.conversation.workOrderId]: (prev[msg.conversation.workOrderId] || 0) + 1,
+        }));
+      }
+    };
+
     socket.on('work_order_created', handleSocketUpdate);
     socket.on('work_order_updated', handleSocketUpdate);
+    socket.on('message_received', handleMessageReceived);
 
     return () => {
       socket.off('work_order_created', handleSocketUpdate);
       socket.off('work_order_updated', handleSocketUpdate);
+      socket.off('message_received', handleMessageReceived);
     };
   }, [socket, fetchData]);
 
@@ -1029,6 +1044,26 @@ export function WorkOrdersPage() {
                           title={t('workOrders.viewWorkOrder', { defaultValue: 'View Work Order' })}
                         >
                           <Eye size={15} />
+                        </button>
+                        <button
+                          className="btn-action"
+                          style={{ color: '#8B5CF6', backgroundColor: '#F5F3FF', position: 'relative' }}
+                          onClick={() => navigate(`/work-orders/${wo.id}?chatOnly=true`)}
+                          title={t('workOrderChat.title')}
+                        >
+                          <MessageCircle size={15} />
+                          {unreadChatCounts[wo.id] > 0 && (
+                            <span style={{
+                              position: 'absolute',
+                              top: '-3px',
+                              right: '-3px',
+                              width: '9px',
+                              height: '9px',
+                              borderRadius: '50%',
+                              backgroundColor: '#EF4444',
+                              border: '1.5px solid var(--bg-surface)'
+                            }} />
+                          )}
                         </button>
                         <button
                           className="btn-action"
