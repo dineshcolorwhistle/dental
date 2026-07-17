@@ -95,6 +95,7 @@ export interface WorkOrderListItem {
     id: string;
     name: string;
     clinicName: string | null;
+    clinicId?: string | null;
   };
   prosthesisType?: {
     id: string;

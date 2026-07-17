@@ -505,7 +505,9 @@ export function DashboardPage() {
                 const isNotStarted = activeVerification?.status === 'NOT_STARTED';
                 const evaluator = activeVerification?.technicianId && activeVerification.technician
                   ? `${activeVerification.technician.firstName} ${activeVerification.technician.lastName}`
-                  : (wo.doctor?.name ? `${wo.doctor.name} (${t('dashboard.externalDoctor')})` : t('dashboard.externalDoctor'));
+                  : (wo.doctor?.name 
+                      ? `${wo.doctor.name} (${wo.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
+                      : t('dashboard.unassigned'));
 
                 return (
                   <div key={wo.id} style={{

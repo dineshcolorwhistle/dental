@@ -488,7 +488,11 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                 const activeStepName = displayProc?.processName || t('workOrders.noProcesses');
                 const activeTechnician = displayProc?.technician 
                   ? `${displayProc.technician.firstName} ${displayProc.technician.lastName}` 
-                  : (displayProc?.isVerification && !displayProc?.technicianId ? (selectedWO.doctor?.name || t('dashboard.externalDoctor')) : t('dashboard.unassigned'));
+                  : (displayProc?.isVerification && !displayProc?.technicianId 
+                      ? (selectedWO.doctor?.name 
+                          ? `${selectedWO.doctor.name} (${selectedWO.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
+                          : (selectedWO.doctor?.clinicId ? t('doctors.integrated') : t('doctors.local'))) 
+                      : t('dashboard.unassigned'));
 
                 const stepStatus = displayProc?.status || 'NOT_STARTED';
                 const getStepStatusLabel = (status?: string) => {
@@ -1042,7 +1046,9 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                                           {proc.isVerification && !proc.technicianId ? (
                                             <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                                              {selectedWO.doctor?.name ? `${selectedWO.doctor.name} (${t('dashboard.externalDoctor')})` : t('dashboard.externalDoctor')}
+                                              {selectedWO.doctor?.name 
+                                                ? `${selectedWO.doctor.name} (${selectedWO.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
+                                                : (selectedWO.doctor?.clinicId ? t('doctors.integrated') : t('doctors.local'))}
                                             </span>
                                           ) : proc.technician ? (
                                             `${proc.technician.firstName} ${proc.technician.lastName}`

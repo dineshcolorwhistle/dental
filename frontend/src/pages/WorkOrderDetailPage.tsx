@@ -665,7 +665,9 @@ export function WorkOrderDetailPage() {
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                           {proc.isVerification && !proc.technicianId ? (
                             <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                              {workOrder.doctor?.name ? `${workOrder.doctor.name} (${t('dashboard.externalDoctor')})` : t('dashboard.externalDoctor')}
+                              {workOrder.doctor?.name 
+                                ? `${workOrder.doctor.name} (${workOrder.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
+                                : t('dashboard.unassigned')}
                             </span>
                           ) : proc.technician ? (
                             `${proc.technician.firstName} ${proc.technician.lastName}`

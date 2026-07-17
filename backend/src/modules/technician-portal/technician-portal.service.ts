@@ -792,6 +792,7 @@ export class TechnicianPortalService {
         totalPauseDuration: totalPause,
         totalActiveDuration: totalActive,
         lastPausedAt: null,
+        reworkActive: false,
         activityLogs: {
           create: {
             action: ProcessActivityAction.END,
@@ -1026,6 +1027,20 @@ export class TechnicianPortalService {
 
     if (processes.every((p) => p.status === ProcessStatus.COMPLETED)) {
       return WorkOrderStatus.COMPLETED;
+    }
+
+    // Find the next active/pending step (the first step that is not completed/failed/cancelled)
+    const nextStep = processes.find(
+      (p) =>
+        p.status !== ProcessStatus.COMPLETED &&
+        p.status !== ProcessStatus.FAILED &&
+        p.status !== ProcessStatus.CANCELLED,
+    );
+
+    if (nextStep && nextStep.isVerification) {
+      return nextStep.technicianId
+        ? WorkOrderStatus.INTERNAL_VERIFICATION
+        : WorkOrderStatus.EXTERNAL_VERIFICATION;
     }
 
     const inProgressProc = processes.find(

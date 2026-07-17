@@ -179,6 +179,20 @@ export class WorkOrdersService {
       return WorkOrderStatus.COMPLETED;
     }
 
+    // Find the next active/pending step (the first step that is not completed/failed/cancelled)
+    const nextStep = processes.find(
+      (p) =>
+        p.status !== ProcessStatus.COMPLETED &&
+        p.status !== ProcessStatus.FAILED &&
+        p.status !== ProcessStatus.CANCELLED,
+    );
+
+    if (nextStep && nextStep.isVerification) {
+      return nextStep.technicianId
+        ? WorkOrderStatus.INTERNAL_VERIFICATION
+        : WorkOrderStatus.EXTERNAL_VERIFICATION;
+    }
+
     // 4. If any process is IN_PROGRESS or PAUSED
     const inProgressProc = processes.find(
       (p) =>

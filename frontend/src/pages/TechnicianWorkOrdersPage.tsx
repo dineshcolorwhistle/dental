@@ -1000,7 +1000,13 @@ export function TechnicianWorkOrdersPage() {
                                   })()}
                                 </div>
                                 <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                                  {t('workOrder.tech')}: {proc.technician ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` : t('dashboard.unassigned')}
+                                  {t('workOrder.tech')}: {proc.technician 
+                                    ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` 
+                                    : (proc.isVerification && !proc.technicianId) 
+                                      ? (selectedOrder.doctor 
+                                          ? `${selectedOrder.doctor.name} (${selectedOrder.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
+                                          : t('dashboard.unassigned'))
+                                      : t('dashboard.unassigned')}
                                 </span>
                               </div>
 
