@@ -612,6 +612,7 @@ export class IntegrationController {
       pendingVerification.id,
       dto.outcome,
       adminUserId,
+      dto.reworkProcessNames,
     );
 
     // Write Audit Log
@@ -735,6 +736,8 @@ export class IntegrationController {
         },
       },
     });
+
+    await this.workOrdersService.updateWorkOrderStatus(workOrder.id);
 
     // Write Audit Log
     await this.auditLogsService.log({

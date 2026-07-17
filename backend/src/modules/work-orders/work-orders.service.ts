@@ -1140,7 +1140,7 @@ export class WorkOrdersService {
     return { success: true };
   }
 
-  private async updateWorkOrderStatus(workOrderId: string) {
+  async updateWorkOrderStatus(workOrderId: string) {
     const workOrder = await this.prisma.workOrder.findUnique({
       where: { id: workOrderId },
       include: {
@@ -1651,6 +1651,7 @@ export class WorkOrdersService {
     processId: string,
     outcome: 'SUCCESS' | 'REWORK' | 'REPETITION',
     userId: string,
+    reworkProcessNames?: string[],
   ) {
     const process = await this.prisma.workOrderProcess.findFirst({
       where: { id: processId, workOrderId },
@@ -1716,7 +1717,7 @@ export class WorkOrdersService {
             timestamp: now,
             notes:
               outcome === 'REWORK'
-                ? `Verification flagged for rework, pending step assignment.`
+                ? `Verification flagged for rework. Reworking steps: ${reworkProcessNames?.join(', ') || 'None'}.`
                 : `Verification ended with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`,
           },
         },
@@ -1737,6 +1738,97 @@ export class WorkOrdersService {
         durationSeconds: totalActive,
       },
     });
+
+    if (outcome === 'REWORK' && reworkProcessNames && reworkProcessNames.length > 0) {
+      const allProcs = await this.prisma.workOrderProcess.findMany({
+        where: { workOrderId },
+      });
+
+      const processesToRework = allProcs.filter((p) =>
+        reworkProcessNames.includes(p.processName) && !p.isVerification
+      );
+
+      for (const p of processesToRework) {
+        await this.prisma.workOrderProcess.update({
+          where: { id: p.id },
+          data: {
+            status: ProcessStatus.NOT_STARTED,
+            startedAt: null,
+            endedAt: null,
+            verificationStatus: null,
+            lastPausedAt: null,
+            pauseCount: 0,
+            totalPauseDuration: 0,
+            totalActiveDuration: 0,
+            reworkCount: p.reworkCount + 1,
+            reworkActive: true,
+          },
+        });
+
+        await this.prisma.reworkLog.create({
+          data: {
+            workOrderId,
+            processName: p.processName,
+            reworkCount: p.reworkCount + 1,
+            initiatedById: userId,
+            verificationStage: process.processName,
+            technicianId: p.technicianId || null,
+            status: 'Pending',
+          },
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'PROCESS_REWORK_RESET',
+          entityName: 'PROCESS',
+          entityId: p.id,
+          details: {
+            processName: p.processName,
+            reworkCount: p.reworkCount + 1,
+            verificationStage: process.processName,
+          },
+        });
+      }
+
+      const sortedReworked = [...processesToRework].sort((a, b) => a.sequence - b.sequence);
+      const firstReworked = sortedReworked[0];
+      if (firstReworked && firstReworked.technicianId) {
+        await this.notificationsService.create({
+          tenantId,
+          userId: firstReworked.technicianId,
+          title: 'Work Order Flagged for Rework',
+          message: `Work Order "${process.workOrder.folioNumber}" has been flagged for rework. Please review step "${firstReworked.processName}".`,
+          type: 'WORK_ORDER',
+          referenceId: workOrderId,
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'NOTIFICATION_TRIGGERED',
+          entityName: 'NOTIFICATION',
+          entityId: workOrderId,
+          details: {
+            userId: firstReworked.technicianId,
+            title: 'Work Order Flagged for Rework',
+          },
+        });
+      }
+
+      await this.auditLogsService.log({
+        tenantId,
+        userId,
+        action: 'REWORK_TRIGGERED',
+        entityName: 'WORK_ORDER',
+        entityId: workOrderId,
+        details: {
+          initiatedBy: userId,
+          verificationStage: process.processName,
+          affectedProcesses: processesToRework.map((p) => p.processName),
+        },
+      });
+    }
 
     if (outcome === 'REPETITION') {
       const allProcs = await this.prisma.workOrderProcess.findMany({
