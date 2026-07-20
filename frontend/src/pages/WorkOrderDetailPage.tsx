@@ -720,7 +720,9 @@ export function WorkOrderDetailPage() {
                           {proc.isVerification && !proc.technicianId ? (
                             <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
                               {workOrder.doctor?.name 
-                                ? `${workOrder.doctor.name} (${workOrder.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
+                                ? (workOrder.doctor.clinicName 
+                                    ? `${workOrder.doctor.name} (${workOrder.doctor.clinicName})` 
+                                    : workOrder.doctor.name) 
                                 : t('dashboard.unassigned')}
                             </span>
                           ) : proc.technician ? (

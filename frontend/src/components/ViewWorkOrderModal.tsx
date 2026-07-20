@@ -490,8 +490,10 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                   ? `${displayProc.technician.firstName} ${displayProc.technician.lastName}` 
                   : (displayProc?.isVerification && !displayProc?.technicianId 
                       ? (selectedWO.doctor?.name 
-                          ? `${selectedWO.doctor.name} (${selectedWO.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
-                          : (selectedWO.doctor?.clinicId ? t('doctors.integrated') : t('doctors.local'))) 
+                          ? (selectedWO.doctor.clinicName 
+                              ? `${selectedWO.doctor.name} (${selectedWO.doctor.clinicName})` 
+                              : selectedWO.doctor.name) 
+                          : t('dashboard.unassigned')) 
                       : t('dashboard.unassigned'));
 
                 const stepStatus = displayProc?.status || 'NOT_STARTED';
@@ -1047,8 +1049,10 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                           {proc.isVerification && !proc.technicianId ? (
                                             <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
                                               {selectedWO.doctor?.name 
-                                                ? `${selectedWO.doctor.name} (${selectedWO.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
-                                                : (selectedWO.doctor?.clinicId ? t('doctors.integrated') : t('doctors.local'))}
+                                                ? (selectedWO.doctor.clinicName 
+                                                    ? `${selectedWO.doctor.name} (${selectedWO.doctor.clinicName})` 
+                                                    : selectedWO.doctor.name) 
+                                                : t('dashboard.unassigned')}
                                             </span>
                                           ) : proc.technician ? (
                                             `${proc.technician.firstName} ${proc.technician.lastName}`

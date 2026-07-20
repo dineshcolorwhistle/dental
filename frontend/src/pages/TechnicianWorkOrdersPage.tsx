@@ -582,7 +582,7 @@ export function TechnicianWorkOrdersPage() {
 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '0.75rem' }}>
                       <div>{t('dashboard.prosthesis')}: <strong>{wo.prosthesisType?.name}</strong></div>
-                      <div>{t('dashboard.doctor')}: <strong>{wo.doctor?.name} ({wo.doctor?.clinicName || t('workOrder.clinic')})</strong></div>
+                      <div>{t('dashboard.doctor')}: <strong>{wo.doctor?.name}{wo.doctor?.clinicName ? ` (${wo.doctor.clinicName})` : ''}</strong></div>
                       <div>{t('workOrder.boxNo')}: <strong>{wo.boxNumber || t('common.na')}</strong></div>
                     </div>
                   </div>
@@ -771,7 +771,7 @@ export function TechnicianWorkOrdersPage() {
                         <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.doctor')}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
                           <User size={14} style={{ color: 'var(--accent-primary)' }} />
-                          <span>{selectedOrder.doctor?.name} ({selectedOrder.doctor?.clinicName || t('workOrder.clinic')})</span>
+                          <span>{selectedOrder.doctor?.name}{selectedOrder.doctor?.clinicName ? ` (${selectedOrder.doctor.clinicName})` : ''}</span>
                         </div>
                       </div>
                       <div>
@@ -1058,7 +1058,9 @@ export function TechnicianWorkOrdersPage() {
                                     ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` 
                                     : (proc.isVerification && !proc.technicianId) 
                                       ? (selectedOrder.doctor 
-                                          ? `${selectedOrder.doctor.name} (${selectedOrder.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
+                                          ? (selectedOrder.doctor.clinicName 
+                                              ? `${selectedOrder.doctor.name} (${selectedOrder.doctor.clinicName})` 
+                                              : selectedOrder.doctor.name) 
                                           : t('dashboard.unassigned'))
                                       : t('dashboard.unassigned')}
                                 </span>

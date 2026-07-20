@@ -506,7 +506,9 @@ export function DashboardPage() {
                 const evaluator = activeVerification?.technicianId && activeVerification.technician
                   ? `${activeVerification.technician.firstName} ${activeVerification.technician.lastName}`
                   : (wo.doctor?.name 
-                      ? `${wo.doctor.name} (${wo.doctor.clinicId ? t('doctors.integrated') : t('doctors.local')})` 
+                      ? (wo.doctor.clinicName 
+                          ? `${wo.doctor.name} (${wo.doctor.clinicName})` 
+                          : wo.doctor.name) 
                       : t('dashboard.unassigned'));
 
                 return (
