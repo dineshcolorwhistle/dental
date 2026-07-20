@@ -17,6 +17,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
 import { Public } from '../../common/decorators';
 import { PrismaService } from '../../prisma/prisma.service';
+import { generateFolioNumber } from '../../common/utils/folio.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WorkOrdersService } from '../work-orders/work-orders.service';
 import { MailService } from '../mail/mail.service';
@@ -177,21 +178,11 @@ export class IntegrationController {
       orderBy: { name: 'asc' },
     });
 
-    const branch = await this.prisma.branch.findFirst({
-      where: { id: branchId, tenantId },
-      select: { code: true },
-    });
-
-    if (!branch) {
-      throw new NotFoundException('Associated branch not found');
-    }
-
-    const count = await this.prisma.workOrder.count({
-      where: { tenantId, branchId },
-    });
-
-    const nextNumber = (count + 1).toString().padStart(4, '0');
-    const folioNumber = `${branch.code}${nextNumber}`;
+    const folioNumber = await generateFolioNumber(
+      this.prisma,
+      tenantId,
+      branchId,
+    );
 
     return {
       prosthesisTypes,
@@ -283,18 +274,11 @@ export class IntegrationController {
     }
 
     // 1. Generate folio number
-    const branch = await this.prisma.branch.findFirst({
-      where: { id: branchId, tenantId },
-      select: { code: true },
-    });
-    if (!branch) {
-      throw new NotFoundException('Branch not found');
-    }
-    const count = await this.prisma.workOrder.count({
-      where: { tenantId, branchId },
-    });
-    const nextNumber = (count + 1).toString().padStart(4, '0');
-    const folioNumber = `${branch.code}${nextNumber}`;
+    const folioNumber = await generateFolioNumber(
+      this.prisma,
+      tenantId,
+      branchId,
+    );
 
     // 2. Fetch default process steps for this prosthesis type
     const processAssignments = await this.prisma.prosthesisTypeProcess.findMany({

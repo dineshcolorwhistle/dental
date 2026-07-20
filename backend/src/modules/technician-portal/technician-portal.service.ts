@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { generateFolioNumber } from '../../common/utils/folio.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -386,11 +387,11 @@ export class TechnicianPortalService {
     }));
 
     // 4. Generate folio number
-    const count = await this.prisma.workOrder.count({
-      where: { tenantId, branchId: branchIdContext },
-    });
-    const nextNumber = (count + 1).toString().padStart(4, '0');
-    const folioNumber = `${branch.code}${nextNumber}`;
+    const folioNumber = await generateFolioNumber(
+      this.prisma,
+      tenantId,
+      branchIdContext,
+    );
 
     // 5. Create work order with CREATED status and 0 quote/payment
     const workOrder = await this.prisma.workOrder.create({

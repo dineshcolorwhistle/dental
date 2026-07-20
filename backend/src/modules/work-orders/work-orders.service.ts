@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { generateFolioNumber } from '../../common/utils/folio.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -298,22 +299,7 @@ export class WorkOrdersService {
     tenantId: string,
     branchId: string,
   ): Promise<string> {
-    const branch = await this.prisma.branch.findFirst({
-      where: { id: branchId, tenantId },
-      select: { code: true },
-    });
-
-    if (!branch) {
-      throw new NotFoundException(`Branch with ID "${branchId}" not found.`);
-    }
-
-    // Count existing work orders for this branch to determine next number
-    const count = await this.prisma.workOrder.count({
-      where: { tenantId, branchId },
-    });
-
-    const nextNumber = (count + 1).toString().padStart(4, '0');
-    return `${branch.code}${nextNumber}`;
+    return generateFolioNumber(this.prisma, tenantId, branchId);
   }
 
   async create(
