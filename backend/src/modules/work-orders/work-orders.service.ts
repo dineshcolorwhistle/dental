@@ -1703,10 +1703,11 @@ export class WorkOrdersService {
       data: {
         status:
           outcome === 'REWORK'
-            ? ProcessStatus.IN_PROGRESS
+            ? ProcessStatus.NOT_STARTED
             : ProcessStatus.COMPLETED,
+        startedAt: outcome === 'REWORK' ? null : startedAt,
         endedAt: outcome === 'REWORK' ? null : now,
-        totalActiveDuration: outcome === 'REWORK' ? undefined : totalActive,
+        totalActiveDuration: outcome === 'REWORK' ? 0 : totalActive,
         verificationStatus: outcome,
         activityLogs: {
           create: {
@@ -1717,7 +1718,7 @@ export class WorkOrdersService {
             timestamp: now,
             notes:
               outcome === 'REWORK'
-                ? `Verification flagged for rework. Reworking steps: ${reworkProcessNames?.join(', ') || 'None'}.`
+                ? `Verification flagged for rework. Reworking steps: ${reworkProcessNames?.join(', ') || 'Preceding step'}.`
                 : `Verification ended with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`,
           },
         },
@@ -1739,14 +1740,30 @@ export class WorkOrdersService {
       },
     });
 
-    if (outcome === 'REWORK' && reworkProcessNames && reworkProcessNames.length > 0) {
-      const allProcs = await this.prisma.workOrderProcess.findMany({
-        where: { workOrderId },
-      });
+    if (outcome === 'REWORK') {
+      let targetNames = reworkProcessNames;
+      if (!targetNames || targetNames.length === 0) {
+        const prevStep = await this.prisma.workOrderProcess.findFirst({
+          where: {
+            workOrderId,
+            sequence: { lt: process.sequence },
+            isVerification: false,
+          },
+          orderBy: { sequence: 'desc' },
+        });
+        if (prevStep) {
+          targetNames = [prevStep.processName];
+        }
+      }
 
-      const processesToRework = allProcs.filter((p) =>
-        reworkProcessNames.includes(p.processName) && !p.isVerification
-      );
+      if (targetNames && targetNames.length > 0) {
+        const allProcs = await this.prisma.workOrderProcess.findMany({
+          where: { workOrderId },
+        });
+
+        const processesToRework = allProcs.filter((p) =>
+          targetNames!.includes(p.processName) && !p.isVerification
+        );
 
       for (const p of processesToRework) {
         await this.prisma.workOrderProcess.update({
@@ -1828,6 +1845,7 @@ export class WorkOrdersService {
           affectedProcesses: processesToRework.map((p) => p.processName),
         },
       });
+      }
     }
 
     if (outcome === 'REPETITION') {

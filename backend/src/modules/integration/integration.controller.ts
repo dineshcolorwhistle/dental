@@ -640,18 +640,45 @@ export class IntegrationController {
       });
     }
 
-    // Fetch the updated next step if any
-    const nextStep = await this.prisma.workOrderProcess.findFirst({
-      where: {
-        workOrderId: workOrder.id,
-        sequence: { gt: pendingVerification.sequence },
-      },
-      orderBy: { sequence: 'asc' },
-      select: {
-        processName: true,
-        status: true,
-      },
-    });
+    // Fetch the updated next step based on outcome
+    let nextStep: { processName: string; status: string } | null = null;
+
+    if (dto.outcome === 'REWORK') {
+      nextStep = await this.prisma.workOrderProcess.findFirst({
+        where: {
+          workOrderId: workOrder.id,
+          reworkActive: true,
+        },
+        orderBy: { sequence: 'asc' },
+        select: {
+          processName: true,
+          status: true,
+        },
+      });
+    } else if (dto.outcome === 'REPETITION') {
+      nextStep = await this.prisma.workOrderProcess.findFirst({
+        where: {
+          workOrderId: workOrder.id,
+        },
+        orderBy: { sequence: 'asc' },
+        select: {
+          processName: true,
+          status: true,
+        },
+      });
+    } else {
+      nextStep = await this.prisma.workOrderProcess.findFirst({
+        where: {
+          workOrderId: workOrder.id,
+          sequence: { gt: pendingVerification.sequence },
+        },
+        orderBy: { sequence: 'asc' },
+        select: {
+          processName: true,
+          status: true,
+        },
+      });
+    }
 
     return {
       success: true,
