@@ -196,16 +196,18 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
   useEffect(() => {
     if (!socket || !workOrderId || !isOpen) return;
 
-    const handleSocketUpdate = (payload: { id: string }) => {
-      if (payload.id === workOrderId) {
+    const handleSocketUpdate = (payload?: { id?: string }) => {
+      if (!payload || !payload.id || payload.id === workOrderId) {
         fetchWorkOrderDetails();
       }
     };
 
     socket.on('work_order_updated', handleSocketUpdate);
+    socket.on('work_order_created', handleSocketUpdate);
 
     return () => {
       socket.off('work_order_updated', handleSocketUpdate);
+      socket.off('work_order_created', handleSocketUpdate);
     };
   }, [socket, workOrderId, isOpen, fetchWorkOrderDetails]);
 

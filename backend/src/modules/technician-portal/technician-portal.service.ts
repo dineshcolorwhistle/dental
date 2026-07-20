@@ -447,6 +447,18 @@ export class TechnicianPortalService {
     });
 
     // 7. Emit WS event
+    this.websocketsGateway.sendToTenant(
+      tenantId,
+      'work_order_created',
+      {
+        id: workOrder.id,
+        folioNumber,
+        patient,
+        status: workOrder.status,
+        branchId: branchIdContext,
+      },
+    );
+
     this.websocketsGateway.sendToBranch(
       tenantId,
       branchIdContext,
@@ -990,6 +1002,18 @@ export class TechnicianPortalService {
       where: { id: workOrderId },
       data: { status },
     });
+
+    this.websocketsGateway.sendToTenant(
+      updated.tenantId,
+      'work_order_updated',
+      {
+        id: updated.id,
+        folioNumber: updated.folioNumber,
+        patient: updated.patient,
+        status: updated.status,
+        branchId: updated.branchId,
+      },
+    );
 
     if (updated.branchId) {
       this.websocketsGateway.sendToBranch(

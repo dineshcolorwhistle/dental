@@ -22,6 +22,7 @@ import { WorkOrdersService } from '../work-orders/work-orders.service';
 import { MailService } from '../mail/mail.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { MessagesService } from '../messages/messages.service';
+import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import * as bcrypt from 'bcrypt';
 import {
   ConfigureIntegrationDto,
@@ -54,6 +55,7 @@ export class IntegrationController {
     private readonly mailService: MailService,
     private readonly auditLogsService: AuditLogsService,
     private readonly messagesService: MessagesService,
+    private readonly websocketsGateway: WebsocketsGateway,
   ) {}
 
   @Get('doctors')
@@ -457,6 +459,22 @@ export class IntegrationController {
         }
       }
     }
+
+    // Emit real-time WebSocket event for Dashboard & WorkOrders pages
+    this.websocketsGateway.sendToTenant(tenantId, 'work_order_created', {
+      id: workOrder.id,
+      folioNumber,
+      patient: workOrder.patient,
+      status: workOrder.status,
+      branchId,
+    });
+
+    this.websocketsGateway.sendToBranch(tenantId, branchId, 'work_order_created', {
+      id: workOrder.id,
+      folioNumber,
+      patient: workOrder.patient,
+      status: workOrder.status,
+    });
 
     return {
       ...workOrder,

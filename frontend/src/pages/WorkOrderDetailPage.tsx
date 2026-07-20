@@ -1,6 +1,6 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context';
+import { useAuth, useSocket } from '../context';
 import {
   Loader2,
   ArrowLeft,
@@ -155,21 +155,51 @@ export function WorkOrderDetailPage() {
   const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
-  useEffect(() => {
+  const { socket, isConnected } = useSocket();
+
+  const fetchWorkOrder = useCallback((silent = false) => {
     if (!id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     workOrderService.getById(id)
       .then((data) => {
         setWorkOrder(data);
       })
       .catch((err) => {
         console.error(err);
-        toast.error(t('workOrder.failedLoadDetails'));
+        if (!silent) toast.error(t('workOrder.failedLoadDetails'));
       })
       .finally(() => {
-        setLoading(false);
+        if (!silent) setLoading(false);
       });
   }, [id, t]);
+
+  useEffect(() => {
+    fetchWorkOrder(false);
+  }, [fetchWorkOrder]);
+
+  useEffect(() => {
+    if (!socket || !id) return;
+
+    const handleSocketUpdate = (payload?: { id?: string }) => {
+      if (!payload || !payload.id || payload.id === id) {
+        fetchWorkOrder(true);
+      }
+    };
+
+    socket.on('work_order_updated', handleSocketUpdate);
+    socket.on('work_order_created', handleSocketUpdate);
+
+    return () => {
+      socket.off('work_order_updated', handleSocketUpdate);
+      socket.off('work_order_created', handleSocketUpdate);
+    };
+  }, [socket, id, fetchWorkOrder]);
+
+  useEffect(() => {
+    if (isConnected && id) {
+      fetchWorkOrder(true);
+    }
+  }, [isConnected, id, fetchWorkOrder]);
 
   if (loading) {
     return (
