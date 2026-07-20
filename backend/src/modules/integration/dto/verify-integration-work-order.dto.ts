@@ -8,6 +8,12 @@ export class VerifyIntegrationWorkOrderDto {
   @MaxLength(200)
   clinicUrl: string;
 
+  @ApiProperty({ example: 'doctor-uuid-in-lab-database', description: 'Database ID of the doctor', required: false })
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  doctorId?: string;
+
   @ApiProperty({ example: 'uuid-or-folio', description: 'The work order ID or Folio Number' })
   @IsString()
   @IsNotEmpty()

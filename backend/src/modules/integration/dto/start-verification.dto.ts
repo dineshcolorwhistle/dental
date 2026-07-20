@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class StartVerificationDto {
@@ -19,4 +19,9 @@ export class StartVerificationDto {
   @IsNotEmpty()
   @MaxLength(100)
   workOrderId: string;
+
+  @ApiProperty({ example: 'Starting review', description: 'Optional notes', required: false })
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }
