@@ -71,6 +71,7 @@ export class BranchesController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a branch from the organization' })
   async remove(

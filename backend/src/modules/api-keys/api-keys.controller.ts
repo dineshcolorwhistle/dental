@@ -18,7 +18,7 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @ApiTags('API Keys')
 @ApiBearerAuth()
 @Controller('api-keys')
-@Roles(UserRole.ADMIN, UserRole.OWNER)
+@Roles(UserRole.ADMIN)
 export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 

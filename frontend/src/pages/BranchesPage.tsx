@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { branchService, adminService, type BranchListItem, type CreateBranchPayload, type AdminListItem } from '../services';
 import { Pagination, PhoneInput } from '../components';
@@ -24,6 +25,8 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 export function BranchesPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const canDelete = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const [branches, setBranches] = useState<BranchListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -510,13 +513,15 @@ export function BranchesPage() {
                       >
                         <span>{t('common.edit')}</span>
                       </button>
-                      <button
-                        className="btn-action btn-action--danger"
-                        onClick={() => confirmDelete(branch)}
-                        title={t('branches.deleteConfirm')}
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {canDelete && (
+                        <button
+                          className="btn-action btn-action--danger"
+                          onClick={() => confirmDelete(branch)}
+                          title={t('branches.deleteConfirm')}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

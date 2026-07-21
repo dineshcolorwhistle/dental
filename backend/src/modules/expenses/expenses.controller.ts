@@ -62,6 +62,7 @@ export class ExpensesController {
   }
 
   @Delete('categories/:id')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an expense category' })
   async removeCategory(
@@ -144,6 +145,7 @@ export class ExpensesController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an expense' })
   async remove(

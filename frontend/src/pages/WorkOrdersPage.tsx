@@ -116,7 +116,8 @@ export function WorkOrdersPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
-  const isOwner = user?.role === 'OWNER';
+  const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
+  const canDelete = isOwner;
   const canCreate = isAdmin;
 
   const formatCurrency = (val: number) => {
@@ -1118,6 +1119,7 @@ export function WorkOrdersPage() {
                         >
                           <Eye size={15} />
                         </button>
+                        {user?.role !== 'OWNER' && (
                         <button
                           className="btn-action"
                           style={{ color: '#8B5CF6', backgroundColor: '#F5F3FF', position: 'relative' }}
@@ -1138,6 +1140,7 @@ export function WorkOrdersPage() {
                             }} />
                           )}
                         </button>
+                        )}
                         <button
                           className="btn-action"
                           style={{ color: 'var(--text-heading, #1E293B)', backgroundColor: 'var(--bg-overlay, #F1F5F9)' }}
@@ -1149,24 +1152,24 @@ export function WorkOrdersPage() {
                         >
                           <QrCode size={15} />
                         </button>
-                        {isAdmin && (
-                          <>
-                            <button
-                              className="btn-action"
-                              style={{ color: '#D97706', backgroundColor: '#FEF3C7' }}
-                              onClick={() => handleEditOpen(wo)}
-                              title={t('workOrders.editWorkOrder')}
-                            >
-                              <Pencil size={15} />
-                            </button>
-                            <button
-                              className="btn-action btn-action--danger"
-                              onClick={() => confirmDelete(wo)}
-                              title={t('workOrders.deleteConfirm')}
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </>
+                        {(isAdmin || isOwner) && (
+                          <button
+                            className="btn-action"
+                            style={{ color: '#D97706', backgroundColor: '#FEF3C7' }}
+                            onClick={() => handleEditOpen(wo)}
+                            title={t('workOrders.editWorkOrder')}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            className="btn-action btn-action--danger"
+                            onClick={() => confirmDelete(wo)}
+                            title={t('workOrders.deleteConfirm')}
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         )}
                       </div>
                     </td>

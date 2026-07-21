@@ -11,6 +11,7 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
   expenseService,
@@ -24,6 +25,8 @@ type ActiveTab = 'EXPENSES' | 'CATEGORIES';
 
 export function ExpensesPage() {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const canDelete = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
 
   // State
   const [activeTab, setActiveTab] = useState<ActiveTab>('EXPENSES');
@@ -638,13 +641,15 @@ export function ExpensesPage() {
                             >
                               <Edit2 size={16} />
                             </button>
-                            <button
-                              className="btn btn--icon btn--ghost btn--icon-danger"
-                              onClick={() => handleOpenDeleteExpense(exp)}
-                              title={t('common.delete')}
-                            >
-                              <Trash2 size={16} style={{ color: 'var(--danger)' }} />
-                            </button>
+                            {canDelete && (
+                              <button
+                                className="btn btn--icon btn--ghost btn--icon-danger"
+                                onClick={() => handleOpenDeleteExpense(exp)}
+                                title={t('common.delete')}
+                              >
+                                <Trash2 size={16} style={{ color: 'var(--danger)' }} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -737,13 +742,15 @@ export function ExpensesPage() {
                               >
                                 <Edit2 size={16} />
                               </button>
-                              <button
-                                className="btn btn--icon btn--ghost btn--icon-danger"
-                                onClick={() => handleOpenDeleteCategory(cat)}
-                                title={t('common.delete')}
-                              >
-                                <Trash2 size={16} style={{ color: 'var(--danger)' }} />
-                              </button>
+                              {canDelete && (
+                                <button
+                                  className="btn btn--icon btn--ghost btn--icon-danger"
+                                  onClick={() => handleOpenDeleteCategory(cat)}
+                                  title={t('common.delete')}
+                                >
+                                  <Trash2 size={16} style={{ color: 'var(--danger)' }} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

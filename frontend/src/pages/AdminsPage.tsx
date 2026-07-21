@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { adminService, branchService, authService, type AdminListItem, type BranchListItem, type CreateAdminPayload, type TenantLimitsResponse, type UserProfile } from '../services';
 import { Pagination, SearchableSelect, PhoneInput } from '../components';
@@ -23,6 +24,8 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
 export function AdminsPage() {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const canDelete = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const [admins, setAdmins] = useState<AdminListItem[]>([]);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -597,13 +600,15 @@ export function AdminsPage() {
                       >
                         <span>{t('common.edit')}</span>
                       </button>
-                      <button
-                        className="btn-action btn-action--danger"
-                        onClick={() => confirmDelete(admin)}
-                        title={t('common.delete')}
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {canDelete && (
+                        <button
+                          className="btn-action btn-action--danger"
+                          onClick={() => confirmDelete(admin)}
+                          title={t('common.delete')}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

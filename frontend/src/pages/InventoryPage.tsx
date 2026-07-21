@@ -30,7 +30,9 @@ export function InventoryPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const canEdit = user?.role === 'ADMIN' || user?.role === 'OWNER';
+  const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
+  const canEdit = isAdmin || isOwner;
+  const canDelete = isOwner;
 
   // State
   const [activeTab, setActiveTab] = useState<ActiveTab>('ITEMS');
@@ -659,13 +661,15 @@ export function InventoryPage() {
                                   >
                                     <Edit2 size={16} />
                                   </button>
-                                  <button
-                                    className="btn btn--icon btn--ghost btn--icon-danger"
-                                    onClick={() => handleOpenDeleteModal(item)}
-                                    title={t('common.delete')}
-                                  >
-                                    <Trash2 size={16} style={{ color: 'var(--danger)' }} />
-                                  </button>
+                                  {canDelete && (
+                                    <button
+                                      className="btn btn--icon btn--ghost btn--icon-danger"
+                                      onClick={() => handleOpenDeleteModal(item)}
+                                      title={t('common.delete')}
+                                    >
+                                      <Trash2 size={16} style={{ color: 'var(--danger)' }} />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             )}
@@ -811,13 +815,15 @@ export function InventoryPage() {
                               >
                                 <Edit2 size={16} />
                               </button>
-                              <button
-                                className="btn btn--icon btn--ghost btn--icon-danger"
-                                onClick={() => handleOpenCategoryDeleteModal(cat)}
-                                title={t('common.delete')}
-                              >
-                                <Trash2 size={16} style={{ color: 'var(--danger)' }} />
-                              </button>
+                              {canDelete && (
+                                <button
+                                  className="btn btn--icon btn--ghost btn--icon-danger"
+                                  onClick={() => handleOpenCategoryDeleteModal(cat)}
+                                  title={t('common.delete')}
+                                >
+                                  <Trash2 size={16} style={{ color: 'var(--danger)' }} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         )}

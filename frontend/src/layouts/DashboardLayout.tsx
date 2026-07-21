@@ -390,17 +390,19 @@ export function DashboardLayout() {
                 <span>{t('navigation.expenses')}</span>
               </NavLink>
 
-              <NavLink
-                to="/api-keys"
-                className={({ isActive }) =>
-                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                }
-                onClick={() => setSidebarOpen(false)}
-                data-tooltip={t('navigation.apiKeys')}
-              >
-                <Key size={20} />
-                <span>{t('navigation.apiKeys')}</span>
-              </NavLink>
+              {user?.role === 'ADMIN' && (
+                <NavLink
+                  to="/api-keys"
+                  className={({ isActive }) =>
+                    `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                  }
+                  onClick={() => setSidebarOpen(false)}
+                  data-tooltip={t('navigation.apiKeys')}
+                >
+                  <Key size={20} />
+                  <span>{t('navigation.apiKeys')}</span>
+                </NavLink>
+              )}
 
               <NavLink
                 to="/clinics"

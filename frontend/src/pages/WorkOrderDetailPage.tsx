@@ -149,7 +149,8 @@ export function WorkOrderDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const chatOnly = searchParams.get('chatOnly') === 'true' || user?.role === 'TECHNICIAN';
+  const isOwner = user?.role === 'OWNER';
+  const chatOnly = !isOwner && (searchParams.get('chatOnly') === 'true' || user?.role === 'TECHNICIAN');
   const [workOrder, setWorkOrder] = useState<WorkOrderListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
@@ -444,8 +445,8 @@ export function WorkOrderDetailPage() {
           </div>
         </div>
 
-        {/* Dedicated Chat Module */}
-        <WorkOrderChat workOrderId={workOrder.id} />
+        {/* Dedicated Chat Module — hidden for Owner */}
+        {!isOwner && <WorkOrderChat workOrderId={workOrder.id} />}
       </div>
 
       {/* Workflow Stepper Progress */}

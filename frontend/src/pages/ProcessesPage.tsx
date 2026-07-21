@@ -30,7 +30,9 @@ export function ProcessesPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const canEdit = user?.role === 'ADMIN';
+  const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
+  const canEdit = isAdmin || isOwner;
+  const canDelete = isOwner;
 
   const [processes, setProcesses] = useState<ProcessListItem[]>([]);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
@@ -507,13 +509,15 @@ export function ProcessesPage() {
                         >
                           <span>{t('common.edit')}</span>
                         </button>
-                        <button
-                          className="btn-action btn-action--danger"
-                          onClick={() => confirmDelete(proc)}
-                          title={t('processesPage.deleteConfirm')}
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {canDelete && (
+                          <button
+                            className="btn-action btn-action--danger"
+                            onClick={() => confirmDelete(proc)}
+                            title={t('processesPage.deleteConfirm')}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

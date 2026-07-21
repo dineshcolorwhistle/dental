@@ -13,11 +13,14 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { apiKeyService, type ApiKeyItem } from '../services';
 
 export function ApiKeysPage() {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const canDelete = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
 
   const [apiKeys, setApiKeys] = useState<ApiKeyItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,14 +233,16 @@ export function ApiKeysPage() {
               >
                 {copiedKeyId === activeKey.id ? <Check size={16} style={{ color: 'var(--success)' }} /> : <Copy size={16} />}
               </button>
-              <button
-                className="btn btn--ghost"
-                style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: 'var(--danger)' }}
-                onClick={() => handleDeleteOpen(activeKey)}
-                title={t('common.delete')}
-              >
-                <Trash2 size={16} />
-              </button>
+              {canDelete && (
+                <button
+                  className="btn btn--ghost"
+                  style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: 'var(--danger)' }}
+                  onClick={() => handleDeleteOpen(activeKey)}
+                  title={t('common.delete')}
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -314,14 +319,16 @@ export function ApiKeysPage() {
                     </p>
                   </div>
                 </div>
-                <button
-                  className="btn btn--ghost"
-                  style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: 'var(--danger)' }}
-                  onClick={() => handleDeleteOpen(k)}
-                  title={t('common.delete')}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canDelete && (
+                  <button
+                    className="btn btn--ghost"
+                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: 'var(--danger)' }}
+                    onClick={() => handleDeleteOpen(k)}
+                    title={t('common.delete')}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ))}
           </div>

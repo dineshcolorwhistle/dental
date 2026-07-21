@@ -62,6 +62,7 @@ export class InventoryController {
   }
 
   @Delete('categories/:id')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an inventory category' })
   async removeCategory(
@@ -145,6 +146,7 @@ export class InventoryController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an inventory item' })
   async remove(

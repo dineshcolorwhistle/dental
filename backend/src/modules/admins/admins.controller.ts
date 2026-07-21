@@ -78,7 +78,7 @@ export class AdminsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a Lab Admin' })
   async remove(

@@ -189,7 +189,7 @@ function App() {
             <Route
               path="/api-keys"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                <ProtectedRoute allowedRoles={['ADMIN']}>
                   <ApiKeysPage />
                 </ProtectedRoute>
               }

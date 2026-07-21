@@ -1076,16 +1076,7 @@ export class MessagesService {
       participantUserIds.add(workOrder.createdById);
     }
 
-    // Add all tenant owners
-    const owners = await this.prisma.user.findMany({
-      where: {
-        tenantId: workOrder.tenantId,
-        role: 'OWNER',
-        status: 'ACTIVE',
-      },
-      select: { id: true },
-    });
-    owners.forEach((o) => participantUserIds.add(o.id));
+    // Note: Owners are NOT auto-added to WO chat participants
 
     // Add branch admins
     if (workOrder.branchId) {

@@ -27,7 +27,9 @@ export function DoctorsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const canEdit = user?.role === 'ADMIN';
+  const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
+  const canEdit = isAdmin || isOwner;
+  const canDelete = isOwner;
 
   const [doctors, setDoctors] = useState<DoctorListItem[]>([]);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
@@ -534,13 +536,15 @@ export function DoctorsPage() {
                         >
                           <span>{t('common.edit')}</span>
                         </button>
-                        <button
-                          className="btn-action btn-action--danger"
-                          onClick={() => confirmDelete(doctor)}
-                          title={t('doctors.deleteConfirm')}
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {canDelete && (
+                          <button
+                            className="btn-action btn-action--danger"
+                            onClick={() => confirmDelete(doctor)}
+                            title={t('doctors.deleteConfirm')}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

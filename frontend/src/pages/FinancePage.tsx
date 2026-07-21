@@ -1571,12 +1571,12 @@ export function FinancePage() {
 
             {/* Pagination controls */}
             {pendingTotal > pendingLimit && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginTop: '0.5rem', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', justifySelf: 'start' }}>
                   {t('finance.showingPendingRange', { start: ((pendingPage - 1) * pendingLimit) + 1, end: Math.min(pendingPage * pendingLimit, pendingTotal), total: pendingTotal, defaultValue: `Showing ${((pendingPage - 1) * pendingLimit) + 1} to ${Math.min(pendingPage * pendingLimit, pendingTotal)} of ${pendingTotal} pending work orders` })}
                 </span>
                 
-                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', justifySelf: 'center' }}>
                   <button
                     disabled={pendingPage === 1}
                     onClick={() => setPendingPage(p => Math.max(1, p - 1))}
@@ -1634,6 +1634,7 @@ export function FinancePage() {
                     <ChevronRight size={16} />
                   </button>
                 </div>
+                <div style={{ justifySelf: 'end' }} />
               </div>
             )}
 

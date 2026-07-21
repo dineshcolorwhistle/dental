@@ -60,27 +60,26 @@ export function Pagination({ currentPage, totalItems, pageSize, onPageChange }: 
   return (
     <div
       style={{
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '1fr auto 1fr',
         alignItems: 'center',
-        justifyContent: 'space-between',
         padding: '1.25rem 1.5rem',
         backgroundColor: 'var(--bg-surface)',
         borderTop: '1px solid var(--border)',
         borderBottomLeftRadius: 'var(--radius-xl)',
         borderBottomRightRadius: 'var(--radius-xl)',
-        flexWrap: 'wrap',
         gap: '1rem',
       }}
     >
       {/* Entries Info */}
-      <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+      <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', justifySelf: 'start' }}>
         {t('pagination.showing')} <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{startItem}</span> {t('pagination.to')}{' '}
         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{endItem}</span> {t('pagination.of')}{' '}
         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{totalItems}</span> {t('pagination.entries')}
       </div>
 
       {/* Navigation Buttons */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', justifySelf: 'center' }}>
         {/* Previous Button */}
         <button
           type="button"
@@ -179,6 +178,9 @@ export function Pagination({ currentPage, totalItems, pageSize, onPageChange }: 
           <ChevronRight size={16} />
         </button>
       </div>
+
+      {/* Right spacer for centering balance */}
+      <div style={{ justifySelf: 'end' }} />
     </div>
   );
 }
