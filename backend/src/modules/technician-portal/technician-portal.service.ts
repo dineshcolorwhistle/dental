@@ -525,6 +525,14 @@ export class TechnicianPortalService {
             },
           },
         },
+        notesList: {
+          orderBy: { createdAt: 'asc' as const },
+          include: {
+            author: {
+              select: { id: true, firstName: true, lastName: true, email: true, role: true },
+            },
+          },
+        },
       },
     });
 
@@ -913,6 +921,27 @@ export class TechnicianPortalService {
             nextProcess.id,
             nextProcess.processName,
           );
+        } else {
+          // Internal Verification step assigned to an admin/technician
+          await this.notificationsService.create({
+            tenantId,
+            userId: nextProcess.technicianId,
+            title: 'Internal Verification Pending Alert',
+            message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} requires internal verification step "${nextProcess.processName}".`,
+            type: 'VERIFICATION_PENDING',
+            referenceId: process.workOrderId,
+          });
+
+          await this.auditLogsService.log({
+            tenantId,
+            action: 'NOTIFICATION_TRIGGERED',
+            entityName: 'NOTIFICATION',
+            entityId: process.workOrderId,
+            details: {
+              userId: nextProcess.technicianId,
+              title: 'Internal Verification Pending Alert',
+            },
+          });
         }
       } else if (nextProcess.technicianId) {
         // Normal technician process

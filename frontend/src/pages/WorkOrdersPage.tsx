@@ -107,6 +107,8 @@ interface ProcessFormItem {
   reworkActive?: boolean;
 }
 
+import { NoteHistoryThread } from '../components/NoteHistoryThread';
+
 export function WorkOrdersPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -172,12 +174,14 @@ export function WorkOrdersPage() {
     doctorId: '',
     patient: '',
     boxNumber: '',
+    fileNumber: '',
     prosthesisTypeId: '',
     specification: '',
     color: '',
     notes: '',
     totalQuote: '',
     initialPayment: '',
+    paymentReferenceNumber: '',
     branchId: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -185,10 +189,73 @@ export function WorkOrdersPage() {
   const [generatedFolio, setGeneratedFolio] = useState('');
 
   // Tab Wizard States
-  const [modalTab, setModalTab] = useState<'details' | 'processes'>('details');
+  const [modalTab, setModalTab] = useState<'details' | 'processes' | 'payments'>('details');
   const [formStatus, setFormStatus] = useState<string>('CREATED');
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [pendingAction, setPendingAction] = useState<'CREATE_ASSIGN' | 'EDIT_ASSIGN' | null>(null);
+
+  const handleAddNote = async (content: string) => {
+    if (!editingWO) return;
+    const newNote = await workOrderService.addNote(editingWO.id, content);
+    setEditingWO((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notesList: [...(prev.notesList || []), newNote],
+      };
+    });
+    setWorkOrders((prev) =>
+      prev.map((wo) =>
+        wo.id === editingWO.id
+          ? { ...wo, notesList: [...(wo.notesList || []), newNote] }
+          : wo
+      )
+    );
+  };
+
+  const handleUpdateNote = async (noteId: string, content: string) => {
+    if (!editingWO) return;
+    const updatedNote = await workOrderService.updateNote(editingWO.id, noteId, content);
+    setEditingWO((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notesList: (prev.notesList || []).map((n) => (n.id === noteId ? updatedNote : n)),
+      };
+    });
+    setWorkOrders((prev) =>
+      prev.map((wo) =>
+        wo.id === editingWO.id
+          ? {
+              ...wo,
+              notesList: (wo.notesList || []).map((n) => (n.id === noteId ? updatedNote : n)),
+            }
+          : wo
+      )
+    );
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!editingWO) return;
+    await workOrderService.deleteNote(editingWO.id, noteId);
+    setEditingWO((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notesList: (prev.notesList || []).filter((n) => n.id !== noteId),
+      };
+    });
+    setWorkOrders((prev) =>
+      prev.map((wo) =>
+        wo.id === editingWO.id
+          ? {
+              ...wo,
+              notesList: (wo.notesList || []).filter((n) => n.id !== noteId),
+            }
+          : wo
+      )
+    );
+  };
 
   // Add process inline
   const [showAddProcess, setShowAddProcess] = useState(false);
@@ -365,8 +432,8 @@ export function WorkOrdersPage() {
     if (!form.color.trim()) errors.color = 'Color is required';
     if (!form.totalQuote.trim()) {
       errors.totalQuote = 'Total quote is required';
-    } else if (parseFloat(form.totalQuote) <= 0) {
-      errors.totalQuote = 'Total quote must be greater than 0';
+    } else if (parseFloat(form.totalQuote) < 0) {
+      errors.totalQuote = 'Total quote cannot be negative';
     }
     if (checkProcesses) {
       if (processList.length === 0) {
@@ -389,12 +456,14 @@ export function WorkOrdersPage() {
       doctorId: '',
       patient: '',
       boxNumber: '',
+      fileNumber: '',
       prosthesisTypeId: '',
       specification: '',
       color: '',
       notes: '',
       totalQuote: '',
       initialPayment: '',
+      paymentReferenceNumber: '',
       branchId,
     });
     setProcessList([]);
@@ -606,12 +675,14 @@ export function WorkOrdersPage() {
       doctorId: wo.doctorId,
       patient: wo.patient,
       boxNumber: wo.boxNumber || '',
+      fileNumber: wo.fileNumber || '',
       prosthesisTypeId: wo.prosthesisTypeId,
       specification: wo.specification || '',
       color: wo.color || '',
       notes: userNotes,
       totalQuote: wo.totalQuote != null ? wo.totalQuote.toString() : '',
       initialPayment: wo.initialPayment != null ? wo.initialPayment.toString() : '',
+      paymentReferenceNumber: wo.paymentReferenceNumber || '',
       branchId: wo.branchId || '',
     });
     
@@ -656,8 +727,8 @@ export function WorkOrdersPage() {
     if (!form.color.trim()) errors.color = t('validation.fieldRequired');
     if (!form.totalQuote.trim()) {
       errors.totalQuote = t('validation.fieldRequired');
-    } else if (parseFloat(form.totalQuote) <= 0) {
-      errors.totalQuote = t('workOrders.validationQuotePositive', { defaultValue: 'Total quote must be greater than 0' });
+    } else if (parseFloat(form.totalQuote) < 0) {
+      errors.totalQuote = t('workOrders.validationQuoteNonNegative', { defaultValue: 'Total quote cannot be negative' });
     }
     
     if (isAssign) {
@@ -688,12 +759,14 @@ export function WorkOrdersPage() {
         doctorId: form.doctorId,
         patient: form.patient,
         boxNumber: form.boxNumber || undefined,
+        fileNumber: form.fileNumber || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
         specification: form.specification || undefined,
         color: form.color || undefined,
         notes: updatedNotes || undefined,
-        totalQuote: form.totalQuote ? parseFloat(form.totalQuote) : undefined,
+        totalQuote: form.totalQuote !== '' ? parseFloat(form.totalQuote) : 0,
         initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
+        paymentReferenceNumber: form.paymentReferenceNumber || undefined,
         status: isAssign && editingWO.status === 'CREATED' ? 'ASSIGNED' : formStatus,
       };
 
@@ -1147,7 +1220,7 @@ export function WorkOrdersPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  {t('workOrders.tabs.basicDetails', { defaultValue: '1. Basic Details' })}
+                  {t('workOrders.tabs.basicDetails', { defaultValue: '1. Order Details' })}
                 </button>
                 <button
                   type="button"
@@ -1185,14 +1258,29 @@ export function WorkOrdersPage() {
                     </span>
                   )}
                 </button>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${modalTab === 'payments' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setModalTab('payments')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: modalTab === 'payments' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: modalTab === 'payments' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {t('workOrders.tabs.payments', { defaultValue: '3. Payments' })}
+                </button>
               </div>
             </div>
 
             <div className="modal__body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {modalTab === 'details' ? (
                 <>
-
-
                   {/* Row 1: Doctor + Patient */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
@@ -1231,8 +1319,8 @@ export function WorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Row 2: Folio Number + Box Number */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  {/* Row 2: Folio Number + File Number + Box Number */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                       <label className="form-label" htmlFor="input-wo-folio">{t('workOrders.folioNumber', { defaultValue: 'Folio Number' })}</label>
                       <input
@@ -1242,6 +1330,19 @@ export function WorkOrdersPage() {
                         value={generatedFolio || t('workOrders.generating', { defaultValue: 'Generating...' })}
                         disabled
                         style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="input-wo-file">{t('workOrders.fileNumber', { defaultValue: 'File Number' })}</label>
+                      <input
+                        id="input-wo-file"
+                        className="form-input"
+                        type="text"
+                        placeholder={t('workOrders.fileNumberPlaceholder', { defaultValue: 'e.g., FILE-101' })}
+                        value={form.fileNumber}
+                        onChange={(e) => handleInputChange('fileNumber', e.target.value)}
+                        disabled={saving}
                       />
                     </div>
 
@@ -1329,6 +1430,30 @@ export function WorkOrdersPage() {
                     />
                   </div>
 
+                  {/* Branch select (Owner only) */}
+                  {isOwner && branches.length > 0 && (
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="select-wo-branch">{t('common.branch')} *</label>
+                      <SearchableSelect
+                        id="select-wo-branch"
+                        options={branches.map((b) => ({
+                          value: b.id,
+                          label: `${b.name} (${b.code})`,
+                        }))}
+                        value={form.branchId}
+                        onChange={(val) => handleInputChange('branchId', val)}
+                        disabled={saving}
+                        placeholder={t('branches.selectBranch', { defaultValue: 'Select a branch' })}
+                        error={!!formErrors.branchId}
+                      />
+                      {formErrors.branchId && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : modalTab === 'payments' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   {/* Row: Total Quote + Initial Payment */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
@@ -1364,28 +1489,20 @@ export function WorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Branch select (Owner only) */}
-                  {isOwner && branches.length > 0 && (
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="select-wo-branch">{t('common.branch')} *</label>
-                      <SearchableSelect
-                        id="select-wo-branch"
-                        options={branches.map((b) => ({
-                          value: b.id,
-                          label: `${b.name} (${b.code})`,
-                        }))}
-                        value={form.branchId}
-                        onChange={(val) => handleInputChange('branchId', val)}
-                        disabled={saving}
-                        placeholder={t('branches.selectBranch', { defaultValue: 'Select a branch' })}
-                        error={!!formErrors.branchId}
-                      />
-                      {formErrors.branchId && (
-                        <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
-                      )}
-                    </div>
-                  )}
-                </>
+                  {/* Payment Reference Number */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="input-wo-pay-ref">{t('workOrders.paymentReferenceNumber', { defaultValue: 'Payment Reference Number' })}</label>
+                    <input
+                      id="input-wo-pay-ref"
+                      className="form-input"
+                      type="text"
+                      placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'e.g., REF-98765' })}
+                      value={form.paymentReferenceNumber}
+                      onChange={(e) => handleInputChange('paymentReferenceNumber', e.target.value)}
+                      disabled={saving}
+                    />
+                  </div>
+                </div>
               ) : (
                 /* Tab 2: Process assignment only */
                 <div className="wo-process-section" style={{ margin: 0, border: 'none', background: 'transparent', padding: 0 }}>
@@ -1853,7 +1970,7 @@ export function WorkOrdersPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  {t('workOrders.tabs.basicDetails', { defaultValue: '1. Basic Details' })}
+                  {t('workOrders.tabs.basicDetails', { defaultValue: '1. Order Details' })}
                 </button>
                 <button
                   type="button"
@@ -1890,6 +2007,23 @@ export function WorkOrdersPage() {
                       {processList.length}
                     </span>
                   )}
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${modalTab === 'payments' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setModalTab('payments')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: modalTab === 'payments' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: modalTab === 'payments' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {t('workOrders.tabs.payments', { defaultValue: '3. Payments' })}
                 </button>
               </div>
             </div>
@@ -1935,8 +2069,8 @@ export function WorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Row 2: Folio Number + Box Number */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  {/* Row 2: Folio Number + File Number + Box Number */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                       <label className="form-label" htmlFor="edit-wo-folio">{t('workOrders.folioNumber', { defaultValue: 'Folio Number' })}</label>
                       <input
@@ -1946,6 +2080,19 @@ export function WorkOrdersPage() {
                         value={editingWO.folioNumber}
                         disabled
                         style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-file">{t('workOrders.fileNumber', { defaultValue: 'File Number' })}</label>
+                      <input
+                        id="edit-wo-file"
+                        className="form-input"
+                        type="text"
+                        placeholder={t('workOrders.fileNumberPlaceholder', { defaultValue: 'e.g., FILE-101' })}
+                        value={form.fileNumber}
+                        onChange={(e) => handleInputChange('fileNumber', e.target.value)}
+                        disabled={saving}
                       />
                     </div>
 
@@ -2041,20 +2188,40 @@ export function WorkOrdersPage() {
                     )}
                   </div>
 
-                  {/* Notes */}
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-notes">{t('workOrders.notes', { defaultValue: 'Notes' })}</label>
-                    <textarea
-                      id="edit-wo-notes"
-                      className="form-input"
-                      style={{ minHeight: '60px', fontFamily: 'inherit', padding: '10px 14px' }}
-                      placeholder={t('workOrders.notesPlaceholder', { defaultValue: 'Additional notes or instructions...' })}
-                      value={form.notes}
-                      onChange={(e) => handleInputChange('notes', e.target.value)}
-                      disabled={saving}
-                    />
-                  </div>
+                  {/* Note History Thread */}
+                  <NoteHistoryThread
+                    notesList={editingWO.notesList || []}
+                    currentUserId={user?.id || ''}
+                    userRole={user?.role || ''}
+                    onAddNote={handleAddNote}
+                    onUpdateNote={handleUpdateNote}
+                    onDeleteNote={handleDeleteNote}
+                  />
 
+                  {/* Branch select (Owner only) */}
+                  {isOwner && branches.length > 0 && (
+                    <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                      <label className="form-label" htmlFor="edit-wo-branch">{t('common.branch')} *</label>
+                      <SearchableSelect
+                        id="edit-wo-branch"
+                        options={branches.map((b) => ({
+                          value: b.id,
+                          label: `${b.name} (${b.code})`,
+                        }))}
+                        value={form.branchId}
+                        onChange={(val) => handleInputChange('branchId', val)}
+                        disabled={saving}
+                        placeholder={t('branches.selectBranch', { defaultValue: 'Select a branch' })}
+                        error={!!formErrors.branchId}
+                      />
+                      {formErrors.branchId && (
+                        <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : modalTab === 'payments' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   {/* Row: Total Quote + Initial Payment */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
@@ -2090,28 +2257,20 @@ export function WorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Branch select (Owner only) */}
-                  {isOwner && branches.length > 0 && (
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-branch">{t('common.branch')} *</label>
-                      <SearchableSelect
-                        id="edit-wo-branch"
-                        options={branches.map((b) => ({
-                          value: b.id,
-                          label: `${b.name} (${b.code})`,
-                        }))}
-                        value={form.branchId}
-                        onChange={(val) => handleInputChange('branchId', val)}
-                        disabled={saving}
-                        placeholder={t('branches.selectBranch', { defaultValue: 'Select a branch' })}
-                        error={!!formErrors.branchId}
-                      />
-                      {formErrors.branchId && (
-                        <span className="form-error"><AlertCircle size={12} /> {formErrors.branchId}</span>
-                      )}
-                    </div>
-                  )}
-                </>
+                  {/* Payment Reference Number */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="edit-wo-pay-ref">{t('workOrders.paymentReferenceNumber', { defaultValue: 'Payment Reference Number' })}</label>
+                    <input
+                      id="edit-wo-pay-ref"
+                      className="form-input"
+                      type="text"
+                      placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'e.g., REF-98765' })}
+                      value={form.paymentReferenceNumber}
+                      onChange={(e) => handleInputChange('paymentReferenceNumber', e.target.value)}
+                      disabled={saving}
+                    />
+                  </div>
+                </div>
               ) : (
                 /* Tab 2: Process Steps Assignment */
                 <div className="wo-process-section" style={{ margin: 0, border: 'none', background: 'transparent', padding: 0 }}>

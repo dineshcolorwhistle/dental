@@ -302,4 +302,53 @@ export class WorkOrdersController {
       userId,
     );
   }
+
+  // ─── Notes Endpoints ─────────────────────────────────────
+
+  @Get(':id/notes')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Get all notes history for a work order' })
+  async getNotes(@Param('id') id: string) {
+    return this.workOrdersService.getNotes(id);
+  }
+
+  @Post(':id/notes')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Add a new note to a work order' })
+  async addNote(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: { content: string },
+  ) {
+    if (!body || typeof body.content !== 'string' || !body.content.trim()) {
+      throw new BadRequestException('Note content is required.');
+    }
+    return this.workOrdersService.addNote(id, userId, body.content);
+  }
+
+  @Patch(':id/notes/:noteId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Update an existing note' })
+  async updateNote(
+    @Param('noteId') noteId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Body() body: { content: string },
+  ) {
+    if (!body || typeof body.content !== 'string' || !body.content.trim()) {
+      throw new BadRequestException('Note content is required.');
+    }
+    return this.workOrdersService.updateNote(noteId, userId, userRole, body.content);
+  }
+
+  @Delete(':id/notes/:noteId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Delete an existing note' })
+  async deleteNote(
+    @Param('noteId') noteId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.workOrdersService.deleteNote(noteId, userId, userRole);
+  }
 }

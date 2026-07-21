@@ -11,6 +11,7 @@ import {
   ClipboardList,
   AlertCircle,
   AlertTriangle,
+  Eye,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
@@ -18,29 +19,58 @@ import {
   technicianPortalService,
   type TechnicianDashboardStats,
   type TechnicianWorkOrderListItem,
+  type TechnicianProcessItem,
 } from '../services';
+
+// Toggle flag to control display of Quick QR Scan section (hidden by default, can be set to true if needed)
+const SHOW_QUICK_QR_SCAN = false;
 
 export function TechnicianDashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [stats, setStats] = useState<TechnicianDashboardStats | null>(null);
-  const [activeJobs, setActiveJobs] = useState<TechnicianWorkOrderListItem[]>([]);
+  const [assignedJobs, setAssignedJobs] = useState<TechnicianWorkOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Helper check if previous sequence steps are completed
+  const isPrecedingStepCompleted = useCallback((currentProc: TechnicianProcessItem, processes: TechnicianProcessItem[]) => {
+    return processes
+      .filter((p) => p.sequence < currentProc.sequence)
+      .every((p) => p.status === 'COMPLETED');
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     try {
       const [statsData, jobsData] = await Promise.all([
         technicianPortalService.getDashboardStats(),
-        technicianPortalService.getAssignedWorkOrders('IN_PROGRESS'),
+        technicianPortalService.getAssignedWorkOrders('ALL'),
       ]);
       setStats(statsData);
-      setActiveJobs(jobsData);
+      
+      // Filter work orders to ONLY show those that are ready to start, in progress, or paused
+      const readyOrActiveJobs = jobsData.filter((wo) => {
+        const activeStep = wo.processes.find(
+          (p) => p.technicianId === user?.id && (p.status === 'IN_PROGRESS' || p.status === 'PAUSED')
+        );
+        if (activeStep) return true;
+
+        const pendingStep = wo.processes.find(
+          (p) => p.technicianId === user?.id && p.status === 'NOT_STARTED'
+        );
+        if (pendingStep) {
+          return isPrecedingStepCompleted(pendingStep, wo.processes);
+        }
+
+        return false;
+      });
+
+      setAssignedJobs(readyOrActiveJobs);
     } catch {
       toast.error(t('techDashboard.failedLoadDashboard'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, user?.id, isPrecedingStepCompleted]);
 
   const { socket, isConnected } = useSocket();
 
@@ -49,7 +79,6 @@ export function TechnicianDashboardPage() {
 
     if (!socket) return;
 
-    // Listen to real-time events to reload dashboard stats
     socket.on('work_order_created', fetchDashboardData);
     socket.on('work_order_updated', fetchDashboardData);
 
@@ -59,7 +88,6 @@ export function TechnicianDashboardPage() {
     };
   }, [socket, fetchDashboardData]);
 
-  // Handle connection restore
   useEffect(() => {
     if (isConnected) {
       fetchDashboardData();
@@ -108,6 +136,20 @@ export function TechnicianDashboardPage() {
     return t('dashboard.greetingEvening');
   };
 
+  // Find process assigned to this technician in a work order
+  const getAssignedProcess = (wo: TechnicianWorkOrderListItem) => {
+    // 1. First look for IN_PROGRESS or PAUSED step assigned to tech
+    const activeStep = wo.processes.find(
+      (p) => p.technicianId === user?.id && (p.status === 'IN_PROGRESS' || p.status === 'PAUSED')
+    );
+    if (activeStep) return activeStep;
+
+    // 2. Otherwise look for first NOT_STARTED step assigned to tech
+    return wo.processes.find(
+      (p) => p.technicianId === user?.id && p.status === 'NOT_STARTED'
+    );
+  };
+
   if (loading && !stats) {
     return (
       <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -115,11 +157,6 @@ export function TechnicianDashboardPage() {
       </div>
     );
   }
-
-  // Find process assigned to this technician in a work order
-  const getAssignedProcess = (wo: TechnicianWorkOrderListItem) => {
-    return wo.processes.find((p) => p.technicianId === user?.id && (p.status === 'IN_PROGRESS' || p.status === 'PAUSED'));
-  };
 
   return (
     <div className="dashboard-page animate-fade-in">
@@ -178,25 +215,25 @@ export function TechnicianDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Active Queue Control Section */}
+        {/* Work Queue Control Section */}
         <div className="lg:col-span-2">
           <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 className="dashboard-card__title" style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Activity size={18} style={{ color: 'var(--success)' }} />
-                {t('techDashboard.myActiveQueue')}
+                {t('techDashboard.myWorkQueue')}
               </h3>
               <Link to="/tech/work-orders" className="btn btn--outline btn--sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 {t('techDashboard.viewAllQueue')} <ChevronRight size={14} />
               </Link>
             </div>
 
-            {activeJobs.length === 0 ? (
+            {assignedJobs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <ClipboardList size={36} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                <h4 style={{ fontWeight: 500, fontSize: '0.95rem' }}>{t('techDashboard.noActiveProcesses')}</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '320px', margin: '0' }}>
-                  {t('techDashboard.techNoActiveProcessesDesc')}
+                <h4 style={{ fontWeight: 500, fontSize: '0.95rem' }}>{t('techDashboard.noQueueWorkOrders')}</h4>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '340px', margin: '0' }}>
+                  {t('techDashboard.noQueueWorkOrdersDesc')}
                 </p>
                 <Link to="/tech/work-orders" className="btn btn--primary btn--sm" style={{ marginTop: '0.5rem' }}>
                   {t('techDashboard.openMyWorkOrders')}
@@ -204,10 +241,14 @@ export function TechnicianDashboardPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {activeJobs.map((wo) => {
+                {assignedJobs.map((wo) => {
                   const proc = getAssignedProcess(wo);
                   if (!proc) return null;
+
+                  const isActive = proc.status === 'IN_PROGRESS';
                   const isPaused = proc.status === 'PAUSED';
+                  const isNotStarted = proc.status === 'NOT_STARTED';
+                  const isReady = isNotStarted && isPrecedingStepCompleted(proc, wo.processes);
 
                   return (
                     <div
@@ -216,7 +257,7 @@ export function TechnicianDashboardPage() {
                       style={{
                         padding: '1.25rem',
                         borderRadius: '12px',
-                        border: `1px solid ${isPaused ? 'var(--warning)' : 'var(--border)'}`,
+                        border: `1px solid ${isActive ? 'var(--accent-primary)' : isPaused ? 'var(--warning)' : isReady ? 'var(--success)' : 'var(--border)'}`,
                         backgroundColor: 'var(--bg-surface)',
                         boxShadow: 'var(--shadow-sm)',
                         transition: 'transform 0.2s, box-shadow 0.2s',
@@ -224,21 +265,22 @@ export function TechnicianDashboardPage() {
                         overflow: 'hidden'
                       }}
                     >
-                      {isPaused && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '0',
-                          left: '0',
-                          right: '0',
-                          height: '3px',
-                          backgroundColor: 'var(--warning)'
-                        }} />
-                      )}
+                      {/* Top indicator bar */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '0',
+                        left: '0',
+                        right: '0',
+                        height: '3px',
+                        backgroundColor: isActive ? 'var(--accent-primary)' : isPaused ? 'var(--warning)' : isReady ? 'var(--success)' : 'var(--border)'
+                      }} />
+
+                      {/* Header Row */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '0.75rem' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 8px', borderRadius: '100px' }}>
-                              {wo.folioNumber}
+                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--accent-primary)', backgroundColor: 'rgba(111,174,217,0.1)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(111,174,217,0.2)' }}>
+                              WO#: {wo.folioNumber}
                             </span>
                             <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{wo.patient}</span>
                           </div>
@@ -247,18 +289,31 @@ export function TechnicianDashboardPage() {
                           </p>
                         </div>
 
+                        {/* Status Badge */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span
                             style={{
                               fontSize: '0.75rem',
                               fontWeight: 600,
-                              padding: '2px 8px',
+                              padding: '3px 10px',
                               borderRadius: '100px',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '4px',
-                              backgroundColor: isPaused ? 'rgba(241,196,15,0.1)' : 'rgba(46,204,113,0.1)',
-                              color: isPaused ? 'var(--warning)' : 'var(--success)'
+                              gap: '5px',
+                              backgroundColor: isActive
+                                ? 'rgba(46,204,113,0.1)'
+                                : isPaused
+                                  ? 'rgba(241,196,15,0.1)'
+                                  : isReady
+                                    ? 'rgba(111,174,217,0.1)'
+                                    : 'rgba(148,163,184,0.1)',
+                              color: isActive
+                                ? 'var(--success)'
+                                : isPaused
+                                  ? 'var(--warning)'
+                                  : isReady
+                                    ? 'var(--accent-primary)'
+                                    : 'var(--text-muted)'
                             }}
                           >
                             <span
@@ -266,15 +321,28 @@ export function TechnicianDashboardPage() {
                                 width: '6px',
                                 height: '6px',
                                 borderRadius: '50%',
-                                backgroundColor: isPaused ? 'var(--warning)' : 'var(--success)'
+                                backgroundColor: isActive
+                                  ? 'var(--success)'
+                                  : isPaused
+                                    ? 'var(--warning)'
+                                    : isReady
+                                      ? 'var(--accent-primary)'
+                                      : 'var(--text-muted)'
                               }}
-                              className={!isPaused ? 'animate-pulse' : ''}
+                              className={isActive ? 'animate-pulse' : ''}
                             />
-                            {isPaused ? t('enums.processStatus.PAUSED') : t('enums.processStatus.IN_PROGRESS')}
+                            {isActive
+                              ? t('enums.processStatus.IN_PROGRESS')
+                              : isPaused
+                                ? t('enums.processStatus.PAUSED')
+                                : isReady
+                                  ? t('techDashboard.readyToStart')
+                                  : t('techDashboard.precedingStepBlocked')}
                           </span>
                         </div>
                       </div>
 
+                      {/* Step Details Box */}
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -289,46 +357,91 @@ export function TechnicianDashboardPage() {
                           <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             {t('techDashboard.currentStep')}
                           </span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                            {proc.processName}
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>Step {proc.sequence + 1}: {proc.processName}</span>
+                            {proc.reworkActive && (
+                              <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                                {t('workOrder.reworkActive')}
+                              </span>
+                            )}
                           </span>
                         </div>
-                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                            {t('techDashboard.pauses')}
-                          </span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                            {t('techDashboard.xTimes', { count: proc.pauseCount })}
-                          </span>
-                        </div>
+
+                        {proc.pauseCount > 0 && (
+                          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                              {t('techDashboard.pauses')}
+                            </span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                              {t('techDashboard.xTimes', { count: proc.pauseCount })}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Control Panel Action Buttons */}
-                      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                        {isPaused ? (
+                      {/* Action Control Panel */}
+                      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Link
+                          to={`/tech/work-orders?selectWo=${wo.id}`}
+                          className="btn btn--outline btn--sm"
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Eye size={14} /> {t('techDashboard.viewDetails')}
+                        </Link>
+
+                        {isNotStarted && isReady && (
                           <button
-                            className="btn btn--success btn--sm"
+                            className="btn btn--primary btn--sm"
                             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                            onClick={(e) => handleAction(e, proc.id, 'resume')}
+                            onClick={(e) => handleAction(e, proc.id, 'start')}
                           >
-                            <Play size={14} /> {t('workOrder.resumeProcess')}
-                          </button>
-                        ) : (
-                          <button
-                            className="btn btn--warning btn--sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                            onClick={(e) => handleAction(e, proc.id, 'pause')}
-                          >
-                            <Pause size={14} /> {t('workOrder.pauseProcess')}
+                            <Play size={14} /> {t('workOrder.startProcess')}
                           </button>
                         )}
-                        <button
-                          className="btn btn--primary btn--sm"
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                          onClick={(e) => handleAction(e, proc.id, 'end')}
-                        >
-                          <CheckCircle2 size={14} /> {t('workOrder.endProcess')}
-                        </button>
+
+                        {isNotStarted && !isReady && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontStyle: 'italic' }}>
+                            <Clock size={13} /> {t('techDashboard.precedingStepBlocked')}
+                          </span>
+                        )}
+
+                        {isActive && (
+                          <>
+                            <button
+                              className="btn btn--warning btn--sm"
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                              onClick={(e) => handleAction(e, proc.id, 'pause')}
+                            >
+                              <Pause size={14} /> {t('workOrder.pauseProcess')}
+                            </button>
+                            <button
+                              className="btn btn--primary btn--sm"
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                              onClick={(e) => handleAction(e, proc.id, 'end')}
+                            >
+                              <CheckCircle2 size={14} /> {t('workOrder.endProcess')}
+                            </button>
+                          </>
+                        )}
+
+                        {isPaused && (
+                          <>
+                            <button
+                              className="btn btn--success btn--sm"
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                              onClick={(e) => handleAction(e, proc.id, 'resume')}
+                            >
+                              <Play size={14} /> {t('workOrder.resumeProcess')}
+                            </button>
+                            <button
+                              className="btn btn--primary btn--sm"
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                              onClick={(e) => handleAction(e, proc.id, 'end')}
+                            >
+                              <CheckCircle2 size={14} /> {t('workOrder.endProcess')}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -340,38 +453,41 @@ export function TechnicianDashboardPage() {
 
         {/* Sidebar Info Section */}
         <div className="lg:col-span-1" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-            <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertCircle size={18} style={{ color: 'var(--accent-primary)' }} />
-              {t('techDashboard.quickQRScan')}
-            </h3>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 1rem 0', lineHeight: '1.4' }}>
-              {t('techDashboard.quickQRScanDesc')}
-            </p>
-            <div style={{
-              border: '2px dashed var(--border)',
-              borderRadius: '12px',
-              padding: '1.5rem',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'var(--bg-card)',
-              gap: '8px',
-              cursor: 'not-allowed',
-              opacity: 0.8
-            }}>
-              <div style={{ width: '60px', height: '60px', backgroundColor: 'var(--border)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '1.5rem' }}>📷</span>
+          {/* Quick QR Scan Section - Controlled by SHOW_QUICK_QR_SCAN flag */}
+          {SHOW_QUICK_QR_SCAN && (
+            <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+              <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={18} style={{ color: 'var(--accent-primary)' }} />
+                {t('techDashboard.quickQRScan')}
+              </h3>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 1rem 0', lineHeight: '1.4' }}>
+                {t('techDashboard.quickQRScanDesc')}
+              </p>
+              <div style={{
+                border: '2px dashed var(--border)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'var(--bg-card)',
+                gap: '8px',
+                cursor: 'not-allowed',
+                opacity: 0.8
+              }}>
+                <div style={{ width: '60px', height: '60px', backgroundColor: 'var(--border)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '1.5rem' }}>📷</span>
+                </div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {t('techDashboard.cameraScanDisabled')}
+                </span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                  {t('techDashboard.requiresHttpsApp')}
+                </span>
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                {t('techDashboard.cameraScanDisabled')}
-              </span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                {t('techDashboard.requiresHttpsApp')}
-              </span>
             </div>
-          </div>
+          )}
 
           <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
             <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>

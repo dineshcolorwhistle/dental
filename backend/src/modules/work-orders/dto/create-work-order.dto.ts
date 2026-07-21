@@ -115,6 +115,16 @@ export class CreateWorkOrderDto {
   boxNumber?: string;
 
   @ApiProperty({
+    example: 'FILE-101',
+    description: 'File number (optional)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  fileNumber?: string;
+
+  @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
     description: 'ID of the prosthesis type',
   })
@@ -140,7 +150,7 @@ export class CreateWorkOrderDto {
   @ApiProperty({ example: 5000, description: 'Total quote amount' })
   @IsNumber()
   @IsNotEmpty()
-  @Min(0.01)
+  @Min(0)
   totalQuote: number;
 
   @ApiProperty({
@@ -152,6 +162,15 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @Min(0)
   initialPayment?: number;
+
+  @ApiProperty({
+    example: 'REF-98765',
+    description: 'Payment reference number (optional)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  paymentReferenceNumber?: string;
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',

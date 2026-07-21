@@ -184,6 +184,7 @@ model User {
   createdConversations      Conversation[]         @relation("ConversationCreatedBy")
   messageReadReceipts       MessageReadReceipt[]
   doctor                    Doctor?                @relation("DoctorUser")
+  workOrderNotes            WorkOrderNote[]
 
   @@unique([email, tenantId, role])
   @@map("users")
@@ -352,26 +353,28 @@ model ProsthesisTypeProcess {
 // ─── Work Order ──────────────────────────────────────────
 
 model WorkOrder {
-  id               String          @id @default(uuid())
-  tenantId         String          @map("tenant_id")
-  branchId         String?         @map("branch_id")
-  folioNumber      String          @map("folio_number")
-  doctorId         String          @map("doctor_id")
-  patient          String
-  boxNumber        String?         @map("box_number")
-  prosthesisTypeId String          @map("prosthesis_type_id")
-  specification    String?
-  color            String          @default("A1")
-  notes            String?
-  totalQuote       Float?          @map("total_quote")
-  initialPayment   Float?          @map("initial_payment")
-  qrToken          String          @unique @default(uuid()) @map("qr_token")
-  status           WorkOrderStatus @default(CREATED)
-  repetitionCount  Int             @default(0) @map("repetition_count")
-  createdById      String          @map("created_by_id")
-  isExternal       Boolean         @default(false) @map("is_external")
-  createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime        @updatedAt @map("updated_at")
+  id                     String          @id @default(uuid())
+  tenantId               String          @map("tenant_id")
+  branchId               String?         @map("branch_id")
+  folioNumber            String          @map("folio_number")
+  fileNumber             String?         @map("file_number")
+  doctorId               String          @map("doctor_id")
+  patient                String
+  boxNumber              String?         @map("box_number")
+  prosthesisTypeId       String          @map("prosthesis_type_id")
+  specification          String?
+  color                  String          @default("A1")
+  notes                  String?
+  totalQuote             Float?          @map("total_quote")
+  initialPayment         Float?          @map("initial_payment")
+  paymentReferenceNumber String?         @map("payment_reference_number")
+  qrToken                String          @unique @default(uuid()) @map("qr_token")
+  status                 WorkOrderStatus @default(CREATED)
+  repetitionCount        Int             @default(0) @map("repetition_count")
+  createdById            String          @map("created_by_id")
+  isExternal             Boolean         @default(false) @map("is_external")
+  createdAt              DateTime        @default(now()) @map("created_at")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
 
   // Relations
   tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -383,9 +386,27 @@ model WorkOrder {
   reworkLogs     ReworkLog[]
   repetitionLogs RepetitionLog[]
   conversation   Conversation?
+  notesList      WorkOrderNote[]
 
   @@unique([tenantId, folioNumber])
   @@map("work_orders")
+}
+
+// ─── Work Order Note ─────────────────────────────────────
+
+model WorkOrderNote {
+  id          String   @id @default(uuid())
+  workOrderId String   @map("work_order_id")
+  authorId    String   @map("author_id")
+  content     String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_notes")
 }
 
 // ─── Work Order Process ──────────────────────────────────

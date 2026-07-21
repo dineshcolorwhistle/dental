@@ -28,6 +28,7 @@ export type { CreateProcessPayload, ProcessListItem } from './process.service';
 export type {
   WorkOrderListItem,
   WorkOrderProcessItem,
+  WorkOrderNoteItem,
   CreateWorkOrderPayload,
   CreateWorkOrderProcessPayload,
   UpdateWorkOrderPayload,

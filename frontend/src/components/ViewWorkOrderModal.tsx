@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
+import { NoteHistoryThread } from './NoteHistoryThread';
 
 interface PaymentHistoryItem {
   amount: number;
@@ -167,6 +168,50 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
     }
   }, [workOrderId]);
 
+  const handleAddNote = async (content: string) => {
+    if (!selectedWO) return;
+    const newNote = await workOrderService.addNote(selectedWO.id, content);
+    setSelectedWO((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            notesList: [...(prev.notesList || []), newNote],
+          }
+        : null
+    );
+    if (onUpdate) onUpdate();
+  };
+
+  const handleUpdateNote = async (noteId: string, content: string) => {
+    if (!selectedWO) return;
+    const updated = await workOrderService.updateNote(selectedWO.id, noteId, content);
+    setSelectedWO((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            notesList: (prev.notesList || []).map((n: any) =>
+              n.id === noteId ? updated : n
+            ),
+          }
+        : null
+    );
+    if (onUpdate) onUpdate();
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedWO) return;
+    await workOrderService.deleteNote(selectedWO.id, noteId);
+    setSelectedWO((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            notesList: (prev.notesList || []).filter((n: any) => n.id !== noteId),
+          }
+        : null
+    );
+    if (onUpdate) onUpdate();
+  };
+
   useEffect(() => {
     if (isOpen && workOrderId) {
       setLoading(true);
@@ -313,20 +358,8 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
           <>
             <div className="modal__header" style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
               <div>
-                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', margin: 0 }}>
-                  <span>{t('workOrders.orderDetails')}</span>
-                  <span style={{ 
-                    fontSize: '0.75rem', 
-                    fontWeight: 700, 
-                    padding: '2px 8px', 
-                    borderRadius: '6px', 
-                    backgroundColor: 'rgba(111, 174, 217, 0.1)', 
-                    color: 'var(--accent-primary, #6FAED9)',
-                    fontFamily: 'monospace',
-                    border: '1px solid rgba(111, 174, 217, 0.2)'
-                  }}>
-                    {t('workOrders.folioNumber')}: {selectedWO.folioNumber}
-                  </span>
+                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', margin: 0, fontWeight: 800 }}>
+                  <span>WO#: {selectedWO.folioNumber}</span>
                   {selectedWO.boxNumber && (
                     <span style={{ 
                       fontSize: '0.75rem', 
@@ -337,13 +370,10 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                       color: 'var(--text-secondary)',
                       border: '1px solid var(--border)'
                     }}>
-                      Box: {selectedWO.boxNumber}
+                      {t('workOrders.boxNumber', { defaultValue: 'Box' })}: {selectedWO.boxNumber}
                     </span>
                   )}
                 </h2>
-                <p className="modal__subtitle" style={{ marginTop: '4px', margin: 0 }}>
-                  {t('dashboard.selectOutcome')}
-                </p>
               </div>
               <button
                 className="modal__close"
@@ -392,7 +422,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                 >
                   {t('workOrders.processes')}
                 </button>
-                {user?.role !== 'TECHNICIAN' && (
+                {user?.role !== 'TECHNICIAN' && (selectedWO.reworkLogs?.length || 0) > 0 && (
                   <button
                     type="button"
                     className={`modal-tab-btn ${viewTab === 'rework' ? 'modal-tab-btn--active' : ''}`}
@@ -411,7 +441,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                     {t('dashboard.reworks')}
                   </button>
                 )}
-                {user?.role !== 'TECHNICIAN' && (
+                {user?.role !== 'TECHNICIAN' && (selectedWO.repetitionLogs?.length || 0) > 0 && (
                   <button
                     type="button"
                     className={`modal-tab-btn ${viewTab === 'repetition' ? 'modal-tab-btn--active' : ''}`}
@@ -685,6 +715,12 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                 marginTop: '2px'
                               }}>{selectedWO.color}</span>
                             </div>
+                            {selectedWO.fileNumber && (
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.fileNumber', { defaultValue: 'File Number' })}</span>
+                                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedWO.fileNumber}</span>
+                              </div>
+                            )}
                             {selectedWO.branch && (
                               <div>
                                 <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('common.branch')}</span>
@@ -707,14 +743,16 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                             </div>
                           </div>
 
-                          {/* Notes */}
+                          {/* Admin Notes */}
                           {userNotes && (
                             <div style={{
                               borderTop: '1px solid var(--border)',
                               paddingTop: '0.75rem',
                               marginTop: '0.25rem'
                             }}>
-                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>{t('workOrders.notes')}</span>
+                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                                {t('workOrders.adminNotes', { defaultValue: 'Admin Notes' })}
+                              </span>
                               <div style={{ 
                                 fontSize: '0.875rem',
                                 color: 'var(--text-secondary)',
@@ -725,6 +763,22 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                               </div>
                             </div>
                           )}
+
+                          {/* Notes History */}
+                          <div style={{
+                            borderTop: '1px solid var(--border)',
+                            paddingTop: '0.75rem',
+                            marginTop: '0.25rem'
+                          }}>
+                            <NoteHistoryThread
+                              notesList={selectedWO.notesList || []}
+                              currentUserId={user?.id || ''}
+                              userRole={user?.role || ''}
+                              onAddNote={handleAddNote}
+                              onUpdateNote={handleUpdateNote}
+                              onDeleteNote={handleDeleteNote}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>

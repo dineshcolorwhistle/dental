@@ -70,11 +70,28 @@ export interface RepetitionLogItem {
   } | null;
 }
 
+export interface WorkOrderNoteItem {
+  id: string;
+  workOrderId: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  author?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  } | null;
+}
+
 export interface WorkOrderListItem {
   id: string;
   tenantId: string;
   branchId: string | null;
   folioNumber: string;
+  fileNumber?: string | null;
   doctorId: string;
   patient: string;
   boxNumber: string | null;
@@ -84,6 +101,7 @@ export interface WorkOrderListItem {
   notes: string | null;
   totalQuote: number | null;
   initialPayment: number | null;
+  paymentReferenceNumber?: string | null;
   qrToken: string;
   status: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   repetitionCount?: number;
@@ -116,6 +134,7 @@ export interface WorkOrderListItem {
   processes: WorkOrderProcessItem[];
   reworkLogs?: ReworkLogItem[];
   repetitionLogs?: RepetitionLogItem[];
+  notesList?: WorkOrderNoteItem[];
 }
 
 export interface CreateWorkOrderProcessPayload {
@@ -131,12 +150,14 @@ export interface CreateWorkOrderPayload {
   doctorId: string;
   patient: string;
   boxNumber?: string;
+  fileNumber?: string;
   prosthesisTypeId: string;
   specification?: string;
   color: string;
   notes?: string;
   totalQuote?: number;
   initialPayment?: number;
+  paymentReferenceNumber?: string;
   branchId?: string;
   action: 'create' | 'createAndAssign';
   processes: CreateWorkOrderProcessPayload[];
@@ -146,12 +167,14 @@ export interface UpdateWorkOrderPayload {
   doctorId?: string;
   patient?: string;
   boxNumber?: string;
+  fileNumber?: string;
   prosthesisTypeId?: string;
   specification?: string;
   color?: string;
   notes?: string;
   totalQuote?: number;
   initialPayment?: number;
+  paymentReferenceNumber?: string;
   status?: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   processes?: CreateWorkOrderProcessPayload[];
 }
@@ -209,6 +232,27 @@ export const workOrderService = {
 
   getByQrToken: async (token: string): Promise<WorkOrderListItem> => {
     const response = await api.get<WorkOrderListItem>(`/work-orders/qr/${token}`);
+    return response.data;
+  },
+
+  // Note History APIs
+  getNotes: async (workOrderId: string): Promise<WorkOrderNoteItem[]> => {
+    const response = await api.get<WorkOrderNoteItem[]>(`/work-orders/${workOrderId}/notes`);
+    return response.data;
+  },
+
+  addNote: async (workOrderId: string, content: string): Promise<WorkOrderNoteItem> => {
+    const response = await api.post<WorkOrderNoteItem>(`/work-orders/${workOrderId}/notes`, { content });
+    return response.data;
+  },
+
+  updateNote: async (workOrderId: string, noteId: string, content: string): Promise<WorkOrderNoteItem> => {
+    const response = await api.patch<WorkOrderNoteItem>(`/work-orders/${workOrderId}/notes/${noteId}`, { content });
+    return response.data;
+  },
+
+  deleteNote: async (workOrderId: string, noteId: string): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>(`/work-orders/${workOrderId}/notes/${noteId}`);
     return response.data;
   },
 };

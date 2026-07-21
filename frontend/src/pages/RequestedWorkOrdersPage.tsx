@@ -67,6 +67,7 @@ export function RequestedWorkOrdersPage() {
     doctorId: '',
     patient: '',
     boxNumber: '',
+    fileNumber: '',
     prosthesisTypeId: '',
     specification: '',
     color: 'A1',
@@ -147,6 +148,7 @@ export function RequestedWorkOrdersPage() {
       doctorId: '',
       patient: '',
       boxNumber: '',
+      fileNumber: '',
       prosthesisTypeId: '',
       specification: '',
       color: 'A1',
@@ -190,6 +192,7 @@ export function RequestedWorkOrdersPage() {
         doctorId: form.doctorId,
         patient: form.patient.trim(),
         boxNumber: form.boxNumber.trim() || undefined,
+        fileNumber: form.fileNumber.trim() || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
         specification: form.specification.trim() || undefined,
         color: form.color.trim(),
@@ -411,8 +414,8 @@ export function RequestedWorkOrdersPage() {
                   </div>
                 </div>
 
-                {/* Row 2: Folio Number + Box Number */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                {/* Row 2: Folio Number + File Number + Box Number */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label" htmlFor="input-wo-folio">{t('workOrders.folioNumber', { defaultValue: 'Folio Number' })}</label>
                     <input
@@ -422,6 +425,19 @@ export function RequestedWorkOrdersPage() {
                       value={generatedFolio || t('workOrders.generating', { defaultValue: 'Generating...' })}
                       disabled
                       style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', fontStyle: 'italic', fontWeight: 600 }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="input-wo-file">{t('workOrders.fileNumber', { defaultValue: 'File Number' })}</label>
+                    <input
+                      id="input-wo-file"
+                      className="form-input"
+                      type="text"
+                      placeholder={t('workOrders.fileNumberPlaceholder', { defaultValue: 'e.g., FILE-101' })}
+                      value={form.fileNumber}
+                      onChange={(e) => handleInputChange('fileNumber', e.target.value)}
+                      disabled={saving}
                     />
                   </div>
 

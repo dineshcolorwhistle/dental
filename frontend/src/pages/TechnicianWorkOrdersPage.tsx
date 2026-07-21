@@ -16,22 +16,22 @@ import {
   ShieldCheck,
   AlertTriangle,
   History,
-  Edit3,
   FileText,
-  Save,
   QrCode,
   MessageCircle,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import {
   technicianPortalService,
   messagingService,
+  workOrderService,
   type TechnicianWorkOrderListItem,
   type TechnicianProcessItem,
 } from '../services';
 import { QRLabelModal } from '../components';
+import { NoteHistoryThread } from '../components/NoteHistoryThread';
 
 // Digital timer sub-component for premium visual effect
 function ProcessTimer({ startedAt, lastPausedAt, totalPauseDuration, status }: {
@@ -202,6 +202,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any, t: any) => {
 
 export function TechnicianWorkOrdersPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { socket, isConnected } = useSocket();
@@ -216,43 +217,52 @@ export function TechnicianWorkOrdersPage() {
 
   const [detailTab, setDetailTab] = useState<'general' | 'process'>('general');
 
-  // Editable notes state
-  const [notesText, setNotesText] = useState('');
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [savingNotes, setSavingNotes] = useState(false);
+  const handleAddNote = async (content: string) => {
+    if (!selectedOrder) return;
+    const newNote = await workOrderService.addNote(selectedOrder.id, content);
+    setSelectedOrder((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            notesList: [...(prev.notesList || []), newNote],
+          }
+        : null
+    );
+  };
 
-  // Sync notes state when selected order updates or changes
+  const handleUpdateNote = async (noteId: string, content: string) => {
+    if (!selectedOrder) return;
+    const updated = await workOrderService.updateNote(selectedOrder.id, noteId, content);
+    setSelectedOrder((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            notesList: (prev.notesList || []).map((n: any) =>
+              n.id === noteId ? updated : n
+            ),
+          }
+        : null
+    );
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedOrder) return;
+    await workOrderService.deleteNote(selectedOrder.id, noteId);
+    setSelectedOrder((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            notesList: (prev.notesList || []).filter((n: any) => n.id !== noteId),
+          }
+        : null
+    );
+  };
+
   useEffect(() => {
-    if (selectedOrder) {
-      if (!isEditingNotes) {
-        setNotesText(selectedOrder.notes || '');
-      }
-    } else {
-      setNotesText('');
-      setIsEditingNotes(false);
+    if (!selectedOrder) {
       setDetailTab('general');
     }
-  }, [selectedOrder, isEditingNotes]);
-
-  const handleSaveNotes = async () => {
-    if (!selectedOrder) return;
-    setSavingNotes(true);
-    const loadingToast = toast.loading(t('workOrder.updatingNotes'));
-    try {
-      await technicianPortalService.updateNotes(selectedOrder.id, notesText);
-      toast.success(t('workOrder.notesUpdatedSuccessfully'), { id: loadingToast });
-      setIsEditingNotes(false);
-      
-      // Update local state instantly to avoid waiting for reload
-      setSelectedOrder(prev => prev ? { ...prev, notes: notesText } : null);
-      setWorkOrders(prev => prev.map(wo => wo.id === selectedOrder.id ? { ...wo, notes: notesText } : wo));
-    } catch (err: any) {
-      const errMsg = err?.response?.data?.message || t('workOrder.failedUpdateNotes');
-      toast.error(errMsg, { id: loadingToast });
-    } finally {
-      setSavingNotes(false);
-    }
-  };
+  }, [selectedOrder]);
 
   const fetchWorkOrders = useCallback(async () => {
     try {
@@ -278,6 +288,24 @@ export function TechnicianWorkOrdersPage() {
   useEffect(() => {
     fetchWorkOrders();
   }, [activeTab]);
+
+  useEffect(() => {
+    const selectWoId = searchParams.get('selectWo');
+    if (selectWoId && workOrders.length > 0 && !selectedOrder) {
+      const found = workOrders.find((w) => w.id === selectWoId);
+      if (found) {
+        setSelectedOrder(found);
+        setSearchParams(
+          (params) => {
+            const next = new URLSearchParams(params);
+            next.delete('selectWo');
+            return next;
+          },
+          { replace: true }
+        );
+      }
+    }
+  }, [searchParams, setSearchParams, workOrders, selectedOrder]);
 
   useEffect(() => {
     if (!socket) return;
@@ -666,30 +694,31 @@ export function TechnicianWorkOrdersPage() {
             <div className="modal__header" style={{ padding: '1.5rem 1.75rem 1rem 1.75rem', borderBottom: '1px solid var(--border)' }}>
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <span>{selectedOrder.patient}</span>
+                  <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {t('workOrder.woFolio', { folio: selectedOrder.folioNumber })}
+                  </span>
                   <span style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    padding: '2px 8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    padding: '3px 10px',
                     borderRadius: '6px',
                     backgroundColor: 'rgba(111, 174, 217, 0.1)',
                     color: 'var(--accent-primary)',
-                    fontFamily: 'monospace',
                     border: '1px solid rgba(111, 174, 217, 0.2)'
                   }}>
-                    {t('workOrder.folio')}: {selectedOrder.folioNumber}
+                    {selectedOrder.patient}
                   </span>
                   <button
                     type="button"
                     className="btn btn--outline btn--sm"
                     style={{
-                      padding: '2px 8px',
-                      fontSize: '0.7rem',
+                      padding: '3px 10px',
+                      fontSize: '0.75rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      gap: '5px',
                       borderRadius: '6px',
-                      height: '24px'
+                      height: '26px'
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -697,7 +726,7 @@ export function TechnicianWorkOrdersPage() {
                       setShowQrModal(true);
                     }}
                   >
-                    <QrCode size={12} />
+                    <QrCode size={13} />
                     <span>{t('workOrder.printQR')}</span>
                   </button>
                 </h2>
@@ -708,7 +737,7 @@ export function TechnicianWorkOrdersPage() {
               <button
                 className="modal__close"
                 onClick={() => setSelectedOrder(null)}
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 <X size={20} />
               </button>
@@ -820,116 +849,219 @@ export function TechnicianWorkOrdersPage() {
                     )}
                   </div>
 
-                  {/* Premium Editable Work Order Notes Section */}
+                  {/* Admin Notes Section (Read-only for Technicians) */}
+                  <div style={{
+                    borderBottom: '1px solid var(--border)',
+                    paddingBottom: '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem'
+                  }}>
+                    <h4 style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: 'var(--text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      margin: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <FileText size={14} /> {t('workOrder.adminNotes', { defaultValue: 'Admin Notes' })}
+                    </h4>
+                    <div style={{
+                      padding: '0.75rem',
+                      backgroundColor: 'var(--bg-card)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      fontSize: '0.78rem',
+                      lineHeight: '1.5',
+                      color: selectedOrder.notes ? 'var(--text-primary)' : 'var(--text-muted)',
+                      fontStyle: selectedOrder.notes ? 'normal' : 'italic'
+                    }}>
+                      {selectedOrder.notes || t('workOrder.noNotesPlaceholder', { defaultValue: 'No notes provided.' })}
+                    </div>
+                  </div>
+
+                  {/* Notes History Thread */}
                   <div style={{
                     borderBottom: '1px solid var(--border)',
                     paddingBottom: '1.25rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem'
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        color: 'var(--text-muted)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        margin: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}>
-                        <FileText size={14} /> {t('workOrder.notes')}
-                      </h4>
-                      {!isEditingNotes && (
-                        <button
-                          onClick={() => setIsEditingNotes(true)}
-                          className="btn btn--outline btn--sm"
-                          style={{
-                            padding: '2px 8px',
-                            fontSize: '0.7rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            borderRadius: '6px'
-                          }}
-                        >
-                          <Edit3 size={11} /> {t('workOrder.editNotes')}
-                        </button>
-                      )}
-                    </div>
-
-                    {isEditingNotes ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <textarea
-                          value={notesText}
-                          onChange={(e) => setNotesText(e.target.value)}
-                          placeholder={t('workOrder.notesPlaceholder')}
-                          style={{
-                            width: '100%',
-                            minHeight: '90px',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--accent-primary)',
-                            backgroundColor: 'var(--bg-card)',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.8rem',
-                            lineHeight: '1.4',
-                            resize: 'vertical',
-                            outline: 'none',
-                            boxShadow: '0 0 0 2px rgba(111,174,217,0.1)'
-                          }}
-                        />
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => {
-                              setIsEditingNotes(false);
-                              setNotesText(selectedOrder.notes || '');
-                            }}
-                            disabled={savingNotes}
-                            className="btn btn--outline btn--sm"
-                            style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px' }}
-                          >
-                            {t('common.cancel')}
-                          </button>
-                          <button
-                            onClick={handleSaveNotes}
-                            disabled={savingNotes}
-                            className="btn btn--primary btn--sm"
-                            style={{
-                              padding: '4px 10px',
-                              fontSize: '0.75rem',
-                              borderRadius: '6px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <Save size={12} /> {savingNotes ? t('common.saving') : t('common.save')}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{
-                        padding: '0.75rem',
-                        backgroundColor: 'var(--bg-card)',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        fontSize: '0.78rem',
-                        lineHeight: '1.5',
-                        color: selectedOrder.notes ? 'var(--text-primary)' : 'var(--text-muted)',
-                        fontStyle: selectedOrder.notes ? 'normal' : 'italic'
-                      }}>
-                        {selectedOrder.notes || t('workOrder.noNotesPlaceholder')}
-                      </div>
-                    )}
+                    <NoteHistoryThread
+                      notesList={(selectedOrder as any).notesList || []}
+                      currentUserId={user?.id || ''}
+                      userRole={user?.role || ''}
+                      onAddNote={handleAddNote}
+                      onUpdateNote={handleUpdateNote}
+                      onDeleteNote={handleDeleteNote}
+                    />
                   </div>
                 </>
               )}
 
               {detailTab === 'process' && (
                 <>
+                  {/* Real-time active job controls (Process Timing Control Panel) */}
+                  {(() => {
+                    const myStep = getMyStep(selectedOrder);
+                    if (!myStep) return null;
+
+                    const isCompleted = myStep.status === 'COMPLETED';
+                    const isActive = myStep.status === 'IN_PROGRESS';
+                    const isPaused = myStep.status === 'PAUSED';
+                    const isReady = myStep.status === 'NOT_STARTED' && isPrecedingStepCompleted(myStep, selectedOrder.processes);
+                    const isBlocked = myStep.status === 'NOT_STARTED' && !isReady;
+
+                    const activeRework = (selectedOrder.reworkLogs || []).find(
+                      (r: any) => r.processName === myStep.processName && (r.status === 'Pending' || r.status === 'In Progress')
+                    );
+
+                    const latestRepetition = (selectedOrder.repetitionLogs || []).find((r: any) =>
+                      r.completedSteps && r.completedSteps.split(', ').map((s: string) => s.trim()).includes(myStep.processName)
+                    );
+
+                    return (
+                      <div style={{
+                        backgroundColor: 'var(--bg-card)',
+                        padding: '1.25rem',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        marginBottom: '1.25rem'
+                      }}>
+                        <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Clock size={14} /> {t('workOrder.processTimingControlPanel')}
+                        </h4>
+
+                        {myStep.reworkActive && activeRework && (
+                          <div style={{
+                            display: 'flex',
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                            backgroundColor: 'rgba(231,76,60,0.06)',
+                            border: '1px solid rgba(231,76,60,0.18)',
+                            borderRadius: '8px',
+                            padding: '0.75rem 1rem',
+                            marginBottom: '1rem',
+                            fontSize: '0.8rem',
+                            color: 'var(--text-primary)'
+                          }}>
+                            <AlertTriangle size={16} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '2px' }} />
+                            <div>
+                              <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '2px', fontSize: '0.85rem' }}>
+                                ⚠️ {t('workOrder.assignedReworkTitle', { count: activeRework.reworkCount })}
+                              </strong>
+                              {t('workOrder.flaggedReworkDesc', {
+                                name: `${activeRework.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${activeRework.initiatedBy?.lastName || ''}`,
+                                stage: activeRework.verificationStage,
+                                date: new Date(activeRework.initiatedAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {!myStep.reworkActive && latestRepetition && !isCompleted && (
+                          <div style={{
+                            display: 'flex',
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                            backgroundColor: 'rgba(139, 92, 246, 0.06)',
+                            border: '1px solid rgba(139, 92, 246, 0.18)',
+                            borderRadius: '8px',
+                            padding: '0.75rem 1rem',
+                            marginBottom: '1rem',
+                            fontSize: '0.8rem',
+                            color: 'var(--text-primary)'
+                          }}>
+                            <History size={16} style={{ color: '#8B5CF6', flexShrink: 0, marginTop: '2px' }} />
+                            <div>
+                              <strong style={{ color: '#8B5CF6', display: 'block', marginBottom: '2px', fontSize: '0.85rem' }}>
+                                🔄 {t('workOrder.partRepetitionTitle', { count: latestRepetition.repetitionCount })}
+                              </strong>
+                              {t('workOrder.partRepetitionDesc', {
+                                stage: latestRepetition.verificationStage,
+                                name: `${latestRepetition.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${latestRepetition.initiatedBy?.lastName || ''}`
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {isBlocked && (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.75rem', backgroundColor: 'rgba(231,76,60,0.05)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(231,76,60,0.1)' }}>
+                            <AlertTriangle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '1px' }} />
+                            <span>{t('workOrder.blockedSequenceMsg')}</span>
+                          </div>
+                        )}
+
+                        {!isBlocked && !isCompleted && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {(isActive || isPaused) && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('workOrder.activeTimeElapsed')}:</span>
+                                <ProcessTimer
+                                  startedAt={myStep.startedAt}
+                                  lastPausedAt={myStep.lastPausedAt}
+                                  totalPauseDuration={myStep.totalPauseDuration}
+                                  status={myStep.status}
+                                />
+                              </div>
+                            )}
+
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {myStep.status === 'NOT_STARTED' && (
+                                <button
+                                  className="btn btn--primary"
+                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                  onClick={() => handleAction(myStep.id, 'start')}
+                                >
+                                  <Play size={16} /> {t('workOrder.startProcess')}
+                                </button>
+                              )}
+
+                              {isActive && (
+                                <button
+                                  className="btn btn--warning"
+                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                  onClick={() => handleAction(myStep.id, 'pause')}
+                                >
+                                  <Pause size={16} /> {t('workOrder.pauseProcess')}
+                                </button>
+                              )}
+
+                              {isPaused && (
+                                <button
+                                  className="btn btn--success"
+                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#fff' }}
+                                  onClick={() => handleAction(myStep.id, 'resume')}
+                                >
+                                  <Play size={16} /> {t('workOrder.resumeProcess')}
+                                </button>
+                              )}
+
+                              {(isActive || isPaused) && (
+                                <button
+                                  className="btn btn--primary"
+                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                  onClick={() => handleAction(myStep.id, 'end')}
+                                >
+                                  <CheckCircle2 size={16} /> {t('workOrder.endProcess')}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {isCompleted && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>
+                            <CheckCircle2 size={18} />
+                            <span>{t('workOrder.completedTotalActiveTime', { duration: formatDurationString(myStep.totalActiveDuration) })}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Stepper Timeline Tracker */}
                   <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.25rem' }}>
                     <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1079,166 +1211,6 @@ export function TechnicianWorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Real-time active job controls */}
-                  {(() => {
-                    const myStep = getMyStep(selectedOrder);
-                    if (!myStep) return null;
-
-                    const isCompleted = myStep.status === 'COMPLETED';
-                    const isActive = myStep.status === 'IN_PROGRESS';
-                    const isPaused = myStep.status === 'PAUSED';
-                    const isReady = myStep.status === 'NOT_STARTED' && isPrecedingStepCompleted(myStep, selectedOrder.processes);
-                    const isBlocked = myStep.status === 'NOT_STARTED' && !isReady;
-
-                    const activeRework = (selectedOrder.reworkLogs || []).find(
-                      (r: any) => r.processName === myStep.processName && (r.status === 'Pending' || r.status === 'In Progress')
-                    );
-
-                    const latestRepetition = (selectedOrder.repetitionLogs || []).find((r: any) =>
-                      r.completedSteps && r.completedSteps.split(', ').map((s: string) => s.trim()).includes(myStep.processName)
-                    );
-
-                    return (
-                      <div style={{
-                        backgroundColor: 'var(--bg-card)',
-                        padding: '1.25rem',
-                        borderRadius: '12px',
-                        border: '1px solid var(--border)',
-                        marginBottom: '1.5rem',
-                        marginTop: '1.5rem'
-                      }}>
-                        <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
-                          {t('workOrder.processTimingControlPanel')}
-                        </h4>
-
-                        {myStep.reworkActive && activeRework && (
-                          <div style={{
-                            display: 'flex',
-                            gap: '10px',
-                            alignItems: 'flex-start',
-                            backgroundColor: 'rgba(231,76,60,0.06)',
-                            border: '1px solid rgba(231,76,60,0.18)',
-                            borderRadius: '8px',
-                            padding: '0.75rem 1rem',
-                            marginBottom: '1rem',
-                            fontSize: '0.8rem',
-                            color: 'var(--text-primary)'
-                          }}>
-                            <AlertTriangle size={16} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '2px' }} />
-                            <div>
-                              <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '2px', fontSize: '0.85rem' }}>
-                                ⚠️ {t('workOrder.assignedReworkTitle', { count: activeRework.reworkCount })}
-                              </strong>
-                              {t('workOrder.flaggedReworkDesc', {
-                                name: `${activeRework.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${activeRework.initiatedBy?.lastName || ''}`,
-                                stage: activeRework.verificationStage,
-                                date: new Date(activeRework.initiatedAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {!myStep.reworkActive && latestRepetition && !isCompleted && (
-                          <div style={{
-                            display: 'flex',
-                            gap: '10px',
-                            alignItems: 'flex-start',
-                            backgroundColor: 'rgba(139, 92, 246, 0.06)',
-                            border: '1px solid rgba(139, 92, 246, 0.18)',
-                            borderRadius: '8px',
-                            padding: '0.75rem 1rem',
-                            marginBottom: '1rem',
-                            fontSize: '0.8rem',
-                            color: 'var(--text-primary)'
-                          }}>
-                            <History size={16} style={{ color: '#8B5CF6', flexShrink: 0, marginTop: '2px' }} />
-                            <div>
-                              <strong style={{ color: '#8B5CF6', display: 'block', marginBottom: '2px', fontSize: '0.85rem' }}>
-                                🔄 {t('workOrder.partRepetitionTitle', { count: latestRepetition.repetitionCount })}
-                              </strong>
-                              {t('workOrder.partRepetitionDesc', {
-                                stage: latestRepetition.verificationStage,
-                                name: `${latestRepetition.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${latestRepetition.initiatedBy?.lastName || ''}`
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {isBlocked && (
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', color: 'var(--text-secondary)', fontSize: '0.75rem', backgroundColor: 'rgba(231,76,60,0.05)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(231,76,60,0.1)' }}>
-                            <AlertTriangle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '1px' }} />
-                            <span>{t('workOrder.blockedSequenceMsg')}</span>
-                          </div>
-                        )}
-
-                        {!isBlocked && !isCompleted && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {(isActive || isPaused) && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('workOrder.activeTimeElapsed')}:</span>
-                                <ProcessTimer
-                                  startedAt={myStep.startedAt}
-                                  lastPausedAt={myStep.lastPausedAt}
-                                  totalPauseDuration={myStep.totalPauseDuration}
-                                  status={myStep.status}
-                                />
-                              </div>
-                            )}
-
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                              {myStep.status === 'NOT_STARTED' && (
-                                <button
-                                  className="btn btn--primary"
-                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                                  onClick={() => handleAction(myStep.id, 'start')}
-                                >
-                                  <Play size={16} /> {t('workOrder.startProcess')}
-                                </button>
-                              )}
-
-                              {isActive && (
-                                <button
-                                  className="btn btn--warning"
-                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                                  onClick={() => handleAction(myStep.id, 'pause')}
-                                >
-                                  <Pause size={16} /> {t('workOrder.pauseProcess')}
-                                </button>
-                              )}
-
-                              {isPaused && (
-                                <button
-                                  className="btn btn--success"
-                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#fff' }}
-                                  onClick={() => handleAction(myStep.id, 'resume')}
-                                >
-                                  <Play size={16} /> {t('workOrder.resumeProcess')}
-                                </button>
-                              )}
-
-                              {(isActive || isPaused) && (
-                                <button
-                                  className="btn btn--primary"
-                                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                                  onClick={() => handleAction(myStep.id, 'end')}
-                                >
-                                  <CheckCircle2 size={16} /> {t('workOrder.endProcess')}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {isCompleted && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>
-                            <CheckCircle2 size={18} />
-                            <span>{t('workOrder.completedTotalActiveTime', { duration: formatDurationString(myStep.totalActiveDuration) })}</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
                   {/* Audit Trail Timeline Logs */}
                   {(() => {
                     const myStep = getMyStep(selectedOrder);
@@ -1267,7 +1239,7 @@ export function TechnicianWorkOrdersPage() {
                     };
 
                     return (
-                      <div style={{ marginTop: '1.5rem' }}>
+                      <div style={{ marginTop: '1.25rem' }}>
                         <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <History size={14} /> {t('workOrder.processLogAuditTrail')}
                         </h4>

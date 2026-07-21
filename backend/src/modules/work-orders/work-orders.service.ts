@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -238,6 +239,14 @@ export class WorkOrdersService {
     createdBy: {
       select: { id: true, firstName: true, lastName: true, email: true, role: true },
     },
+    notesList: {
+      orderBy: { createdAt: 'asc' as const },
+      include: {
+        author: {
+          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        },
+      },
+    },
     processes: {
       orderBy: { sequence: 'asc' as const },
       include: {
@@ -313,12 +322,14 @@ export class WorkOrdersService {
       doctorId,
       patient,
       boxNumber,
+      fileNumber,
       prosthesisTypeId,
       specification,
       color,
       notes,
       totalQuote,
       initialPayment,
+      paymentReferenceNumber,
       branchId,
       action,
       processes,
@@ -397,12 +408,13 @@ export class WorkOrdersService {
     // 6. Strip specification if user is not ADMIN
     const finalSpecification = userRole === 'ADMIN' ? specification : undefined;
 
-    // 7. Create work order with processes in a transaction
+    // 7. Create work order with processes and initial note in a transaction
     const workOrder = await this.prisma.workOrder.create({
       data: {
         tenantId,
         branchId: finalBranchId,
         folioNumber,
+        fileNumber: fileNumber || null,
         doctorId,
         patient,
         boxNumber: boxNumber || null,
@@ -412,11 +424,20 @@ export class WorkOrdersService {
         notes: notes || null,
         totalQuote: totalQuote ?? null,
         initialPayment: initialPayment ?? null,
+        paymentReferenceNumber: paymentReferenceNumber || null,
         status,
         createdById: userId,
         processes: {
           create: mappedProcesses,
         },
+        notesList: notes
+          ? {
+              create: {
+                authorId: userId,
+                content: notes,
+              },
+            }
+          : undefined,
       },
       include: this.fullInclude,
     });
@@ -430,12 +451,15 @@ export class WorkOrdersService {
       const firstProcess = sortedProcesses[0];
 
       if (firstProcess.technicianId) {
+        const isInternalVerify = firstProcess.isVerification;
         await this.notificationsService.create({
           tenantId,
           userId: firstProcess.technicianId,
-          title: 'New Work Order Assigned',
-          message: `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
-          type: 'WORK_ORDER',
+          title: isInternalVerify ? 'Internal Verification Pending Alert' : 'New Work Order Assigned',
+          message: isInternalVerify
+            ? `Work Order "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires internal verification step "${firstProcess.processName}".`
+            : `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
+          type: isInternalVerify ? 'VERIFICATION_PENDING' : 'WORK_ORDER',
           referenceId: workOrder.id,
         });
 
@@ -448,8 +472,10 @@ export class WorkOrdersService {
           entityId: workOrder.id,
           details: {
             userId: firstProcess.technicianId,
-            title: 'New Work Order Assigned',
-            message: `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
+            title: isInternalVerify ? 'Internal Verification Pending Alert' : 'New Work Order Assigned',
+            message: isInternalVerify
+              ? `Work Order "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires internal verification step "${firstProcess.processName}".`
+              : `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
           },
         });
       } else if (firstProcess.isVerification && !firstProcess.technicianId) {
@@ -928,6 +954,7 @@ export class WorkOrdersService {
           ...(doctorId && { doctorId }),
           ...(patient && { patient }),
           ...(boxNumber !== undefined && { boxNumber: boxNumber || null }),
+          ...(dto.fileNumber !== undefined && { fileNumber: dto.fileNumber || null }),
           ...(prosthesisTypeId && { prosthesisTypeId }),
           ...(specification !== undefined && {
             specification: specification || null,
@@ -936,6 +963,7 @@ export class WorkOrdersService {
           ...(notes !== undefined && { notes: notes || null }),
           ...(totalQuote !== undefined && { totalQuote }),
           ...(initialPayment !== undefined && { initialPayment }),
+          ...(dto.paymentReferenceNumber !== undefined && { paymentReferenceNumber: dto.paymentReferenceNumber || null }),
           status: actualFinalStatus,
         },
         include: this.fullInclude,
@@ -1013,12 +1041,15 @@ export class WorkOrdersService {
       const firstProcess = sorted[0];
 
       if (firstProcess && firstProcess.technicianId) {
+        const isInternalVerify = firstProcess.isVerification;
         await this.notificationsService.create({
           tenantId,
           userId: firstProcess.technicianId,
-          title: 'New Work Order Assigned',
-          message: `You have been assigned to "${firstProcess.processName}" for work order ${updated.folioNumber} (Patient: ${updated.patient})${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''}.`,
-          type: 'WORK_ORDER',
+          title: isInternalVerify ? 'Internal Verification Pending Alert' : 'New Work Order Assigned',
+          message: isInternalVerify
+            ? `Work Order "${updated.folioNumber}"${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''} requires internal verification step "${firstProcess.processName}".`
+            : `You have been assigned to "${firstProcess.processName}" for work order ${updated.folioNumber} (Patient: ${updated.patient})${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''}.`,
+          type: isInternalVerify ? 'VERIFICATION_PENDING' : 'WORK_ORDER',
           referenceId: updated.id,
         });
 
@@ -1030,7 +1061,7 @@ export class WorkOrdersService {
           entityId: updated.id,
           details: {
             userId: firstProcess.technicianId,
-            title: 'New Work Order Assigned',
+            title: isInternalVerify ? 'Internal Verification Pending Alert' : 'New Work Order Assigned',
           },
         });
       } else if (
@@ -2081,6 +2112,27 @@ export class WorkOrdersService {
               nextProcess.id,
               nextProcess.processName,
             );
+          } else {
+            // Internal Verification step assigned to an admin/technician
+            await this.notificationsService.create({
+              tenantId,
+              userId: nextProcess.technicianId,
+              title: 'Internal Verification Pending Alert',
+              message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} requires internal verification step "${nextProcess.processName}".`,
+              type: 'VERIFICATION_PENDING',
+              referenceId: workOrderId,
+            });
+
+            await this.auditLogsService.log({
+              tenantId,
+              action: 'NOTIFICATION_TRIGGERED',
+              entityName: 'NOTIFICATION',
+              entityId: workOrderId,
+              details: {
+                userId: nextProcess.technicianId,
+                title: 'Internal Verification Pending Alert',
+              },
+            });
           }
         } else if (nextProcess.technicianId) {
           // Notify next technician
@@ -2141,5 +2193,95 @@ export class WorkOrdersService {
 
     await this.updateWorkOrderStatus(workOrderId);
     return updated;
+  }
+
+  // ─── Work Order Note Management ─────────────────────────
+
+  async getNotes(workOrderId: string) {
+    return this.prisma.workOrderNote.findMany({
+      where: { workOrderId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        author: {
+          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        },
+      },
+    });
+  }
+
+  async addNote(workOrderId: string, userId: string, content: string) {
+    const workOrder = await this.prisma.workOrder.findUnique({
+      where: { id: workOrderId },
+    });
+    if (!workOrder) {
+      throw new NotFoundException(`Work Order with ID "${workOrderId}" not found.`);
+    }
+
+    if (!content || !content.trim()) {
+      throw new BadRequestException('Note content cannot be empty.');
+    }
+
+    return this.prisma.workOrderNote.create({
+      data: {
+        workOrderId,
+        authorId: userId,
+        content: content.trim(),
+      },
+      include: {
+        author: {
+          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        },
+      },
+    });
+  }
+
+  async updateNote(noteId: string, userId: string, userRole: string, content: string) {
+    const note = await this.prisma.workOrderNote.findUnique({
+      where: { id: noteId },
+    });
+    if (!note) {
+      throw new NotFoundException(`Note with ID "${noteId}" not found.`);
+    }
+
+    // Permission check: Technicians can only edit their own notes
+    if (userRole === UserRole.TECHNICIAN && note.authorId !== userId) {
+      throw new ForbiddenException('Technicians can only edit their own notes.');
+    }
+
+    if (!content || !content.trim()) {
+      throw new BadRequestException('Note content cannot be empty.');
+    }
+
+    return this.prisma.workOrderNote.update({
+      where: { id: noteId },
+      data: {
+        content: content.trim(),
+      },
+      include: {
+        author: {
+          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        },
+      },
+    });
+  }
+
+  async deleteNote(noteId: string, userId: string, userRole: string) {
+    const note = await this.prisma.workOrderNote.findUnique({
+      where: { id: noteId },
+    });
+    if (!note) {
+      throw new NotFoundException(`Note with ID "${noteId}" not found.`);
+    }
+
+    // Permission check: Technicians can only delete their own notes
+    if (userRole === UserRole.TECHNICIAN && note.authorId !== userId) {
+      throw new ForbiddenException('Technicians can only delete their own notes.');
+    }
+
+    await this.prisma.workOrderNote.delete({
+      where: { id: noteId },
+    });
+
+    return { success: true };
   }
 }

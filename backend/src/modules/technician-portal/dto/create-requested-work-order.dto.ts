@@ -33,6 +33,16 @@ export class CreateRequestedWorkOrderDto {
   boxNumber?: string;
 
   @ApiProperty({
+    example: 'FILE-101',
+    description: 'File number (optional)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  fileNumber?: string;
+
+  @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
     description: 'ID of the prosthesis type',
   })
