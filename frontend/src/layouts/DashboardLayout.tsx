@@ -419,15 +419,15 @@ export function DashboardLayout() {
                 <div
                   className={`sidebar__link sidebar__settings-toggle ${isSettingsRoute ? 'sidebar__link--active-parent' : ''}`}
                   onClick={() => setSettingsExpanded(!settingsExpanded)}
-                  style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  style={{ cursor: 'pointer' }}
                   data-tooltip={t('navigation.settings')}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <SettingsIcon size={20} />
-                    {!sidebarCollapsed && <span>{t('navigation.settings')}</span>}
-                  </div>
+                  <SettingsIcon size={20} />
+                  {!sidebarCollapsed && <span>{t('navigation.settings')}</span>}
                   {!sidebarCollapsed && (
-                    settingsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+                    <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                      {settingsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </span>
                   )}
                 </div>
 
@@ -453,15 +453,15 @@ export function DashboardLayout() {
                       <div
                         className={`sidebar__submenu-link sidebar__users-toggle ${isUsersRoute ? 'sidebar__submenu-link--active-parent' : ''}`}
                         onClick={() => setUsersExpanded(!usersExpanded)}
-                        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        style={{ cursor: 'pointer' }}
                         data-tooltip={t('navigation.users')}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <Users size={16} />
-                          {!sidebarCollapsed && <span>{t('navigation.users')}</span>}
-                        </div>
+                        <Users size={16} />
+                        {!sidebarCollapsed && <span>{t('navigation.users')}</span>}
                         {!sidebarCollapsed && (
-                          usersExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />
+                          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                            {usersExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                          </span>
                         )}
                       </div>
 
