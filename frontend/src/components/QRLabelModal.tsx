@@ -8,6 +8,7 @@ interface QRLabelModalProps {
   onClose: () => void;
   workOrder: {
     folioNumber: string;
+    boxNumber?: string | null;
     patient: string;
     doctor?: { name: string } | null;
     qrToken: string;
@@ -85,19 +86,29 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
               textAlign: 'center',
             }}
           >
-            {/* Header Folio */}
+            {/* Header Folio & Box Number */}
             <div
               style={{
-                fontSize: '1.5rem',
+                fontSize: '1.35rem',
                 fontWeight: 800,
                 letterSpacing: '0.03em',
                 marginBottom: '1rem',
                 borderBottom: '1px dashed #cccccc',
                 width: '100%',
                 paddingBottom: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+                gap: '6px',
               }}
             >
-              WO #{workOrder.folioNumber}
+              <span>WO #{workOrder.folioNumber}</span>
+              {workOrder.boxNumber && (
+                <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#D97706' }}>
+                  ({t('workOrders.boxNumber', { defaultValue: 'Box' })}: {workOrder.boxNumber})
+                </span>
+              )}
             </div>
 
             {/* General Info */}

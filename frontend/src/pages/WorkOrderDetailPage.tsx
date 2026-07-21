@@ -896,6 +896,7 @@ export function WorkOrderDetailPage() {
         onClose={() => setIsQrModalOpen(false)}
         workOrder={{
           folioNumber: workOrder.folioNumber,
+          boxNumber: workOrder.boxNumber,
           patient: workOrder.patient,
           doctor: workOrder.doctor,
           qrToken: workOrder.qrToken
