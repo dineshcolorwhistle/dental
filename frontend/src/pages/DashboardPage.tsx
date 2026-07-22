@@ -46,6 +46,8 @@ export function DashboardPage() {
 
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedAlert, setSelectedAlert] = useState<any>(null);
+  const [showOutcomeModal, setShowOutcomeModal] = useState(false);
   const [outcomeSaving, setOutcomeSaving] = useState(false);
   const [selectedWOId, setSelectedWOId] = useState<string | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -101,12 +103,19 @@ export function DashboardPage() {
     }
   };
 
+  const triggerOutcomeSelection = (alertItem: any) => {
+    setSelectedAlert(alertItem);
+    setShowOutcomeModal(true);
+  };
+
   const handleEndVerification = async (workOrderId: string, processId: string, outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
     setOutcomeSaving(true);
     const loadingToast = toast.loading(t('dashboard.completingVerification', { outcome }));
     try {
       await workOrderService.endVerification(workOrderId, processId, outcome);
       toast.success(t('dashboard.verificationCompleted', { outcome }), { id: loadingToast });
+      setShowOutcomeModal(false);
+      setSelectedAlert(null);
       fetchDashboardData();
       if (outcome === 'REWORK') {
         navigate('/work-orders', { state: { editWorkOrderId: workOrderId, activeTab: 'processes' } });
@@ -301,7 +310,7 @@ export function DashboardPage() {
                             border: 'none',
                             cursor: 'pointer',
                           }}
-                          onClick={() => handleEndVerification(alert.workOrderId, alert.id, 'SUCCESS')}
+                          onClick={() => triggerOutcomeSelection(alert)}
                         >
                           <Check size={12} /> {t('dashboard.endVerification')}
                         </button>
@@ -1050,7 +1059,7 @@ export function DashboardPage() {
                   cursor: outcomeSaving ? 'not-allowed' : 'pointer'
                 }}
                 disabled={outcomeSaving}
-                onClick={() => handleEndVerification('SUCCESS')}
+                onClick={() => selectedAlert && handleEndVerification(selectedAlert.workOrderId, selectedAlert.id, 'SUCCESS')}
               >
                 <CheckCircle2 size={18} /> {t('dashboard.approveSuccess')}
               </button>
@@ -1074,7 +1083,7 @@ export function DashboardPage() {
                   cursor: outcomeSaving ? 'not-allowed' : 'pointer'
                 }}
                 disabled={outcomeSaving}
-                onClick={() => handleEndVerification('REWORK')}
+                onClick={() => selectedAlert && handleEndVerification(selectedAlert.workOrderId, selectedAlert.id, 'REWORK')}
               >
                 <AlertCircle size={18} /> {t('dashboard.flagRework')}
               </button>
@@ -1098,7 +1107,7 @@ export function DashboardPage() {
                   cursor: outcomeSaving ? 'not-allowed' : 'pointer'
                 }}
                 disabled={outcomeSaving}
-                onClick={() => handleEndVerification('REPETITION')}
+                onClick={() => selectedAlert && handleEndVerification(selectedAlert.workOrderId, selectedAlert.id, 'REPETITION')}
               >
                 <History size={18} /> {t('dashboard.flagRepetition')}
               </button>
