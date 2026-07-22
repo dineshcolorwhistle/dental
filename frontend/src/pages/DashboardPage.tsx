@@ -46,8 +46,6 @@ export function DashboardPage() {
 
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedAlert, setSelectedAlert] = useState<any>(null);
-  const [showOutcomeModal, setShowOutcomeModal] = useState(false);
   const [outcomeSaving, setOutcomeSaving] = useState(false);
   const [selectedWOId, setSelectedWOId] = useState<string | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -103,24 +101,15 @@ export function DashboardPage() {
     }
   };
 
-  const triggerOutcomeSelection = (alertItem: any) => {
-    setSelectedAlert(alertItem);
-    setShowOutcomeModal(true);
-  };
-
-  const handleEndVerification = async (outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
-    if (!selectedAlert) return;
+  const handleEndVerification = async (workOrderId: string, processId: string, outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
     setOutcomeSaving(true);
     const loadingToast = toast.loading(t('dashboard.completingVerification', { outcome }));
     try {
-      await workOrderService.endVerification(selectedAlert.workOrderId, selectedAlert.id, outcome);
+      await workOrderService.endVerification(workOrderId, processId, outcome);
       toast.success(t('dashboard.verificationCompleted', { outcome }), { id: loadingToast });
-      setShowOutcomeModal(false);
-      const targetWoId = selectedAlert.workOrderId;
-      setSelectedAlert(null);
       fetchDashboardData();
       if (outcome === 'REWORK') {
-        navigate('/work-orders', { state: { editWorkOrderId: targetWoId, activeTab: 'processes' } });
+        navigate('/work-orders', { state: { editWorkOrderId: workOrderId, activeTab: 'processes' } });
       }
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || t('dashboard.verificationCompleteFailed');
@@ -312,7 +301,7 @@ export function DashboardPage() {
                             border: 'none',
                             cursor: 'pointer',
                           }}
-                          onClick={() => triggerOutcomeSelection(alert)}
+                          onClick={() => handleEndVerification(alert.workOrderId, alert.id, 'SUCCESS')}
                         >
                           <Check size={12} /> {t('dashboard.endVerification')}
                         </button>
