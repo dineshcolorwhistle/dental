@@ -32,6 +32,7 @@ export function ProcessesPage() {
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canEdit = isAdmin || isOwner;
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canDelete = isOwner;
 
   const [processes, setProcesses] = useState<ProcessListItem[]>([]);
@@ -312,7 +313,7 @@ export function ProcessesPage() {
           <h1 className="page-header__title">{t('processesPage.title')}</h1>
           <p className="page-header__subtitle">{t('processesPage.subtitle', { defaultValue: 'Manage workflow stages and customize production handoffs' })}</p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button
             id="btn-add-process"
             className="btn btn--primary"
@@ -398,7 +399,7 @@ export function ProcessesPage() {
               ? t('processesPage.createDesc', { defaultValue: 'Configure processes to define operational workflow stages like scanning, designing, and QC.' })
               : t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
-          {processes.length === 0 && canEdit && (
+          {processes.length === 0 && canCreate && (
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}

@@ -29,6 +29,7 @@ export function DoctorsPage() {
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canEdit = isAdmin || isOwner;
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canDelete = isOwner;
 
   const [doctors, setDoctors] = useState<DoctorListItem[]>([]);
@@ -281,7 +282,7 @@ export function DoctorsPage() {
           <h1 className="page-header__title">{t('doctors.title')}</h1>
           <p className="page-header__subtitle">{t('doctors.subtitle', { defaultValue: 'Manage dental doctor and clinic records' })}</p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button
             id="btn-add-doctor"
             className="btn btn--primary"
@@ -398,7 +399,7 @@ export function DoctorsPage() {
               ? t('doctors.createDesc', { defaultValue: 'Add details of dental clinics or external doctors to assign work orders.' })
               : t('doctors.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
-          {doctors.length === 0 && canEdit && (
+          {doctors.length === 0 && canCreate && (
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}

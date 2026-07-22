@@ -28,6 +28,7 @@ export function TechniciansPage() {
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canEdit = isAdmin || isOwner;
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canDelete = isOwner;
 
   const [technicians, setTechnicians] = useState<TechnicianListItem[]>([]);
@@ -309,7 +310,7 @@ export function TechniciansPage() {
           <h1 className="page-header__title">{t('technicians.title')}</h1>
           <p className="page-header__subtitle">{t('technicians.subtitle', { defaultValue: 'Manage dental lab technicians and their access' })}</p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button
             id="btn-add-technician"
             className="btn btn--primary"
@@ -439,7 +440,7 @@ export function TechniciansPage() {
               ? t('technicians.createDesc', { defaultValue: 'Invite technicians to assign design tasks and lab manufacturing workflow steps.' })
               : t('technicians.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
-          {technicians.length === 0 && canEdit && (
+          {technicians.length === 0 && canCreate && (
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}

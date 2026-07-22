@@ -28,6 +28,7 @@ export function ProcessAreasPage() {
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canEdit = isAdmin || isOwner;
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canDelete = isOwner;
 
   const [processAreas, setProcessAreas] = useState<ProcessAreaListItem[]>([]);
@@ -244,7 +245,7 @@ export function ProcessAreasPage() {
           <p className="page-subtitle">{t('processAreasPage.subtitle')}</p>
         </div>
 
-        {canEdit && (
+        {canCreate && (
           <button className="btn btn--primary" onClick={handleCreateOpen}>
             <Plus size={18} />
             <span>{t('processAreasPage.addArea')}</span>

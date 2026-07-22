@@ -32,6 +32,7 @@ export function InventoryPage() {
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canEdit = isAdmin || isOwner;
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canDelete = isOwner;
 
   // State
@@ -461,7 +462,7 @@ export function InventoryPage() {
 
       {activeTab === 'ITEMS' ? (
         <>
-          {canEdit && (
+          {canCreate && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
               <button
                 className="btn btn--primary"
@@ -693,7 +694,7 @@ export function InventoryPage() {
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           {/* Add Category Button */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-            {canEdit && (
+            {canCreate && (
               <button
                 className="btn btn--primary"
                 onClick={handleOpenCategoryCreateModal}

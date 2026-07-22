@@ -36,6 +36,7 @@ export function ProsthesisTypesPage() {
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canEdit = isAdmin || isOwner;
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canDelete = isOwner;
 
   const [types, setTypes] = useState<ProsthesisTypeListItem[]>([]);
@@ -342,7 +343,7 @@ export function ProsthesisTypesPage() {
           <h1 className="page-header__title">{t('prosthesisTypes.title', { defaultValue: 'Prosthesis Types' })}</h1>
           <p className="page-header__subtitle">{t('prosthesisTypes.subtitle', { defaultValue: 'Manage dental laboratory work types and custom workflows' })}</p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button
             id="btn-add-prosthesis-type"
             className="btn btn--primary"
@@ -428,7 +429,7 @@ export function ProsthesisTypesPage() {
               ? t('prosthesisTypes.createDesc', { defaultValue: 'Add prosthesis types to define work items and build custom manufacturing workflow sequences.' })
               : t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
-          {types.length === 0 && canEdit && (
+          {types.length === 0 && canCreate && (
             <button
               className="btn btn--primary"
               onClick={handleCreateOpen}

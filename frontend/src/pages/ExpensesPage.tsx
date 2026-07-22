@@ -26,6 +26,7 @@ type ActiveTab = 'EXPENSES' | 'CATEGORIES';
 export function ExpensesPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const canDelete = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
 
   // State
@@ -420,12 +421,14 @@ export function ExpensesPage() {
       {activeTab === 'EXPENSES' && (
         <div>
           {/* Toolbar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <button className="btn btn--primary" onClick={handleOpenCreateExpense}>
-              <Plus size={18} />
-              <span>{t('expenses.addExpense')}</span>
-            </button>
-          </div>
+          {canCreate && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <button className="btn btn--primary" onClick={handleOpenCreateExpense}>
+                <Plus size={18} />
+                <span>{t('expenses.addExpense')}</span>
+              </button>
+            </div>
+          )}
 
           {/* Filters toolbar */}
           <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -671,12 +674,14 @@ export function ExpensesPage() {
       {/* CATEGORIES TAB */}
       {activeTab === 'CATEGORIES' && (
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <button className="btn btn--primary" onClick={handleOpenCategoryCreateModal}>
-              <Plus size={18} />
-              <span>{t('expenses.addCategory')}</span>
-            </button>
-          </div>
+          {canCreate && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <button className="btn btn--primary" onClick={handleOpenCategoryCreateModal}>
+                <Plus size={18} />
+                <span>{t('expenses.addCategory')}</span>
+              </button>
+            </div>
+          )}
 
           {/* Category Toolbar */}
           <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
