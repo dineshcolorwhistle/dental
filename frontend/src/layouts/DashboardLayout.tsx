@@ -24,6 +24,7 @@ import {
   PlusCircle,
   Check,
   Trash2,
+  Eye,
   DollarSign,
   Package,
   Key,
@@ -228,6 +229,30 @@ export function DashboardLayout() {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
     } catch {
       // Silently fail
+    }
+  };
+
+  const handleDeleteAllRead = async () => {
+    try {
+      await notificationService.deleteAllRead();
+      setNotifications((prev) => prev.filter((n) => !n.isRead));
+      toast.success(t('notifications.deleteReadSuccess'));
+    } catch {
+      // Silently fail
+    }
+  };
+
+  const handleViewNotification = (n: NotificationItem) => {
+    if (!n.isRead) {
+      handleMarkRead(n.id);
+    }
+    setNotifOpen(false);
+    if (n.referenceId) {
+      if (user?.role === 'TECHNICIAN') {
+        navigate(`/tech/work-orders?selectWo=${n.referenceId}`);
+      } else {
+        navigate(`/work-orders?selectWo=${n.referenceId}`);
+      }
     }
   };
 
@@ -703,14 +728,27 @@ export function DashboardLayout() {
 
               {notifOpen && (
                 <div className="notif-dropdown">
-                  <div className="notif-dropdown__header">
+                  <div className="notif-dropdown__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span className="notif-dropdown__title">{t('notifications.title')}</span>
-                    {unreadCount > 0 && (
-                      <button className="notif-dropdown__mark-all" onClick={handleMarkAllRead}>
-                        <Check size={12} />
-                        {t('notifications.markAllRead')}
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {unreadCount > 0 && (
+                        <button className="notif-dropdown__mark-all" onClick={handleMarkAllRead}>
+                          <Check size={12} />
+                          {t('notifications.markAllRead')}
+                        </button>
+                      )}
+                      {notifications.some((n) => n.isRead) && (
+                        <button
+                          className="notif-dropdown__mark-all"
+                          onClick={handleDeleteAllRead}
+                          style={{ color: 'var(--danger, #EF4444)' }}
+                          title={t('notifications.deleteAllRead')}
+                        >
+                          <Trash2 size={12} />
+                          {t('notifications.deleteAllRead')}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {isPushSupported && (
                     <>
@@ -752,8 +790,14 @@ export function DashboardLayout() {
                         <div
                           key={n.id}
                           className={`notif-dropdown__item ${!n.isRead ? 'notif-dropdown__item--unread' : ''}`}
-                          style={{ position: 'relative', paddingRight: '2.5rem' }}
-                          onClick={() => { if (!n.isRead) handleMarkRead(n.id); }}
+                          style={{ position: 'relative', paddingRight: '4.5rem', cursor: n.referenceId ? 'pointer' : 'default' }}
+                          onClick={() => {
+                            if (n.referenceId) {
+                              handleViewNotification(n);
+                            } else if (!n.isRead) {
+                              handleMarkRead(n.id);
+                            }
+                          }}
                         >
                           <div className="notif-dropdown__item-title">{n.title}</div>
                           <div className="notif-dropdown__item-msg">{n.message}</div>
@@ -762,34 +806,67 @@ export function DashboardLayout() {
                               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                             })}
                           </div>
-                          {n.isRead && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteNotification(n.id);
-                              }}
-                              style={{
-                                position: 'absolute',
-                                right: '10px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                background: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '4px',
-                                borderRadius: '4px',
-                                opacity: 0.6,
-                                transition: 'opacity 0.2s',
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
-                              title={t('notifications.deleteNotification')}
-                            >
-                              <Trash2 size={13} style={{ color: '#EF4444' }} />
-                            </button>
-                          )}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              right: '8px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            {n.referenceId && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewNotification(n);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '4px',
+                                  borderRadius: '4px',
+                                  opacity: 0.7,
+                                  transition: 'opacity 0.2s',
+                                  color: 'var(--accent-primary, #3B82F6)',
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                                title={t('notifications.viewDetails')}
+                              >
+                                <Eye size={14} />
+                              </button>
+                            )}
+                            {n.isRead && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteNotification(n.id);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '4px',
+                                  borderRadius: '4px',
+                                  opacity: 0.6,
+                                  transition: 'opacity 0.2s',
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+                                title={t('notifications.deleteNotification')}
+                              >
+                                <Trash2 size={13} style={{ color: '#EF4444' }} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))
                     )}

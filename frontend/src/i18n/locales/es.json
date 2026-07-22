@@ -256,7 +256,10 @@
     "enableDesktopPush": "Activa las notificaciones push de escritorio para recibir alertas cuando se actualicen tus órdenes de trabajo.",
     "enabling": "Activando...",
     "enableNotifications": "Activar Notificaciones",
-    "pushActive": "Notificaciones push activas"
+    "pushActive": "Notificaciones push activas",
+    "deleteAllRead": "Limpiar leídas",
+    "viewDetails": "Ver detalles",
+    "deleteReadSuccess": "Notificaciones leídas eliminadas"
   },
   "errors": {
     "pageNotFound": "Página No Encontrada",

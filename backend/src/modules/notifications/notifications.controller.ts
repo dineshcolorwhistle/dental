@@ -72,6 +72,19 @@ export class NotificationsController {
     return this.notificationsService.markAllAsRead(tenantId, userId);
   }
 
+  @Delete('read/clear')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete all read notifications for current user' })
+  async removeAllRead(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.notificationsService.removeAllRead(tenantId, userId);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a notification manually' })

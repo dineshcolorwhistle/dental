@@ -38,6 +38,11 @@ export const notificationService = {
     return response.data;
   },
 
+  deleteAllRead: async (): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>('/notifications/read/clear');
+    return response.data;
+  },
+
   getPushPublicKey: async (): Promise<{ publicKey: string | null }> => {
     const response = await api.get<{ publicKey: string | null }>('/notifications/push-public-key');
     return response.data;

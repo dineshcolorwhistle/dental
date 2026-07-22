@@ -256,7 +256,10 @@
     "enableDesktopPush": "Enable desktop push notifications to get alerts when your work orders update.",
     "enabling": "Enabling...",
     "enableNotifications": "Enable Notifications",
-    "pushActive": "Push notifications active"
+    "pushActive": "Push notifications active",
+    "deleteAllRead": "Clear read",
+    "viewDetails": "View details",
+    "deleteReadSuccess": "Read notifications cleared"
   },
   "errors": {
     "pageNotFound": "Page Not Found",

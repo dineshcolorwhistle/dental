@@ -1164,7 +1164,11 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                             {proc.isVerification && isLabAdminOrOwner && (
                                               (() => {
                                                 const isExternal = proc.isVerification && !proc.technicianId;
-                                                const canCompleteExternal = !isExternal || selectedWO?.branch?.defaultAdminId === user?.id;
+                                                const isAssigned = isExternal
+                                                  ? (selectedWO?.branch?.defaultAdminId === user?.id || user?.role === 'SUPER_ADMIN')
+                                                  : (proc.technicianId === user?.id || user?.role === 'SUPER_ADMIN');
+
+                                                if (!isAssigned) return null;
 
                                                 return (
                                                   <>
@@ -1177,7 +1181,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                           return (
                                                             <button
                                                               className="btn btn--primary btn--sm"
-                                                              style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '3px 8px', fontSize: '0.7rem', marginTop: '6px', fontWeight: 600 }}
+                                                              style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#8B5CF6', border: 'none', padding: '3px 8px', fontSize: '0.7rem', marginTop: '6px', fontWeight: 600, cursor: 'pointer' }}
                                                               onClick={() => handleInlineStartVerification(selectedWO.id, proc.id)}
                                                             >
                                                               <Play size={10} /> {t('dashboard.start')}
@@ -1191,28 +1195,22 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                       <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
                                                         <button
                                                           className="btn btn--primary btn--sm"
-                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#10B981' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
-                                                          onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'SUCCESS')}
-                                                          disabled={!canCompleteExternal}
-                                                          title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#10B981', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                                          onClick={() => handleInlineEndVerification(selectedWO.id, proc.id, 'SUCCESS')}
                                                         >
                                                           <Check size={10} /> {t('dashboard.approve')}
                                                         </button>
                                                         <button
                                                           className="btn btn--primary btn--sm"
-                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#EF4444' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
-                                                          onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'REWORK')}
-                                                          disabled={!canCompleteExternal}
-                                                          title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#EF4444', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                                          onClick={() => handleInlineEndVerification(selectedWO.id, proc.id, 'REWORK')}
                                                         >
                                                           <AlertCircle size={10} /> {t('dashboard.rework')}
                                                         </button>
                                                         <button
                                                           className="btn btn--primary btn--sm"
-                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: canCompleteExternal ? '#D946EF' : '#94A3B8', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: canCompleteExternal ? 'pointer' : 'not-allowed' }}
-                                                          onClick={() => canCompleteExternal && handleInlineEndVerification(selectedWO.id, proc.id, 'REPETITION')}
-                                                          disabled={!canCompleteExternal}
-                                                          title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#D946EF', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                                          onClick={() => handleInlineEndVerification(selectedWO.id, proc.id, 'REPETITION')}
                                                         >
                                                           <History size={10} /> {t('dashboard.repetition')}
                                                         </button>

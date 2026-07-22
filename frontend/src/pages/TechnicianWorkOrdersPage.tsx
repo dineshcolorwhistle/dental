@@ -291,7 +291,7 @@ export function TechnicianWorkOrdersPage() {
 
   useEffect(() => {
     const selectWoId = searchParams.get('selectWo');
-    if (selectWoId && workOrders.length > 0 && !selectedOrder) {
+    if (selectWoId && !selectedOrder) {
       const found = workOrders.find((w) => w.id === selectWoId);
       if (found) {
         setSelectedOrder(found);
@@ -303,9 +303,28 @@ export function TechnicianWorkOrdersPage() {
           },
           { replace: true }
         );
+      } else if (!loading) {
+        workOrderService
+          .getById(selectWoId)
+          .then((wo) => {
+            if (wo) {
+              setSelectedOrder(wo as any);
+              setSearchParams(
+                (params) => {
+                  const next = new URLSearchParams(params);
+                  next.delete('selectWo');
+                  return next;
+                },
+                { replace: true }
+              );
+            }
+          })
+          .catch(() => {
+            // Ignore if error
+          });
       }
     }
-  }, [searchParams, setSearchParams, workOrders, selectedOrder]);
+  }, [searchParams, setSearchParams, workOrders, selectedOrder, loading]);
 
   useEffect(() => {
     if (!socket) return;

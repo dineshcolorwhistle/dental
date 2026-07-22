@@ -131,8 +131,8 @@ export class WorkOrdersService {
         await this.notificationsService.create({
           tenantId,
           userId: admin.id,
-          title: 'Verification Pending Alert',
-          message: `Work Order "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires verification step "${processName}".`,
+          title: 'Verification Pending',
+          message: `WO "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires verification "${processName}".`,
           type: 'VERIFICATION_PENDING',
           referenceId: workOrderId,
         });
@@ -455,10 +455,10 @@ export class WorkOrdersService {
         await this.notificationsService.create({
           tenantId,
           userId: firstProcess.technicianId,
-          title: isInternalVerify ? 'Internal Verification Pending Alert' : 'New Work Order Assigned',
+          title: isInternalVerify ? 'Verification Pending' : 'WO Assigned',
           message: isInternalVerify
-            ? `Work Order "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires internal verification step "${firstProcess.processName}".`
-            : `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
+            ? `WO "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires verification "${firstProcess.processName}".`
+            : `Assigned to "${firstProcess.processName}" for WO ${folioNumber} (${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
           type: isInternalVerify ? 'VERIFICATION_PENDING' : 'WORK_ORDER',
           referenceId: workOrder.id,
         });
@@ -981,8 +981,8 @@ export class WorkOrdersService {
         await this.notificationsService.create({
           tenantId,
           userId: firstReworked.technicianId,
-          title: 'Work Order Flagged for Rework',
-          message: `Work Order "${updated.folioNumber}" has been flagged for rework. Please review step "${firstReworked.processName}".`,
+          title: 'WO Rework Flagged',
+          message: `WO "${updated.folioNumber}" flagged for rework at step "${firstReworked.processName}".`,
           type: 'WORK_ORDER',
           referenceId: updated.id,
         });
@@ -1045,10 +1045,10 @@ export class WorkOrdersService {
         await this.notificationsService.create({
           tenantId,
           userId: firstProcess.technicianId,
-          title: isInternalVerify ? 'Internal Verification Pending Alert' : 'New Work Order Assigned',
+          title: isInternalVerify ? 'Verification Pending' : 'WO Assigned',
           message: isInternalVerify
-            ? `Work Order "${updated.folioNumber}"${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''} requires internal verification step "${firstProcess.processName}".`
-            : `You have been assigned to "${firstProcess.processName}" for work order ${updated.folioNumber} (Patient: ${updated.patient})${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''}.`,
+            ? `WO "${updated.folioNumber}"${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''} requires verification "${firstProcess.processName}".`
+            : `Assigned to "${firstProcess.processName}" for WO ${updated.folioNumber} (${updated.patient})${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''}.`,
           type: isInternalVerify ? 'VERIFICATION_PENDING' : 'WORK_ORDER',
           referenceId: updated.id,
         });
@@ -1285,6 +1285,7 @@ export class WorkOrdersService {
       type: a.technicianId ? 'INTERNAL' : 'EXTERNAL',
       status: a.status,
       startedAt: a.startedAt,
+      technicianId: a.technicianId || null,
       assignedTo:
         a.technicianId && a.technician
           ? `${a.technician.firstName} ${a.technician.lastName}`
@@ -1867,8 +1868,8 @@ export class WorkOrdersService {
         await this.notificationsService.create({
           tenantId,
           userId: firstReworked.technicianId,
-          title: 'Work Order Flagged for Rework',
-          message: `Work Order "${process.workOrder.folioNumber}" has been flagged for rework. Please review step "${firstReworked.processName}".`,
+          title: 'WO Rework Flagged',
+          message: `WO "${process.workOrder.folioNumber}" flagged for rework at step "${firstReworked.processName}".`,
           type: 'WORK_ORDER',
           referenceId: workOrderId,
         });
@@ -1975,8 +1976,8 @@ export class WorkOrdersService {
         await this.notificationsService.create({
           tenantId,
           userId: firstProcess.technicianId,
-          title: 'Work Order Repetition Triggered',
-          message: `Work Order "${process.workOrder.folioNumber}" has been restarted due to a repetition request from verification step "${process.processName}". Please restart step "${firstProcess.processName}".`,
+          title: 'WO Repetition Triggered',
+          message: `WO "${process.workOrder.folioNumber}" restarted from step "${process.processName}". Restart step "${firstProcess.processName}".`,
           type: 'WORK_ORDER',
           referenceId: workOrderId,
         });
@@ -2117,8 +2118,8 @@ export class WorkOrdersService {
             await this.notificationsService.create({
               tenantId,
               userId: nextProcess.technicianId,
-              title: 'Internal Verification Pending Alert',
-              message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} requires internal verification step "${nextProcess.processName}".`,
+              title: 'Verification Pending',
+              message: `WO "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} requires verification "${nextProcess.processName}".`,
               type: 'VERIFICATION_PENDING',
               referenceId: workOrderId,
             });
@@ -2139,8 +2140,8 @@ export class WorkOrdersService {
           await this.notificationsService.create({
             tenantId,
             userId: nextProcess.technicianId,
-            title: 'New Active Work Order Step',
-            message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} is ready for you. The previous verification step has been completed.`,
+            title: 'WO Step Ready',
+            message: `WO "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} is ready. Previous step completed.`,
             type: 'WORK_ORDER',
             referenceId: workOrderId,
           });
@@ -2171,8 +2172,8 @@ export class WorkOrdersService {
           await this.notificationsService.create({
             tenantId,
             userId: admin.id,
-            title: 'Work Order Completed',
-            message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} has been fully completed!`,
+            title: 'WO Completed',
+            message: `WO "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} completed!`,
             type: 'WORK_ORDER_COMPLETED',
             referenceId: workOrderId,
           });

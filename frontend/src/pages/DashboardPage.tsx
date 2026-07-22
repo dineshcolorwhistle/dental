@@ -282,7 +282,11 @@ export function DashboardPage() {
                     </button>
                     {(() => {
                       const isExternal = alert.type === 'EXTERNAL';
-                      const canCompleteExternal = !isExternal || alert.defaultAdminId === user?.id;
+                      const isAssigned = isExternal
+                        ? (alert.defaultAdminId === user?.id || user?.role === 'SUPER_ADMIN')
+                        : (alert.technicianId === user?.id || user?.role === 'SUPER_ADMIN');
+
+                      if (!isAssigned) return null;
 
                       if (isNotStarted) {
                         if (isExternal) return null;
@@ -304,13 +308,11 @@ export function DashboardPage() {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '6px',
-                            backgroundColor: canCompleteExternal ? '#10B981' : '#94A3B8',
+                            backgroundColor: '#10B981',
                             border: 'none',
-                            cursor: canCompleteExternal ? 'pointer' : 'not-allowed',
+                            cursor: 'pointer',
                           }}
-                          onClick={() => canCompleteExternal && triggerOutcomeSelection(alert)}
-                          disabled={!canCompleteExternal}
-                          title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
+                          onClick={() => triggerOutcomeSelection(alert)}
                         >
                           <Check size={12} /> {t('dashboard.endVerification')}
                         </button>
@@ -595,11 +597,14 @@ export function DashboardPage() {
                             {t('dashboard.evaluator')}: <strong>{evaluator}</strong>
                           </span>
                         </div>
-
                         <div>
                           {(() => {
                             const isExternal = !activeVerification.technicianId;
-                            const canCompleteExternal = !isExternal || wo.branch?.defaultAdminId === user?.id;
+                            const isAssigned = isExternal
+                              ? (wo.branch?.defaultAdminId === user?.id || user?.role === 'SUPER_ADMIN')
+                              : (activeVerification.technicianId === user?.id || user?.role === 'SUPER_ADMIN');
+
+                            if (!isAssigned) return null;
 
                             if (isNotStarted) {
                               if (isExternal) return null;
@@ -615,31 +620,59 @@ export function DashboardPage() {
                             }
 
                             return (
-                              <button
-                                className="btn btn--primary btn--sm"
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  backgroundColor: canCompleteExternal ? '#10B981' : '#94A3B8',
-                                  border: 'none',
-                                  padding: '4px 10px',
-                                  fontSize: '0.725rem',
-                                  fontWeight: 600,
-                                  cursor: canCompleteExternal ? 'pointer' : 'not-allowed',
-                                }}
-                                onClick={() => canCompleteExternal && triggerOutcomeSelection({
-                                  id: activeVerification.id,
-                                  workOrderId: wo.id,
-                                  folioNumber: wo.folioNumber,
-                                  patient: wo.patient,
-                                  processName: activeVerification.processName
-                                })}
-                                disabled={!canCompleteExternal}
-                                title={canCompleteExternal ? undefined : t('dashboard.onlyDefaultAdmin')}
-                              >
-                                <Check size={10} /> {t('dashboard.end')}
-                              </button>
+                              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                <button
+                                  className="btn btn--primary btn--sm"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    backgroundColor: '#10B981',
+                                    border: 'none',
+                                    padding: '4px 10px',
+                                    fontSize: '0.725rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={() => handleEndVerification(wo.id, activeVerification.id, 'SUCCESS')}
+                                >
+                                  <Check size={10} /> {t('dashboard.approve')}
+                                </button>
+                                <button
+                                  className="btn btn--primary btn--sm"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    backgroundColor: '#EF4444',
+                                    border: 'none',
+                                    padding: '4px 10px',
+                                    fontSize: '0.725rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={() => handleEndVerification(wo.id, activeVerification.id, 'REWORK')}
+                                >
+                                  <AlertCircle size={10} /> {t('dashboard.rework')}
+                                </button>
+                                <button
+                                  className="btn btn--primary btn--sm"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    backgroundColor: '#D946EF',
+                                    border: 'none',
+                                    padding: '4px 10px',
+                                    fontSize: '0.725rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={() => handleEndVerification(wo.id, activeVerification.id, 'REPETITION')}
+                                >
+                                  <History size={10} /> {t('dashboard.repetition')}
+                                </button>
+                              </div>
                             );
                           })()}
                         </div>

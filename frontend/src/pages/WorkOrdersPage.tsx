@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ClipboardList,
   Plus,
@@ -115,6 +115,7 @@ export function WorkOrdersPage() {
   const { socket, isConnected } = useSocket();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canDelete = isOwner;
@@ -154,6 +155,45 @@ export function WorkOrdersPage() {
   // View modal
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrderListItem | null>(null);
+
+  useEffect(() => {
+    const selectWoId = searchParams.get('selectWo');
+    if (selectWoId && !showViewModal) {
+      const found = workOrders.find((w) => w.id === selectWoId);
+      if (found) {
+        setSelectedWO(found);
+        setShowViewModal(true);
+        setSearchParams(
+          (params) => {
+            const next = new URLSearchParams(params);
+            next.delete('selectWo');
+            return next;
+          },
+          { replace: true }
+        );
+      } else if (!loading) {
+        workOrderService
+          .getById(selectWoId)
+          .then((wo) => {
+            if (wo) {
+              setSelectedWO(wo);
+              setShowViewModal(true);
+              setSearchParams(
+                (params) => {
+                  const next = new URLSearchParams(params);
+                  next.delete('selectWo');
+                  return next;
+                },
+                { replace: true }
+              );
+            }
+          })
+          .catch(() => {
+            // Ignore if not found
+          });
+      }
+    }
+  }, [searchParams, setSearchParams, workOrders, loading, showViewModal]);
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -423,31 +463,78 @@ export function WorkOrdersPage() {
   };
 
   // ─── Form Handling ──────────────────────────
-  const validateForm = (checkProcesses = true): boolean => {
+  const validateTab1Details = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!form.doctorId) errors.doctorId = 'Doctor is required';
-    if (!form.patient.trim()) errors.patient = 'Patient name is required';
-    if (!form.prosthesisTypeId) errors.prosthesisTypeId = 'Prosthesis type is required';
-    if (!isAdmin && branches.length > 0 && !form.branchId) errors.branchId = 'Branch is required';
-    if (!form.specification.trim()) errors.specification = 'Specification is required';
-    if (!form.color.trim()) errors.color = 'Color is required';
-    if (!form.totalQuote.trim()) {
-      errors.totalQuote = 'Total quote is required';
-    } else if (parseFloat(form.totalQuote) < 0) {
-      errors.totalQuote = 'Total quote cannot be negative';
-    }
-    if (checkProcesses) {
-      if (processList.length === 0) {
-        errors.processes = 'At least one process step is required';
-      } else {
-        const hasUnassignedProcess = processList.some((p) => !p.technicianId && !(p.isVerification && !p.technicianId));
-        if (hasUnassignedProcess) {
-          errors.processes = 'All process steps must be assigned to a technician';
-        }
+    if (!form.doctorId) errors.doctorId = t('validation.fieldRequired', { defaultValue: 'Doctor is required' });
+    if (!form.patient.trim()) errors.patient = t('validation.fieldRequired', { defaultValue: 'Patient name is required' });
+    if (!form.prosthesisTypeId) errors.prosthesisTypeId = t('validation.fieldRequired', { defaultValue: 'Prosthesis type is required' });
+    if (!isAdmin && branches.length > 0 && !form.branchId) errors.branchId = t('validation.fieldRequired', { defaultValue: 'Branch is required' });
+    if (isAdmin && !form.specification.trim()) errors.specification = t('validation.fieldRequired', { defaultValue: 'Specification is required' });
+    if (!form.color.trim()) errors.color = t('validation.fieldRequired', { defaultValue: 'Color is required' });
+
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next.doctorId;
+      delete next.patient;
+      delete next.prosthesisTypeId;
+      delete next.branchId;
+      delete next.specification;
+      delete next.color;
+      return { ...next, ...errors };
+    });
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateTab2Processes = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (processList.length === 0) {
+      errors.processes = t('workOrders.validationProcessStepRequired', { defaultValue: 'At least one process step is required' });
+    } else {
+      const hasUnassignedProcess = processList.some((p) => !p.technicianId && !(p.isVerification && !p.technicianId));
+      if (hasUnassignedProcess) {
+        errors.processes = t('workOrders.validationAllStepsAssigned', { defaultValue: 'All process steps must be assigned to a technician' });
       }
     }
-    setFormErrors(errors);
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next.processes;
+      return { ...next, ...errors };
+    });
     return Object.keys(errors).length === 0;
+  };
+
+  const validateTab3Payments = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.totalQuote.trim()) {
+      errors.totalQuote = t('validation.fieldRequired', { defaultValue: 'Total quote is required' });
+    } else if (parseFloat(form.totalQuote) < 0) {
+      errors.totalQuote = t('workOrders.validationQuoteNonNegative', { defaultValue: 'Total quote cannot be negative' });
+    }
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next.totalQuote;
+      return { ...next, ...errors };
+    });
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateForm = (checkProcesses = true): boolean => {
+    const tab1Valid = validateTab1Details();
+    if (!tab1Valid) {
+      setModalTab('details');
+      return false;
+    }
+    const tab2Valid = checkProcesses ? validateTab2Processes() : true;
+    if (!tab2Valid) {
+      setModalTab('processes');
+      return false;
+    }
+    const tab3Valid = validateTab3Payments();
+    if (!tab3Valid) {
+      setModalTab('payments');
+      return false;
+    }
+    return true;
   };
 
   const handleCreateOpen = async () => {
@@ -494,7 +581,12 @@ export function WorkOrdersPage() {
   };
 
   const handleProsthesisTypeChange = async (ptId: string) => {
-    setForm((prev) => ({ ...prev, prosthesisTypeId: ptId }));
+    const selectedPt = prosthesisTypes.find((p) => p.id === ptId);
+    setForm((prev) => ({
+      ...prev,
+      prosthesisTypeId: ptId,
+      totalQuote: prev.totalQuote || ((selectedPt as any)?.basePrice != null ? (selectedPt as any).basePrice.toString() : prev.totalQuote),
+    }));
     if (formErrors.prosthesisTypeId) setFormErrors((prev) => ({ ...prev, prosthesisTypeId: '' }));
 
     try {
@@ -720,31 +812,7 @@ export function WorkOrdersPage() {
 
   const handleEditSubmit = async (isAssign = true, skipConfirm = false) => {
     if (!editingWO) return;
-    const errors: Record<string, string> = {};
-    if (!form.doctorId) errors.doctorId = t('validation.fieldRequired');
-    if (!form.patient.trim()) errors.patient = t('validation.fieldRequired');
-    if (!form.prosthesisTypeId) errors.prosthesisTypeId = t('validation.fieldRequired');
-    if (!form.specification.trim()) errors.specification = t('validation.fieldRequired');
-    if (!form.color.trim()) errors.color = t('validation.fieldRequired');
-    if (!form.totalQuote.trim()) {
-      errors.totalQuote = t('validation.fieldRequired');
-    } else if (parseFloat(form.totalQuote) < 0) {
-      errors.totalQuote = t('workOrders.validationQuoteNonNegative', { defaultValue: 'Total quote cannot be negative' });
-    }
-    
-    if (isAssign) {
-      if (processList.length === 0) {
-        errors.processes = t('workOrders.validationProcessStepRequired', { defaultValue: 'At least one process step is required' });
-      } else {
-        const hasUnassignedProcess = processList.some((p) => !p.technicianId && !(p.isVerification && !p.technicianId));
-        if (hasUnassignedProcess) {
-          errors.processes = t('workOrders.validationAllStepsAssigned', { defaultValue: 'All process steps must be assigned to a technician' });
-        }
-      }
-    }
-
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (!validateForm(isAssign)) return;
 
     if (isAssign && editingWO.status === 'CREATED' && !skipConfirm) {
       setPendingAction('EDIT_ASSIGN');
@@ -1229,7 +1297,7 @@ export function WorkOrdersPage() {
                   type="button"
                   className={`modal-tab-btn ${modalTab === 'processes' ? 'modal-tab-btn--active' : ''}`}
                   onClick={() => {
-                    if (validateForm(false)) {
+                    if (validateTab1Details()) {
                       setModalTab('processes');
                     }
                   }}
@@ -1264,7 +1332,11 @@ export function WorkOrdersPage() {
                 <button
                   type="button"
                   className={`modal-tab-btn ${modalTab === 'payments' ? 'modal-tab-btn--active' : ''}`}
-                  onClick={() => setModalTab('payments')}
+                  onClick={() => {
+                    if (validateTab1Details()) {
+                      setModalTab('payments');
+                    }
+                  }}
                   style={{
                     padding: '0.75rem 0.5rem',
                     fontWeight: 600,
@@ -1816,7 +1888,7 @@ export function WorkOrdersPage() {
                       type="button"
                       className="btn btn--primary"
                       onClick={() => {
-                        if (validateForm(false)) {
+                        if (validateTab1Details()) {
                           setModalTab('processes');
                         }
                       }}
@@ -1979,7 +2051,7 @@ export function WorkOrdersPage() {
                   type="button"
                   className={`modal-tab-btn ${modalTab === 'processes' ? 'modal-tab-btn--active' : ''}`}
                   onClick={() => {
-                    if (validateForm(false)) {
+                    if (validateTab1Details()) {
                       setModalTab('processes');
                     }
                   }}
@@ -2014,7 +2086,11 @@ export function WorkOrdersPage() {
                 <button
                   type="button"
                   className={`modal-tab-btn ${modalTab === 'payments' ? 'modal-tab-btn--active' : ''}`}
-                  onClick={() => setModalTab('payments')}
+                  onClick={() => {
+                    if (validateTab1Details()) {
+                      setModalTab('payments');
+                    }
+                  }}
                   style={{
                     padding: '0.75rem 0.5rem',
                     fontWeight: 600,

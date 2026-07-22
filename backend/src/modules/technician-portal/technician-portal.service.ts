@@ -131,8 +131,8 @@ export class TechnicianPortalService {
         await this.notificationsService.create({
           tenantId,
           userId: admin.id,
-          title: 'Verification Pending Alert',
-          message: `Work Order "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires verification step "${processName}".`,
+          title: 'Verification Pending',
+          message: `WO "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires verification "${processName}".`,
           type: 'VERIFICATION_PENDING',
           referenceId: workOrderId,
         });
@@ -926,8 +926,8 @@ export class TechnicianPortalService {
           await this.notificationsService.create({
             tenantId,
             userId: nextProcess.technicianId,
-            title: 'Internal Verification Pending Alert',
-            message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} requires internal verification step "${nextProcess.processName}".`,
+            title: 'Verification Pending',
+            message: `WO "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} requires verification "${nextProcess.processName}".`,
             type: 'VERIFICATION_PENDING',
             referenceId: process.workOrderId,
           });
@@ -948,8 +948,8 @@ export class TechnicianPortalService {
         await this.notificationsService.create({
           tenantId,
           userId: nextProcess.technicianId,
-          title: 'New Active Work Order Step',
-          message: `Work Order "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} is ready for you. The previous step "${process.processName}" has been completed.`,
+          title: 'WO Step Ready',
+          message: `WO "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} is ready. Previous step "${process.processName}" completed.`,
           type: 'WORK_ORDER',
           referenceId: process.workOrderId,
         });
@@ -986,8 +986,8 @@ export class TechnicianPortalService {
           await this.notificationsService.create({
             tenantId,
             userId: admin.id,
-            title: 'Work Order Completed',
-            message: `Work Order "${wo.folioNumber}"${wo.boxNumber ? ` (Box: ${wo.boxNumber})` : ''} has been fully completed!`,
+            title: 'WO Completed',
+            message: `WO "${wo.folioNumber}"${wo.boxNumber ? ` (Box: ${wo.boxNumber})` : ''} completed!`,
             type: 'WORK_ORDER_COMPLETED',
             referenceId: process.workOrderId,
           });

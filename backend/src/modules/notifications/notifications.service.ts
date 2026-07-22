@@ -78,94 +78,73 @@ export class NotificationsService implements OnModuleInit {
     let translatedTitle = title;
     let translatedMessage = message;
 
-    if (title === 'New Work Order from Clinic') {
-      translatedTitle = 'Nueva orden de trabajo de la clínica';
-      // Match: Work Order "WO-0001" (Patient: John Doe) has been received from the Clinic application.
-      const regex =
-        /^Work Order "([^"]+)" \(Patient: ([^)]+)\) has been received from the Clinic application\.?$/;
-      const match = message.match(regex);
+    if (title === 'New Work Order from Clinic' || title === 'New WO from Clinic') {
+      translatedTitle = 'Nueva WO de Clínica';
+      const regexNew = /^(?:Work Order|WO) "([^"]+)" \((?:Patient: )?([^)]+)\) (?:has been received|received) from (?:the )?Clinic(?: application)?\.?$/;
+      const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, patient] = match;
-        translatedMessage = `La orden de trabajo "${folioNumber}" (Paciente: ${patient}) ha sido recibida desde la aplicación de la clínica.`;
+        translatedMessage = `WO "${folioNumber}" (${patient}) recibida de Clínica.`;
       }
-    } else if (title === 'New Work Order Assigned') {
-      translatedTitle = 'Nueva orden de trabajo asignada';
-      // Match: You have been assigned to "Metal Casting" for work order WO-0001 (Patient: John Doe) (Box: 12).
-      // or without box: You have been assigned to "Metal Casting" for work order WO-0001 (Patient: John Doe).
-      const regex =
-
-        /^You have been assigned to "([^"]+)" for work order ([^\s]+) \(Patient: ([^)]+)\)(?: \(Box: ([^)]+)\))?\.?$/;
-      const match = message.match(regex);
+    } else if (title === 'New Work Order Assigned' || title === 'WO Assigned') {
+      translatedTitle = 'WO Asignada';
+      const regexNew = /^(?:You have been assigned|Assigned) to "([^"]+)" for (?:work order|WO) ([^\s]+) \((?:Patient: )?([^)]+)\)(?: \(Box: ([^)]+)\))?\.?$/;
+      const match = message.match(regexNew);
       if (match) {
         const [, processName, folioNumber, patient, boxNumber] = match;
-        translatedMessage = `Se le ha asignado a "${processName}" para la orden de trabajo ${folioNumber} (Paciente: ${patient})${boxNumber ? ` (Caja: ${boxNumber})` : ''}.`;
+        translatedMessage = `Asignado a "${processName}" para WO ${folioNumber} (${patient})${boxNumber ? ` (Caja: ${boxNumber})` : ''}.`;
       }
-    } else if (title === 'Work Order Flagged for Rework') {
-      translatedTitle = 'Orden de trabajo marcada para retrabajo';
-      // Match: Work Order "WO-0001" has been flagged for rework. Please review step "Metal Casting".
-      const regex =
-        /^Work Order "([^"]+)" has been flagged for rework\. Please review step "([^"]+)"\.?$/;
-      const match = message.match(regex);
+    } else if (title === 'Work Order Flagged for Rework' || title === 'WO Rework Flagged') {
+      translatedTitle = 'WO para Retrabajo';
+      const regexNew = /^(?:Work Order|WO) "([^"]+)" (?:has been flagged|flagged) for rework\.?(?: Please review step| at step)? "([^"]+)"\.?$/;
+      const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, processName] = match;
-        translatedMessage = `La orden de trabajo "${folioNumber}" ha sido marcada para retrabajo. Por favor, revise el paso "${processName}".`;
+        translatedMessage = `WO "${folioNumber}" marcada para retrabajo en paso "${processName}".`;
       }
-    } else if (title === 'Work Order Repetition Triggered') {
-      translatedTitle = 'Repetición de orden de trabajo activada';
-      // Match: Work Order "WO-0001" has been restarted due to a repetition request from verification step "Quality Check". Please restart step "Waxing".
-      const regex =
-        /^Work Order "([^"]+)" has been restarted due to a repetition request from verification step "([^"]+)". Please restart step "([^"]+)"\.?$/;
-      const match = message.match(regex);
+    } else if (title === 'Work Order Repetition Triggered' || title === 'WO Repetition Triggered') {
+      translatedTitle = 'Repetición de WO Activada';
+      const regexNew = /^(?:Work Order|WO) "([^"]+)" (?:has been restarted due to a repetition request from|restarted from) (?:verification step )?"([^"]+)"\.? (?:Please restart|Restart)(?: step)? "([^"]+)"\.?$/;
+      const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, verificationName, processName] = match;
-        translatedMessage = `La orden de trabajo "${folioNumber}" se ha reiniciado debido a una solicitud de repetición del paso de verificación "${verificationName}". Por favor, reinicie el paso "${processName}".`;
+        translatedMessage = `WO "${folioNumber}" reiniciada por "${verificationName}". Reiniciar paso "${processName}".`;
       }
-    } else if (title === 'Verification Pending Alert') {
-      translatedTitle = 'Alerta de verificación pendiente';
-      // Match: Work Order "WO-0001" (Box: 12) requires verification step "Visual Check".
-      // or without box: Work Order "WO-0001" requires verification step "Visual Check".
-      const regex =
-        /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? requires verification step "([^"]+)"\.?$/;
-      const match = message.match(regex);
+    } else if (title === 'Verification Pending Alert' || title === 'Internal Verification Pending Alert' || title === 'Verification Pending') {
+      translatedTitle = 'Verificación Pendiente';
+      const regexNew = /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:requires|needs) (?:internal )?(?:verification step|verification) "([^"]+)"\.?$/;
+      const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, boxNumber, processName] = match;
-        translatedMessage = `La orden de trabajo "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} requiere el paso de verificación "${processName}".`;
+        translatedMessage = `WO "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} requiere verificación "${processName}".`;
       }
-    } else if (title === 'New Active Work Order Step') {
-      translatedTitle = 'Nuevo paso activo de orden de trabajo';
-      // Match: Work Order "WO-0001" (Box: 12) is ready for you. The previous step "Waxing" has been completed.
-      // or without box: Work Order "WO-0001" is ready for you. The previous step "Waxing" has been completed.
-      // or with verification step complete: Work Order "WO-0001" (Box: 12) is ready for you. The previous verification step has been completed.
-      // or without box: Work Order "WO-0001" is ready for you. The previous verification step has been completed.
-      const regex =
-        /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? is ready for you\. The previous (?:step "([^"]+)"|verification step) has been completed\.?$/;
-      const match = message.match(regex);
+    } else if (title === 'New Active Work Order Step' || title === 'WO Step Ready') {
+      translatedTitle = 'Paso de WO Listo';
+      const regexNew = /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:is ready for you|is ready|ready)\.? (?:The previous|Previous) (?:step "([^"]+)"|verification step) (?:has been completed|completed)\.?$/;
+      const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, boxNumber, processName] = match;
         if (processName) {
-          translatedMessage = `La orden de trabajo "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} está lista para usted. El paso anterior "${processName}" ha sido completado.`;
+          translatedMessage = `WO "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} lista. Paso anterior "${processName}" completado.`;
         } else {
-          translatedMessage = `La orden de trabajo "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} está lista para usted. El paso de verificación anterior ha sido completado.`;
+          translatedMessage = `WO "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} lista. Paso de verificación anterior completado.`;
         }
       }
-    } else if (title === 'Work Order Completed') {
-      translatedTitle = 'Orden de trabajo completada';
-      // Match: Work Order "WO-0001" (Box: 12) has been fully completed!
-      // or without box: Work Order "WO-0001" has been fully completed!
-      const regex =
-        /^Work Order "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? has been fully completed!?$/;
-      const match = message.match(regex);
+    } else if (title === 'Work Order Completed' || title === 'WO Completed') {
+      translatedTitle = 'WO Completada';
+      const regexNew = /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:has been fully completed|completed)!?$/;
+      const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, boxNumber] = match;
-        translatedMessage = `¡La orden de trabajo "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} ha sido completada por completo!`;
+        translatedMessage = `¡WO "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} completada!`;
       }
     } else if (title === 'Limit Upgrade Request') {
       translatedTitle = 'Solicitud de aumento de límite';
-      const regex = /^Owner (.+?) \((.+?)\) requested a limits upgrade: (.*)$/;
+      const regex = /^Owner (.+?) \((.+?)\) requested (?:a limits|limit) upgrade: (.*)$/;
       const match = message.match(regex);
       if (match) {
         const [, userName, tenantName, detailMessage] = match;
-        translatedMessage = `El propietario ${userName} (${tenantName}) solicitó un aumento de límite: ${detailMessage}`;
+        translatedMessage = `Propietario ${userName} (${tenantName}) solicitó aumento de límite: ${detailMessage}`;
       }
     }
 
@@ -349,6 +328,16 @@ export class NotificationsService implements OnModuleInit {
   async remove(tenantId: string, userId: string, id: string) {
     await this.prisma.notification.deleteMany({
       where: { id, tenantId, userId },
+    });
+    return { success: true };
+  }
+
+  /**
+   * Delete all read notifications for the current user.
+   */
+  async removeAllRead(tenantId: string, userId: string) {
+    await this.prisma.notification.deleteMany({
+      where: { tenantId, userId, isRead: true },
     });
     return { success: true };
   }

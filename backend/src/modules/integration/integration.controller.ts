@@ -379,8 +379,8 @@ export class IntegrationController {
       await this.notificationsService.create({
         tenantId,
         userId: admin.id,
-        title: 'New Work Order from Clinic',
-        message: `Work Order "${workOrder.folioNumber}" (Patient: ${workOrder.patient}) has been received from the Clinic application.`,
+        title: 'New WO from Clinic',
+        message: `WO "${workOrder.folioNumber}" (${workOrder.patient}) received from Clinic.`,
         type: 'WORK_ORDER',
         referenceId: workOrder.id,
       });
