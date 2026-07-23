@@ -84,6 +84,7 @@ export const technicianPortalService = {
     doctorId: string;
     patient: string;
     boxNumber?: string;
+    fileNumber?: string;
     prosthesisTypeId: string;
     specification?: string;
     color: string;

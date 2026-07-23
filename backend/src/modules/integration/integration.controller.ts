@@ -341,6 +341,7 @@ export class IntegrationController {
           tenantId,
           branchId,
           folioNumber,
+          fileNumber: dto.fileNumber || null,
           doctorId: doctor.id,
           patient: dto.patient,
           boxNumber: dto.boxNumber || null,
@@ -348,8 +349,8 @@ export class IntegrationController {
           color: dto.color || 'A1',
           notes: dto.notes || null,
           specification: dto.specification || '',
-          totalQuote: dto.totalQuote ?? null,
-          initialPayment: dto.initialPayment ?? null,
+          totalQuote: null,
+          initialPayment: null,
           status: WorkOrderStatus.CREATED,
           createdById,
           isExternal: true,
@@ -387,8 +388,8 @@ export class IntegrationController {
     }
 
     // 6. Trigger verification email and clinic notification if starting with an external verification step
-    const sorted = [...workOrder.processes].sort((a, b) => a.sequence - b.sequence);
-    const firstProcess = sorted[0];
+    const sorted = [...workOrder.processes].sort((a: any, b: any) => a.sequence - b.sequence);
+    const firstProcess: any = sorted[0];
     if (firstProcess && firstProcess.isVerification && !firstProcess.technicianId) {
       if (doctor.email) {
         const tenantRecord = await this.prisma.tenant.findUnique({

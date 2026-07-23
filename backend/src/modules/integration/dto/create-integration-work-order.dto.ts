@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsNumber, IsEmail, Min, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEmail, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateIntegrationWorkOrderDto {
@@ -66,15 +66,9 @@ export class CreateIntegrationWorkOrderDto {
   @MaxLength(1000)
   specification?: string;
 
-  @ApiProperty({ example: 450.5, description: 'Total price quote', required: false })
-  @IsNumber()
+  @ApiProperty({ example: 'FILE-101', description: 'File number', required: false })
+  @IsString()
   @IsOptional()
-  @Min(0)
-  totalQuote?: number;
-
-  @ApiProperty({ example: 100.0, description: 'Initial payment amount', required: false })
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  initialPayment?: number;
+  @MaxLength(100)
+  fileNumber?: string;
 }

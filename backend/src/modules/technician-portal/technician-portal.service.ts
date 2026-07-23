@@ -329,6 +329,7 @@ export class TechnicianPortalService {
       doctorId,
       patient,
       boxNumber,
+      fileNumber,
       prosthesisTypeId,
       specification,
       color,
@@ -393,12 +394,13 @@ export class TechnicianPortalService {
       branchIdContext,
     );
 
-    // 5. Create work order with CREATED status and 0 quote/payment
+    // 5. Create work order with CREATED status
     const workOrder = await this.prisma.workOrder.create({
       data: {
         tenantId,
         branchId: branchIdContext,
         folioNumber,
+        fileNumber: fileNumber || null,
         doctorId,
         patient,
         boxNumber: boxNumber || null,

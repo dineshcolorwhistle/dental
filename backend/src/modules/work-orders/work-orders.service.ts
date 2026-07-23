@@ -449,9 +449,9 @@ export class WorkOrdersService {
     if (action === 'createAndAssign' && workOrder.processes.length > 0) {
       // Find the first process step (lowest sequence)
       const sortedProcesses = [...workOrder.processes].sort(
-        (a, b) => a.sequence - b.sequence,
+        (a: any, b: any) => a.sequence - b.sequence,
       );
-      const firstProcess = sortedProcesses[0];
+      const firstProcess: any = sortedProcesses[0];
 
       if (firstProcess.technicianId) {
         const isInternalVerify = firstProcess.isVerification;
@@ -976,9 +976,9 @@ export class WorkOrdersService {
     // Write Rework Audit Logs and Trigger Notifications
     if (minReworkSeq !== Infinity && mappedProcesses) {
       const sortedReworked = mappedProcesses
-        .filter((p) => p.isReworked)
-        .sort((a, b) => a.sequence - b.sequence);
-      const firstReworked = sortedReworked[0];
+        .filter((p: any) => p.isReworked)
+        .sort((a: any, b: any) => a.sequence - b.sequence);
+      const firstReworked: any = sortedReworked[0];
 
       if (firstReworked && firstReworked.technicianId) {
         await this.notificationsService.create({
@@ -1039,9 +1039,9 @@ export class WorkOrdersService {
     // If transitioned to ASSIGNED, notify the first process technician
     if (isTransitioningToAssigned) {
       const sorted = [...updated.processes].sort(
-        (a, b) => a.sequence - b.sequence,
+        (a: any, b: any) => a.sequence - b.sequence,
       );
-      const firstProcess = sorted[0];
+      const firstProcess: any = sorted[0];
 
       if (firstProcess && firstProcess.technicianId) {
         const isInternalVerify = firstProcess.isVerification;
@@ -1273,9 +1273,9 @@ export class WorkOrdersService {
 
     const readyAlerts = alerts.filter((a) => {
       if (a.status === ProcessStatus.IN_PROGRESS) return true;
-      const sortedProcs = a.workOrder.processes || [];
-      const preceding = sortedProcs.filter((p) => p.sequence < a.sequence);
-      return preceding.every((p) => p.status === ProcessStatus.COMPLETED);
+      const sortedProcs = (a.workOrder.processes || []) as any[];
+      const preceding = sortedProcs.filter((p: any) => p.sequence < a.sequence);
+      return preceding.every((p: any) => p.status === ProcessStatus.COMPLETED);
     });
 
     const verificationAlerts = readyAlerts.map((a) => ({
@@ -1296,9 +1296,9 @@ export class WorkOrdersService {
             ? a.workOrder.doctor.name
             : 'Doctor',
       defaultAdminId: a.workOrder.branch?.defaultAdminId || null,
-      externalDoctorStatus: a.externalDoctorStatus || null,
-      externalDoctorNotes: a.externalDoctorNotes || null,
-      externalDoctorSubmittedAt: a.externalDoctorSubmittedAt || null,
+      externalDoctorStatus: (a as any).externalDoctorStatus || null,
+      externalDoctorNotes: (a as any).externalDoctorNotes || null,
+      externalDoctorSubmittedAt: (a as any).externalDoctorSubmittedAt || null,
     }));
 
     // 2. Fetch WO Status counts
@@ -1360,8 +1360,8 @@ export class WorkOrdersService {
 
     const readyPending = allPendingProcesses.filter((p) => {
       if (p.sequence === 0) return true;
-      const sortedProcs = p.workOrder.processes;
-      const prev = sortedProcs.find((sp) => sp.sequence === p.sequence - 1);
+      const sortedProcs = p.workOrder.processes as any[];
+      const prev = sortedProcs.find((sp: any) => sp.sequence === p.sequence - 1);
       return prev && prev.status === ProcessStatus.COMPLETED;
     });
 
@@ -1770,7 +1770,7 @@ export class WorkOrdersService {
 
     const adminName = executingAdmin ? `${executingAdmin.firstName} ${executingAdmin.lastName}`.trim() : 'Admin';
     const activityNote = !process.technicianId
-      ? `External verification resolved by Admin (${adminName}) with outcome ${outcome}.${process.externalDoctorStatus ? ` Doctor status: ${process.externalDoctorStatus}${process.externalDoctorNotes ? ` (Notes: ${process.externalDoctorNotes})` : ''}` : ''}`
+      ? `External verification resolved by Admin (${adminName}) with outcome ${outcome}.${(process as any).externalDoctorStatus ? ` Doctor status: ${(process as any).externalDoctorStatus}${(process as any).externalDoctorNotes ? ` (Notes: ${(process as any).externalDoctorNotes})` : ''}` : ''}`
       : outcome === 'REWORK'
         ? `Verification flagged for rework by ${adminName}. Reworking steps: ${reworkProcessNames?.join(', ') || 'Preceding step'}.`
         : `Verification ended by ${adminName} with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`;
@@ -1816,8 +1816,8 @@ export class WorkOrdersService {
         adminUserId: userId,
         adminUserEmail: executingAdmin?.email,
         adminRole: executingAdmin?.role,
-        doctorStatus: process.externalDoctorStatus || null,
-        doctorNotes: process.externalDoctorNotes || null,
+        doctorStatus: (process as any).externalDoctorStatus || null,
+        doctorNotes: (process as any).externalDoctorNotes || null,
         reworkProcessNames: reworkProcessNames || [],
       },
     });
@@ -1890,8 +1890,8 @@ export class WorkOrdersService {
         });
       }
 
-      const sortedReworked = [...processesToRework].sort((a, b) => a.sequence - b.sequence);
-      const firstReworked = sortedReworked[0];
+      const sortedReworked = [...processesToRework].sort((a: any, b: any) => a.sequence - b.sequence);
+      const firstReworked: any = sortedReworked[0];
       if (firstReworked && firstReworked.technicianId) {
         await this.notificationsService.create({
           tenantId,
