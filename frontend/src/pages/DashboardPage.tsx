@@ -144,7 +144,7 @@ export function DashboardPage() {
     );
   }
 
-  const alerts = (stats?.verificationAlerts || []).filter((a: any) => a.status === 'NOT_STARTED');
+  const alerts = (stats?.verificationAlerts || []).filter((a: any) => a.status === 'NOT_STARTED' || a.status === 'IN_PROGRESS');
   const statusSummary = stats?.woStatusSummary || {};
   const pendingProcs = stats?.pendingProcesses || [];
   const inProgressWOs = stats?.inProgressWOs || [];
@@ -261,10 +261,36 @@ export function DashboardPage() {
                       }}>
                         {isNotStarted ? t('enums.processStatus.NOT_STARTED') : t('enums.processStatus.IN_PROGRESS')}
                       </span>
+                      {alert.externalDoctorStatus && (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: alert.externalDoctorStatus === 'SUCCESS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: alert.externalDoctorStatus === 'SUCCESS' ? '#10B981' : '#EF4444',
+                        }}>
+                          {t('dashboard.doctorStatus')}: {t(`enums.externalDoctorStatus.${alert.externalDoctorStatus}`, { defaultValue: alert.externalDoctorStatus })}
+                        </span>
+                      )}
                     </div>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       {t('dashboard.process')}: <strong>{alert.type === 'INTERNAL' ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' }) : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })}</strong> • {t('dashboard.assignedEvaluator')}: <strong>{alert.assignedTo}</strong>
                     </span>
+                    {alert.externalDoctorNotes && (
+                      <div style={{
+                        marginTop: '4px',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                        borderLeft: '3px solid #EF4444',
+                        fontSize: '0.78rem',
+                        color: 'var(--text-primary)',
+                        maxWidth: '100%'
+                      }}>
+                        <strong>{t('dashboard.doctorNotes')}:</strong> {alert.externalDoctorNotes}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -281,7 +307,7 @@ export function DashboardPage() {
                     {(() => {
                       const isExternal = alert.type === 'EXTERNAL';
                       const isAssigned = isExternal
-                        ? (alert.defaultAdminId === user?.id || user?.role === 'SUPER_ADMIN')
+                        ? (user?.role === 'ADMIN' || user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN')
                         : (alert.technicianId === user?.id || user?.role === 'SUPER_ADMIN');
 
                       if (!isAssigned) return null;
@@ -1038,7 +1064,45 @@ export function DashboardPage() {
                 {t('dashboard.verificationStage')}: <strong>{selectedAlert.type === 'INTERNAL' ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' }) : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })}</strong>
               </div>
 
-              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>{t('dashboard.selectTheOutcome')}</p>
+              {selectedAlert.type === 'EXTERNAL' && (
+                <div style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '10px',
+                  backgroundColor: selectedAlert.externalDoctorStatus === 'SUCCESS' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                  border: `1px solid ${selectedAlert.externalDoctorStatus === 'SUCCESS' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                  fontSize: '0.825rem',
+                  marginBottom: '0.5rem'
+                }}>
+                  <div style={{
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: selectedAlert.externalDoctorStatus === 'SUCCESS' ? '#10B981' : '#EF4444',
+                    marginBottom: selectedAlert.externalDoctorNotes ? '6px' : '0'
+                  }}>
+                    <UserCheck size={16} />
+                    <span>{t('dashboard.doctorSubmittedFeedback')}: <strong>{selectedAlert.externalDoctorStatus ? t(`enums.externalDoctorStatus.${selectedAlert.externalDoctorStatus}`, { defaultValue: selectedAlert.externalDoctorStatus }) : t('dashboard.awaitingDoctorResponse')}</strong></span>
+                  </div>
+                  {selectedAlert.externalDoctorNotes && (
+                    <div style={{
+                      fontSize: '0.8rem',
+                      color: 'var(--text-primary)',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--bg-surface, #FFFFFF)',
+                      border: '1px solid var(--border)',
+                      marginTop: '4px'
+                    }}>
+                      <strong>{t('dashboard.doctorNotes')}:</strong> "{selectedAlert.externalDoctorNotes}"
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>
+                {selectedAlert.type === 'EXTERNAL' ? t('dashboard.adminDecisionNotice') : t('dashboard.selectTheOutcome')}
+              </p>
               
               <button
                 type="button"

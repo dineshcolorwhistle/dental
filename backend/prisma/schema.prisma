@@ -185,6 +185,7 @@ model User {
   messageReadReceipts       MessageReadReceipt[]
   doctor                    Doctor?                @relation("DoctorUser")
   workOrderNotes            WorkOrderNote[]
+  resolvedVerifications     WorkOrderProcess[]     @relation("VerificationResolvedBy")
 
   @@unique([email, tenantId, role])
   @@map("users")
@@ -426,14 +427,19 @@ model WorkOrderProcess {
   totalPauseDuration Int       @default(0) @map("total_pause_duration")
   totalActiveDuration Int      @default(0) @map("total_active_duration")
   verificationStatus String?     @map("verification_status")
+  externalDoctorStatus String?   @map("external_doctor_status")
+  externalDoctorNotes  String?   @map("external_doctor_notes")
+  externalDoctorSubmittedAt DateTime? @map("external_doctor_submitted_at")
+  verificationResolvedById String?  @map("verification_resolved_by_id")
   reworkCount    Int           @default(0) @map("rework_count")
   reworkActive   Boolean       @default(false) @map("rework_active")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   // Relations
-  workOrder    WorkOrder            @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  technician   User?                @relation("WoProcessTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
-  activityLogs ProcessActivityLog[]
+  workOrder              WorkOrder            @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  technician             User?                @relation("WoProcessTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  verificationResolvedBy User?                @relation("VerificationResolvedBy", fields: [verificationResolvedById], references: [id], onDelete: SetNull)
+  activityLogs           ProcessActivityLog[]
 
   @@map("work_order_processes")
 }

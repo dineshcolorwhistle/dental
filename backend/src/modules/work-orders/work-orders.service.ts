@@ -226,7 +226,7 @@ export class WorkOrdersService {
   }
 
   // Standard includes for returning full work order data
-  private readonly fullInclude = {
+  private readonly fullInclude: any = {
     doctor: {
       select: { id: true, name: true, clinicName: true, email: true },
     },
@@ -252,6 +252,9 @@ export class WorkOrdersService {
       include: {
         technician: {
           select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        verificationResolvedBy: {
+          select: { id: true, firstName: true, lastName: true, email: true, role: true },
         },
         activityLogs: {
           orderBy: { timestamp: 'asc' as const },
@@ -1293,6 +1296,9 @@ export class WorkOrdersService {
             ? a.workOrder.doctor.name
             : 'Doctor',
       defaultAdminId: a.workOrder.branch?.defaultAdminId || null,
+      externalDoctorStatus: a.externalDoctorStatus || null,
+      externalDoctorNotes: a.externalDoctorNotes || null,
+      externalDoctorSubmittedAt: a.externalDoctorSubmittedAt || null,
     }));
 
     // 2. Fetch WO Status counts
@@ -1722,20 +1728,30 @@ export class WorkOrdersService {
       );
     }
 
+    let executingAdmin: any = null;
     if (process.isVerification && !process.technicianId) {
       if (!process.workOrder.branchId) {
         throw new BadRequestException(
           'Work order is not assigned to a branch.',
         );
       }
-      const branch = await this.prisma.branch.findUnique({
-        where: { id: process.workOrder.branchId },
+      executingAdmin = await this.prisma.user.findFirst({
+        where: {
+          id: userId,
+          tenantId,
+          role: { in: [UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN] },
+          status: 'ACTIVE',
+        },
       });
-      if (!branch || branch.defaultAdminId !== userId) {
+      if (!executingAdmin) {
         throw new BadRequestException(
-          "Only the branch's Default Admin can complete this External Verification process.",
+          'Only a branch Administrator or Owner can complete this External Verification process.',
         );
       }
+    } else {
+      executingAdmin = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
     }
 
     if (
@@ -1752,6 +1768,13 @@ export class WorkOrdersService {
       Math.round((now.getTime() - startedAt.getTime()) / 1000),
     );
 
+    const adminName = executingAdmin ? `${executingAdmin.firstName} ${executingAdmin.lastName}`.trim() : 'Admin';
+    const activityNote = !process.technicianId
+      ? `External verification resolved by Admin (${adminName}) with outcome ${outcome}.${process.externalDoctorStatus ? ` Doctor status: ${process.externalDoctorStatus}${process.externalDoctorNotes ? ` (Notes: ${process.externalDoctorNotes})` : ''}` : ''}`
+      : outcome === 'REWORK'
+        ? `Verification flagged for rework by ${adminName}. Reworking steps: ${reworkProcessNames?.join(', ') || 'Preceding step'}.`
+        : `Verification ended by ${adminName} with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`;
+
     const updated = await this.prisma.workOrderProcess.update({
       where: { id: processId },
       data: {
@@ -1763,6 +1786,7 @@ export class WorkOrdersService {
         endedAt: outcome === 'REWORK' ? null : now,
         totalActiveDuration: outcome === 'REWORK' ? 0 : totalActive,
         verificationStatus: outcome,
+        verificationResolvedById: userId,
         activityLogs: {
           create: {
             action:
@@ -1770,20 +1794,18 @@ export class WorkOrdersService {
                 ? ProcessActivityAction.PAUSE
                 : ProcessActivityAction.END,
             timestamp: now,
-            notes:
-              outcome === 'REWORK'
-                ? `Verification flagged for rework. Reworking steps: ${reworkProcessNames?.join(', ') || 'Preceding step'}.`
-                : `Verification ended with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`,
+            notes: activityNote,
           },
         },
-      },
+      } as any,
     });
 
     // Write Audit Log
     await this.auditLogsService.log({
       tenantId,
       userId,
-      action: 'VERIFICATION_END',
+      userEmail: executingAdmin?.email || undefined,
+      action: !process.technicianId ? 'VERIFICATION_ADMIN_RESOLVED' : 'VERIFICATION_END',
       entityName: 'PROCESS',
       entityId: processId,
       details: {
@@ -1791,6 +1813,12 @@ export class WorkOrdersService {
         processName: process.processName,
         outcome,
         durationSeconds: totalActive,
+        adminUserId: userId,
+        adminUserEmail: executingAdmin?.email,
+        adminRole: executingAdmin?.role,
+        doctorStatus: process.externalDoctorStatus || null,
+        doctorNotes: process.externalDoctorNotes || null,
+        reworkProcessNames: reworkProcessNames || [],
       },
     });
 

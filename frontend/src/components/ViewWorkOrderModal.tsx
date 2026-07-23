@@ -1099,7 +1099,29 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                 {t('common.repeated')} ({repetitionsForStep.length})
                                               </span>
                                             )}
+                                            {proc.externalDoctorStatus && (
+                                              <span style={{
+                                                fontSize: '0.625rem',
+                                                fontWeight: 700,
+                                                padding: '1px 5px',
+                                                borderRadius: '4px',
+                                                backgroundColor: proc.externalDoctorStatus === 'SUCCESS' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                                color: proc.externalDoctorStatus === 'SUCCESS' ? '#10B981' : '#EF4444'
+                                              }}>
+                                                {t('dashboard.doctorStatus')}: {t(`enums.externalDoctorStatus.${proc.externalDoctorStatus}`, { defaultValue: proc.externalDoctorStatus })}
+                                              </span>
+                                            )}
                                           </div>
+                                          {proc.externalDoctorNotes && (
+                                            <div style={{ fontSize: '0.725rem', color: '#EF4444', fontStyle: 'italic', marginTop: '2px' }}>
+                                              <strong>{t('dashboard.doctorNotes')}:</strong> "{proc.externalDoctorNotes}"
+                                            </div>
+                                          )}
+                                          {proc.verificationResolvedBy && (
+                                            <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                              <strong>{t('dashboard.resolvedBy')}:</strong> {proc.verificationResolvedBy.firstName} {proc.verificationResolvedBy.lastName}
+                                            </div>
+                                          )}
                                         </td>
                                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                                           {proc.isVerification && !proc.technicianId ? (
@@ -1165,7 +1187,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                               (() => {
                                                 const isExternal = proc.isVerification && !proc.technicianId;
                                                 const isAssigned = isExternal
-                                                  ? (selectedWO?.branch?.defaultAdminId === user?.id || user?.role === 'SUPER_ADMIN')
+                                                  ? (user?.role === 'ADMIN' || user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN')
                                                   : (proc.technicianId === user?.id || user?.role === 'SUPER_ADMIN');
 
                                                 if (!isAssigned) return null;

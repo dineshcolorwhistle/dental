@@ -540,7 +540,7 @@ export class IntegrationController {
   @Post('work-orders/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Submit a verification outcome (SUCCESS, REWORK, REPETITION) for a work order',
+    summary: 'Submit an external doctor verification outcome (SUCCESS or FAILURE) for a work order',
   })
   async verifyWorkOrder(
     @Req() req: any,
@@ -548,6 +548,10 @@ export class IntegrationController {
   ) {
     const tenantId = req.apiKeyTenantId;
     const branchId = req.apiKeyBranchId;
+
+    if (dto.outcome === 'FAILURE' && (!dto.notes || !dto.notes.trim())) {
+      throw new BadRequestException('Notes are required when submitting a Failure verification result.');
+    }
 
     const clinic = await this.prisma.clinic.findFirst({
       where: {
@@ -582,110 +586,103 @@ export class IntegrationController {
     }
 
     const pendingVerification = workOrder.processes.find(
-      (p) => p.isVerification && p.status === ProcessStatus.IN_PROGRESS && !p.technicianId,
+      (p) => p.isVerification && (p.status === ProcessStatus.IN_PROGRESS || p.status === ProcessStatus.NOT_STARTED) && !p.technicianId,
     );
 
     if (!pendingVerification) {
       throw new BadRequestException('No pending external verification step found for this work order.');
     }
 
-    // Find the default admin or branch admin user to execute on their behalf (to bypass the Guard userId check)
-    const branch = await this.prisma.branch.findUnique({
-      where: { id: branchId },
+    const now = new Date();
+
+    // Store doctor submission details on the process step
+    await this.prisma.workOrderProcess.update({
+      where: { id: pendingVerification.id },
+      data: {
+        externalDoctorStatus: dto.outcome,
+        externalDoctorNotes: dto.outcome === 'FAILURE' ? dto.notes?.trim() || null : null,
+        externalDoctorSubmittedAt: now,
+        status: ProcessStatus.IN_PROGRESS,
+        startedAt: pendingVerification.startedAt || now,
+        activityLogs: {
+          create: {
+            action: ProcessActivityAction.START,
+            timestamp: now,
+            notes: `Doctor verification submitted: ${dto.outcome}${dto.notes ? ` - Notes: ${dto.notes}` : ''}`,
+          },
+        },
+      } as any,
     });
 
-    const branchAdmin = await this.prisma.user.findFirst({
+    await this.workOrdersService.updateWorkOrderStatus(workOrder.id);
+
+    // Notify all active branch admins and default admin
+    const branchAdmins = await this.prisma.user.findMany({
       where: {
         tenantId,
         branchId,
         role: { in: [UserRole.ADMIN, UserRole.OWNER] },
         status: UserStatus.ACTIVE,
       },
-      orderBy: { createdAt: 'asc' },
     });
 
-    const adminUserId = branch?.defaultAdminId || branchAdmin?.id;
-
-    if (!adminUserId) {
-      throw new BadRequestException('No active branch administrator found to complete verification.');
-    }
-
-    // Process completion and transitions using endVerification
-    await this.workOrdersService.endVerification(
-      tenantId,
-      workOrder.id,
-      pendingVerification.id,
-      dto.outcome,
-      adminUserId,
-      dto.reworkProcessNames,
-    );
-
-    // Write Audit Log
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: workOrder.doctorId },
     });
-    if (doctor) {
-      await this.auditLogsService.log({
+
+    const doctorName = doctor?.name || 'External Doctor';
+
+    for (const admin of branchAdmins) {
+      await this.notificationsService.create({
         tenantId,
-        userEmail: doctor.email || 'doctor@integration.com',
-        action: 'VERIFICATION_END_EXTERNAL',
-        entityName: 'PROCESS',
-        entityId: pendingVerification.id,
-        details: {
-          workOrderId: workOrder.id,
-          processName: pendingVerification.processName,
-          outcome: dto.outcome,
-          notes: dto.notes,
-          clinicUrl: dto.clinicUrl,
-          doctorName: doctor.name,
-        },
+        userId: admin.id,
+        title: 'External Verification Submitted',
+        message: `Dr. ${doctorName} submitted verification for WO "${workOrder.folioNumber}": ${dto.outcome}. Pending Admin review.`,
+        type: 'VERIFICATION_PENDING',
+        referenceId: workOrder.id,
       });
     }
 
-    // Fetch the updated next step based on outcome
-    let nextStep: { processName: string; status: string } | null = null;
+    // Write Audit Log for Doctor Submission
+    await this.auditLogsService.log({
+      tenantId,
+      userEmail: doctor?.email || 'doctor@integration.com',
+      action: 'VERIFICATION_DOCTOR_SUBMITTED',
+      entityName: 'PROCESS',
+      entityId: pendingVerification.id,
+      details: {
+        workOrderId: workOrder.id,
+        folioNumber: workOrder.folioNumber,
+        processName: pendingVerification.processName,
+        doctorStatus: dto.outcome,
+        doctorNotes: dto.notes || null,
+        clinicUrl: dto.clinicUrl,
+        doctorName,
+        submittedAt: now.toISOString(),
+      },
+    });
 
-    if (dto.outcome === 'REWORK') {
-      nextStep = await this.prisma.workOrderProcess.findFirst({
-        where: {
-          workOrderId: workOrder.id,
-          reworkActive: true,
-        },
-        orderBy: { sequence: 'asc' },
-        select: {
-          processName: true,
-          status: true,
-        },
-      });
-    } else if (dto.outcome === 'REPETITION') {
-      nextStep = await this.prisma.workOrderProcess.findFirst({
-        where: {
-          workOrderId: workOrder.id,
-        },
-        orderBy: { sequence: 'asc' },
-        select: {
-          processName: true,
-          status: true,
-        },
-      });
-    } else {
-      nextStep = await this.prisma.workOrderProcess.findFirst({
-        where: {
-          workOrderId: workOrder.id,
-          sequence: { gt: pendingVerification.sequence },
-        },
-        orderBy: { sequence: 'asc' },
-        select: {
-          processName: true,
-          status: true,
-        },
+    // Emit real-time WebSocket update for Admin dashboards
+    this.websocketsGateway.sendToTenant(tenantId, 'work_order_updated', {
+      id: workOrder.id,
+      folioNumber: workOrder.folioNumber,
+      patient: workOrder.patient,
+      status: workOrder.status,
+      branchId,
+    });
+
+    if (branchId) {
+      this.websocketsGateway.sendToBranch(tenantId, branchId, 'work_order_updated', {
+        id: workOrder.id,
+        folioNumber: workOrder.folioNumber,
+        patient: workOrder.patient,
+        status: workOrder.status,
       });
     }
 
     return {
       success: true,
-      message: `Verification outcome ${dto.outcome} submitted successfully.`,
-      nextStep: nextStep || null,
+      message: `External doctor verification response (${dto.outcome}) submitted. Awaiting lab admin approval.`,
     };
   }
 

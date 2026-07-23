@@ -132,6 +132,11 @@
       "REWORK": "Rework",
       "REPETITION": "Repetition"
     },
+    "externalDoctorStatus": {
+      "SUCCESS": "Success",
+      "FAILURE": "Failure",
+      "PENDING": "Pending Doctor Response"
+    },
     "processAction": {
       "START": "Process Started",
       "PAUSE": "Process Paused",
@@ -348,6 +353,13 @@
     "order": "Order",
     "verificationStage": "Verification Stage",
     "selectTheOutcome": "Select the outcome:",
+    "doctorStatus": "Doctor Status",
+    "doctorNotes": "Doctor Notes",
+    "awaitingDoctorResponse": "Awaiting External Doctor Response",
+    "doctorSubmittedFeedback": "Doctor Submitted Feedback",
+    "adminDecisionNotice": "Review the external doctor feedback and select how to proceed with the Work Order:",
+    "resolvedBy": "Resolved By",
+    "failureNotesRequired": "Doctor notes are required when reporting a Failure result.",
     "approveSuccess": "Approve (Success)",
     "flagRework": "Flag (Rework Needed)",
     "flagRepetition": "Flag (Repetition Needed)",

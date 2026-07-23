@@ -132,6 +132,11 @@
       "REWORK": "Retrabajo",
       "REPETITION": "Repetición"
     },
+    "externalDoctorStatus": {
+      "SUCCESS": "Éxito",
+      "FAILURE": "Fallo",
+      "PENDING": "Respuesta del Médico Pendiente"
+    },
     "processAction": {
       "START": "Proceso Iniciado",
       "PAUSE": "Proceso Pausado",
@@ -348,6 +353,13 @@
     "order": "Orden",
     "verificationStage": "Etapa de Verificación",
     "selectTheOutcome": "Selecciona el resultado:",
+    "doctorStatus": "Estado del Doctor",
+    "doctorNotes": "Notas del Doctor",
+    "awaitingDoctorResponse": "Esperando Respuesta del Doctor Externo",
+    "doctorSubmittedFeedback": "Comentarios Enviados por el Doctor",
+    "adminDecisionNotice": "Revise los comentarios del doctor externo y seleccione cómo proceder con la Orden de Trabajo:",
+    "resolvedBy": "Resuelto Por",
+    "failureNotesRequired": "Las notas del doctor son obligatorias al reportar un resultado de Fallo.",
     "approveSuccess": "Aprobar (Éxito)",
     "flagRework": "Marcar (Retrabajo Necesario)",
     "flagRepetition": "Marcar (Repetición Necesaria)",

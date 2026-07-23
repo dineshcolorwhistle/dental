@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsArray, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class VerifyIntegrationWorkOrderDto {
@@ -20,18 +20,12 @@ export class VerifyIntegrationWorkOrderDto {
   @MaxLength(100)
   workOrderId: string;
 
-  @ApiProperty({ example: 'SUCCESS', description: 'The outcome of verification (SUCCESS, REWORK, or REPETITION)' })
+  @ApiProperty({ example: 'SUCCESS', description: 'The outcome of doctor verification (SUCCESS or FAILURE)' })
   @IsString()
   @IsNotEmpty()
-  outcome: 'SUCCESS' | 'REWORK' | 'REPETITION';
+  outcome: 'SUCCESS' | 'FAILURE';
 
-  @ApiProperty({ example: ['Scanning', 'Design'], description: 'List of process names to rework', required: false })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  reworkProcessNames?: string[];
-
-  @ApiProperty({ example: 'Approved, looks great.', description: 'Optional feedback notes', required: false })
+  @ApiProperty({ example: 'Margin needs adjustment on tooth #14.', description: 'Feedback notes from external doctor (required for FAILURE)', required: false })
   @IsString()
   @IsOptional()
   notes?: string;

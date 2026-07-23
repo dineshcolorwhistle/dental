@@ -28,6 +28,16 @@ export interface WorkOrderProcessItem {
   } | null;
   reworkCount?: number;
   reworkActive?: boolean;
+  externalDoctorStatus?: string | null;
+  externalDoctorNotes?: string | null;
+  externalDoctorSubmittedAt?: string | null;
+  verificationResolvedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  } | null;
 }
 
 export interface ReworkLogItem {
