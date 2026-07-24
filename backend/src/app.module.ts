@@ -26,6 +26,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { WebsocketsModule } from './modules/websockets/websockets.module';
 import { QueuesModule } from './modules/queues/queues.module';
 import { ProcessAreasModule } from './modules/process-areas/process-areas.module';
+import { InterestRequestsModule } from './modules/interest-requests/interest-requests.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ProcessAreasModule } from './modules/process-areas/process-areas.module
     ApiKeysModule,
     IntegrationModule,
     MessagesModule,
+    InterestRequestsModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default

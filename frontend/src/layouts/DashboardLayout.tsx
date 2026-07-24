@@ -32,6 +32,7 @@ import {
   Layers,
   Truck,
   Sliders,
+  Heart,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, tenantService, type NotificationItem } from '../services';
@@ -633,17 +634,30 @@ export function DashboardLayout() {
           )}
 
           {user?.role === 'SUPER_ADMIN' && (
-            <NavLink
-              to="/tenants"
-              className={({ isActive }) =>
-                `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-              }
-              onClick={() => setSidebarOpen(false)}
-              data-tooltip={t('navigation.tenants')}
-            >
-              <Building2 size={20} />
-              <span>{t('navigation.tenants')}</span>
-            </NavLink>
+            <>
+              <NavLink
+                to="/tenants"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.tenants')}
+              >
+                <Building2 size={20} />
+                <span>{t('navigation.tenants')}</span>
+              </NavLink>
+              <NavLink
+                to="/interest-requests"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.interestRequests', { defaultValue: 'Interest Requests' })}
+              >
+                <Heart size={20} />
+                <span>{t('navigation.interestRequests', { defaultValue: 'Interest Requests' })}</span>
+              </NavLink>
+            </>
           )}
         </nav>
 

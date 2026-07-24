@@ -23,7 +23,7 @@ async function bootstrap() {
   app.enableCors({
     origin: (
       origin: string | undefined,
-      callback: (err: Error | null, allow?: boolean) => void,
+      callback: (err: Error | null, allow?: any) => void,
     ) => {
       // Allow requests with no origin (like mobile apps, node-fetch, postman)
       if (!origin) {
@@ -35,9 +35,9 @@ async function bootstrap() {
         const originUrl = new URL(origin);
         const hostname = originUrl.hostname;
 
-        // Allow localhost and any of its subdomains (e.g., happy-dental.localhost)
+        // Allow localhost and any of its subdomains (e.g., smile.localhost)
         if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
-          callback(null, true);
+          callback(null, origin);
           return;
         }
 
@@ -48,15 +48,15 @@ async function bootstrap() {
           hostname === baseHostname ||
           hostname.endsWith('.' + baseHostname)
         ) {
-          callback(null, true);
+          callback(null, origin);
           return;
         }
       } catch {
-        // Fallback to checking exact list if URL parsing fails
+        // Fallback if URL parsing fails
       }
 
       if (origin === corsOrigin || origin === 'http://localhost:5173') {
-        callback(null, true);
+        callback(null, origin);
       } else {
         callback(new Error(`Origin ${origin} not allowed by CORS`));
       }
@@ -95,4 +95,4 @@ async function bootstrap() {
 
 void bootstrap();
 
-// Trigger restart: Prisma client regenerated - reload
+// Server initialized cleanly with BadRequestException import fix

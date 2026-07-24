@@ -29,6 +29,8 @@ import { ApiKeysPage } from './pages/ApiKeysPage';
 import { ProcessAreasPage } from './pages/ProcessAreasPage';
 import { GeneralSettingsPage } from './pages/GeneralSettingsPage';
 import { ConnectedClinicsPage } from './pages/ConnectedClinicsPage';
+import { PublicWorkOrderPage } from './pages/PublicWorkOrderPage';
+import { InterestRequestsPage } from './pages/InterestRequestsPage';
 
 
 function App() {
@@ -218,16 +220,20 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/interest-requests"
+              element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                  <InterestRequestsPage />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
-          {/* QR redirection route — clean fullscreen protected route */}
+          {/* Public QR Work Order tracking — no auth required */}
           <Route
             path="/qr/:token"
-            element={
-              <ProtectedRoute>
-                <QRRedirectPage />
-              </ProtectedRoute>
-            }
+            element={<PublicWorkOrderPage />}
           />
 
           {/* Error pages */}

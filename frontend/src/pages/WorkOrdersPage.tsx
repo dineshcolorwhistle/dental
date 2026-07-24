@@ -316,8 +316,8 @@ export function WorkOrdersPage() {
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
       const [woData, branchData, chatCounts] = await Promise.all([
         workOrderService.getAll(branchScope),
-        isAdmin ? Promise.resolve([]) : branchService.getAll(),
-        messagingService.getWorkOrderUnreadCounts(),
+        (isAdmin ? Promise.resolve([]) : branchService.getAll()).catch(() => []),
+        messagingService.getWorkOrderUnreadCounts().catch(() => ({})),
       ]);
       setWorkOrders(woData);
       setBranches(branchData.filter((b) => b.isActive));

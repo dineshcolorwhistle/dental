@@ -55,6 +55,13 @@ enum Language {
   ES
 }
 
+enum InterestRequestStatus {
+  PENDING
+  CONTACTED
+  CONVERTED
+  DISCARDED
+}
+
 
 // ─── Tenant ──────────────────────────────────────────────
 
@@ -91,6 +98,7 @@ model Tenant {
   expenses          Expense[]
   apiKeys           ApiKey[]
   conversations     Conversation[]
+  interestRequests  InterestRequest[]
 
   @@map("tenants")
 }
@@ -383,11 +391,12 @@ model WorkOrder {
   doctor         Doctor             @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   prosthesisType ProsthesisType     @relation(fields: [prosthesisTypeId], references: [id], onDelete: Cascade)
   createdBy      User               @relation("WorkOrderCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  processes      WorkOrderProcess[]
-  reworkLogs     ReworkLog[]
-  repetitionLogs RepetitionLog[]
-  conversation   Conversation?
-  notesList      WorkOrderNote[]
+  processes        WorkOrderProcess[]
+  reworkLogs       ReworkLog[]
+  repetitionLogs   RepetitionLog[]
+  conversation     Conversation?
+  notesList        WorkOrderNote[]
+  interestRequests InterestRequest[]
 
   @@unique([tenantId, folioNumber])
   @@map("work_orders")
@@ -723,4 +732,25 @@ model MessageReadReceipt {
 
   @@unique([messageId, userId])
   @@map("message_read_receipts")
+}
+
+// ─── Interest Request ────────────────────────────────────
+
+model InterestRequest {
+  id          String                @id @default(uuid())
+  tenantId    String                @map("tenant_id")
+  workOrderId String?               @map("work_order_id")
+  name        String
+  email       String
+  phone       String
+  notes       String?
+  status      InterestRequestStatus @default(PENDING)
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+
+  @@map("interest_requests")
 }

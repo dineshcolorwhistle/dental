@@ -253,9 +253,6 @@ export class WorkOrdersService {
         technician: {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
-        verificationResolvedBy: {
-          select: { id: true, firstName: true, lastName: true, email: true, role: true },
-        },
         activityLogs: {
           orderBy: { timestamp: 'asc' as const },
         },
@@ -284,6 +281,13 @@ export class WorkOrdersService {
 
   private mapWorkOrder(wo: any) {
     if (!wo) return wo;
+    const fallbackCreatedBy = wo.createdBy || {
+      id: '',
+      firstName: 'System',
+      lastName: '',
+      role: 'ADMIN',
+      email: '',
+    };
     if (wo.isExternal && wo.doctor) {
       return {
         ...wo,
@@ -296,10 +300,14 @@ export class WorkOrdersService {
         },
       };
     }
-    return wo;
+    return {
+      ...wo,
+      createdBy: fallbackCreatedBy,
+    };
   }
 
   private mapWorkOrders(wos: any[]) {
+    if (!Array.isArray(wos)) return [];
     return wos.map((wo) => this.mapWorkOrder(wo));
   }
 
@@ -590,13 +598,13 @@ export class WorkOrdersService {
   }
 
   async findAll(
-    tenantId: string,
+    tenantId?: string,
     branchIdFilter?: string,
     statusFilter?: string,
   ) {
     const list = await this.prisma.workOrder.findMany({
       where: {
-        tenantId,
+        ...(tenantId && { tenantId }),
         ...(branchIdFilter &&
           branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
         ...(statusFilter &&

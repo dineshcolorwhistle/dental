@@ -56,7 +56,7 @@ export class WorkOrdersController {
     @Query('branchId') branchIdFilter?: string,
     @Query('status') statusFilter?: string,
   ) {
-    if (!tenantId) {
+    if (!tenantId && userRole !== 'SUPER_ADMIN') {
       throw new BadRequestException('Organization context is required.');
     }
 
@@ -69,7 +69,7 @@ export class WorkOrdersController {
       );
     }
 
-    // For owner, use query filter if provided
+    // For owner or super admin, use query filter if provided
     return this.workOrdersService.findAll(
       tenantId,
       branchIdFilter,

@@ -15,7 +15,7 @@ import { PrismaService } from '../../prisma/prisma.service';
   cors: {
     origin: (
       origin: string | undefined,
-      callback: (err: Error | null, allow?: boolean) => void,
+      callback: (err: Error | null, allow?: any) => void,
     ) => {
       // Re-use logic matching NestJS main app CORS setup
       if (!origin) {
@@ -28,7 +28,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
         // Allow localhost and any of its subdomains
         if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
-          callback(null, true);
+          callback(null, origin);
           return;
         }
 
@@ -40,13 +40,13 @@ import { PrismaService } from '../../prisma/prisma.service';
           hostname === baseHostname ||
           hostname.endsWith('.' + baseHostname)
         ) {
-          callback(null, true);
+          callback(null, origin);
           return;
         }
       } catch {
         // Fallback
       }
-      callback(null, true);
+      callback(null, origin);
     },
     credentials: true,
   },
