@@ -17,7 +17,6 @@ import {
   AlertCircle,
   RefreshCw,
   X,
-  Send,
   Heart,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -746,7 +745,7 @@ function StatCard({
       boxShadow: 'var(--shadow-sm)',
       display: 'flex',
       alignItems: 'center',
-      justify: 'space-between',
+      justifyContent: 'space-between',
     }}>
       <div>
         <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>

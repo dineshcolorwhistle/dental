@@ -23,7 +23,6 @@ import { InventoryPage } from './pages/InventoryPage';
 import { ExpensesPage } from './pages/ExpensesPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { QRRedirectPage } from './pages/QRRedirectPage';
 import { WorkOrderDetailPage } from './pages/WorkOrderDetailPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { ProcessAreasPage } from './pages/ProcessAreasPage';
