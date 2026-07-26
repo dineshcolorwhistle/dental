@@ -8,7 +8,7 @@ export interface TechnicianListItem {
   firstName: string;
   lastName: string;
   phone: string | null;
-  role: 'TECHNICIAN';
+  role: 'TECHNICIAN' | 'ADMIN' | 'OWNER' | 'SUPER_ADMIN';
   status: 'ACTIVE' | 'INACTIVE' | 'INVITED';
   createdAt: string;
   updatedAt: string;
@@ -36,8 +36,10 @@ export interface UpdateTechnicianPayload {
 }
 
 export const technicianService = {
-  getAll: async (branchId?: string): Promise<TechnicianListItem[]> => {
-    const params = branchId && branchId !== 'ALL' ? { branchId } : {};
+  getAll: async (branchId?: string, includeAdmins?: boolean): Promise<TechnicianListItem[]> => {
+    const params: Record<string, string> = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    if (includeAdmins) params.includeAdmins = 'true';
     const response = await api.get<TechnicianListItem[]>('/technicians', { params });
     return response.data;
   },

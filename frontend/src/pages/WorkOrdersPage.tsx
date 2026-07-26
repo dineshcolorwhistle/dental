@@ -11,11 +11,11 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
-  CheckCircle2,
+  CircleDot,
   Clock,
   PlayCircle,
   ShieldCheck,
-  CircleDot,
+  CheckCircle2,
   FileText,
   PlusCircle,
   ShieldPlus,
@@ -220,11 +220,14 @@ export function WorkOrdersPage() {
     specification: '',
     color: '',
     notes: '',
-    totalQuote: '',
+    deliveryDate: '',
+    totalQuote: '0',
     initialPayment: '',
     paymentReferenceNumber: '',
+    paymentReferenceNumbers: [] as string[],
     branchId: '',
   });
+  const [refInput, setRefInput] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [processList, setProcessList] = useState<ProcessFormItem[]>([]);
   const [generatedFolio, setGeneratedFolio] = useState('');
@@ -252,6 +255,22 @@ export function WorkOrdersPage() {
           : wo
       )
     );
+  };
+
+  const handleAddPaymentRef = () => {
+    if (!refInput.trim()) return;
+    setForm(prev => ({
+      ...prev,
+      paymentReferenceNumbers: [...prev.paymentReferenceNumbers, refInput.trim()]
+    }));
+    setRefInput('');
+  };
+
+  const handleRemovePaymentRef = (indexToRemove: number) => {
+    setForm(prev => ({
+      ...prev,
+      paymentReferenceNumbers: prev.paymentReferenceNumbers.filter((_, idx) => idx !== indexToRemove)
+    }));
   };
 
   const handleUpdateNote = async (noteId: string, content: string) => {
@@ -398,7 +417,7 @@ export function WorkOrdersPage() {
       const [doctorData, ptData, techData, processData, adminData] = await Promise.all([
         doctorService.getAll(branchScope),
         prosthesisTypeService.getAll(),
-        technicianService.getAll(branchScope),
+        technicianService.getAll(branchScope, true),
         processService.getAll(branchScope),
         adminService.getAll(branchScope),
       ]);
@@ -549,11 +568,14 @@ export function WorkOrdersPage() {
       specification: '',
       color: '',
       notes: '',
-      totalQuote: '',
+      deliveryDate: '',
+      totalQuote: '0',
       initialPayment: '',
       paymentReferenceNumber: '',
+      paymentReferenceNumbers: [],
       branchId,
     });
+    setRefInput('');
     setProcessList([]);
     setFormErrors({});
     setShowAddProcess(false);
@@ -724,14 +746,18 @@ export function WorkOrdersPage() {
 
       const payload: CreateWorkOrderPayload = {
         doctorId: form.doctorId,
-        patient: form.patient,
+        patient: form.patient || undefined,
         boxNumber: form.boxNumber || undefined,
+        fileNumber: form.fileNumber || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
         specification: isAdmin ? form.specification || undefined : undefined,
         color: form.color,
         notes: form.notes || undefined,
-        totalQuote: form.totalQuote ? parseFloat(form.totalQuote) : undefined,
+        deliveryDate: form.deliveryDate || undefined,
+        totalQuote: form.totalQuote !== '' ? parseFloat(form.totalQuote) : 0,
         initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
+        paymentReferenceNumber: form.paymentReferenceNumbers[0] || undefined,
+        paymentReferenceNumbers: form.paymentReferenceNumbers,
         branchId: form.branchId || undefined,
         action,
         processes,
@@ -764,20 +790,26 @@ export function WorkOrdersPage() {
     await loadReferenceData();
     setEditingWO(wo);
     const { userNotes } = parseNotesAndPayments(wo.notes);
+    const existingRefs = wo.paymentReferenceNumbers && wo.paymentReferenceNumbers.length > 0
+      ? wo.paymentReferenceNumbers
+      : (wo.paymentReferenceNumber ? [wo.paymentReferenceNumber] : []);
     setForm({
       doctorId: wo.doctorId,
-      patient: wo.patient,
+      patient: wo.patient || '',
       boxNumber: wo.boxNumber || '',
       fileNumber: wo.fileNumber || '',
       prosthesisTypeId: wo.prosthesisTypeId,
       specification: wo.specification || '',
       color: wo.color || '',
       notes: userNotes,
-      totalQuote: wo.totalQuote != null ? wo.totalQuote.toString() : '',
+      deliveryDate: wo.deliveryDate ? new Date(wo.deliveryDate).toISOString().split('T')[0] : '',
+      totalQuote: wo.totalQuote != null ? wo.totalQuote.toString() : '0',
       initialPayment: wo.initialPayment != null ? wo.initialPayment.toString() : '',
       paymentReferenceNumber: wo.paymentReferenceNumber || '',
+      paymentReferenceNumbers: existingRefs,
       branchId: wo.branchId || '',
     });
+    setRefInput('');
     
     setModalTab('details');
     setFormStatus(wo.status);
@@ -826,16 +858,18 @@ export function WorkOrdersPage() {
       const updatedNotes = stringifyNotesAndPayments(form.notes, payments);
       const payload: any = {
         doctorId: form.doctorId,
-        patient: form.patient,
+        patient: form.patient || undefined,
         boxNumber: form.boxNumber || undefined,
         fileNumber: form.fileNumber || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
         specification: form.specification || undefined,
         color: form.color || undefined,
         notes: updatedNotes || undefined,
+        deliveryDate: form.deliveryDate || undefined,
         totalQuote: form.totalQuote !== '' ? parseFloat(form.totalQuote) : 0,
         initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
-        paymentReferenceNumber: form.paymentReferenceNumber || undefined,
+        paymentReferenceNumber: form.paymentReferenceNumbers[0] || undefined,
+        paymentReferenceNumbers: form.paymentReferenceNumbers,
         status: isAssign && editingWO.status === 'CREATED' ? 'ASSIGNED' : formStatus,
       };
 
@@ -1378,24 +1412,21 @@ export function WorkOrdersPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-patient">{t('workOrders.patient')} *</label>
+                      <label className="form-label" htmlFor="input-wo-patient">{t('workOrders.patient')}</label>
                       <input
                         id="input-wo-patient"
-                        className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
+                        className="form-input"
                         type="text"
                         placeholder={t('workOrders.patientPlaceholder', { defaultValue: 'e.g., John Doe' })}
                         value={form.patient}
                         onChange={(e) => handleInputChange('patient', e.target.value)}
                         disabled={saving}
                       />
-                      {formErrors.patient && (
-                        <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
-                      )}
                     </div>
                   </div>
 
-                  {/* Row 2: Folio Number + File Number + Box Number */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                  {/* Row 2: Folio Number + File Number + Box Number + Delivery Date */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                       <label className="form-label" htmlFor="input-wo-folio">{t('workOrders.folioNumber', { defaultValue: 'Folio Number' })}</label>
                       <input
@@ -1430,6 +1461,18 @@ export function WorkOrdersPage() {
                         placeholder={t('workOrders.boxNumberPlaceholder', { defaultValue: 'e.g., BOX-42' })}
                         value={form.boxNumber}
                         onChange={(e) => handleInputChange('boxNumber', e.target.value)}
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="input-wo-delivery-date">{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}</label>
+                      <input
+                        id="input-wo-delivery-date"
+                        className="form-input"
+                        type="date"
+                        value={form.deliveryDate}
+                        onChange={(e) => handleInputChange('deliveryDate', e.target.value)}
                         disabled={saving}
                       />
                     </div>
@@ -1564,18 +1607,69 @@ export function WorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Payment Reference Number */}
+                  {/* Multiple Payment Reference Numbers */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="input-wo-pay-ref">{t('workOrders.paymentReferenceNumber', { defaultValue: 'Payment Reference Number' })}</label>
-                    <input
-                      id="input-wo-pay-ref"
-                      className="form-input"
-                      type="text"
-                      placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'e.g., REF-98765' })}
-                      value={form.paymentReferenceNumber}
-                      onChange={(e) => handleInputChange('paymentReferenceNumber', e.target.value)}
-                      disabled={saving}
-                    />
+                    <label className="form-label" htmlFor="input-wo-pay-ref">{t('workOrders.paymentReferenceNumbers', { defaultValue: 'Payment Reference Numbers' })}</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <input
+                        id="input-wo-pay-ref"
+                        className="form-input"
+                        type="text"
+                        placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'Type reference number and click Add (e.g., REF-98765)' })}
+                        value={refInput}
+                        onChange={(e) => setRefInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddPaymentRef();
+                          }
+                        }}
+                        disabled={saving}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        onClick={handleAddPaymentRef}
+                        disabled={saving || !refInput.trim()}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        <Plus size={16} />
+                        <span>{t('workOrders.addPaymentRef', { defaultValue: 'Add Reference' })}</span>
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {form.paymentReferenceNumbers.map((ref, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                            border: '1px solid var(--border)',
+                            padding: '0.25rem 0.625rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.8125rem',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {ref}
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePaymentRef(idx)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
+                          >
+                            <X size={14} />
+                          </button>
+                        </span>
+                      ))}
+                      {form.paymentReferenceNumbers.length === 0 && (
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          {t('workOrders.noPaymentRefs', { defaultValue: 'No reference numbers added' })}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1684,10 +1778,16 @@ export function WorkOrdersPage() {
                             ) : (
                               <SearchableSelect
                                 id={`select-proc-tech-${proc.tempId}`}
-                                options={(proc.isVerification ? admins : technicians).map((u) => ({
-                                  value: u.id,
-                                  label: `${u.firstName} ${u.lastName}`,
-                                }))}
+                                options={(() => {
+                                  const map = new Map<string, any>();
+                                  [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
+                                  const list = Array.from(map.values());
+                                  const filteredList = proc.isVerification ? (admins.length > 0 ? admins : list) : list;
+                                  return filteredList.map((u) => ({
+                                    value: u.id,
+                                    label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
+                                  }));
+                                })()}
                                 value={proc.technicianId}
                                 onChange={(val) => updateProcessTechnician(idx, val)}
                                 disabled={saving}
@@ -1769,10 +1869,14 @@ export function WorkOrdersPage() {
                         <div style={{ flex: 1, minWidth: '180px' }}>
                           <SearchableSelect
                             id="select-add-process-tech"
-                            options={technicians.map((t) => ({
-                              value: t.id,
-                              label: `${t.firstName} ${t.lastName}`,
-                            }))}
+                            options={(() => {
+                              const map = new Map<string, any>();
+                              [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
+                              return Array.from(map.values()).map((tech) => ({
+                                value: tech.id,
+                                label: `${tech.firstName} ${tech.lastName}${tech.role && tech.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
+                              }));
+                            })()}
                             value={newProcessTechnicianId}
                             onChange={setNewProcessTechnicianId}
                             disabled={saving}
@@ -2132,24 +2236,21 @@ export function WorkOrdersPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-patient">{t('workOrders.patient')} *</label>
+                      <label className="form-label" htmlFor="edit-wo-patient">{t('workOrders.patient')}</label>
                       <input
                         id="edit-wo-patient"
-                        className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
+                        className="form-input"
                         type="text"
                         placeholder={t('workOrders.patientPlaceholder', { defaultValue: 'e.g., John Doe' })}
                         value={form.patient}
                         onChange={(e) => handleInputChange('patient', e.target.value)}
                         disabled={saving}
                       />
-                      {formErrors.patient && (
-                        <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
-                      )}
                     </div>
                   </div>
 
-                  {/* Row 2: Folio Number + File Number + Box Number */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                  {/* Row 2: Folio Number + File Number + Box Number + Delivery Date */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                       <label className="form-label" htmlFor="edit-wo-folio">{t('workOrders.folioNumber', { defaultValue: 'Folio Number' })}</label>
                       <input
@@ -2184,6 +2285,18 @@ export function WorkOrdersPage() {
                         placeholder={t('workOrders.boxNumberPlaceholder', { defaultValue: 'e.g., BOX-42' })}
                         value={form.boxNumber}
                         onChange={(e) => handleInputChange('boxNumber', e.target.value)}
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="edit-wo-delivery-date">{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}</label>
+                      <input
+                        id="edit-wo-delivery-date"
+                        className="form-input"
+                        type="date"
+                        value={form.deliveryDate}
+                        onChange={(e) => handleInputChange('deliveryDate', e.target.value)}
                         disabled={saving}
                       />
                     </div>
@@ -2336,18 +2449,69 @@ export function WorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Payment Reference Number */}
+                  {/* Multiple Payment Reference Numbers */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-pay-ref">{t('workOrders.paymentReferenceNumber', { defaultValue: 'Payment Reference Number' })}</label>
-                    <input
-                      id="edit-wo-pay-ref"
-                      className="form-input"
-                      type="text"
-                      placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'e.g., REF-98765' })}
-                      value={form.paymentReferenceNumber}
-                      onChange={(e) => handleInputChange('paymentReferenceNumber', e.target.value)}
-                      disabled={saving}
-                    />
+                    <label className="form-label" htmlFor="edit-wo-pay-ref">{t('workOrders.paymentReferenceNumbers', { defaultValue: 'Payment Reference Numbers' })}</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <input
+                        id="edit-wo-pay-ref"
+                        className="form-input"
+                        type="text"
+                        placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'Type reference number and click Add (e.g., REF-98765)' })}
+                        value={refInput}
+                        onChange={(e) => setRefInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddPaymentRef();
+                          }
+                        }}
+                        disabled={saving}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        onClick={handleAddPaymentRef}
+                        disabled={saving || !refInput.trim()}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        <Plus size={16} />
+                        <span>{t('workOrders.addPaymentRef', { defaultValue: 'Add Reference' })}</span>
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {form.paymentReferenceNumbers.map((ref, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                            border: '1px solid var(--border)',
+                            padding: '0.25rem 0.625rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.8125rem',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {ref}
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePaymentRef(idx)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
+                          >
+                            <X size={14} />
+                          </button>
+                        </span>
+                      ))}
+                      {form.paymentReferenceNumbers.length === 0 && (
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          {t('workOrders.noPaymentRefs', { defaultValue: 'No reference numbers added' })}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -2519,10 +2683,16 @@ export function WorkOrdersPage() {
                               ) : (
                                 <SearchableSelect
                                   id={`select-edit-proc-tech-${proc.tempId}`}
-                                  options={(proc.isVerification ? admins : technicians).map((u) => ({
-                                    value: u.id,
-                                    label: `${u.firstName} ${u.lastName}`,
-                                  }))}
+                                  options={(() => {
+                                    const map = new Map<string, any>();
+                                    [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
+                                    const list = Array.from(map.values());
+                                    const filteredList = proc.isVerification ? (admins.length > 0 ? admins : list) : list;
+                                    return filteredList.map((u) => ({
+                                      value: u.id,
+                                      label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
+                                    }));
+                                  })()}
                                   value={proc.technicianId}
                                   onChange={(val) => updateProcessTechnician(idx, val)}
                                   disabled={saving || isStepStarted}
@@ -2605,14 +2775,18 @@ export function WorkOrdersPage() {
                         <div style={{ flex: 1, minWidth: '180px' }}>
                           <SearchableSelect
                             id="select-edit-add-process-tech"
-                            options={technicians.map((t) => ({
-                              value: t.id,
-                              label: `${t.firstName} ${t.lastName}`,
-                            }))}
+                            options={(() => {
+                              const map = new Map<string, any>();
+                              [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
+                              return Array.from(map.values()).map((u) => ({
+                                value: u.id,
+                                label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
+                              }));
+                            })()}
                             value={newProcessTechnicianId}
                             onChange={setNewProcessTechnicianId}
                             disabled={saving}
-                            placeholder="Select technician"
+                            placeholder={t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
                           />
                         </div>
                         <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>

@@ -107,7 +107,7 @@ export function ProcessesPage() {
     }
     try {
       setLoadingTechs(true);
-      const techs = await technicianService.getAll(branchId);
+      const techs = await technicianService.getAll(branchId, true);
       setFormTechnicians(techs.filter((t) => t.status === 'ACTIVE'));
     } catch (err) {
       toast.error(t('technicians.failedLoad'));
@@ -640,9 +640,9 @@ export function ProcessesPage() {
                 </label>
                 <SearchableSelect
                   id="select-process-technician"
-                  options={formTechnicians.map((t) => ({
-                    value: t.id,
-                    label: `${t.firstName} ${t.lastName} (${t.email})`,
+                  options={formTechnicians.map((tech) => ({
+                    value: tech.id,
+                    label: `${tech.firstName} ${tech.lastName}${tech.role === 'ADMIN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''} (${tech.email})`,
                   }))}
                   value={form.defaultTechnicianId}
                   onChange={(val) => handleInputChange('defaultTechnicianId', val)}
@@ -798,9 +798,9 @@ export function ProcessesPage() {
                 </label>
                 <SearchableSelect
                   id="select-edit-process-technician"
-                  options={formTechnicians.map((t) => ({
-                    value: t.id,
-                    label: `${t.firstName} ${t.lastName} (${t.email})`,
+                  options={formTechnicians.map((tech) => ({
+                    value: tech.id,
+                    label: `${tech.firstName} ${tech.lastName}${tech.role === 'ADMIN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''} (${tech.email})`,
                   }))}
                   value={form.defaultTechnicianId}
                   onChange={(val) => handleInputChange('defaultTechnicianId', val)}

@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   Lock,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   X,
   Calendar,
   User,
@@ -216,6 +218,7 @@ export function TechnicianWorkOrdersPage() {
   const [qrWO, setQrWO] = useState<any>(null);
 
   const [detailTab, setDetailTab] = useState<'general' | 'process'>('general');
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
   const handleAddNote = async (content: string) => {
     if (!selectedOrder) return;
@@ -868,54 +871,70 @@ export function TechnicianWorkOrdersPage() {
                     )}
                   </div>
 
-                  {/* Admin Notes Section (Read-only for Technicians) */}
+                  {/* Collapsible Notes Section */}
                   <div style={{
                     borderBottom: '1px solid var(--border)',
                     paddingBottom: '1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.5rem'
                   }}>
-                    <h4 style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      color: 'var(--text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      margin: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}>
-                      <FileText size={14} /> {t('workOrder.adminNotes', { defaultValue: 'Admin Notes' })}
-                    </h4>
-                    <div style={{
-                      padding: '0.75rem',
-                      backgroundColor: 'var(--bg-card)',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      fontSize: '0.78rem',
-                      lineHeight: '1.5',
-                      color: selectedOrder.notes ? 'var(--text-primary)' : 'var(--text-muted)',
-                      fontStyle: selectedOrder.notes ? 'normal' : 'italic'
-                    }}>
-                      {selectedOrder.notes || t('workOrder.noNotesPlaceholder', { defaultValue: 'No notes provided.' })}
-                    </div>
-                  </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsNotesExpanded(prev => !prev)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        padding: '0.375rem 0',
+                        cursor: 'pointer',
+                        color: 'var(--text-heading)',
+                        fontWeight: 700,
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FileText size={16} />
+                        <span>{t('workOrders.notesHistory', { defaultValue: 'Notes & Thread' })}</span>
+                        {((selectedOrder as any).notesList?.length || selectedOrder.notes) ? (
+                          <span style={{ fontSize: '0.75rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary, #3B82F6)', padding: '1px 6px', borderRadius: '10px' }}>
+                            {((selectedOrder as any).notesList?.length || 0) + (selectedOrder.notes ? 1 : 0)}
+                          </span>
+                        ) : null}
+                      </span>
+                      {isNotesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
 
-                  {/* Notes History Thread */}
-                  <div style={{
-                    borderBottom: '1px solid var(--border)',
-                    paddingBottom: '1.25rem',
-                  }}>
-                    <NoteHistoryThread
-                      notesList={(selectedOrder as any).notesList || []}
-                      currentUserId={user?.id || ''}
-                      userRole={user?.role || ''}
-                      onAddNote={handleAddNote}
-                      onUpdateNote={handleUpdateNote}
-                      onDeleteNote={handleDeleteNote}
-                    />
+                    {isNotesExpanded && (
+                      <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {/* Admin Notes (Read-only for Technicians) */}
+                        {selectedOrder.notes && (
+                          <div style={{
+                            backgroundColor: 'var(--bg-overlay, #f8fafc)',
+                            padding: '0.75rem',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)'
+                          }}>
+                            <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                              {t('workOrder.adminNotes', { defaultValue: 'Admin Notes' })}
+                            </span>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                              {selectedOrder.notes}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Notes History Thread */}
+                        <NoteHistoryThread
+                          notesList={(selectedOrder as any).notesList || []}
+                          currentUserId={user?.id || ''}
+                          userRole={user?.role || ''}
+                          onAddNote={handleAddNote}
+                          onUpdateNote={handleUpdateNote}
+                          onDeleteNote={handleDeleteNote}
+                        />
+                      </div>
+                    )}
                   </div>
                 </>
               )}

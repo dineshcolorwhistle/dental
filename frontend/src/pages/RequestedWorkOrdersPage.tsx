@@ -72,6 +72,7 @@ export function RequestedWorkOrdersPage() {
     specification: '',
     color: 'A1',
     notes: '',
+    deliveryDate: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -153,6 +154,7 @@ export function RequestedWorkOrdersPage() {
       specification: '',
       color: 'A1',
       notes: '',
+      deliveryDate: '',
     });
     setFormErrors({});
     setGeneratedFolio('');
@@ -175,7 +177,6 @@ export function RequestedWorkOrdersPage() {
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
     if (!form.doctorId) errors.doctorId = t('requestedWorkOrders.validationDoctorRequired', { defaultValue: 'Doctor is required' });
-    if (!form.patient.trim()) errors.patient = t('requestedWorkOrders.validationPatientRequired', { defaultValue: 'Patient name is required' });
     if (!form.prosthesisTypeId) errors.prosthesisTypeId = t('requestedWorkOrders.validationProsthesisTypeRequired', { defaultValue: 'Prosthesis type is required' });
     if (!form.color.trim()) errors.color = t('requestedWorkOrders.validationColorRequired', { defaultValue: 'Color is required' });
     setFormErrors(errors);
@@ -190,13 +191,14 @@ export function RequestedWorkOrdersPage() {
       setSaving(true);
       const payload = {
         doctorId: form.doctorId,
-        patient: form.patient.trim(),
+        patient: form.patient.trim() || undefined,
         boxNumber: form.boxNumber.trim() || undefined,
         fileNumber: form.fileNumber.trim() || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
         specification: form.specification.trim() || undefined,
         color: form.color.trim(),
         notes: form.notes.trim() || undefined,
+        deliveryDate: form.deliveryDate || undefined,
       };
 
       await technicianPortalService.createWorkOrder(payload);
@@ -217,7 +219,7 @@ export function RequestedWorkOrdersPage() {
       const q = searchQuery.toLowerCase();
       return (
         wo.folioNumber.toLowerCase().includes(q) ||
-        wo.patient.toLowerCase().includes(q) ||
+        (wo.patient && wo.patient.toLowerCase().includes(q)) ||
         (wo.doctor?.name && wo.doctor.name.toLowerCase().includes(q)) ||
         (wo.prosthesisType?.name && wo.prosthesisType.name.toLowerCase().includes(q))
       );
@@ -307,7 +309,7 @@ export function RequestedWorkOrdersPage() {
                 return (
                   <tr key={wo.id}>
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{wo.folioNumber}</td>
-                    <td>{wo.patient}</td>
+                    <td>{wo.patient || t('workOrders.unnamedPatient', { defaultValue: 'Unnamed Patient' })}</td>
                     <td>{wo.doctor?.name}</td>
                     <td>{wo.prosthesisType?.name}</td>
                     <td><span className="badge badge--neutral">{wo.color}</span></td>
@@ -398,24 +400,21 @@ export function RequestedWorkOrdersPage() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label" htmlFor="input-wo-patient">{t('workOrders.patient', { defaultValue: 'Patient' })} *</label>
+                    <label className="form-label" htmlFor="input-wo-patient">{t('workOrders.patient', { defaultValue: 'Patient' })}</label>
                     <input
                       id="input-wo-patient"
-                      className={`form-input ${formErrors.patient ? 'form-input--error' : ''}`}
+                      className="form-input"
                       type="text"
                       placeholder={t('workOrders.patientPlaceholder', { defaultValue: 'e.g., John Doe' })}
                       value={form.patient}
                       onChange={(e) => handleInputChange('patient', e.target.value)}
                       disabled={saving}
                     />
-                    {formErrors.patient && (
-                      <span className="form-error"><AlertCircle size={12} /> {formErrors.patient}</span>
-                    )}
                   </div>
                 </div>
 
-                {/* Row 2: Folio Number + File Number + Box Number */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                {/* Row 2: Folio Number + File Number + Box Number + Delivery Date */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label" htmlFor="input-wo-folio">{t('workOrders.folioNumber', { defaultValue: 'Folio Number' })}</label>
                     <input
@@ -450,6 +449,18 @@ export function RequestedWorkOrdersPage() {
                       placeholder={t('workOrders.boxNumberPlaceholder', { defaultValue: 'e.g., BOX-42' })}
                       value={form.boxNumber}
                       onChange={(e) => handleInputChange('boxNumber', e.target.value)}
+                      disabled={saving}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="input-wo-delivery-date">{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}</label>
+                    <input
+                      id="input-wo-delivery-date"
+                      className="form-input"
+                      type="date"
+                      value={form.deliveryDate}
+                      onChange={(e) => handleInputChange('deliveryDate', e.target.value)}
                       disabled={saving}
                     />
                   </div>

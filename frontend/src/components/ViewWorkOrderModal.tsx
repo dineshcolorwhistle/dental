@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
@@ -10,6 +10,10 @@ import {
   Check,
   PlusCircle,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
@@ -28,21 +32,21 @@ interface ViewWorkOrderModalProps {
   onUpdate?: (updatedWO?: any) => void;
 }
 
-const parseNotesAndPayments = (notesString: string | null): { userNotes: string; payments: PaymentHistoryItem[] } => {
+const parseNotesAndPayments = (notesString: string | null | undefined): { userNotes: string; payments: PaymentHistoryItem[] } => {
   if (!notesString) return { userNotes: '', payments: [] };
-  const startTag = '<!-- PAYMENTS_START -->';
-  const endTag = '<!-- PAYMENTS_END -->';
-  const startIndex = notesString.indexOf(startTag);
-  const endIndex = notesString.indexOf(endTag);
-  
+  const marker = '<!-- PAYMENTS_START -->';
+  const endMarker = '<!-- PAYMENTS_END -->';
+  const startIndex = notesString.indexOf(marker);
+  const endIndex = notesString.indexOf(endMarker);
+
   if (startIndex !== -1 && endIndex !== -1) {
-    const userNotes = (notesString.substring(0, startIndex) + notesString.substring(endIndex + endTag.length)).trim();
-    const paymentsJson = notesString.substring(startIndex + startTag.length, endIndex).trim();
-    let payments = [];
+    const userNotes = notesString.substring(0, startIndex).trim();
+    const jsonStr = notesString.substring(startIndex + marker.length, endIndex).trim();
+    let payments: PaymentHistoryItem[] = [];
     try {
-      payments = JSON.parse(paymentsJson);
+      payments = JSON.parse(jsonStr);
     } catch (e) {
-      console.error('Failed to parse payment log', e);
+      console.error('Failed to parse payment history JSON from notes', e);
     }
     return { userNotes, payments };
   }
@@ -81,33 +85,12 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
       (log: any) => log.processName === proc.processName
     );
     reworkLogsForStep.forEach((log: any) => {
-      // Rework initiation
       logs.push({
-        id: `rework-init-${log.id}`,
-        action: 'REWORK_ASSIGNED',
+        id: log.id,
+        action: 'REWORK_INITIATED',
         timestamp: log.initiatedAt,
-        notes: `Rework cycle #${log.reworkCount} initiated by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''} (Flagged at verification step: "${log.verificationStage}")`,
+        notes: `Rework initiated by ${log.initiatedBy?.firstName || 'User'} ${log.initiatedBy?.lastName || ''}. Reason: ${log.reworkReason || 'No reason provided'}`,
       });
-
-      // Rework completion
-      if (log.completedAt) {
-        logs.push({
-          id: `rework-comp-${log.id}`,
-          action: 'REWORK_COMPLETED',
-          timestamp: log.completedAt,
-          notes: `Rework cycle #${log.reworkCount} completed by technician.`,
-        });
-      }
-
-      // Rework approval
-      if (log.approvedAt) {
-        logs.push({
-          id: `rework-appr-${log.id}`,
-          action: 'REWORK_APPROVED',
-          timestamp: log.approvedAt,
-          notes: `Rework cycle #${log.reworkCount} approved at verification step.`,
-        });
-      }
     });
   }
 
@@ -121,7 +104,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
           id: `rep-reset-${log.id}`,
           action: 'REPETITION_RESET',
           timestamp: log.initiatedAt,
-          notes: `Process repeated (Cycle #${log.repetitionCount}). Step reset due to repetition request from verification step "${log.verificationStage}" by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}.`,
+          notes: `Repetition cycle #${log.repetitionCount} triggered by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''} at step "${log.verificationStage}". This step was reset to NOT_STARTED.`,
         });
       }
 
@@ -157,6 +140,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
   const [addFundNotes, setAddFundNotes] = useState('');
   const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
   const fetchWorkOrderDetails = useCallback(async () => {
     if (!workOrderId) return;
@@ -682,7 +666,9 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           }}>
                             <div>
                               <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.patient')}</span>
-                              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedWO.patient}</span>
+                              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {selectedWO.patient || t('workOrders.unnamedPatient', { defaultValue: 'Unnamed Patient' })}
+                              </span>
                             </div>
                             <div>
                               <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.doctor')}</span>
@@ -715,6 +701,14 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                 marginTop: '2px'
                               }}>{selectedWO.color}</span>
                             </div>
+                            {selectedWO.deliveryDate && (
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}</span>
+                                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  {new Date(selectedWO.deliveryDate).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                </span>
+                              </div>
+                            )}
                             {selectedWO.fileNumber && (
                               <div>
                                 <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.fileNumber', { defaultValue: 'File Number' })}</span>
@@ -741,43 +735,88 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                 })}
                               </span>
                             </div>
+
+                            {(() => {
+                              const refs = selectedWO.paymentReferenceNumbers && selectedWO.paymentReferenceNumbers.length > 0
+                                ? selectedWO.paymentReferenceNumbers
+                                : (selectedWO.paymentReferenceNumber ? [selectedWO.paymentReferenceNumber] : []);
+                              if (refs.length === 0) return null;
+                              return (
+                                <div>
+                                  <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.paymentReferenceNumbers', { defaultValue: 'Payment Reference Numbers' })}</span>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.25rem' }}>
+                                    {refs.map((r: string, i: number) => (
+                                      <span key={i} style={{ fontSize: '0.75rem', fontWeight: 700, backgroundColor: 'var(--bg-overlay, #f1f5f9)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '12px' }}>{r}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
-                          {/* Admin Notes */}
-                          {userNotes && (
-                            <div style={{
-                              borderTop: '1px solid var(--border)',
-                              paddingTop: '0.75rem',
-                              marginTop: '0.25rem'
-                            }}>
-                              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                                {t('workOrders.adminNotes', { defaultValue: 'Admin Notes' })}
-                              </span>
-                              <div style={{ 
-                                fontSize: '0.875rem',
-                                color: 'var(--text-secondary)',
-                                whiteSpace: 'pre-wrap',
-                                lineHeight: '1.5'
-                              }}>
-                                {userNotes}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Notes History */}
+                          {/* Collapsible Notes Section */}
                           <div style={{
                             borderTop: '1px solid var(--border)',
                             paddingTop: '0.75rem',
-                            marginTop: '0.25rem'
+                            marginTop: '0.75rem'
                           }}>
-                            <NoteHistoryThread
-                              notesList={selectedWO.notesList || []}
-                              currentUserId={user?.id || ''}
-                              userRole={user?.role || ''}
-                              onAddNote={handleAddNote}
-                              onUpdateNote={handleUpdateNote}
-                              onDeleteNote={handleDeleteNote}
-                            />
+                            <button
+                              type="button"
+                              onClick={() => setIsNotesExpanded(prev => !prev)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                width: '100%',
+                                background: 'none',
+                                border: 'none',
+                                padding: '0.375rem 0',
+                                cursor: 'pointer',
+                                color: 'var(--text-heading)',
+                                fontWeight: 700,
+                                fontSize: '0.875rem'
+                              }}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <FileText size={16} />
+                                <span>{t('workOrders.notesHistory', { defaultValue: 'Notes & Thread' })}</span>
+                                {(selectedWO.notesList?.length || userNotes) ? (
+                                  <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--accent-primary-glow)', color: 'var(--accent-primary)', padding: '1px 6px', borderRadius: '10px' }}>
+                                    {(selectedWO.notesList?.length || 0) + (userNotes ? 1 : 0)}
+                                  </span>
+                                ) : null}
+                              </span>
+                              {isNotesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+
+                            {isNotesExpanded && (
+                              <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {userNotes && (
+                                  <div style={{
+                                    backgroundColor: 'var(--bg-overlay, #f8fafc)',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border)'
+                                  }}>
+                                    <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                                      {t('workOrders.adminNotes', { defaultValue: 'Admin Notes' })}
+                                    </span>
+                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                                      {userNotes}
+                                    </div>
+                                  </div>
+                                )}
+
+                                <NoteHistoryThread
+                                  notesList={selectedWO.notesList || []}
+                                  currentUserId={user?.id || ''}
+                                  userRole={user?.role || ''}
+                                  onAddNote={handleAddNote}
+                                  onUpdateNote={handleUpdateNote}
+                                  onDeleteNote={handleDeleteNote}
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -941,6 +980,64 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           })}
                         </div>
                       </div>
+
+                      {/* Total Completed Work Time Metric Section */}
+                      {(() => {
+                        const completedProcs = (selectedWO.processes || []).filter((p: any) => p.status === 'COMPLETED');
+                        const totalCompletedSeconds = completedProcs.reduce((acc: number, p: any) => acc + (p.totalActiveDuration || 0), 0);
+                        const hours = Math.floor(totalCompletedSeconds / 3600);
+                        const mins = Math.floor((totalCompletedSeconds % 3600) / 60);
+                        const timeText = hours > 0
+                          ? `${hours} ${t('common.hours', { defaultValue: 'hrs' })} ${mins} ${t('common.mins', { defaultValue: 'mins' })}`
+                          : `${mins} ${t('common.mins', { defaultValue: 'mins' })}`;
+
+                        return (
+                          <div style={{
+                            backgroundColor: 'var(--bg-surface, #FFFFFF)',
+                            padding: '1.25rem 1.5rem',
+                            borderRadius: '16px',
+                            border: '1px solid var(--border)',
+                            boxShadow: 'var(--shadow-sm)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                              <div style={{
+                                width: '42px',
+                                height: '42px',
+                                borderRadius: '12px',
+                                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                color: '#10B981',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                <Clock size={22} />
+                              </div>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  {t('workOrders.totalCompletedWorkTime')}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  {t('workOrders.completedWorkTimeDesc')} ({completedProcs.length} {t('common.completed', { defaultValue: 'completed' })})
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{
+                              fontSize: '1.25rem',
+                              fontWeight: 800,
+                              color: '#10B981',
+                              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                              padding: '0.5rem 1rem',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(16, 185, 129, 0.2)'
+                            }}>
+                              {timeText}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Detailed Process Grid */}
                       <div>

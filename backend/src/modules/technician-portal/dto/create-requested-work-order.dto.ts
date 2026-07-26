@@ -16,11 +16,11 @@ export class CreateRequestedWorkOrderDto {
   @IsNotEmpty()
   doctorId: string;
 
-  @ApiProperty({ example: 'John Doe', description: 'Patient name' })
+  @ApiProperty({ example: 'John Doe', description: 'Patient name (optional)', required: false })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(200)
-  patient: string;
+  patient?: string;
 
   @ApiProperty({
     example: 'BOX-42',
@@ -64,4 +64,9 @@ export class CreateRequestedWorkOrderDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiProperty({ example: '2026-08-15T00:00:00.000Z', description: 'Target delivery date', required: false })
+  @IsString()
+  @IsOptional()
+  deliveryDate?: string;
 }

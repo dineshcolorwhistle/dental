@@ -52,21 +52,25 @@ export class TechniciansController {
     @CurrentUser('branchId') branchIdContext: string | null,
     @CurrentUser('role') userRole: string,
     @Query('branchId') branchIdFilter?: string,
+    @Query('includeAdmins') includeAdmins?: string,
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
+
+    const shouldIncludeAdmins = includeAdmins === 'true';
 
     // For branch admin, implicitly force branch scoping
     if (userRole === 'ADMIN') {
       return this.techniciansService.findAll(
         tenantId,
         branchIdContext || undefined,
+        shouldIncludeAdmins,
       );
     }
 
     // For owner, use query filter if provided
-    return this.techniciansService.findAll(tenantId, branchIdFilter);
+    return this.techniciansService.findAll(tenantId, branchIdFilter, shouldIncludeAdmins);
   }
 
   @Get(':id')

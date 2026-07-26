@@ -368,15 +368,17 @@ model WorkOrder {
   folioNumber            String          @map("folio_number")
   fileNumber             String?         @map("file_number")
   doctorId               String          @map("doctor_id")
-  patient                String
+  patient                String?
   boxNumber              String?         @map("box_number")
   prosthesisTypeId       String          @map("prosthesis_type_id")
   specification          String?
   color                  String          @default("A1")
   notes                  String?
+  deliveryDate           DateTime?       @map("delivery_date")
   totalQuote             Float?          @map("total_quote")
   initialPayment         Float?          @map("initial_payment")
   paymentReferenceNumber String?         @map("payment_reference_number")
+  paymentReferenceNumbers String[]       @default([]) @map("payment_reference_numbers")
   qrToken                String          @unique @default(uuid()) @map("qr_token")
   status                 WorkOrderStatus @default(CREATED)
   repetitionCount        Int             @default(0) @map("repetition_count")

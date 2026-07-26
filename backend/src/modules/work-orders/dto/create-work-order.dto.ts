@@ -98,11 +98,11 @@ export class CreateWorkOrderDto {
   @IsNotEmpty()
   doctorId: string;
 
-  @ApiProperty({ example: 'John Doe', description: 'Patient name' })
+  @ApiProperty({ example: 'John Doe', description: 'Patient name (optional)', required: false })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(200)
-  patient: string;
+  patient?: string;
 
   @ApiProperty({
     example: 'BOX-42',
@@ -147,11 +147,16 @@ export class CreateWorkOrderDto {
   @IsOptional()
   notes?: string;
 
-  @ApiProperty({ example: 5000, description: 'Total quote amount' })
+  @ApiProperty({ example: '2026-08-15T00:00:00.000Z', description: 'Target delivery date', required: false })
+  @IsString()
+  @IsOptional()
+  deliveryDate?: string;
+
+  @ApiProperty({ example: 0, description: 'Total quote amount', required: false, default: 0 })
   @IsNumber()
-  @IsNotEmpty()
+  @IsOptional()
   @Min(0)
-  totalQuote: number;
+  totalQuote?: number;
 
   @ApiProperty({
     example: 2000,
@@ -171,6 +176,16 @@ export class CreateWorkOrderDto {
   @IsString()
   @IsOptional()
   paymentReferenceNumber?: string;
+
+  @ApiProperty({
+    example: ['REF-98765', 'REF-98766'],
+    description: 'Multiple payment reference numbers (optional)',
+    required: false,
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  paymentReferenceNumbers?: string[];
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',

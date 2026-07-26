@@ -103,15 +103,17 @@ export interface WorkOrderListItem {
   folioNumber: string;
   fileNumber?: string | null;
   doctorId: string;
-  patient: string;
+  patient: string | null;
   boxNumber: string | null;
   prosthesisTypeId: string;
   specification: string | null;
   color: string;
   notes: string | null;
+  deliveryDate?: string | null;
   totalQuote: number | null;
   initialPayment: number | null;
   paymentReferenceNumber?: string | null;
+  paymentReferenceNumbers?: string[];
   qrToken: string;
   status: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   repetitionCount?: number;
@@ -158,16 +160,18 @@ export interface CreateWorkOrderProcessPayload {
 
 export interface CreateWorkOrderPayload {
   doctorId: string;
-  patient: string;
+  patient?: string;
   boxNumber?: string;
   fileNumber?: string;
   prosthesisTypeId: string;
   specification?: string;
   color: string;
   notes?: string;
+  deliveryDate?: string;
   totalQuote?: number;
   initialPayment?: number;
   paymentReferenceNumber?: string;
+  paymentReferenceNumbers?: string[];
   branchId?: string;
   action: 'create' | 'createAndAssign';
   processes: CreateWorkOrderProcessPayload[];
@@ -182,9 +186,11 @@ export interface UpdateWorkOrderPayload {
   specification?: string;
   color?: string;
   notes?: string;
+  deliveryDate?: string;
   totalQuote?: number;
   initialPayment?: number;
   paymentReferenceNumber?: string;
+  paymentReferenceNumbers?: string[];
   status?: 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   processes?: CreateWorkOrderProcessPayload[];
 }

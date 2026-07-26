@@ -82,13 +82,14 @@ export const technicianPortalService = {
 
   createWorkOrder: async (payload: {
     doctorId: string;
-    patient: string;
+    patient?: string;
     boxNumber?: string;
     fileNumber?: string;
     prosthesisTypeId: string;
     specification?: string;
     color: string;
     notes?: string;
+    deliveryDate?: string;
   }): Promise<TechnicianWorkOrderListItem> => {
     const response = await api.post<TechnicianWorkOrderListItem>('/technician-portal/work-orders', payload);
     return response.data;

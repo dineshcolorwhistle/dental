@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsEmail, MaxLength, IsNumber, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEmail, MaxLength, IsNumber, Min, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateIntegrationWorkOrderDto {
@@ -31,11 +31,11 @@ export class CreateIntegrationWorkOrderDto {
   @MaxLength(255)
   doctorAddress?: string;
 
-  @ApiProperty({ example: 'John Smith', description: 'Patient name' })
+  @ApiProperty({ example: 'John Smith', description: 'Patient name (optional)', required: false })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(200)
-  patient: string;
+  patient?: string;
 
   @ApiProperty({ example: 'uuid-of-prosthesis-type', description: 'Database ID of the prosthesis type' })
   @IsString()
@@ -72,7 +72,12 @@ export class CreateIntegrationWorkOrderDto {
   @MaxLength(100)
   fileNumber?: string;
 
-  @ApiProperty({ example: 5000, description: 'Total quote amount', required: false })
+  @ApiProperty({ example: '2026-08-15T00:00:00.000Z', description: 'Target delivery date', required: false })
+  @IsString()
+  @IsOptional()
+  deliveryDate?: string;
+
+  @ApiProperty({ example: 0, description: 'Total quote amount', required: false, default: 0 })
   @IsNumber()
   @IsOptional()
   @Min(0)
@@ -89,5 +94,11 @@ export class CreateIntegrationWorkOrderDto {
   @IsOptional()
   @MaxLength(100)
   paymentReferenceNumber?: string;
+
+  @ApiProperty({ example: ['REF-98765', 'REF-98766'], description: 'Multiple payment reference numbers', required: false })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  paymentReferenceNumbers?: string[];
 }
 

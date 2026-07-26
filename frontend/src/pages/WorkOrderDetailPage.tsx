@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
 import {
   Loader2,
-  ArrowLeft,
   Printer,
   FileText,
   Calendar,
@@ -13,15 +12,17 @@ import {
   CircleDot,
   Clock,
   PlayCircle,
+  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   X,
-  History,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService, type WorkOrderListItem } from '../services';
-import { QRLabelModal, WorkOrderChat } from '../components';
+import { WorkOrderChat } from '../components';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ReactNode }> = {
   CREATED: { labelKey: 'enums.workOrderStatus.CREATED', color: '#6B7280', bg: '#F3F4F6', icon: <CircleDot size={12} /> },
@@ -155,6 +156,7 @@ export function WorkOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(true);
 
   const { socket, isConnected } = useSocket();
 
@@ -366,7 +368,9 @@ export function WorkOrderDetailPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.patient')}</span>
-              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>{workOrder.patient}</span>
+              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {workOrder.patient || t('workOrders.unnamedPatient', { defaultValue: 'Unnamed Patient' })}
+              </span>
             </div>
             <div>
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('common.status')}</span>
@@ -390,6 +394,14 @@ export function WorkOrderDetailPage() {
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}><CircleDot size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />{t('workOrder.color')}</span>
               <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{workOrder.color}</span>
             </div>
+            {workOrder.deliveryDate && (
+              <div>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}><Calendar size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {new Date(workOrder.deliveryDate).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            )}
             {workOrder.branch && (
               <div>
                 <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}><Building2 size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />{t('workOrder.branch')}</span>
@@ -408,6 +420,22 @@ export function WorkOrderDetailPage() {
                 })}
               </span>
             </div>
+            {(() => {
+              const refs = workOrder.paymentReferenceNumbers && workOrder.paymentReferenceNumbers.length > 0
+                ? workOrder.paymentReferenceNumbers
+                : (workOrder.paymentReferenceNumber ? [workOrder.paymentReferenceNumber] : []);
+              if (refs.length === 0) return null;
+              return (
+                <div style={{ gridColumn: 'span 2' }}>
+                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrders.paymentReferenceNumbers', { defaultValue: 'Payment Reference Numbers' })}</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.25rem' }}>
+                    {refs.map((r: string, i: number) => (
+                      <span key={i} style={{ fontSize: '0.75rem', fontWeight: 700, backgroundColor: 'var(--bg-overlay, #f1f5f9)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '12px' }}>{r}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -434,14 +462,35 @@ export function WorkOrderDetailPage() {
                 {workOrder.specification || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('workOrder.noSpecificationDetails')}</span>}
               </div>
             </div>
-            {userNotes && (
-              <div>
-                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>{t('workOrder.notes')}</span>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
-                  {userNotes}
+            <div>
+              <button
+                type="button"
+                onClick={() => setIsNotesExpanded(prev => !prev)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justify: 'space-between',
+                  width: '100%',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  marginBottom: '4px',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase'
+                }}
+              >
+                <span>{t('workOrder.notes')}</span>
+                {isNotesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+              {isNotesExpanded && (
+                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: '1.5', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--bg-overlay, #f8fafc)', border: '1px solid var(--border)' }}>
+                  {userNotes || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('workOrders.noNotes', { defaultValue: 'No notes recorded.' })}</span>}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -584,6 +633,64 @@ export function WorkOrderDetailPage() {
           })}
         </div>
       </div>
+
+      {/* Total Completed Work Time Metric Section */}
+      {(() => {
+        const completedProcs = (workOrder.processes || []).filter((p) => p.status === 'COMPLETED');
+        const totalCompletedSeconds = completedProcs.reduce((acc, p) => acc + (p.totalActiveDuration || 0), 0);
+        const hours = Math.floor(totalCompletedSeconds / 3600);
+        const mins = Math.floor((totalCompletedSeconds % 3600) / 60);
+        const timeText = hours > 0
+          ? `${hours} ${t('common.hours', { defaultValue: 'hrs' })} ${mins} ${t('common.mins', { defaultValue: 'mins' })}`
+          : `${mins} ${t('common.mins', { defaultValue: 'mins' })}`;
+
+        return (
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '1.25rem 1.5rem',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                color: '#10B981',
+                display: 'flex',
+                alignItems: 'center',
+                justify: 'center'
+              }}>
+                <Clock size={22} />
+              </div>
+              <div>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('workOrders.totalCompletedWorkTime')}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {t('workOrders.completedWorkTimeDesc')} ({completedProcs.length} {t('common.completed', { defaultValue: 'completed' })})
+                </span>
+              </div>
+            </div>
+            <div style={{
+              fontSize: '1.25rem',
+              fontWeight: 800,
+              color: '#10B981',
+              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+              padding: '0.5rem 1rem',
+              borderRadius: '10px',
+              border: '1px solid rgba(16, 185, 129, 0.2)'
+            }}>
+              {timeText}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Detailed Processes Table */}
       <div style={{
