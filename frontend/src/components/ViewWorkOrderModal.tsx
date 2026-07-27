@@ -138,6 +138,12 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
   const [selectedWO, setSelectedWO] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [viewTab, setViewTab] = useState<'general' | 'process' | 'rework' | 'repetition' | 'payment' | 'chat'>(initialTab || 'general');
+
+  useEffect(() => {
+    if (user?.role === 'OWNER' && viewTab === 'chat') {
+      setViewTab('general');
+    }
+  }, [user?.role, viewTab]);
   const [showAddFundForm, setShowAddFundForm] = useState(false);
   const [addFundAmount, setAddFundAmount] = useState('');
   const [addFundNotes, setAddFundNotes] = useState('');
@@ -466,23 +472,25 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                     {t('financePage.paymentHistory')}
                   </button>
                 )}
-                <button
-                  type="button"
-                  className={`modal-tab-btn ${viewTab === 'chat' ? 'modal-tab-btn--active' : ''}`}
-                  onClick={() => setViewTab('chat')}
-                  style={{
-                    padding: '0.75rem 0.5rem',
-                    fontWeight: 600,
-                    border: 'none',
-                    borderBottom: viewTab === 'chat' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                    color: viewTab === 'chat' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                    backgroundColor: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  {t('workOrders.chatTab', { defaultValue: 'Chat' })}
-                </button>
+                {user?.role !== 'OWNER' && (
+                  <button
+                    type="button"
+                    className={`modal-tab-btn ${viewTab === 'chat' ? 'modal-tab-btn--active' : ''}`}
+                    onClick={() => setViewTab('chat')}
+                    style={{
+                      padding: '0.75rem 0.5rem',
+                      fontWeight: 600,
+                      border: 'none',
+                      borderBottom: viewTab === 'chat' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                      color: viewTab === 'chat' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      backgroundColor: 'transparent',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    {t('workOrders.chatTab', { defaultValue: 'Chat' })}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1975,7 +1983,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                   );
                 }
 
-                if (viewTab === 'chat') {
+                if (viewTab === 'chat' && user?.role !== 'OWNER') {
                   return (
                     <div style={{ paddingTop: '0.25rem' }}>
                       <WorkOrderChat workOrderId={selectedWO.id} />

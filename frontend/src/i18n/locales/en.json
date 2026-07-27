@@ -267,7 +267,11 @@
     "pushActive": "Push notifications active",
     "deleteAllRead": "Clear read",
     "viewDetails": "View details",
-    "deleteReadSuccess": "Read notifications cleared"
+    "deleteReadSuccess": "Read notifications cleared",
+    "soundOn": "Notification sound enabled",
+    "soundOff": "Notification sound muted",
+    "toggleSound": "Toggle notification sound",
+    "testSound": "Test notification sound"
   },
   "errors": {
     "pageNotFound": "Page Not Found",

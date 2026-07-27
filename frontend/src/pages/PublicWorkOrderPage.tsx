@@ -22,6 +22,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { interestRequestService } from '../services';
 import type { PublicWorkOrder } from '../services';
 
@@ -205,19 +206,22 @@ export function PublicWorkOrderPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => setShowInterestForm(true)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.45rem 0.9rem', borderRadius: '20px', border: 'none',
-            background: 'linear-gradient(135deg, #6FAED9 0%, #3B82F6 100%)',
-            color: '#fff', fontWeight: 700, fontSize: '0.75rem',
-            cursor: 'pointer', boxShadow: '0 2px 12px rgba(111, 174, 217, 0.3)',
-          }}
-        >
-          <Heart size={13} />
-          <span>{t('interestForm.interestedBtn')}</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <LanguageSwitcher />
+          <button
+            onClick={() => setShowInterestForm(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.45rem 0.9rem', borderRadius: '20px', border: 'none',
+              background: 'linear-gradient(135deg, #6FAED9 0%, #3B82F6 100%)',
+              color: '#fff', fontWeight: 700, fontSize: '0.75rem',
+              cursor: 'pointer', boxShadow: '0 2px 12px rgba(111, 174, 217, 0.3)',
+            }}
+          >
+            <Heart size={13} />
+            <span>{t('interestForm.interestedBtn')}</span>
+          </button>
+        </div>
       </header>
 
       {/* ── Main Container (Mobile Responsive Max Width) ── */}

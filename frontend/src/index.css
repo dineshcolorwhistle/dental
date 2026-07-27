@@ -1995,7 +1995,7 @@ a:hover { color: var(--accent-primary-hover); }
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 340px;
+  width: 370px;
   max-height: 420px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -2011,6 +2011,7 @@ a:hover { color: var(--accent-primary-hover); }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
 }
@@ -2019,6 +2020,34 @@ a:hover { color: var(--accent-primary-hover); }
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-heading);
+}
+
+.notif-sound-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  background: var(--accent-primary-light, rgba(79, 70, 229, 0.1));
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--accent-primary, #4F46E5);
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.notif-sound-btn:hover {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.notif-sound-btn--muted {
+  background: var(--bg-muted, rgba(156, 163, 175, 0.15));
+  color: var(--text-muted, #9CA3AF);
+}
+
+.notif-sound-btn--muted:hover {
+  background: var(--text-muted, #6B7280);
+  color: #ffffff;
 }
 
 .notif-dropdown__mark-all {

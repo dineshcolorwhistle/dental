@@ -33,10 +33,13 @@ import {
   Truck,
   Sliders,
   Heart,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, tenantService, type NotificationItem } from '../services';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { playNotificationSound, isNotificationSoundEnabled, setNotificationSoundEnabled } from '../utils/notificationSound';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { ChatWidget } from '../components/ChatWidget';
 import toast from 'react-hot-toast';
@@ -152,7 +155,20 @@ export function DashboardLayout() {
   };
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [soundEnabled, setSoundEnabled] = useState(() => isNotificationSoundEnabled());
   const notifRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleSound = () => {
+    const nextState = !soundEnabled;
+    setSoundEnabled(nextState);
+    setNotificationSoundEnabled(nextState);
+    if (nextState) {
+      playNotificationSound();
+      toast.success(t('notifications.soundOn'));
+    } else {
+      toast.success(t('notifications.soundOff'));
+    }
+  };
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -184,6 +200,7 @@ export function DashboardLayout() {
         return [newNotif, ...prev].slice(0, 50);
       });
       setUnreadCount((prev) => prev + 1);
+      playNotificationSound();
     };
 
     socket.on('notification_created', handleNotificationCreated);
@@ -742,8 +759,18 @@ export function DashboardLayout() {
 
               {notifOpen && (
                 <div className="notif-dropdown">
-                  <div className="notif-dropdown__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span className="notif-dropdown__title">{t('notifications.title')}</span>
+                  <div className="notif-dropdown__header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="notif-dropdown__title">{t('notifications.title')}</span>
+                      <button
+                        className={`notif-sound-btn ${!soundEnabled ? 'notif-sound-btn--muted' : ''}`}
+                        onClick={handleToggleSound}
+                        title={soundEnabled ? t('notifications.soundOn') : t('notifications.soundOff')}
+                        aria-label={t('notifications.toggleSound')}
+                      >
+                        {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                      </button>
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {unreadCount > 0 && (
                         <button className="notif-dropdown__mark-all" onClick={handleMarkAllRead}>

@@ -267,7 +267,11 @@
     "pushActive": "Notificaciones push activas",
     "deleteAllRead": "Limpiar leídas",
     "viewDetails": "Ver detalles",
-    "deleteReadSuccess": "Notificaciones leídas eliminadas"
+    "deleteReadSuccess": "Notificaciones leídas eliminadas",
+    "soundOn": "Sonido de notificación activado",
+    "soundOff": "Sonido de notificación silenciado",
+    "toggleSound": "Alternar sonido de notificación",
+    "testSound": "Probar sonido de notificación"
   },
   "errors": {
     "pageNotFound": "Página No Encontrada",
