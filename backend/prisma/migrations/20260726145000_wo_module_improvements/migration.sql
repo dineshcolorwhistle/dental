@@ -1,4 +1,4 @@
 -- AlterTable
 ALTER TABLE "work_orders" ALTER COLUMN "patient" DROP NOT NULL,
-ADD COLUMN     "delivery_date" TIMESTAMP(3),
-ADD COLUMN     "payment_reference_numbers" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ADD COLUMN IF NOT EXISTS "delivery_date" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "payment_reference_numbers" TEXT[] DEFAULT ARRAY[]::TEXT[];

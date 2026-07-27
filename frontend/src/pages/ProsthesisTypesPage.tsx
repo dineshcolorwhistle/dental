@@ -76,11 +76,19 @@ export function ProsthesisTypesPage() {
   const [form, setForm] = useState<CreateProsthesisTypePayload>({
     name: '',
     description: '',
+    price: 0,
     branchId: '',
     processIds: [],
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateProsthesisTypePayload, string>>>({});
   const [processSearch, setProcessSearch] = useState('');
+
+  const formatCurrency = (val: number | null | undefined) => {
+    if (val == null) return '—';
+    const currency = i18n.language?.startsWith('es') ? 'MXN' : 'INR';
+    const locale = i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN';
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(val);
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -136,6 +144,9 @@ export function ProsthesisTypesPage() {
     if (!form.name.trim()) {
       errors.name = t('validation.fieldRequired');
     }
+    if (form.price !== undefined && form.price < 0) {
+      errors.price = t('prosthesisTypes.validationPriceMin', { defaultValue: 'Price cannot be negative' });
+    }
     if (!isAdmin && !form.branchId) {
       errors.branchId = t('validation.fieldRequired');
     }
@@ -148,6 +159,7 @@ export function ProsthesisTypesPage() {
     setForm({
       name: '',
       description: '',
+      price: 0,
       branchId: defaultBranchId,
       processIds: [],
     });
@@ -161,6 +173,7 @@ export function ProsthesisTypesPage() {
     setForm({
       name: item.name,
       description: item.description || '',
+      price: item.price ?? 0,
       branchId: item.branchId || '',
       processIds: (item.processAssignments || []).map((a) => a.process.id),
     });
@@ -178,7 +191,8 @@ export function ProsthesisTypesPage() {
       const payload: CreateProsthesisTypePayload = {
         name: form.name,
         description: form.description,
-        branchId: isAdmin ? user?.branchId || undefined : form.branchId,
+        price: form.price !== undefined ? Number(form.price) : 0,
+        branchId: isAdmin ? user?.branchId || undefined : (form.branchId || undefined),
         processIds: form.processIds,
       };
       await prosthesisTypeService.create(payload);
@@ -202,7 +216,8 @@ export function ProsthesisTypesPage() {
       const payload: Partial<CreateProsthesisTypePayload> = {
         name: form.name,
         description: form.description,
-        branchId: isAdmin ? user?.branchId || undefined : form.branchId || undefined,
+        price: form.price !== undefined ? Number(form.price) : 0,
+        branchId: isAdmin ? user?.branchId || undefined : (form.branchId || undefined),
         processIds: form.processIds,
       };
       await prosthesisTypeService.update(selectedType.id, payload);
@@ -450,6 +465,7 @@ export function ProsthesisTypesPage() {
                     <ArrowUpDown size={14} />
                   </button>
                 </th>
+                <th>{t('prosthesisTypes.price', { defaultValue: 'Price' })}</th>
                 <th>{t('common.description')}</th>
                 <th>{t('prosthesisTypes.assignedSequence', { defaultValue: 'Assigned Workflow Sequence' })}</th>
                 {!isAdmin && <th>{t('common.branch')}</th>}
@@ -474,6 +490,11 @@ export function ProsthesisTypesPage() {
                         <span className="cell-primary__name">{item.name}</span>
                       </div>
                     </div>
+                  </td>
+                  <td>
+                    <span className="cell-primary__name" style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>
+                      {formatCurrency(item.price)}
+                    </span>
                   </td>
                   <td>
                     {item.description ? (
@@ -560,7 +581,7 @@ export function ProsthesisTypesPage() {
                         <button
                           className="btn-action"
                           onClick={() => handleEditOpen(item)}
-                          title={t('prosthesisTypes.editProsthesis')}
+                          title={t('prosthesisTypes.editProsthesis', { defaultValue: 'Edit Prosthesis Type' })}
                         >
                           <span>{t('common.edit')}</span>
                         </button>
@@ -623,7 +644,7 @@ export function ProsthesisTypesPage() {
             </div>
 
             <form className="modal__body" onSubmit={handleCreate}>
-              <div style={{ display: 'grid', gridTemplateColumns: !isAdmin ? '1fr 1fr' : '1fr', gap: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: !isAdmin ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1.25rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-prosthesis-name">
                     {t('prosthesisTypes.prosthesisName')} *
@@ -641,6 +662,28 @@ export function ProsthesisTypesPage() {
                   {formErrors.name && (
                     <span className="form-error">
                       <AlertCircle size={12} /> {formErrors.name}
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-prosthesis-price">
+                    {t('prosthesisTypes.price')} ({i18n.language?.startsWith('es') ? '$' : '₹'})
+                  </label>
+                  <input
+                    id="input-prosthesis-price"
+                    className={`form-input ${formErrors.price ? 'form-input--error' : ''}`}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder={t('prosthesisTypes.pricePlaceholder', { defaultValue: 'e.g., 150.00' })}
+                    value={form.price ?? ''}
+                    onChange={(e) => handleInputChange('price', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                    disabled={saving}
+                  />
+                  {formErrors.price && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {formErrors.price}
                     </span>
                   )}
                 </div>
@@ -916,7 +959,7 @@ export function ProsthesisTypesPage() {
           <div className="modal" style={{ maxWidth: '750px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">{t('prosthesisTypes.editProsthesis')}</h2>
+                <h2 className="modal__title">{t('prosthesisTypes.editProsthesis', { defaultValue: 'Edit Prosthesis Type' })}</h2>
                 <p className="modal__subtitle">{t('prosthesisTypes.updateDetails', { defaultValue: 'Update details and workflow sequences for' })} <strong>{selectedType.name}</strong></p>
               </div>
               <button
@@ -929,7 +972,7 @@ export function ProsthesisTypesPage() {
             </div>
 
             <form className="modal__body" onSubmit={handleUpdate}>
-              <div style={{ display: 'grid', gridTemplateColumns: !isAdmin ? '1fr 1fr' : '1fr', gap: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: !isAdmin ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1.25rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-prosthesis-name">
                     {t('prosthesisTypes.prosthesisName')} *
@@ -946,6 +989,28 @@ export function ProsthesisTypesPage() {
                   {formErrors.name && (
                     <span className="form-error">
                       <AlertCircle size={12} /> {formErrors.name}
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-edit-prosthesis-price">
+                    {t('prosthesisTypes.price')} ({i18n.language?.startsWith('es') ? '$' : '₹'})
+                  </label>
+                  <input
+                    id="input-edit-prosthesis-price"
+                    className={`form-input ${formErrors.price ? 'form-input--error' : ''}`}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder={t('prosthesisTypes.pricePlaceholder', { defaultValue: 'e.g., 150.00' })}
+                    value={form.price ?? ''}
+                    onChange={(e) => handleInputChange('price', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                    disabled={saving}
+                  />
+                  {formErrors.price && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {formErrors.price}
                     </span>
                   )}
                 </div>
@@ -1205,7 +1270,7 @@ export function ProsthesisTypesPage() {
                       <span>{t('common.saving')}</span>
                     </>
                   ) : (
-                    <span>{t('prosthesisTypes.editProsthesis')}</span>
+                    <span>{t('prosthesisTypes.editProsthesis', { defaultValue: 'Edit Prosthesis Type' })}</span>
                   )}
                 </button>
               </div>

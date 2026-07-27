@@ -27,6 +27,7 @@ export interface ProsthesisTypeListItem {
   branchId: string | null;
   name: string;
   description: string | null;
+  price?: number | null;
   createdAt: string;
   updatedAt: string;
   branch?: {
@@ -39,6 +40,7 @@ export interface ProsthesisTypeListItem {
 export interface CreateProsthesisTypePayload {
   name: string;
   description?: string;
+  price?: number;
   branchId?: string;
   processIds?: string[];
 }

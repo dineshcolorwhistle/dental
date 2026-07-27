@@ -6,7 +6,10 @@ import {
   MinLength,
   IsUUID,
   IsArray,
+  IsNumber,
+  Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateProsthesisTypeDto {
@@ -29,6 +32,17 @@ export class CreateProsthesisTypeDto {
   @IsOptional()
   @MaxLength(500)
   description?: string;
+
+  @ApiProperty({
+    example: 150.0,
+    description: 'Default price/cost of the prosthesis type',
+    required: false,
+  })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  price?: number;
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',

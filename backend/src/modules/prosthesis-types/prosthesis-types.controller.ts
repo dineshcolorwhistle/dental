@@ -31,7 +31,7 @@ export class ProsthesisTypesController {
   ) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new prosthesis/work type' })
   async create(
@@ -52,7 +52,7 @@ export class ProsthesisTypesController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.TECHNICIAN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
   @ApiOperation({ summary: 'List all prosthesis/work types' })
   async findAll(
     @CurrentUser('tenantId') tenantId: string,
@@ -106,7 +106,7 @@ export class ProsthesisTypesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update a prosthesis type' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
@@ -123,7 +123,7 @@ export class ProsthesisTypesController {
   }
 
   @Post(':id/reorder-processes')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reorder process sequence for a prosthesis type' })
   async reorderProcesses(

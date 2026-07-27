@@ -401,7 +401,7 @@ export class IntegrationController {
         await this.mailService.sendExternalVerificationPending(
           doctor.email,
           doctor.name,
-          workOrder.patient,
+          workOrder.patient || '',
           workOrder.folioNumber,
           firstProcess.processName,
           tenantRecord?.name || 'DentalLab',

@@ -15,6 +15,7 @@ import { CreateWorkOrderDto, UpdateWorkOrderDto } from './dto';
 import {
   WorkOrderStatus,
   UserRole,
+  UserStatus,
   ProcessStatus,
   ProcessActivityAction,
 } from '@prisma/client';
@@ -65,7 +66,7 @@ export class WorkOrdersService {
       await this.mailService.sendExternalVerificationPending(
         doctor.email,
         doctor.name,
-        workOrder.patient,
+        workOrder.patient || '',
         workOrder.folioNumber,
         processName,
         workOrder.tenant.name,
@@ -123,7 +124,7 @@ export class WorkOrdersService {
           tenantId,
           branchId: workOrder.branchId,
           role: UserRole.ADMIN,
-          status: 'ACTIVE',
+          status: UserStatus.ACTIVE,
         },
       });
 
@@ -604,19 +605,72 @@ export class WorkOrdersService {
     branchIdFilter?: string,
     statusFilter?: string,
   ) {
-    const list = await this.prisma.workOrder.findMany({
-      where: {
-        ...(tenantId && { tenantId }),
-        ...(branchIdFilter &&
-          branchIdFilter !== 'ALL' && { branchId: branchIdFilter }),
-        ...(statusFilter &&
-          statusFilter !== 'ALL' && {
-            status: statusFilter as WorkOrderStatus,
-          }),
-      },
-      include: this.fullInclude,
-      orderBy: { createdAt: 'desc' },
-    });
+    const validStatuses = Object.values(WorkOrderStatus) as string[];
+    const normalizedStatus = statusFilter ? statusFilter.toUpperCase().trim() : undefined;
+    const isStatusValid =
+      normalizedStatus &&
+      normalizedStatus !== 'ALL' &&
+      validStatuses.includes(normalizedStatus);
+
+    const isBranchValid =
+      branchIdFilter && branchIdFilter.toUpperCase().trim() !== 'ALL';
+
+    const where: any = {};
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
+    if (isBranchValid) {
+      where.branchId = branchIdFilter;
+    }
+    if (isStatusValid) {
+      where.status = normalizedStatus as WorkOrderStatus;
+    }
+
+    let list: any[] = [];
+    try {
+      list = await this.prisma.workOrder.findMany({
+        where,
+        include: this.fullInclude,
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (fullIncludeError: any) {
+      this.logger.warn(
+        `findAll fullInclude error: ${fullIncludeError?.message}. Falling back to core include.`,
+      );
+      try {
+        list = await this.prisma.workOrder.findMany({
+          where,
+          include: {
+            doctor: { select: { id: true, name: true, clinicName: true, email: true } },
+            prosthesisType: { select: { id: true, name: true } },
+            branch: { select: { id: true, name: true, code: true } },
+            createdBy: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+            processes: {
+              orderBy: { sequence: 'asc' },
+              include: {
+                technician: { select: { id: true, firstName: true, lastName: true, email: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      } catch (coreIncludeError: any) {
+        this.logger.error(
+          `findAll coreInclude error: ${coreIncludeError?.message}. Falling back to raw query.`,
+          coreIncludeError?.stack,
+        );
+        try {
+          list = await this.prisma.workOrder.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+          });
+        } catch (rawError: any) {
+          this.logger.error(`findAll rawError: ${rawError?.message}`, rawError?.stack);
+          list = [];
+        }
+      }
+    }
+
     return this.mapWorkOrders(list);
   }
 
@@ -626,14 +680,49 @@ export class WorkOrdersService {
     branchIdContext?: string | null,
     userRole?: string,
   ) {
-    const workOrder = await this.prisma.workOrder.findFirst({
-      where: {
-        id,
-        tenantId,
-        ...(branchIdContext && { branchId: branchIdContext }),
-      },
-      include: this.fullInclude,
-    });
+    let workOrder: any = null;
+    try {
+      workOrder = await this.prisma.workOrder.findFirst({
+        where: {
+          id,
+          tenantId,
+          ...(branchIdContext && { branchId: branchIdContext }),
+        },
+        include: this.fullInclude,
+      });
+    } catch (fullErr: any) {
+      this.logger.warn(`findOne fullInclude error: ${fullErr?.message}. Falling back to core include.`);
+      try {
+        workOrder = await this.prisma.workOrder.findFirst({
+          where: {
+            id,
+            tenantId,
+            ...(branchIdContext && { branchId: branchIdContext }),
+          },
+          include: {
+            doctor: { select: { id: true, name: true, clinicName: true, email: true } },
+            prosthesisType: { select: { id: true, name: true } },
+            branch: { select: { id: true, name: true, code: true } },
+            createdBy: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+            processes: {
+              orderBy: { sequence: 'asc' },
+              include: {
+                technician: { select: { id: true, firstName: true, lastName: true, email: true } },
+              },
+            },
+          },
+        });
+      } catch (coreErr: any) {
+        this.logger.error(`findOne coreInclude error: ${coreErr?.message}`);
+        workOrder = await this.prisma.workOrder.findFirst({
+          where: {
+            id,
+            tenantId,
+            ...(branchIdContext && { branchId: branchIdContext }),
+          },
+        });
+      }
+    }
 
     if (!workOrder) {
       throw new NotFoundException(`Work order with ID "${id}" not found.`);
@@ -1052,7 +1141,7 @@ export class WorkOrdersService {
 
     // If transitioned to ASSIGNED, notify the first process technician
     if (isTransitioningToAssigned) {
-      const sorted = [...updated.processes].sort(
+      const sorted = [...((updated as any).processes || [])].sort(
         (a: any, b: any) => a.sequence - b.sequence,
       );
       const firstProcess: any = sorted[0];
@@ -1246,209 +1335,213 @@ export class WorkOrdersService {
    * Fetch branch-scoped operational dashboard statistics for admins.
    */
   async getDashboardStats(tenantId: string, branchIdContext: string | null) {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    try {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
 
-    // 1. Fetch Verification Alerts (active/pending verification steps in the branch)
-    const alerts = await this.prisma.workOrderProcess.findMany({
-      where: {
-        isVerification: true,
-        status: { in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS] },
-        workOrder: {
-          tenantId,
-          ...(branchIdContext && { branchId: branchIdContext }),
+      // 1. Fetch Verification Alerts (active/pending verification steps in the branch)
+      const alerts = await this.prisma.workOrderProcess.findMany({
+        where: {
+          isVerification: true,
+          status: { in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS] },
+          workOrder: {
+            tenantId,
+            ...(branchIdContext && { branchId: branchIdContext }),
+          },
         },
-      },
-      include: {
-        workOrder: {
-          select: {
-            id: true,
-            folioNumber: true,
-            patient: true,
-            status: true,
-            doctor: { select: { name: true } },
-            branch: { select: { id: true, name: true, defaultAdminId: true } },
-            processes: {
-              orderBy: { sequence: 'asc' },
-              select: { sequence: true, status: true },
+        include: {
+          workOrder: {
+            select: {
+              id: true,
+              folioNumber: true,
+              patient: true,
+              status: true,
+              doctor: { select: { name: true } },
+              branch: { select: { id: true, name: true, defaultAdminId: true } },
+              processes: {
+                orderBy: { sequence: 'asc' },
+                select: { sequence: true, status: true },
+              },
+            },
+          },
+          technician: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
             },
           },
         },
-        technician: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const readyAlerts = alerts.filter((a) => {
+        if (!a.workOrder) return false;
+        if (a.status === ProcessStatus.IN_PROGRESS) return true;
+        const sortedProcs = (a.workOrder.processes || []) as any[];
+        const preceding = sortedProcs.filter((p: any) => p.sequence < a.sequence);
+        return preceding.every((p: any) => p.status === ProcessStatus.COMPLETED);
+      });
+
+      const verificationAlerts = readyAlerts.map((a) => ({
+        id: a.id,
+        workOrderId: a.workOrderId,
+        folioNumber: a.workOrder?.folioNumber || '',
+        patient: a.workOrder?.patient || '',
+        processName: a.processName,
+        isVerification: true,
+        type: a.technicianId ? 'INTERNAL' : 'EXTERNAL',
+        status: a.status,
+        startedAt: a.startedAt,
+        technicianId: a.technicianId || null,
+        assignedTo:
+          a.technicianId && a.technician
+            ? `${a.technician.firstName || ''} ${a.technician.lastName || ''}`.trim()
+            : a.workOrder?.doctor
+              ? a.workOrder.doctor.name
+              : 'Doctor',
+        defaultAdminId: a.workOrder?.branch?.defaultAdminId || null,
+        externalDoctorStatus: (a as any).externalDoctorStatus || null,
+        externalDoctorNotes: (a as any).externalDoctorNotes || null,
+        externalDoctorSubmittedAt: (a as any).externalDoctorSubmittedAt || null,
+      }));
+
+      // 2. Fetch WO Status counts
+      const woCounts = await this.prisma.workOrder.groupBy({
+        by: ['status'],
+        where: {
+          tenantId,
+          ...(branchIdContext && { branchId: branchIdContext }),
+        },
+        _count: {
+          id: true,
+        },
+      });
+
+      const woStatusSummary = {
+        CREATED: 0,
+        ASSIGNED: 0,
+        IN_PROGRESS: 0,
+        INTERNAL_VERIFICATION: 0,
+        EXTERNAL_VERIFICATION: 0,
+        COMPLETED: 0,
+        FAILED: 0,
+        CANCELLED: 0,
+      };
+
+      woCounts.forEach((c) => {
+        woStatusSummary[c.status] = c._count.id;
+      });
+
+      // 3. Fetch Pending Processes (Ready steps not started)
+      const allPendingProcesses = await this.prisma.workOrderProcess.findMany({
+        where: {
+          status: ProcessStatus.NOT_STARTED,
+          isVerification: false,
+          workOrder: {
+            tenantId,
+            status: {
+              in: [WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS],
+            },
+            ...(branchIdContext && { branchId: branchIdContext }),
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        include: {
+          workOrder: {
+            select: {
+              folioNumber: true,
+              patient: true,
+              processes: {
+                orderBy: { sequence: 'asc' },
+                select: { sequence: true, status: true },
+              },
+            },
+          },
+          technician: {
+            select: { firstName: true, lastName: true },
+          },
+        },
+      });
 
-    const readyAlerts = alerts.filter((a) => {
-      if (a.status === ProcessStatus.IN_PROGRESS) return true;
-      const sortedProcs = (a.workOrder.processes || []) as any[];
-      const preceding = sortedProcs.filter((p: any) => p.sequence < a.sequence);
-      return preceding.every((p: any) => p.status === ProcessStatus.COMPLETED);
-    });
+      const readyPending = allPendingProcesses.filter((p) => {
+        if (!p.workOrder) return false;
+        if (p.sequence === 0) return true;
+        const sortedProcs = (p.workOrder.processes || []) as any[];
+        const prev = sortedProcs.find((sp: any) => sp.sequence === p.sequence - 1);
+        return prev && prev.status === ProcessStatus.COMPLETED;
+      });
 
-    const verificationAlerts = readyAlerts.map((a) => ({
-      id: a.id,
-      workOrderId: a.workOrderId,
-      folioNumber: a.workOrder.folioNumber,
-      patient: a.workOrder.patient,
-      processName: a.processName,
-      isVerification: true,
-      type: a.technicianId ? 'INTERNAL' : 'EXTERNAL',
-      status: a.status,
-      startedAt: a.startedAt,
-      technicianId: a.technicianId || null,
-      assignedTo:
-        a.technicianId && a.technician
-          ? `${a.technician.firstName} ${a.technician.lastName}`
-          : a.workOrder.doctor
-            ? a.workOrder.doctor.name
-            : 'Doctor',
-      defaultAdminId: a.workOrder.branch?.defaultAdminId || null,
-      externalDoctorStatus: (a as any).externalDoctorStatus || null,
-      externalDoctorNotes: (a as any).externalDoctorNotes || null,
-      externalDoctorSubmittedAt: (a as any).externalDoctorSubmittedAt || null,
-    }));
+      const pendingProcesses = readyPending.map((p) => ({
+        id: p.id,
+        workOrderId: p.workOrderId,
+        folioNumber: p.workOrder?.folioNumber || '',
+        patient: p.workOrder?.patient || '',
+        processName: p.processName,
+        technicianName: p.technician
+          ? `${p.technician.firstName || ''} ${p.technician.lastName || ''}`.trim()
+          : 'Unassigned',
+      }));
 
-    // 2. Fetch WO Status counts
-    const woCounts = await this.prisma.workOrder.groupBy({
-      by: ['status'],
-      where: {
-        tenantId,
-        ...(branchIdContext && { branchId: branchIdContext }),
-      },
-      _count: {
-        id: true,
-      },
-    });
-
-    const woStatusSummary = {
-      CREATED: 0,
-      ASSIGNED: 0,
-      IN_PROGRESS: 0,
-      INTERNAL_VERIFICATION: 0,
-      EXTERNAL_VERIFICATION: 0,
-      COMPLETED: 0,
-      FAILED: 0,
-      CANCELLED: 0,
-    };
-
-    woCounts.forEach((c) => {
-      woStatusSummary[c.status] = c._count.id;
-    });
-
-    // 3. Fetch Pending Processes (Ready steps not started)
-    const allPendingProcesses = await this.prisma.workOrderProcess.findMany({
-      where: {
-        status: ProcessStatus.NOT_STARTED,
-        isVerification: false,
-        workOrder: {
+      // 4. In Progress WO count
+      const inProgressWorkOrders = await this.prisma.workOrder.count({
+        where: {
           tenantId,
           status: {
-            in: [WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS],
+            in: [
+              WorkOrderStatus.IN_PROGRESS,
+              WorkOrderStatus.INTERNAL_VERIFICATION,
+              WorkOrderStatus.EXTERNAL_VERIFICATION,
+            ],
           },
           ...(branchIdContext && { branchId: branchIdContext }),
         },
-      },
-      include: {
-        workOrder: {
-          select: {
-            folioNumber: true,
-            patient: true,
-            processes: {
-              orderBy: { sequence: 'asc' },
-              select: { sequence: true, status: true },
+      });
+
+      // 5. Completed WO count today
+      const completedWorkOrders = await this.prisma.workOrder.count({
+        where: {
+          tenantId,
+          status: WorkOrderStatus.COMPLETED,
+          updatedAt: { gte: startOfToday },
+          ...(branchIdContext && { branchId: branchIdContext }),
+        },
+      });
+
+      // 6. Technician Activity Overview
+      const techniciansInBranch = await this.prisma.user.findMany({
+        where: {
+          tenantId,
+          role: UserRole.TECHNICIAN,
+          status: UserStatus.ACTIVE,
+          ...(branchIdContext && { branchId: branchIdContext }),
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          assignedWoProcesses: {
+            where: {
+              workOrder: { tenantId },
             },
-          },
-        },
-        technician: {
-          select: { firstName: true, lastName: true },
-        },
-      },
-    });
-
-    const readyPending = allPendingProcesses.filter((p) => {
-      if (p.sequence === 0) return true;
-      const sortedProcs = p.workOrder.processes as any[];
-      const prev = sortedProcs.find((sp: any) => sp.sequence === p.sequence - 1);
-      return prev && prev.status === ProcessStatus.COMPLETED;
-    });
-
-    const pendingProcesses = readyPending.map((p) => ({
-      id: p.id,
-      workOrderId: p.workOrderId,
-      folioNumber: p.workOrder.folioNumber,
-      patient: p.workOrder.patient,
-      processName: p.processName,
-      technicianName: p.technician
-        ? `${p.technician.firstName} ${p.technician.lastName}`
-        : 'Unassigned',
-    }));
-
-    // 4. In Progress WO count
-    const inProgressWorkOrders = await this.prisma.workOrder.count({
-      where: {
-        tenantId,
-        status: {
-          in: [
-            WorkOrderStatus.IN_PROGRESS,
-            WorkOrderStatus.INTERNAL_VERIFICATION,
-            WorkOrderStatus.EXTERNAL_VERIFICATION,
-          ],
-        },
-        ...(branchIdContext && { branchId: branchIdContext }),
-      },
-    });
-
-    // 5. Completed WO count today
-    const completedWorkOrders = await this.prisma.workOrder.count({
-      where: {
-        tenantId,
-        status: WorkOrderStatus.COMPLETED,
-        updatedAt: { gte: startOfToday },
-        ...(branchIdContext && { branchId: branchIdContext }),
-      },
-    });
-
-    // 6. Technician Activity Overview
-    const techniciansInBranch = await this.prisma.user.findMany({
-      where: {
-        tenantId,
-        role: UserRole.TECHNICIAN,
-        status: 'ACTIVE',
-        ...(branchIdContext && { branchId: branchIdContext }),
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        assignedWoProcesses: {
-          where: {
-            workOrder: { tenantId },
-          },
-          include: {
-            workOrder: {
-              select: {
-                id: true,
-                folioNumber: true,
-                patient: true,
-                repetitionCount: true,
-                repetitionLogs: {
-                  select: {
-                    id: true,
-                    repetitionCount: true,
-                    initiatedAt: true,
-                    verificationStage: true,
-                    initiatedBy: {
-                      select: {
-                        firstName: true,
-                        lastName: true,
+            include: {
+              workOrder: {
+                select: {
+                  id: true,
+                  folioNumber: true,
+                  patient: true,
+                  repetitionCount: true,
+                  repetitionLogs: {
+                    select: {
+                      id: true,
+                      repetitionCount: true,
+                      initiatedAt: true,
+                      verificationStage: true,
+                      initiatedBy: {
+                        select: {
+                          firstName: true,
+                          lastName: true,
+                        },
                       },
                     },
                   },
@@ -1456,185 +1549,212 @@ export class WorkOrdersService {
               },
             },
           },
-        },
-        technicianReworks: {
-          select: {
-            id: true,
-            processName: true,
-            reworkCount: true,
-            status: true,
-            initiatedAt: true,
-            verificationStage: true,
-            workOrder: {
-              select: {
-                id: true,
-                folioNumber: true,
-                patient: true,
+          technicianReworks: {
+            select: {
+              id: true,
+              processName: true,
+              reworkCount: true,
+              status: true,
+              initiatedAt: true,
+              verificationStage: true,
+              workOrder: {
+                select: {
+                  id: true,
+                  folioNumber: true,
+                  patient: true,
+                },
               },
             },
           },
         },
-      },
-    });
-
-    const technicianActivityOverview = techniciansInBranch.map((tech) => {
-      const activeStep = tech.assignedWoProcesses.find(
-        (p) =>
-          p.status === ProcessStatus.IN_PROGRESS ||
-          p.status === ProcessStatus.PAUSED,
-      );
-      const completedToday = tech.assignedWoProcesses.filter(
-        (p) =>
-          p.status === ProcessStatus.COMPLETED &&
-          p.endedAt &&
-          p.endedAt >= startOfToday,
-      ).length;
-
-      // Calculate Rework metrics
-      const reworkCount = tech.technicianReworks.length;
-      const reworkDetails = tech.technicianReworks.map((r) => ({
-        id: r.id,
-        workOrderId: r.workOrder.id,
-        folioNumber: r.workOrder.folioNumber,
-        patient: r.workOrder.patient,
-        processName: r.processName,
-        reworkCount: r.reworkCount,
-        status: r.status,
-        initiatedAt: r.initiatedAt,
-        verificationStage: r.verificationStage,
-      }));
-
-      // Calculate Repetition metrics
-      const uniqueRepetitionWOsMap = new Map<string, any>();
-      tech.assignedWoProcesses.forEach((p) => {
-        const wo = p.workOrder;
-        if (wo.repetitionCount > 0) {
-          if (!uniqueRepetitionWOsMap.has(wo.id)) {
-            uniqueRepetitionWOsMap.set(wo.id, {
-              id: wo.id,
-              folioNumber: wo.folioNumber,
-              patient: wo.patient,
-              repetitionCount: wo.repetitionCount,
-              repetitionLogs: wo.repetitionLogs.map((log) => ({
-                id: log.id,
-                repetitionCount: log.repetitionCount,
-                initiatedAt: log.initiatedAt,
-                verificationStage: log.verificationStage,
-                initiatedBy: log.initiatedBy
-                  ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}`
-                  : 'System',
-              })),
-            });
-          }
-        }
       });
-      const repetitionDetails = Array.from(uniqueRepetitionWOsMap.values());
-      const repetitionCount = repetitionDetails.length;
 
-      return {
-        id: tech.id,
-        name: `${tech.firstName} ${tech.lastName}`,
-        activeStep: activeStep
-          ? `${activeStep.processName} (${activeStep.workOrder.folioNumber})`
-          : 'Idle',
-        completedToday,
-        reworkCount,
-        reworkDetails,
-        repetitionCount,
-        repetitionDetails,
-      };
-    });
+      const technicianActivityOverview = techniciansInBranch.map((tech) => {
+        const activeStep = tech.assignedWoProcesses.find(
+          (p) =>
+            p.status === ProcessStatus.IN_PROGRESS ||
+            p.status === ProcessStatus.PAUSED,
+        );
+        const completedToday = tech.assignedWoProcesses.filter(
+          (p) =>
+            p.status === ProcessStatus.COMPLETED &&
+            p.endedAt &&
+            p.endedAt >= startOfToday,
+        ).length;
 
-    // Fetch In-Progress Work Orders list
-    const inProgressWOs = await this.prisma.workOrder.findMany({
-      where: {
-        tenantId,
-        status: WorkOrderStatus.IN_PROGRESS,
-        ...(branchIdContext && { branchId: branchIdContext }),
-      },
-      include: {
-        doctor: { select: { id: true, name: true } },
-        prosthesisType: { select: { id: true, name: true } },
-        processes: {
-          orderBy: { sequence: 'asc' },
-          include: {
-            technician: {
-              select: { id: true, firstName: true, lastName: true },
-            },
-          },
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+        // Calculate Rework metrics
+        const reworkCount = tech.technicianReworks.length;
+        const reworkDetails = tech.technicianReworks
+          .filter((r) => r.workOrder)
+          .map((r) => ({
+            id: r.id,
+            workOrderId: r.workOrder?.id || '',
+            folioNumber: r.workOrder?.folioNumber || '',
+            patient: r.workOrder?.patient || '',
+            processName: r.processName,
+            reworkCount: r.reworkCount,
+            status: r.status,
+            initiatedAt: r.initiatedAt,
+            verificationStage: r.verificationStage,
+          }));
 
-    // Fetch Verification Work Orders list
-    const verificationWOs = await this.prisma.workOrder.findMany({
-      where: {
-        tenantId,
-        status: {
-          in: [
-            WorkOrderStatus.INTERNAL_VERIFICATION,
-            WorkOrderStatus.EXTERNAL_VERIFICATION,
-          ],
-        },
-        ...(branchIdContext && { branchId: branchIdContext }),
-      },
-      include: {
-        doctor: { select: { id: true, name: true } },
-        prosthesisType: { select: { id: true, name: true } },
-        branch: {
-          select: { id: true, name: true, code: true, defaultAdminId: true },
-        },
-        processes: {
-          orderBy: { sequence: 'asc' },
-          include: {
-            technician: {
-              select: { id: true, firstName: true, lastName: true },
-            },
-          },
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+        // Calculate Repetition metrics
+        const uniqueRepetitionWOsMap = new Map<string, any>();
+        (tech.assignedWoProcesses || []).forEach((p) => {
+          const wo = p.workOrder;
+          if (wo && wo.repetitionCount > 0) {
+            if (!uniqueRepetitionWOsMap.has(wo.id)) {
+              uniqueRepetitionWOsMap.set(wo.id, {
+                id: wo.id,
+                folioNumber: wo.folioNumber || '',
+                patient: wo.patient || '',
+                repetitionCount: wo.repetitionCount,
+                repetitionLogs: (wo.repetitionLogs || []).map((log) => ({
+                  id: log.id,
+                  repetitionCount: log.repetitionCount,
+                  initiatedAt: log.initiatedAt,
+                  verificationStage: log.verificationStage,
+                  initiatedBy: log.initiatedBy
+                    ? `${log.initiatedBy.firstName || ''} ${log.initiatedBy.lastName || ''}`.trim()
+                    : 'System',
+                })),
+              });
+            }
+          }
+        });
+        const repetitionDetails = Array.from(uniqueRepetitionWOsMap.values());
+        const repetitionCount = repetitionDetails.length;
 
-    // Fetch repetition logs for dashboard
-    const repetitionLogs = await this.prisma.repetitionLog.findMany({
-      where: {
-        workOrder: {
+        return {
+          id: tech.id,
+          name: `${tech.firstName} ${tech.lastName}`,
+          activeStep: activeStep && activeStep.workOrder
+            ? `${activeStep.processName} (${activeStep.workOrder.folioNumber})`
+            : 'Idle',
+          completedToday,
+          reworkCount,
+          reworkDetails,
+          repetitionCount,
+          repetitionDetails,
+        };
+      });
+
+      // Fetch In-Progress Work Orders list
+      const inProgressWOs = await this.prisma.workOrder.findMany({
+        where: {
           tenantId,
+          status: WorkOrderStatus.IN_PROGRESS,
           ...(branchIdContext && { branchId: branchIdContext }),
         },
-      },
-      include: {
-        workOrder: {
-          select: {
-            id: true,
-            folioNumber: true,
-            patient: true,
+        include: {
+          doctor: { select: { id: true, name: true } },
+          prosthesisType: { select: { id: true, name: true } },
+          processes: {
+            orderBy: { sequence: 'asc' },
+            include: {
+              technician: {
+                select: { id: true, firstName: true, lastName: true },
+              },
+            },
           },
         },
-        initiatedBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-      orderBy: { initiatedAt: 'desc' },
-    });
+        orderBy: { updatedAt: 'desc' },
+      });
 
-    return {
-      verificationAlerts,
-      woStatusSummary,
-      pendingProcesses,
-      inProgressWorkOrders,
-      completedWorkOrders,
-      technicianActivityOverview,
-      inProgressWOs,
-      verificationWOs,
-      repetitionLogs,
-    };
+      // Fetch Verification Work Orders list
+      const verificationWOs = await this.prisma.workOrder.findMany({
+        where: {
+          tenantId,
+          status: {
+            in: [
+              WorkOrderStatus.INTERNAL_VERIFICATION,
+              WorkOrderStatus.EXTERNAL_VERIFICATION,
+            ],
+          },
+          ...(branchIdContext && { branchId: branchIdContext }),
+        },
+        include: {
+          doctor: { select: { id: true, name: true } },
+          prosthesisType: { select: { id: true, name: true } },
+          branch: {
+            select: { id: true, name: true, code: true, defaultAdminId: true },
+          },
+          processes: {
+            orderBy: { sequence: 'asc' },
+            include: {
+              technician: {
+                select: { id: true, firstName: true, lastName: true },
+              },
+            },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      // Fetch repetition logs for dashboard
+      const repetitionLogs = await this.prisma.repetitionLog.findMany({
+        where: {
+          workOrder: {
+            tenantId,
+            ...(branchIdContext && { branchId: branchIdContext }),
+          },
+        },
+        include: {
+          workOrder: {
+            select: {
+              id: true,
+              folioNumber: true,
+              patient: true,
+            },
+          },
+          initiatedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy: { initiatedAt: 'desc' },
+      });
+
+      return {
+        verificationAlerts,
+        woStatusSummary,
+        pendingProcesses,
+        inProgressWorkOrders,
+        completedWorkOrders,
+        technicianActivityOverview,
+        inProgressWOs,
+        verificationWOs,
+        repetitionLogs,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Error in getDashboardStats for tenant ${tenantId}: ${error?.message || error}`,
+        error?.stack,
+      );
+      return {
+        verificationAlerts: [],
+        woStatusSummary: {
+          CREATED: 0,
+          ASSIGNED: 0,
+          IN_PROGRESS: 0,
+          INTERNAL_VERIFICATION: 0,
+          EXTERNAL_VERIFICATION: 0,
+          COMPLETED: 0,
+          FAILED: 0,
+          CANCELLED: 0,
+        },
+        pendingProcesses: [],
+        inProgressWorkOrders: 0,
+        completedWorkOrders: 0,
+        technicianActivityOverview: [],
+        inProgressWOs: [],
+        verificationWOs: [],
+        repetitionLogs: [],
+      };
+    }
   }
 
   /**
@@ -1754,7 +1874,7 @@ export class WorkOrdersService {
           id: userId,
           tenantId,
           role: { in: [UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN] },
-          status: 'ACTIVE',
+          status: UserStatus.ACTIVE,
         },
       });
       if (!executingAdmin) {
@@ -2206,7 +2326,7 @@ export class WorkOrdersService {
             tenantId,
             branchId: process.workOrder.branchId,
             role: UserRole.ADMIN,
-            status: 'ACTIVE',
+            status: UserStatus.ACTIVE,
           },
         });
 

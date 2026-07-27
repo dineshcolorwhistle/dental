@@ -18,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
 import { NoteHistoryThread } from './NoteHistoryThread';
+import { formatAuditNote } from '../utils/audit-formatter';
 
 interface PaymentHistoryItem {
   amount: number;
@@ -1423,7 +1424,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                                                         </div>
                                                         {log.notes && (
                                                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '2px' }}>
-                                                            {log.notes}
+                                                            {formatAuditNote(log.notes, t)}
                                                           </div>
                                                         )}
                                                       </div>
@@ -1529,7 +1530,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           gap: '0.25rem',
                           justifyContent: 'center'
                         }}>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>{t('financePage.paymentStatus')}</span>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>{t('financePage.paymentStatus', { defaultValue: 'Payment Status' })}</span>
                           <div>
                             <span style={{
                               display: 'inline-flex',

@@ -440,8 +440,8 @@ export function WorkOrdersPage() {
       if (search) {
         const q = search.toLowerCase();
         return (
-          wo.folioNumber.toLowerCase().includes(q) ||
-          wo.patient.toLowerCase().includes(q) ||
+          (wo.folioNumber && wo.folioNumber.toLowerCase().includes(q)) ||
+          (wo.patient && wo.patient.toLowerCase().includes(q)) ||
           (wo.doctor?.name && wo.doctor.name.toLowerCase().includes(q)) ||
           (wo.prosthesisType?.name && wo.prosthesisType.name.toLowerCase().includes(q)) ||
           (wo.boxNumber && wo.boxNumber.toLowerCase().includes(q))
@@ -451,8 +451,8 @@ export function WorkOrdersPage() {
     })
     .sort((a, b) => {
       const mul = sortDir === 'asc' ? 1 : -1;
-      if (sortField === 'folioNumber') return mul * a.folioNumber.localeCompare(b.folioNumber);
-      if (sortField === 'patient') return mul * a.patient.localeCompare(b.patient);
+      if (sortField === 'folioNumber') return mul * (a.folioNumber || '').localeCompare(b.folioNumber || '');
+      if (sortField === 'patient') return mul * (a.patient || '').localeCompare(b.patient || '');
       return mul * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
 
@@ -607,7 +607,9 @@ export function WorkOrdersPage() {
     setForm((prev) => ({
       ...prev,
       prosthesisTypeId: ptId,
-      totalQuote: prev.totalQuote || ((selectedPt as any)?.basePrice != null ? (selectedPt as any).basePrice.toString() : prev.totalQuote),
+      totalQuote: prev.totalQuote && prev.totalQuote !== '0' 
+        ? prev.totalQuote 
+        : (selectedPt?.price != null ? selectedPt.price.toString() : ((selectedPt as any)?.basePrice != null ? (selectedPt as any).basePrice.toString() : prev.totalQuote)),
     }));
     if (formErrors.prosthesisTypeId) setFormErrors((prev) => ({ ...prev, prosthesisTypeId: '' }));
 
@@ -1130,7 +1132,7 @@ export function WorkOrdersPage() {
                       </div>
                     </td>
                     <td>
-                      <span className="cell-primary__name">{wo.patient}</span>
+                      <span className="cell-primary__name">{wo.patient || '—'}</span>
                     </td>
                     <td>
                       {wo.doctor ? (

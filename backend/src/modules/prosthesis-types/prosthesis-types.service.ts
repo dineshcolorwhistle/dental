@@ -47,7 +47,7 @@ export class ProsthesisTypesService {
     userRole: string,
     dto: CreateProsthesisTypeDto,
   ) {
-    const { name, description, branchId, processIds } = dto;
+    const { name, description, price, branchId, processIds } = dto;
 
     // Force branch for Administrators
     let finalBranchId = branchId;
@@ -108,6 +108,7 @@ export class ProsthesisTypesService {
         branchId: finalBranchId || null,
         name,
         description,
+        price: price ?? 0,
         ...(processIds &&
           processIds.length > 0 && {
             processAssignments: {
@@ -165,7 +166,7 @@ export class ProsthesisTypesService {
     // Verify existence
     await this.findOne(tenantId, id, branchIdContext);
 
-    const { name, description, processIds } = dto;
+    const { name, description, price, processIds } = dto;
 
     if (name) {
       const existingType = await this.prisma.prosthesisType.findFirst({
@@ -208,6 +209,7 @@ export class ProsthesisTypesService {
     const updateData: any = {
       ...(name && { name }),
       ...(description !== undefined && { description }),
+      ...(price !== undefined && { price: price ?? 0 }),
     };
 
     // If processIds is provided, replace the junction records

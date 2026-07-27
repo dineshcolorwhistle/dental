@@ -33,6 +33,7 @@ import {
   type TechnicianProcessItem,
 } from '../services';
 import { QRLabelModal } from '../components';
+import { formatAuditNote } from '../utils/audit-formatter';
 import { NoteHistoryThread } from '../components/NoteHistoryThread';
 
 // Digital timer sub-component for premium visual effect
@@ -1305,7 +1306,7 @@ export function TechnicianWorkOrdersPage() {
                               </div>
                               {log.notes && (
                                 <span style={{ color: 'var(--text-secondary)', marginTop: '2px', fontSize: '0.7rem' }}>
-                                  {log.notes}
+                                  {formatAuditNote(log.notes, t)}
                                 </span>
                               )}
                             </div>

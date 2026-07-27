@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "prosthesis_types" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION DEFAULT 0;

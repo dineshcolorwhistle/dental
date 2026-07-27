@@ -14,9 +14,15 @@ import { PushNotificationQueueProcessor } from './push-notification-queue.proces
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         connection: {
-          host: configService.get('REDIS_HOST') || 'localhost',
+          host: configService.get('REDIS_HOST') || '127.0.0.1',
           port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
           password: configService.get('REDIS_PASSWORD') || undefined,
+          maxRetriesPerRequest: null,
+          enableOfflineQueue: true,
+          retryStrategy: (times: number) => {
+            if (times > 5) return null;
+            return 1000;
+          },
         },
       }),
     }),

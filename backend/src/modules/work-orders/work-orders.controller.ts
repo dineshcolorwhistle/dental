@@ -22,7 +22,7 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @Controller('work-orders')
 @Roles(UserRole.ADMIN, UserRole.OWNER)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) {}
+  constructor(private readonly workOrdersService: WorkOrdersService) { }
 
   @Post()
   @Roles(UserRole.ADMIN)
@@ -60,19 +60,19 @@ export class WorkOrdersController {
       throw new BadRequestException('Organization context is required.');
     }
 
-    // For branch admin, force branch scoping
-    if (userRole === 'ADMIN') {
-      return this.workOrdersService.findAll(
-        tenantId,
-        branchIdContext || undefined,
-        statusFilter,
-      );
+    // Determine effective branch filter
+    let effectiveBranchFilter =
+      branchIdFilter && branchIdFilter !== 'ALL'
+        ? branchIdFilter
+        : undefined;
+
+    if (userRole === 'ADMIN' && branchIdContext) {
+      effectiveBranchFilter = branchIdContext;
     }
 
-    // For owner or super admin, use query filter if provided
     return this.workOrdersService.findAll(
       tenantId,
-      branchIdFilter,
+      effectiveBranchFilter,
       statusFilter,
     );
   }
@@ -136,8 +136,8 @@ export class WorkOrdersController {
     }
     const branchContext =
       userRole === 'ADMIN' ||
-      userRole === 'TECHNICIAN' ||
-      userRole === 'DELIVERY'
+        userRole === 'TECHNICIAN' ||
+        userRole === 'DELIVERY'
         ? branchIdContext
         : null;
     return this.workOrdersService.findOneByQrToken(
@@ -168,8 +168,8 @@ export class WorkOrdersController {
     }
     const branchContext =
       userRole === 'ADMIN' ||
-      userRole === 'TECHNICIAN' ||
-      userRole === 'DELIVERY'
+        userRole === 'TECHNICIAN' ||
+        userRole === 'DELIVERY'
         ? branchIdContext
         : null;
     return this.workOrdersService.findOne(

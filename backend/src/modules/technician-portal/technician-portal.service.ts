@@ -65,7 +65,7 @@ export class TechnicianPortalService {
       await this.mailService.sendExternalVerificationPending(
         doctor.email,
         doctor.name,
-        workOrder.patient,
+        workOrder.patient || '',
         workOrder.folioNumber,
         processName,
         workOrder.tenant.name,

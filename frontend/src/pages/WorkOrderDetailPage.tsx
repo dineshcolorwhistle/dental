@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService, type WorkOrderListItem } from '../services';
 import { WorkOrderChat } from '../components';
+import { formatAuditNote } from '../utils/audit-formatter';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ReactNode }> = {
   CREATED: { labelKey: 'enums.workOrderStatus.CREATED', color: '#6B7280', bg: '#F3F4F6', icon: <CircleDot size={12} /> },
@@ -976,7 +977,7 @@ export function WorkOrderDetailPage() {
                                         </div>
                                         {log.notes && (
                                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '2px' }}>
-                                            {log.notes}
+                                            {formatAuditNote(log.notes, t)}
                                           </div>
                                         )}
                                       </div>

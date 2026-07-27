@@ -16,6 +16,13 @@ export class PrismaService
   }
   async onModuleInit() {
     await this.$connect();
+    try {
+      await this.$executeRawUnsafe(
+        'ALTER TABLE "prosthesis_types" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION DEFAULT 0;'
+      );
+    } catch (e) {
+      console.error('[SchemaSync] Error ensuring price column exists:', e);
+    }
     await this.runDataMigration();
   }
 

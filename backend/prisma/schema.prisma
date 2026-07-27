@@ -286,6 +286,7 @@ model ProsthesisType {
   branchId    String?  @map("branch_id")
   name        String
   description String?
+  price       Float?   @default(0) @map("price")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
