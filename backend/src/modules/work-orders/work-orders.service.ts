@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { generateFolioNumber } from '../../common/utils/folio.util';
@@ -21,7 +22,7 @@ import {
 } from '@prisma/client';
 
 @Injectable()
-export class WorkOrdersService {
+export class WorkOrdersService implements OnModuleInit {
   private readonly logger = new Logger(WorkOrdersService.name);
 
   constructor(
@@ -31,6 +32,30 @@ export class WorkOrdersService {
     private readonly websocketsGateway: WebsocketsGateway,
     private readonly mailService: MailService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      const activeWorkOrders = await this.prisma.workOrder.findMany({
+        where: {
+          status: {
+            notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
+          },
+        },
+        select: { id: true },
+      });
+      for (const wo of activeWorkOrders) {
+        await this.updateWorkOrderStatus(wo.id);
+      }
+      this.logger.log(
+        `Recalculated status for ${activeWorkOrders.length} active work orders on startup.`,
+      );
+    } catch (err) {
+      this.logger.error(
+        'Failed to recalculate work order statuses on startup',
+        err,
+      );
+    }
+  }
 
   /**
    * Triggers the external verification notification flow for a process step.
@@ -161,43 +186,34 @@ export class WorkOrdersService {
       isVerification: boolean;
       technicianId: string | null;
       status: ProcessStatus;
+      sequence?: number;
     }[],
   ): WorkOrderStatus {
-    if (processes.length === 0) {
+    if (!processes || processes.length === 0) {
       return WorkOrderStatus.CREATED;
     }
 
+    const sorted = [...processes].sort(
+      (a, b) => (a.sequence ?? 0) - (b.sequence ?? 0),
+    );
+
     // 1. If any process is FAILED -> FAILED
-    if (processes.some((p) => p.status === ProcessStatus.FAILED)) {
+    if (sorted.some((p) => p.status === ProcessStatus.FAILED)) {
       return WorkOrderStatus.FAILED;
     }
 
     // 2. If any process is CANCELLED -> CANCELLED
-    if (processes.some((p) => p.status === ProcessStatus.CANCELLED)) {
+    if (sorted.some((p) => p.status === ProcessStatus.CANCELLED)) {
       return WorkOrderStatus.CANCELLED;
     }
 
     // 3. If all processes are COMPLETED -> COMPLETED
-    if (processes.every((p) => p.status === ProcessStatus.COMPLETED)) {
+    if (sorted.every((p) => p.status === ProcessStatus.COMPLETED)) {
       return WorkOrderStatus.COMPLETED;
     }
 
-    // Find the next active/pending step (the first step that is not completed/failed/cancelled)
-    const nextStep = processes.find(
-      (p) =>
-        p.status !== ProcessStatus.COMPLETED &&
-        p.status !== ProcessStatus.FAILED &&
-        p.status !== ProcessStatus.CANCELLED,
-    );
-
-    if (nextStep && nextStep.isVerification) {
-      return nextStep.technicianId
-        ? WorkOrderStatus.INTERNAL_VERIFICATION
-        : WorkOrderStatus.EXTERNAL_VERIFICATION;
-    }
-
-    // 4. If any process is IN_PROGRESS or PAUSED
-    const inProgressProc = processes.find(
+    // 4. If any process is IN_PROGRESS or PAUSED (active work takes precedence)
+    const inProgressProc = sorted.find(
       (p) =>
         p.status === ProcessStatus.IN_PROGRESS ||
         p.status === ProcessStatus.PAUSED,
@@ -211,12 +227,26 @@ export class WorkOrdersService {
       return WorkOrderStatus.IN_PROGRESS;
     }
 
-    // 5. Otherwise, check assignments
-    const allNotStarted = processes.every(
+    // 5. Find the next pending process step in sequence (first step not completed/failed/cancelled)
+    const nextStep = sorted.find(
+      (p) =>
+        p.status !== ProcessStatus.COMPLETED &&
+        p.status !== ProcessStatus.FAILED &&
+        p.status !== ProcessStatus.CANCELLED,
+    );
+
+    if (nextStep && nextStep.isVerification) {
+      return nextStep.technicianId
+        ? WorkOrderStatus.INTERNAL_VERIFICATION
+        : WorkOrderStatus.EXTERNAL_VERIFICATION;
+    }
+
+    // 6. Otherwise, check initial assignments
+    const allNotStarted = sorted.every(
       (p) => p.status === ProcessStatus.NOT_STARTED,
     );
     if (allNotStarted) {
-      const hasAnyTechnician = processes.some((p) => p.technicianId !== null);
+      const hasAnyTechnician = sorted.some((p) => p.technicianId !== null);
       return hasAnyTechnician
         ? WorkOrderStatus.ASSIGNED
         : WorkOrderStatus.CREATED;
@@ -1291,7 +1321,9 @@ export class WorkOrdersService {
     const workOrder = await this.prisma.workOrder.findUnique({
       where: { id: workOrderId },
       include: {
-        processes: true,
+        processes: {
+          orderBy: { sequence: 'asc' },
+        },
       },
     });
 

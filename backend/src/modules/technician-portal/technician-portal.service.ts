@@ -1022,7 +1022,9 @@ export class TechnicianPortalService {
     const workOrder = await this.prisma.workOrder.findUnique({
       where: { id: workOrderId },
       include: {
-        processes: true,
+        processes: {
+          orderBy: { sequence: 'asc' },
+        },
       },
     });
 
@@ -1068,39 +1070,31 @@ export class TechnicianPortalService {
       isVerification: boolean;
       technicianId: string | null;
       status: ProcessStatus;
+      sequence?: number;
     }[],
   ): WorkOrderStatus {
-    if (processes.length === 0) {
+    if (!processes || processes.length === 0) {
       return WorkOrderStatus.CREATED;
     }
 
-    if (processes.some((p) => p.status === ProcessStatus.FAILED)) {
+    const sorted = [...processes].sort(
+      (a, b) => (a.sequence ?? 0) - (b.sequence ?? 0),
+    );
+
+    if (sorted.some((p) => p.status === ProcessStatus.FAILED)) {
       return WorkOrderStatus.FAILED;
     }
 
-    if (processes.some((p) => p.status === ProcessStatus.CANCELLED)) {
+    if (sorted.some((p) => p.status === ProcessStatus.CANCELLED)) {
       return WorkOrderStatus.CANCELLED;
     }
 
-    if (processes.every((p) => p.status === ProcessStatus.COMPLETED)) {
+    if (sorted.every((p) => p.status === ProcessStatus.COMPLETED)) {
       return WorkOrderStatus.COMPLETED;
     }
 
-    // Find the next active/pending step (the first step that is not completed/failed/cancelled)
-    const nextStep = processes.find(
-      (p) =>
-        p.status !== ProcessStatus.COMPLETED &&
-        p.status !== ProcessStatus.FAILED &&
-        p.status !== ProcessStatus.CANCELLED,
-    );
-
-    if (nextStep && nextStep.isVerification) {
-      return nextStep.technicianId
-        ? WorkOrderStatus.INTERNAL_VERIFICATION
-        : WorkOrderStatus.EXTERNAL_VERIFICATION;
-    }
-
-    const inProgressProc = processes.find(
+    // Check if any process is currently IN_PROGRESS or PAUSED (active work takes precedence)
+    const inProgressProc = sorted.find(
       (p) =>
         p.status === ProcessStatus.IN_PROGRESS ||
         p.status === ProcessStatus.PAUSED,
@@ -1114,11 +1108,25 @@ export class TechnicianPortalService {
       return WorkOrderStatus.IN_PROGRESS;
     }
 
-    const allNotStarted = processes.every(
+    // Find the next active/pending step (the first step that is not completed/failed/cancelled)
+    const nextStep = sorted.find(
+      (p) =>
+        p.status !== ProcessStatus.COMPLETED &&
+        p.status !== ProcessStatus.FAILED &&
+        p.status !== ProcessStatus.CANCELLED,
+    );
+
+    if (nextStep && nextStep.isVerification) {
+      return nextStep.technicianId
+        ? WorkOrderStatus.INTERNAL_VERIFICATION
+        : WorkOrderStatus.EXTERNAL_VERIFICATION;
+    }
+
+    const allNotStarted = sorted.every(
       (p) => p.status === ProcessStatus.NOT_STARTED,
     );
     if (allNotStarted) {
-      const hasAnyTechnician = processes.some((p) => p.technicianId !== null);
+      const hasAnyTechnician = sorted.some((p) => p.technicianId !== null);
       return hasAnyTechnician
         ? WorkOrderStatus.ASSIGNED
         : WorkOrderStatus.CREATED;

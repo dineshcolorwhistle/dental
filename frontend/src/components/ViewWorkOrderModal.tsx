@@ -496,30 +496,34 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
             }}>
               {(() => {
                 const processes = selectedWO.processes || [];
+                const sortedProcs = [...processes].sort((a: any, b: any) => (a.sequence ?? 0) - (b.sequence ?? 0));
                 const { userNotes, payments } = parseNotesAndPayments(selectedWO.notes);
                 
-                // Determine active stepper index
+                // Determine active process step index directly from processes list sorted by sequence
                 let activeIndex = 0;
-                if (selectedWO.status === 'COMPLETED') {
-                  activeIndex = processes.length;
-                } else if (selectedWO.status === 'INTERNAL_VERIFICATION') {
-                  const ivIdx = processes.findIndex((p: any) => p.isVerification && p.technicianId);
-                  activeIndex = ivIdx !== -1 ? ivIdx : processes.length - 1;
-                } else if (selectedWO.status === 'EXTERNAL_VERIFICATION') {
-                  const evIdx = processes.findIndex((p: any) => p.isVerification && !p.technicianId);
-                  activeIndex = evIdx !== -1 ? evIdx : processes.length - 1;
-                } else if (selectedWO.status === 'IN_PROGRESS') {
-                  const ipIdx = processes.findIndex((p: any) => p.status === 'IN_PROGRESS' || p.status === 'PAUSED');
-                  activeIndex = ipIdx !== -1 ? ipIdx : Math.min(processes.length - 1, Math.max(0, Math.floor(processes.length / 2)));
-                } else if (selectedWO.status === 'ASSIGNED') {
-                  activeIndex = 0;
-                } else { // CREATED, FAILED, CANCELLED
+                if (selectedWO.status === 'COMPLETED' || (sortedProcs.length > 0 && sortedProcs.every((p: any) => p.status === 'COMPLETED'))) {
+                  activeIndex = sortedProcs.length;
+                } else if (selectedWO.status === 'FAILED' || selectedWO.status === 'CANCELLED') {
                   activeIndex = -1;
+                } else {
+                  // 1. Check if any process is actively IN_PROGRESS or PAUSED
+                  const ipIdx = sortedProcs.findIndex((p: any) => p.status === 'IN_PROGRESS' || p.status === 'PAUSED');
+                  if (ipIdx !== -1) {
+                    activeIndex = ipIdx;
+                  } else {
+                    // 2. Otherwise find the first process in sequence that is NOT COMPLETED
+                    const pendingIdx = sortedProcs.findIndex((p: any) => p.status !== 'COMPLETED' && p.status !== 'FAILED' && p.status !== 'CANCELLED');
+                    if (pendingIdx !== -1) {
+                      activeIndex = pendingIdx;
+                    } else {
+                      activeIndex = sortedProcs.length > 0 ? 0 : -1;
+                    }
+                  }
                 }
 
                 // Determine active/in-progress step or fallback to first step details
-                const hasActiveProcess = activeIndex >= 0 && activeIndex < processes.length;
-                const displayProc = hasActiveProcess ? processes[activeIndex] : processes[0];
+                const hasActiveProcess = activeIndex >= 0 && activeIndex < sortedProcs.length;
+                const displayProc = hasActiveProcess ? sortedProcs[activeIndex] : sortedProcs[0];
 
                 const activeStepName = displayProc?.processName || t('workOrders.noProcesses');
                 const activeTechnician = displayProc?.technician 
