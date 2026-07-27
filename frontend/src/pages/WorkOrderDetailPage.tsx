@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth, useSocket } from '../context';
+import { useSocket } from '../context';
 import {
   Loader2,
   Printer,
@@ -151,7 +151,6 @@ export function WorkOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
   const chatOnly = searchParams.get('chatOnly') === 'true';
   const [workOrder, setWorkOrder] = useState<WorkOrderListItem | null>(null);
   const [loading, setLoading] = useState(true);

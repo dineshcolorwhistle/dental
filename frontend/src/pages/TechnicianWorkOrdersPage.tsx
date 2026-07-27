@@ -22,7 +22,7 @@ import {
   QrCode,
   MessageCircle,
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import {
@@ -204,7 +204,6 @@ const getCombinedProcessLogs = (proc: any, workOrder: any, t: any) => {
 };
 
 export function TechnicianWorkOrdersPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -416,7 +415,7 @@ export function TechnicianWorkOrdersPage() {
   // Filter local items by search query (folio or patient name)
   const filteredOrders = workOrders.filter((wo) =>
     wo.folioNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    wo.patient.toLowerCase().includes(searchQuery.toLowerCase())
+    (wo.patient && wo.patient.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const getMyStep = (wo: TechnicianWorkOrderListItem) => {
