@@ -18,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
 import { NoteHistoryThread } from './NoteHistoryThread';
+import { WorkOrderChat } from './WorkOrderChat';
 import { formatAuditNote } from '../utils/audit-formatter';
 
 interface PaymentHistoryItem {
@@ -31,6 +32,7 @@ interface ViewWorkOrderModalProps {
   onClose: () => void;
   workOrderId: string | null;
   onUpdate?: (updatedWO?: any) => void;
+  initialTab?: 'general' | 'process' | 'rework' | 'repetition' | 'payment' | 'chat';
 }
 
 const parseNotesAndPayments = (notesString: string | null | undefined): { userNotes: string; payments: PaymentHistoryItem[] } => {
@@ -125,7 +127,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
   return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 };
 
-export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: ViewWorkOrderModalProps) {
+export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, initialTab = 'general' }: ViewWorkOrderModalProps) {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -135,7 +137,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
 
   const [selectedWO, setSelectedWO] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [viewTab, setViewTab] = useState<'general' | 'process' | 'rework' | 'repetition' | 'payment'>('general');
+  const [viewTab, setViewTab] = useState<'general' | 'process' | 'rework' | 'repetition' | 'payment' | 'chat'>(initialTab || 'general');
   const [showAddFundForm, setShowAddFundForm] = useState(false);
   const [addFundAmount, setAddFundAmount] = useState('');
   const [addFundNotes, setAddFundNotes] = useState('');
@@ -200,7 +202,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
   useEffect(() => {
     if (isOpen && workOrderId) {
       setLoading(true);
-      setViewTab('general');
+      setViewTab(initialTab || 'general');
       setShowAddFundForm(false);
       setAddFundAmount('');
       setAddFundNotes('');
@@ -221,7 +223,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
     } else {
       setSelectedWO(null);
     }
-  }, [isOpen, workOrderId, onClose, t]);
+  }, [isOpen, workOrderId, initialTab, onClose, t]);
 
   useEffect(() => {
     if (!socket || !workOrderId || !isOpen) return;
@@ -464,6 +466,23 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                     {t('financePage.paymentHistory')}
                   </button>
                 )}
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${viewTab === 'chat' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setViewTab('chat')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: viewTab === 'chat' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: viewTab === 'chat' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {t('workOrders.chatTab', { defaultValue: 'Chat' })}
+                </button>
               </div>
             </div>
 
@@ -1948,6 +1967,14 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate }: V
                           </div>
                         )}
                       </div>
+                    </div>
+                  );
+                }
+
+                if (viewTab === 'chat') {
+                  return (
+                    <div style={{ paddingTop: '0.25rem' }}>
+                      <WorkOrderChat workOrderId={selectedWO.id} />
                     </div>
                   );
                 }

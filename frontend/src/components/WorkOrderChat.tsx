@@ -110,7 +110,7 @@ export function WorkOrderChat({ workOrderId }: WorkOrderChatProps) {
   // ─── Initial Load ───────────────────────────────────────
 
   useEffect(() => {
-    if (!user || user.role === 'SUPER_ADMIN') return;
+    if (!user) return;
     fetchConversation();
   }, [user, fetchConversation]);
 
@@ -128,7 +128,7 @@ export function WorkOrderChat({ workOrderId }: WorkOrderChatProps) {
 
   // Refetch on socket reconnect
   useEffect(() => {
-    if (isConnected && user && user.role !== 'SUPER_ADMIN') {
+    if (isConnected && user) {
       fetchConversation();
     }
   }, [isConnected]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -9,7 +9,7 @@ interface QRLabelModalProps {
   workOrder: {
     folioNumber: string;
     boxNumber?: string | null;
-    patient: string;
+    patient?: string | null;
     doctor?: { name: string } | null;
     qrToken: string;
   } | null;
@@ -114,7 +114,7 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
             {/* General Info */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.25rem' }}>
               <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>{t('workOrders.patientName')}</div>
-              <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#000000' }}>{workOrder.patient}</div>
+              <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#000000' }}>{workOrder.patient || '—'}</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.5rem' }}>

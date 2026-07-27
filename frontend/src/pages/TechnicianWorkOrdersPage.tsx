@@ -32,7 +32,7 @@ import {
   type TechnicianWorkOrderListItem,
   type TechnicianProcessItem,
 } from '../services';
-import { QRLabelModal } from '../components';
+import { QRLabelModal, WorkOrderChat } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
 import { NoteHistoryThread } from '../components/NoteHistoryThread';
 
@@ -218,7 +218,7 @@ export function TechnicianWorkOrdersPage() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrWO, setQrWO] = useState<any>(null);
 
-  const [detailTab, setDetailTab] = useState<'general' | 'process'>('general');
+  const [detailTab, setDetailTab] = useState<'general' | 'process' | 'chat'>('general');
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
   const handleAddNote = async (content: string) => {
@@ -590,7 +590,8 @@ export function TechnicianWorkOrdersPage() {
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/work-orders/${wo.id}`);
+                            setSelectedOrder(wo);
+                            setDetailTab('chat');
                           }}
                           title={t('workOrderChat.title')}
                         >
@@ -802,6 +803,23 @@ export function TechnicianWorkOrdersPage() {
                   }}
                 >
                   {t('workOrder.processAndAudit')}
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab-btn ${detailTab === 'chat' ? 'modal-tab-btn--active' : ''}`}
+                  onClick={() => setDetailTab('chat')}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderBottom: detailTab === 'chat' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: detailTab === 'chat' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {t('workOrders.chatTab', { defaultValue: 'Chat' })}
                 </button>
               </div>
             </div>
@@ -1316,6 +1334,11 @@ export function TechnicianWorkOrdersPage() {
                     );
                   })()}
                 </>
+              )}
+              {detailTab === 'chat' && (
+                <div style={{ paddingTop: '0.25rem' }}>
+                  <WorkOrderChat workOrderId={selectedOrder.id} />
+                </div>
               )}
             </div>
           </div>

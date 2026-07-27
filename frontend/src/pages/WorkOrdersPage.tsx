@@ -155,6 +155,7 @@ export function WorkOrdersPage() {
   // View modal
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedWO, setSelectedWO] = useState<WorkOrderListItem | null>(null);
+  const [viewModalInitialTab, setViewModalInitialTab] = useState<'general' | 'chat'>('general');
 
   useEffect(() => {
     const selectWoId = searchParams.get('selectWo');
@@ -784,6 +785,7 @@ export function WorkOrdersPage() {
   // ─── View ────────────────────────────
   const handleViewOpen = (wo: WorkOrderListItem) => {
     setSelectedWO(wo);
+    setViewModalInitialTab('general');
     setShowViewModal(true);
   };
 
@@ -1227,7 +1229,11 @@ export function WorkOrdersPage() {
                         <button
                           className="btn-action"
                           style={{ color: '#8B5CF6', backgroundColor: '#F5F3FF', position: 'relative' }}
-                          onClick={() => navigate(`/work-orders/${wo.id}?chatOnly=true`)}
+                          onClick={() => {
+                            setSelectedWO(wo);
+                            setViewModalInitialTab('chat');
+                            setShowViewModal(true);
+                          }}
                           title={t('workOrderChat.title')}
                         >
                           <MessageCircle size={15} />
@@ -2096,6 +2102,7 @@ export function WorkOrdersPage() {
         isOpen={showViewModal}
         onClose={() => setShowViewModal(false)}
         workOrderId={selectedWO?.id || null}
+        initialTab={viewModalInitialTab}
         onUpdate={(updatedWO) => {
           if (updatedWO) {
             setWorkOrders((prev) =>

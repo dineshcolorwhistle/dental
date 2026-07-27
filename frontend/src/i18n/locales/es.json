@@ -470,6 +470,7 @@
   },
   "workOrders": {
     "title": "Órdenes de Trabajo",
+    "chatTab": "Chat",
     "internal": "Interno",
     "external": "Externo",
     "externalDoctor": "Doctor Externo (desde el Portal de Doctores)",

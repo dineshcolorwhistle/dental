@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
 import {
@@ -12,17 +12,18 @@ import {
   CircleDot,
   Clock,
   PlayCircle,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   X,
   ChevronDown,
   ChevronUp,
+  ArrowLeft,
+  History as HistoryIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService, type WorkOrderListItem } from '../services';
-import { WorkOrderChat } from '../components';
+import { WorkOrderChat, QRLabelModal } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -40,7 +41,7 @@ const parseNotesAndPayments = (notesString: string | null): { userNotes: string 
   if (!notesString) return { userNotes: '' };
   const startTag = '<!-- PAYMENTS_START -->';
   const startIndex = notesString.indexOf(startTag);
-  
+
   if (startIndex !== -1) {
     const userNotes = notesString.substring(0, startIndex).trim();
     return { userNotes };
@@ -151,8 +152,7 @@ export function WorkOrderDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const isOwner = user?.role === 'OWNER';
-  const chatOnly = !isOwner && (searchParams.get('chatOnly') === 'true' || user?.role === 'TECHNICIAN');
+  const chatOnly = searchParams.get('chatOnly') === 'true';
   const [workOrder, setWorkOrder] = useState<WorkOrderListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
@@ -239,24 +239,24 @@ export function WorkOrderDetailPage() {
             <div>
               <h1 className="page-header__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <span>{t('workOrderChat.title')}</span>
-                <span style={{ 
-                  fontSize: '0.85rem', 
-                  fontWeight: 700, 
-                  padding: '4px 10px', 
-                  borderRadius: '6px', 
-                  backgroundColor: 'rgba(111, 174, 217, 0.1)', 
+                <span style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(111, 174, 217, 0.1)',
                   color: 'var(--accent-primary, #6FAED9)',
                   fontFamily: 'monospace',
                   border: '1px solid rgba(111, 174, 217, 0.2)'
                 }}>
                   {t('workOrder.folio')}: {workOrder.folioNumber}
                 </span>
-                <span style={{ 
-                  fontSize: '0.85rem', 
-                  fontWeight: 700, 
-                  padding: '4px 10px', 
-                  borderRadius: '6px', 
-                  backgroundColor: 'rgba(148, 163, 184, 0.08)', 
+                <span style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(148, 163, 184, 0.08)',
                   color: 'var(--text-secondary)',
                   border: '1px solid var(--border)'
                 }}>
@@ -299,7 +299,7 @@ export function WorkOrderDetailPage() {
 
   return (
     <div className="work-order-detail-page" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto', padding: '1rem 0' }}>
-      
+
       {/* Page Header */}
       <div className="page-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
         <div className="page-header__left" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -309,12 +309,12 @@ export function WorkOrderDetailPage() {
           <div>
             <h1 className="page-header__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <span>{t('workOrder.details')}</span>
-              <span style={{ 
-                fontSize: '0.85rem', 
-                fontWeight: 700, 
-                padding: '4px 10px', 
-                borderRadius: '6px', 
-                backgroundColor: 'rgba(111, 174, 217, 0.1)', 
+              <span style={{
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                padding: '4px 10px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(111, 174, 217, 0.1)',
                 color: 'var(--accent-primary, #6FAED9)',
                 fontFamily: 'monospace',
                 border: '1px solid rgba(111, 174, 217, 0.2)'
@@ -322,12 +322,12 @@ export function WorkOrderDetailPage() {
                 {t('workOrder.folio')}: {workOrder.folioNumber}
               </span>
               {workOrder.boxNumber && (
-                <span style={{ 
-                  fontSize: '0.85rem', 
-                  fontWeight: 700, 
-                  padding: '4px 10px', 
-                  borderRadius: '6px', 
-                  backgroundColor: 'rgba(148, 163, 184, 0.08)', 
+                <span style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(148, 163, 184, 0.08)',
                   color: 'var(--text-secondary)',
                   border: '1px solid var(--border)'
                 }}>
@@ -338,7 +338,7 @@ export function WorkOrderDetailPage() {
             <p className="page-header__subtitle">{t('workOrder.operationalWorkflowStatus')}</p>
           </div>
         </div>
-        
+
         <div className="page-header__right">
           <button className="btn btn--primary" onClick={() => setIsQrModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Printer size={16} />
@@ -349,7 +349,7 @@ export function WorkOrderDetailPage() {
 
       {/* Grid: Left - General Info, Right - Spec Card */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-        
+
         {/* General Summary Card */}
         <div style={{
           backgroundColor: 'var(--bg-surface)',
@@ -470,7 +470,7 @@ export function WorkOrderDetailPage() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   width: '100%',
                   background: 'none',
                   border: 'none',
@@ -495,8 +495,8 @@ export function WorkOrderDetailPage() {
           </div>
         </div>
 
-        {/* Dedicated Chat Module — hidden for Owner */}
-        {!isOwner && <WorkOrderChat workOrderId={workOrder.id} />}
+        {/* Dedicated Chat Module */}
+        <WorkOrderChat workOrderId={workOrder.id} />
       </div>
 
       {/* Workflow Stepper Progress */}
@@ -530,7 +530,7 @@ export function WorkOrderDetailPage() {
             zIndex: 1,
             borderRadius: '2px'
           }} />
-          
+
           {/* Active Line Fill */}
           {currentStatusIdx > 0 && (
             <div style={{
@@ -638,7 +638,7 @@ export function WorkOrderDetailPage() {
       {/* Total Completed Work Time Metric Section */}
       {(() => {
         const completedProcs = (workOrder.processes || []).filter((p) => p.status === 'COMPLETED');
-        const totalCompletedSeconds = completedProcs.reduce((acc, p) => acc + (p.totalActiveDuration || 0), 0);
+        const totalCompletedSeconds = completedProcs.reduce((acc, p: any) => acc + (p.totalActiveDuration || 0), 0);
         const hours = Math.floor(totalCompletedSeconds / 3600);
         const mins = Math.floor((totalCompletedSeconds % 3600) / 60);
         const timeText = hours > 0
@@ -654,7 +654,7 @@ export function WorkOrderDetailPage() {
             boxShadow: 'var(--shadow-sm)',
             display: 'flex',
             alignItems: 'center',
-            justify: 'space-between',
+            justifyContent: 'space-between',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
               <div style={{
@@ -665,7 +665,7 @@ export function WorkOrderDetailPage() {
                 color: '#10B981',
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'center'
+                justifyContent: 'center'
               }}>
                 <Clock size={22} />
               </div>
@@ -753,7 +753,7 @@ export function WorkOrderDetailPage() {
 
                   let startTimeStr = proc.startedAt ? formatDate(proc.startedAt) : '—';
                   let endTimeStr = proc.endedAt ? formatDate(proc.endedAt) : (stepStatus === 'IN_PROGRESS' ? t('workOrder.running') : stepStatus === 'PAUSED' ? t('enums.processStatus.PAUSED') : '—');
-                  
+
                   let badgeColor = 'var(--text-muted, #64748B)';
                   let badgeBg = 'var(--bg-overlay, rgba(148, 163, 184, 0.08))';
                   let statusLabel = t('enums.processStatus.NOT_STARTED');
@@ -858,10 +858,10 @@ export function WorkOrderDetailPage() {
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                           {proc.isVerification && !proc.technicianId ? (
                             <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                              {workOrder.doctor?.name 
-                                ? (workOrder.doctor.clinicName 
-                                    ? `${workOrder.doctor.name} (${workOrder.doctor.clinicName})` 
-                                    : workOrder.doctor.name) 
+                              {workOrder.doctor?.name
+                                ? (workOrder.doctor.clinicName
+                                  ? `${workOrder.doctor.name} (${workOrder.doctor.clinicName})`
+                                  : workOrder.doctor.name)
                                 : t('dashboard.unassigned')}
                             </span>
                           ) : proc.technician ? (
@@ -872,7 +872,7 @@ export function WorkOrderDetailPage() {
                         </td>
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{startTimeStr}</td>
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{endTimeStr}</td>
-                        
+
                         {/* Time Audit Column */}
                         <td style={{ padding: '0.75rem 1rem' }}>
                           {hasLogs ? (
@@ -893,7 +893,7 @@ export function WorkOrderDetailPage() {
                               }}
                               onClick={() => setExpandedAuditRow(isExpanded ? null : proc.id)}
                             >
-                              <History size={12} />
+                              <HistoryIcon size={12} />
                               <span>{isExpanded ? t('workOrder.hideAudit') : t('workOrder.viewAuditCount', { count: combinedLogs.length })}</span>
                             </button>
                           ) : (
@@ -997,7 +997,7 @@ export function WorkOrderDetailPage() {
           </div>
         )}
       </div>
-      
+
       {/* Printable QR Modal */}
       <QRLabelModal
         isOpen={isQrModalOpen}
