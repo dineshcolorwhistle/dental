@@ -112,7 +112,8 @@
     "deliveryManagement": "Gestión de Entregas",
     "otherConfigurations": "Otras Configuraciones",
     "workTypes": "Tipos de Trabajo",
-    "interestRequests": "Solicitudes de Interés"
+    "interestRequests": "Solicitudes de Interés",
+    "calendar": "Calendario"
   },
   "enums": {
     "workOrderStatus": {
@@ -1507,5 +1508,33 @@
     "notesHeader": "Mensaje / Notas Enviadas",
     "noNotes": "Sin notas proporcionadas.",
     "retry": "Reintentar"
+  },
+  "calendar": {
+    "title": "Calendario de Entregas",
+    "subtitle": "Vista general de órdenes de trabajo programadas por fecha de entrega",
+    "views": {
+      "month": "Mes",
+      "week": "Semana",
+      "day": "Día"
+    },
+    "today": "Hoy",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "searchPlaceholder": "Buscar por folio, paciente, doctor...",
+    "allStatuses": "Todos los Estados",
+    "allDoctors": "Todos los Doctores",
+    "allBranches": "Todas las Sucursales",
+    "noDeliveryDate": "Sin Fecha de Entrega",
+    "ordersScheduled": "{{count}} programada(s)",
+    "noOrdersOnDate": "No hay órdenes de trabajo programadas para esta fecha.",
+    "dayDetailsTitle": "Órdenes de Trabajo para {{date}}",
+    "moreOrders": "+{{count}} más",
+    "legend": "Leyenda de Estado de Entrega",
+    "listView": "Vista de Lista",
+    "calendarView": "Vista de Calendario",
+    "totalDeliveries": "Total Entregas",
+    "pendingDeliveries": "Entregas Pendientes",
+    "completedDeliveries": "Entregas Completadas",
+    "overdueDeliveries": "Entregas Vencidas"
   }
 }

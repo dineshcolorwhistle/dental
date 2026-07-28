@@ -30,6 +30,7 @@ import { GeneralSettingsPage } from './pages/GeneralSettingsPage';
 import { ConnectedClinicsPage } from './pages/ConnectedClinicsPage';
 import { PublicWorkOrderPage } from './pages/PublicWorkOrderPage';
 import { InterestRequestsPage } from './pages/InterestRequestsPage';
+import { CalendarPage } from './pages/CalendarPage';
 
 
 function App() {
@@ -136,6 +137,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <WorkOrdersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <CalendarPage />
                 </ProtectedRoute>
               }
             />

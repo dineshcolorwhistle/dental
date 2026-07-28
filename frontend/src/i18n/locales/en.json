@@ -112,7 +112,8 @@
     "deliveryManagement": "Delivery Management",
     "otherConfigurations": "Other Configurations",
     "workTypes": "Work Types",
-    "interestRequests": "Interest Requests"
+    "interestRequests": "Interest Requests",
+    "calendar": "Calendar"
   },
   "enums": {
     "workOrderStatus": {
@@ -1507,5 +1508,33 @@
     "notesHeader": "Submitted Message / Notes",
     "noNotes": "No notes provided.",
     "retry": "Retry"
+  },
+  "calendar": {
+    "title": "Delivery Calendar",
+    "subtitle": "Overview of Work Orders scheduled by delivery date",
+    "views": {
+      "month": "Month",
+      "week": "Week",
+      "day": "Day"
+    },
+    "today": "Today",
+    "previous": "Previous",
+    "next": "Next",
+    "searchPlaceholder": "Search by folio, patient, doctor...",
+    "allStatuses": "All Statuses",
+    "allDoctors": "All Doctors",
+    "allBranches": "All Branches",
+    "noDeliveryDate": "No Delivery Date",
+    "ordersScheduled": "{{count}} scheduled",
+    "noOrdersOnDate": "No Work Orders scheduled for this date.",
+    "dayDetailsTitle": "Work Orders for {{date}}",
+    "moreOrders": "+{{count}} more",
+    "legend": "Delivery Status Legend",
+    "listView": "List View",
+    "calendarView": "Calendar View",
+    "totalDeliveries": "Total Deliveries",
+    "pendingDeliveries": "Pending Deliveries",
+    "completedDeliveries": "Completed Deliveries",
+    "overdueDeliveries": "Overdue Deliveries"
   }
 }

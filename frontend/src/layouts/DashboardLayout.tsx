@@ -21,6 +21,7 @@ import {
   Sparkles,
   GitMerge,
   ClipboardList,
+  Calendar,
   PlusCircle,
   Check,
   Trash2,
@@ -395,6 +396,18 @@ export function DashboardLayout() {
               >
                 <ClipboardList size={20} />
                 <span>{t('navigation.workOrders')}</span>
+              </NavLink>
+
+              <NavLink
+                to="/calendar"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.calendar')}
+              >
+                <Calendar size={20} />
+                <span>{t('navigation.calendar')}</span>
               </NavLink>
 
               <NavLink

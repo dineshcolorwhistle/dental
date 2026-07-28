@@ -24,6 +24,7 @@ import {
   Lock,
   QrCode,
   MessageCircle,
+  Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -939,16 +940,26 @@ export function WorkOrdersPage() {
           <h1 className="page-header__title">{t('workOrders.title', { defaultValue: 'Work Orders' })}</h1>
           <p className="page-header__subtitle">{t('workOrders.subtitle', { defaultValue: 'Manage dental lab work orders and workflows' })}</p>
         </div>
-        {canCreate && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
-            id="btn-add-work-order"
-            className="btn btn--primary"
-            onClick={handleCreateOpen}
+            className="btn btn-outline"
+            onClick={() => navigate('/calendar')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <Plus size={18} />
-            <span>{t('workOrders.newWorkOrder', { defaultValue: 'New Work Order' })}</span>
+            <Calendar size={18} />
+            <span>{t('calendar.calendarView', { defaultValue: 'Calendar View' })}</span>
           </button>
-        )}
+          {canCreate && (
+            <button
+              id="btn-add-work-order"
+              className="btn btn--primary"
+              onClick={handleCreateOpen}
+            >
+              <Plus size={18} />
+              <span>{t('workOrders.newWorkOrder', { defaultValue: 'New Work Order' })}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
