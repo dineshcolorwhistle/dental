@@ -23,7 +23,9 @@
     "db:push": "npx prisma db push",
     "db:studio": "npx prisma studio",
     "vapid:generate": "web-push generate-vapid-keys",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run typecheck && npm run lint"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
