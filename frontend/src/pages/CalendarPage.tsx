@@ -876,7 +876,7 @@ export function CalendarPage() {
                       borderLeft: `4px solid ${config.color}`,
                       cursor: 'pointer',
                       display: 'flex',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       transition: 'transform 0.12s ease',
                     }}
