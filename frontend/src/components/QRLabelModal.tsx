@@ -1,7 +1,8 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { X } from 'lucide-react';
+import { X, Printer, Download } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context';
 
 interface QRLabelModalProps {
   isOpen: boolean;
@@ -17,10 +18,11 @@ interface QRLabelModalProps {
 
 export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
     if (isOpen) {
-      // Add a class to body when open for custom styles
       document.body.classList.add('qr-modal-open');
     } else {
       document.body.classList.remove('qr-modal-open');
@@ -34,6 +36,105 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
 
   const qrValue = `${window.location.origin}/qr/${workOrder.qrToken}`;
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownload = () => {
+    const labelContainer = document.getElementById('printable-qr-label');
+    const svgElement = labelContainer?.querySelector('svg');
+    if (!svgElement || !workOrder) return;
+
+    // Convert SVG to data URL
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = () => {
+      const hasBox = Boolean(workOrder.boxNumber);
+      const canvasWidth = 400;
+      const canvasHeight = hasBox ? 440 : 410;
+      const scale = 2;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasWidth * scale;
+      canvas.height = canvasHeight * scale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.scale(scale, scale);
+
+      // Background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      // Outer border
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(12, 12, canvasWidth - 24, canvasHeight - 24);
+
+      // Title - Line 1: WO Folio
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`WO #${workOrder.folioNumber}`, canvasWidth / 2, 48);
+
+      let currentY = 48;
+
+      // Line 2: Box Number (if present)
+      if (hasBox) {
+        currentY += 28;
+        ctx.fillStyle = '#D97706';
+        ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
+        const boxText = `(${t('workOrders.boxNumber', { defaultValue: 'Box' })}: ${workOrder.boxNumber})`;
+        ctx.fillText(boxText, canvasWidth / 2, currentY);
+      }
+
+      // Divider line
+      currentY += 16;
+      ctx.strokeStyle = '#cccccc';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(30, currentY);
+      ctx.lineTo(canvasWidth - 30, currentY);
+      ctx.stroke();
+
+      // Doctor Info
+      currentY += 26;
+      ctx.fillStyle = '#666666';
+      ctx.font = '500 14px system-ui, -apple-system, sans-serif';
+      ctx.fillText(t('doctors.doctorName'), canvasWidth / 2, currentY);
+
+      currentY += 22;
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+      ctx.fillText(workOrder.doctor?.name || '—', canvasWidth / 2, currentY);
+
+      // QR Image container & graphic
+      currentY += 18;
+      const qrBoxSize = 210;
+      const qrBoxX = (canvasWidth - qrBoxSize) / 2;
+
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(qrBoxX, currentY, qrBoxSize, qrBoxSize);
+      ctx.drawImage(img, qrBoxX + 10, currentY + 10, qrBoxSize - 20, qrBoxSize - 20);
+
+      URL.revokeObjectURL(url);
+
+      // Trigger PNG download
+      const pngUrl = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.href = pngUrl;
+      downloadLink.download = `WO-${workOrder.folioNumber}-QR.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    };
+    img.src = url;
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
       <div
@@ -42,16 +143,115 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="modal__header" style={{ padding: '1.25rem', borderBottom: '1px solid var(--border)' }}>
-          <h3 className="modal__title" style={{ margin: 0 }}>{t('workOrders.printQR')}</h3>
-          <button
-            className="modal__close"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            style={{ top: '1.25rem', right: '1.25rem' }}
-          >
-            <X size={18} />
-          </button>
+        <div
+          className="modal__header"
+          style={{
+            padding: '1.25rem 1.5rem',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <h3 className="modal__title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>
+            {t('workOrders.qrCode')}
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {isAdmin && (
+              <>
+                {/* Professional Download Icon Button */}
+                <button
+                  type="button"
+                  className="modal__icon-btn"
+                  onClick={handleDownload}
+                  data-tooltip-bottom={t('workOrders.downloadQR', { defaultValue: 'Download PNG' })}
+                  aria-label={t('workOrders.downloadQR', { defaultValue: 'Download PNG' })}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '36px',
+                    height: '36px',
+                    padding: '0',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border, #e2e8f0)',
+                    backgroundColor: 'var(--bg-surface, #ffffff)',
+                    color: 'var(--text-secondary, #475569)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--primary-light, #f0f9ff)';
+                    e.currentTarget.style.color = 'var(--primary, #0284c7)';
+                    e.currentTarget.style.borderColor = 'var(--primary, #0284c7)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--bg-surface, #ffffff)';
+                    e.currentTarget.style.color = 'var(--text-secondary, #475569)';
+                    e.currentTarget.style.borderColor = 'var(--border, #e2e8f0)';
+                  }}
+                >
+                  <Download size={18} />
+                </button>
+
+                {/* Professional Print Icon Button */}
+                <button
+                  type="button"
+                  className="modal__icon-btn"
+                  onClick={handlePrint}
+                  data-tooltip-bottom={t('workOrders.printQR', { defaultValue: 'Print QR Label' })}
+                  aria-label={t('workOrders.printQR', { defaultValue: 'Print QR Label' })}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '36px',
+                    height: '36px',
+                    padding: '0',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border, #e2e8f0)',
+                    backgroundColor: 'var(--bg-surface, #ffffff)',
+                    color: 'var(--text-secondary, #475569)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--primary-light, #f0f9ff)';
+                    e.currentTarget.style.color = 'var(--primary, #0284c7)';
+                    e.currentTarget.style.borderColor = 'var(--primary, #0284c7)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--bg-surface, #ffffff)';
+                    e.currentTarget.style.color = 'var(--text-secondary, #475569)';
+                    e.currentTarget.style.borderColor = 'var(--border, #e2e8f0)';
+                  }}
+                >
+                  <Printer size={18} />
+                </button>
+              </>
+            )}
+
+            {/* Modal Close Button */}
+            <button
+              type="button"
+              className="modal__close"
+              onClick={onClose}
+              data-tooltip-bottom={t('common.close')}
+              aria-label={t('common.close')}
+              style={{
+                position: 'static',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '36px',
+                height: '36px',
+                padding: '0',
+                borderRadius: '8px',
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body / Label Preview */}
@@ -81,42 +281,42 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
               flexDirection: 'column',
               alignItems: 'center',
               boxShadow: 'var(--shadow-md)',
-              color: '#000000', // Always black text for printing
+              color: '#000000',
               fontFamily: 'system-ui, -apple-system, sans-serif',
               textAlign: 'center',
             }}
           >
-            {/* Header Folio & Box Number */}
+            {/* Header Folio & Box Number (Two line layout) */}
             <div
               style={{
-                fontSize: '1.35rem',
-                fontWeight: 800,
-                letterSpacing: '0.03em',
+                width: '100%',
                 marginBottom: '1rem',
                 borderBottom: '1px dashed #cccccc',
-                width: '100%',
-                paddingBottom: '0.5rem',
+                paddingBottom: '0.75rem',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
-                flexWrap: 'wrap',
-                gap: '6px',
+                gap: '4px',
               }}
             >
-              <span>WO #{workOrder.folioNumber}</span>
+              <div
+                style={{
+                  fontSize: '1.35rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.03em',
+                  color: '#000000',
+                }}
+              >
+                WO #{workOrder.folioNumber}
+              </div>
               {workOrder.boxNumber && (
-                <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#D97706' }}>
+                <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#D97706' }}>
                   ({t('workOrders.boxNumber', { defaultValue: 'Box' })}: {workOrder.boxNumber})
-                </span>
+                </div>
               )}
             </div>
 
-            {/* General Info */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.25rem' }}>
-              <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>{t('workOrders.patientName')}</div>
-              <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#000000' }}>{workOrder.patient || '—'}</div>
-            </div>
-
+            {/* Doctor Info (Patient Name Removed) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>{t('doctors.doctorName')}</div>
               <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#000000' }}>
@@ -140,19 +340,19 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
           </div>
         </div>
 
-        {/* Modal Footer / Print Action */}
+        {/* Modal Footer */}
         <div
           className="modal__footer"
           style={{
-            padding: '1rem 1.25rem',
+            padding: '0.875rem 1.25rem',
             borderTop: '1px solid var(--border)',
             display: 'flex',
             justifyContent: 'flex-end',
-            gap: '0.75rem',
+            alignItems: 'center',
           }}
         >
           <button className="btn btn--outline" onClick={onClose}>
-            {t('common.cancel')}
+            {t('common.close')}
           </button>
         </div>
       </div>
