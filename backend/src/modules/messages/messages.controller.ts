@@ -9,7 +9,6 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
@@ -32,9 +31,7 @@ export class MessagesController {
 
   @Get('contacts')
   @ApiOperation({ summary: 'List contactable users (role-based visibility)' })
-  async getContacts(
-    @CurrentUser() user: any,
-  ) {
+  async getContacts(@CurrentUser() user: any) {
     return this.messagesService.getContacts({
       id: user.id,
       tenantId: user.tenantId,
@@ -44,10 +41,10 @@ export class MessagesController {
   }
 
   @Get('conversations')
-  @ApiOperation({ summary: 'List user conversations with last message & unread count' })
-  async getConversations(
-    @CurrentUser() user: any,
-  ) {
+  @ApiOperation({
+    summary: 'List user conversations with last message & unread count',
+  })
+  async getConversations(@CurrentUser() user: any) {
     return this.messagesService.getConversations({
       id: user.id,
       tenantId: user.tenantId,
@@ -77,10 +74,7 @@ export class MessagesController {
   @Post('conversations/group')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new group conversation' })
-  async createGroup(
-    @CurrentUser() user: any,
-    @Body() dto: CreateGroupDto,
-  ) {
+  async createGroup(@CurrentUser() user: any, @Body() dto: CreateGroupDto) {
     return this.messagesService.createGroup(
       {
         id: user.id,
@@ -246,9 +240,7 @@ export class MessagesController {
 
   @Get('unread-count')
   @ApiOperation({ summary: 'Get total unread message count' })
-  async getUnreadCount(
-    @CurrentUser() user: any,
-  ) {
+  async getUnreadCount(@CurrentUser() user: any) {
     return this.messagesService.getUnreadCount({
       id: user.id,
       tenantId: user.tenantId,
@@ -258,10 +250,11 @@ export class MessagesController {
   }
 
   @Get('work-orders/unread-counts')
-  @ApiOperation({ summary: 'Get unread chat counts for all dedicated Work Order conversations' })
-  async getWorkOrderUnreadCounts(
-    @CurrentUser() user: any,
-  ) {
+  @ApiOperation({
+    summary:
+      'Get unread chat counts for all dedicated Work Order conversations',
+  })
+  async getWorkOrderUnreadCounts(@CurrentUser() user: any) {
     return this.messagesService.getWorkOrderUnreadCounts({
       id: user.id,
       tenantId: user.tenantId,
@@ -271,7 +264,9 @@ export class MessagesController {
   }
 
   @Get('work-orders/:workOrderId')
-  @ApiOperation({ summary: 'Get or create a dedicated Work Order conversation' })
+  @ApiOperation({
+    summary: 'Get or create a dedicated Work Order conversation',
+  })
   async getWorkOrderConversation(
     @CurrentUser() user: any,
     @Param('workOrderId') workOrderId: string,

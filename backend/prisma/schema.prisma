@@ -62,6 +62,11 @@ enum InterestRequestStatus {
   DISCARDED
 }
 
+enum WhatsAppTemplateStatus {
+  ACTIVE
+  INACTIVE
+}
+
 
 // ─── Tenant ──────────────────────────────────────────────
 
@@ -99,6 +104,7 @@ model Tenant {
   apiKeys           ApiKey[]
   conversations     Conversation[]
   interestRequests  InterestRequest[]
+  whatsAppTemplates WhatsAppTemplate[]
 
   @@map("tenants")
 }
@@ -756,4 +762,23 @@ model InterestRequest {
   workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
 
   @@map("interest_requests")
+}
+
+// ─── WhatsApp Template ────────────────────────────────────
+
+model WhatsAppTemplate {
+  id           String                 @id @default(uuid())
+  tenantId     String                 @map("tenant_id")
+  name         String
+  triggerEvent String?                @map("trigger_event")
+  message      String
+  status       WhatsAppTemplateStatus @default(ACTIVE)
+  placeholders Json                   @default("[]")
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_templates")
 }

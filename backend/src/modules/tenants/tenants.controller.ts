@@ -25,7 +25,9 @@ export class TenantsController {
 
   @Get('my/profile')
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get current tenant profile details (for settings)' })
+  @ApiOperation({
+    summary: 'Get current tenant profile details (for settings)',
+  })
   async getMyProfile(@CurrentUser('tenantId') tenantId: string) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');

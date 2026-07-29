@@ -33,6 +33,7 @@ import {
   Layers,
   Truck,
   Sliders,
+  MessageSquare,
   Heart,
   Volume2,
   VolumeX,
@@ -100,7 +101,8 @@ export function DashboardLayout() {
     '/processes',
     '/process-areas',
     '/settings/general',
-    '/settings/delivery'
+    '/settings/delivery',
+    '/settings/whatsapp-templates'
   ].some(path => location.pathname.startsWith(path));
 
   const isUsersRoute = [
@@ -630,6 +632,21 @@ export function DashboardLayout() {
                       <Sliders size={16} />
                       <span>{t('navigation.otherConfigurations')}</span>
                     </NavLink>
+
+                    {/* WhatsApp Templates — Lab Admin only */}
+                    {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                      <NavLink
+                        to="/settings/whatsapp-templates"
+                        className={({ isActive }) =>
+                          `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                        }
+                        onClick={() => setSidebarOpen(false)}
+                        data-tooltip={t('navigation.whatsappTemplates')}
+                      >
+                        <MessageSquare size={16} />
+                        <span>{t('navigation.whatsappTemplates')}</span>
+                      </NavLink>
+                    )}
                   </div>
                 )}
               </div>

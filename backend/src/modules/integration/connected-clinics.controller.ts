@@ -1,4 +1,4 @@
-import { Controller, Get, Req, BadRequestException } from '@nestjs/common';
+import { Controller, Get, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles, CurrentUser } from '../../common/decorators';

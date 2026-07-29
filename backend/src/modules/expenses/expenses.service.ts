@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateExpenseCategoryDto, CreateExpenseDto } from './dto';
 
@@ -39,7 +44,11 @@ export class ExpensesService {
     });
   }
 
-  async updateCategory(tenantId: string, id: string, dto: CreateExpenseCategoryDto) {
+  async updateCategory(
+    tenantId: string,
+    id: string,
+    dto: CreateExpenseCategoryDto,
+  ) {
     const { name, description } = dto;
 
     const category = await this.prisma.expenseCategory.findFirst({
@@ -84,7 +93,9 @@ export class ExpensesService {
     });
 
     if (inUse > 0) {
-      throw new BadRequestException('Cannot delete category because it is in use by expenses.');
+      throw new BadRequestException(
+        'Cannot delete category because it is in use by expenses.',
+      );
     }
 
     return this.prisma.expenseCategory.delete({
@@ -100,13 +111,23 @@ export class ExpensesService {
     userRole: string,
     dto: CreateExpenseDto,
   ) {
-    const { title, description, amount, date, paymentMethod, categoryId, branchId } = dto;
+    const {
+      title,
+      description,
+      amount,
+      date,
+      paymentMethod,
+      categoryId,
+      branchId,
+    } = dto;
 
     // Resolve and enforce branch ID based on role
     let finalBranchId = branchId;
     if (userRole === 'ADMIN') {
       if (!branchIdContext) {
-        throw new BadRequestException('Branch context is required for administrators.');
+        throw new BadRequestException(
+          'Branch context is required for administrators.',
+        );
       }
       finalBranchId = branchIdContext;
     }
@@ -170,19 +191,24 @@ export class ExpensesService {
     return this.prisma.expense.findMany({
       where: {
         tenantId,
-        ...(finalBranchId && finalBranchId !== 'ALL' && { branchId: finalBranchId }),
-        ...(filters.categoryId && filters.categoryId !== 'ALL' && { categoryId: filters.categoryId }),
-        ...(filters.startDate && filters.endDate && {
-          date: {
-            gte: new Date(filters.startDate),
-            lte: new Date(filters.endDate),
-          },
-        }),
+        ...(finalBranchId &&
+          finalBranchId !== 'ALL' && { branchId: finalBranchId }),
+        ...(filters.categoryId &&
+          filters.categoryId !== 'ALL' && { categoryId: filters.categoryId }),
+        ...(filters.startDate &&
+          filters.endDate && {
+            date: {
+              gte: new Date(filters.startDate),
+              lte: new Date(filters.endDate),
+            },
+          }),
         ...(filters.search && {
           OR: [
             { title: { contains: filters.search, mode: 'insensitive' } },
             { description: { contains: filters.search, mode: 'insensitive' } },
-            { paymentMethod: { contains: filters.search, mode: 'insensitive' } },
+            {
+              paymentMethod: { contains: filters.search, mode: 'insensitive' },
+            },
           ],
         }),
       },
@@ -196,7 +222,11 @@ export class ExpensesService {
     });
   }
 
-  async findOneExpense(tenantId: string, id: string, branchIdContext?: string | null) {
+  async findOneExpense(
+    tenantId: string,
+    id: string,
+    branchIdContext?: string | null,
+  ) {
     const expense = await this.prisma.expense.findFirst({
       where: {
         id,
@@ -225,13 +255,23 @@ export class ExpensesService {
     userRole: string,
     dto: CreateExpenseDto,
   ) {
-    const { title, description, amount, date, paymentMethod, categoryId, branchId } = dto;
+    const {
+      title,
+      description,
+      amount,
+      date,
+      paymentMethod,
+      categoryId,
+      branchId,
+    } = dto;
 
     // Enforce branch context if ADMIN
     let finalBranchId = branchId;
     if (userRole === 'ADMIN') {
       if (!branchIdContext) {
-        throw new BadRequestException('Branch context is required for administrators.');
+        throw new BadRequestException(
+          'Branch context is required for administrators.',
+        );
       }
       finalBranchId = branchIdContext;
     }

@@ -6,7 +6,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateInventoryDto, UpdateInventoryDto, CreateCategoryDto } from './dto';
+import {
+  CreateInventoryDto,
+  UpdateInventoryDto,
+  CreateCategoryDto,
+} from './dto';
 
 @Injectable()
 export class InventoryService {
@@ -99,7 +103,9 @@ export class InventoryService {
     });
 
     if (inUse > 0) {
-      throw new BadRequestException('Cannot delete category because it is in use by inventory items.');
+      throw new BadRequestException(
+        'Cannot delete category because it is in use by inventory items.',
+      );
     }
 
     return this.prisma.inventoryCategory.delete({
@@ -134,7 +140,9 @@ export class InventoryService {
     let finalBranchId = branchId;
     if (userRole === 'ADMIN') {
       if (!branchIdContext) {
-        throw new BadRequestException('Branch context is required for administrators.');
+        throw new BadRequestException(
+          'Branch context is required for administrators.',
+        );
       }
       finalBranchId = branchIdContext;
     }
@@ -144,7 +152,9 @@ export class InventoryService {
       where: { id: categoryId, tenantId },
     });
     if (!category) {
-      throw new NotFoundException(`Category with ID "${categoryId}" not found.`);
+      throw new NotFoundException(
+        `Category with ID "${categoryId}" not found.`,
+      );
     }
 
     // Verify branch belongs to tenant
@@ -153,7 +163,9 @@ export class InventoryService {
         where: { id: finalBranchId, tenantId },
       });
       if (!branch) {
-        throw new NotFoundException(`Branch with ID "${finalBranchId}" not found in your organization.`);
+        throw new NotFoundException(
+          `Branch with ID "${finalBranchId}" not found in your organization.`,
+        );
       }
     }
 
@@ -167,7 +179,9 @@ export class InventoryService {
     });
 
     if (existingSku) {
-      throw new ConflictException(`An inventory item with SKU "${sku}" already exists in the selected branch.`);
+      throw new ConflictException(
+        `An inventory item with SKU "${sku}" already exists in the selected branch.`,
+      );
     }
 
     return this.prisma.inventoryItem.create({
@@ -216,8 +230,7 @@ export class InventoryService {
           finalBranchIdFilter !== 'ALL' && { branchId: finalBranchIdFilter }),
         ...(categoryIdFilter &&
           categoryIdFilter !== 'ALL' && { categoryId: categoryIdFilter }),
-        ...(statusFilter &&
-          statusFilter !== 'ALL' && { status: statusFilter }),
+        ...(statusFilter && statusFilter !== 'ALL' && { status: statusFilter }),
       },
       include: {
         category: true,
@@ -229,7 +242,11 @@ export class InventoryService {
     });
   }
 
-  async findOneItem(tenantId: string, id: string, branchIdContext?: string | null) {
+  async findOneItem(
+    tenantId: string,
+    id: string,
+    branchIdContext?: string | null,
+  ) {
     const item = await this.prisma.inventoryItem.findFirst({
       where: {
         id,
@@ -259,7 +276,11 @@ export class InventoryService {
     dto: UpdateInventoryDto,
   ) {
     // Ensure item exists & user has access
-    const item = await this.findOneItem(tenantId, id, userRole === 'ADMIN' ? branchIdContext : null);
+    const item = await this.findOneItem(
+      tenantId,
+      id,
+      userRole === 'ADMIN' ? branchIdContext : null,
+    );
 
     const {
       name,
@@ -313,7 +334,9 @@ export class InventoryService {
       });
 
       if (existingSku) {
-        throw new ConflictException(`An inventory item with SKU "${sku}" already exists in the selected branch.`);
+        throw new ConflictException(
+          `An inventory item with SKU "${sku}" already exists in the selected branch.`,
+        );
       }
     }
 
@@ -329,9 +352,12 @@ export class InventoryService {
         ...(unitPrice !== undefined && { unitPrice }),
         ...(brand !== undefined && { brand }),
         ...(supplier !== undefined && { supplier }),
-        ...(expiryDate !== undefined && { expiryDate: expiryDate ? new Date(expiryDate) : null }),
+        ...(expiryDate !== undefined && {
+          expiryDate: expiryDate ? new Date(expiryDate) : null,
+        }),
         ...(description !== undefined && { description }),
-        ...(userRole !== 'ADMIN' && branchId !== undefined && { branchId: finalBranchId }),
+        ...(userRole !== 'ADMIN' &&
+          branchId !== undefined && { branchId: finalBranchId }),
       },
       include: {
         category: true,
@@ -342,7 +368,11 @@ export class InventoryService {
     });
   }
 
-  async removeItem(tenantId: string, id: string, branchIdContext?: string | null) {
+  async removeItem(
+    tenantId: string,
+    id: string,
+    branchIdContext?: string | null,
+  ) {
     const item = await this.findOneItem(tenantId, id, branchIdContext);
     return this.prisma.inventoryItem.delete({
       where: { id: item.id },

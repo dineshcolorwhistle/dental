@@ -1,2 +1,4 @@
-export { CreateInterestRequestDto, InterestRequestStatus } from './create-interest-request.dto';
-
+export {
+  CreateInterestRequestDto,
+  InterestRequestStatus,
+} from './create-interest-request.dto';

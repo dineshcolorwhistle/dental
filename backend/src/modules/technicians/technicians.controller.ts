@@ -70,7 +70,11 @@ export class TechniciansController {
     }
 
     // For owner, use query filter if provided
-    return this.techniciansService.findAll(tenantId, branchIdFilter, shouldIncludeAdmins);
+    return this.techniciansService.findAll(
+      tenantId,
+      branchIdFilter,
+      shouldIncludeAdmins,
+    );
   }
 
   @Get(':id')

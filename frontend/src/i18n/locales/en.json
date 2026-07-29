@@ -111,6 +111,7 @@
     "users": "Users",
     "deliveryManagement": "Delivery Management",
     "otherConfigurations": "Other Configurations",
+    "whatsappTemplates": "WhatsApp Templates",
     "workTypes": "Work Types",
     "interestRequests": "Interest Requests",
     "calendar": "Calendar"
@@ -1536,5 +1537,25 @@
     "pendingDeliveries": "Pending Deliveries",
     "completedDeliveries": "Completed Deliveries",
     "overdueDeliveries": "Overdue Deliveries"
+  },
+  "whatsappTemplates": {
+    "title": "Manage WhatsApp Templates",
+    "subtitle": "Configure message templates for automated and trigger-based doctor notifications",
+    "editTemplate": "Edit Template",
+    "createTemplate": "Create New Template",
+    "viewAllTemplates": "View all templates",
+    "templateName": "Template Name",
+    "status": "Status",
+    "message": "Message",
+    "placeholdersLabel": "Placeholders:",
+    "insertPlaceholderHint": "Click any tag to insert into message",
+    "updateTemplate": "Update Template",
+    "cancel": "Cancel",
+    "active": "Active",
+    "inactive": "Inactive",
+    "loadError": "Failed to load WhatsApp templates",
+    "saveSuccess": "WhatsApp template updated successfully!",
+    "saveError": "Failed to save WhatsApp template",
+    "createSuccess": "WhatsApp template created successfully!"
   }
 }

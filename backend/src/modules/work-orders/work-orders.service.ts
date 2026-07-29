@@ -102,15 +102,19 @@ export class WorkOrdersService implements OnModuleInit {
       // 2. For Integrated Doctors: Notify via Clinic Portal HTTP POST call
       const clinicUrl = doctor.clinic!.url;
       const notificationUrl = `${clinicUrl}/api/integration/notifications`;
-      
-      this.logger.log(`Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`);
-      
-      const apiKeyRecord = workOrder.branchId ? await this.prisma.apiKey.findFirst({
-        where: {
-          branchId: workOrder.branchId,
-          isActive: true,
-        },
-      }) : null;
+
+      this.logger.log(
+        `Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`,
+      );
+
+      const apiKeyRecord = workOrder.branchId
+        ? await this.prisma.apiKey.findFirst({
+            where: {
+              branchId: workOrder.branchId,
+              isActive: true,
+            },
+          })
+        : null;
       const apiKey = apiKeyRecord ? apiKeyRecord.key : '';
 
       try {
@@ -135,12 +139,16 @@ export class WorkOrdersService implements OnModuleInit {
         });
 
         if (!response.ok) {
-          this.logger.error(`Failed to notify clinic: ${response.status} - ${response.statusText}`);
+          this.logger.error(
+            `Failed to notify clinic: ${response.status} - ${response.statusText}`,
+          );
         } else {
           this.logger.log(`Successfully notified clinic at ${notificationUrl}`);
         }
       } catch (err: any) {
-        this.logger.error(`Error sending notification to clinic at ${notificationUrl}: ${err.message}`);
+        this.logger.error(
+          `Error sending notification to clinic at ${notificationUrl}: ${err.message}`,
+        );
       }
     } else {
       // 3. For Local Doctors: Notify all active branch admins
@@ -176,7 +184,6 @@ export class WorkOrdersService implements OnModuleInit {
       }
     }
   }
-
 
   /**
    * Helper to calculate overall Work Order status from underlying processes.
@@ -268,13 +275,25 @@ export class WorkOrdersService implements OnModuleInit {
       select: { id: true, name: true, code: true, defaultAdminId: true },
     },
     createdBy: {
-      select: { id: true, firstName: true, lastName: true, email: true, role: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+      },
     },
     notesList: {
       orderBy: { createdAt: 'asc' as const },
       include: {
         author: {
-          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         },
       },
     },
@@ -468,7 +487,9 @@ export class WorkOrdersService implements OnModuleInit {
         totalQuote: totalQuote ?? 0,
         initialPayment: initialPayment ?? null,
         paymentReferenceNumber: paymentReferenceNumber || null,
-        paymentReferenceNumbers: dto.paymentReferenceNumbers || (paymentReferenceNumber ? [paymentReferenceNumber] : []),
+        paymentReferenceNumbers:
+          dto.paymentReferenceNumbers ||
+          (paymentReferenceNumber ? [paymentReferenceNumber] : []),
         status,
         createdById: userId,
         processes: {
@@ -516,17 +537,21 @@ export class WorkOrdersService implements OnModuleInit {
           entityId: workOrder.id,
           details: {
             userId: firstProcess.technicianId,
-            title: isInternalVerify ? 'Internal Verification Pending Alert' : 'New Work Order Assigned',
+            title: isInternalVerify
+              ? 'Internal Verification Pending Alert'
+              : 'New Work Order Assigned',
             message: isInternalVerify
               ? `Work Order "${workOrder.folioNumber}"${workOrder.boxNumber ? ` (Box: ${workOrder.boxNumber})` : ''} requires internal verification step "${firstProcess.processName}".`
               : `You have been assigned to "${firstProcess.processName}" for work order ${folioNumber} (Patient: ${patient})${boxNumber ? ` (Box: ${boxNumber})` : ''}.`,
           },
         });
       } else if (firstProcess.isVerification && !firstProcess.technicianId) {
-        const doctor = doctorId ? await this.prisma.doctor.findUnique({
-          where: { id: doctorId },
-          include: { clinic: true },
-        }) : null;
+        const doctor = doctorId
+          ? await this.prisma.doctor.findUnique({
+              where: { id: doctorId },
+              include: { clinic: true },
+            })
+          : null;
         const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
 
         if (!isExternal) {
@@ -603,17 +628,13 @@ export class WorkOrdersService implements OnModuleInit {
       `Work order created: ${folioNumber} (${workOrder.id}) for tenant ${tenantId}`,
     );
 
-    this.websocketsGateway.sendToTenant(
-      tenantId,
-      'work_order_created',
-      {
-        id: workOrder.id,
-        folioNumber,
-        patient,
-        status: workOrder.status,
-        branchId: finalBranchId,
-      },
-    );
+    this.websocketsGateway.sendToTenant(tenantId, 'work_order_created', {
+      id: workOrder.id,
+      folioNumber,
+      patient,
+      status: workOrder.status,
+      branchId: finalBranchId,
+    });
 
     this.websocketsGateway.sendToBranch(
       tenantId,
@@ -636,7 +657,9 @@ export class WorkOrdersService implements OnModuleInit {
     statusFilter?: string,
   ) {
     const validStatuses = Object.values(WorkOrderStatus) as string[];
-    const normalizedStatus = statusFilter ? statusFilter.toUpperCase().trim() : undefined;
+    const normalizedStatus = statusFilter
+      ? statusFilter.toUpperCase().trim()
+      : undefined;
     const isStatusValid =
       normalizedStatus &&
       normalizedStatus !== 'ALL' &&
@@ -671,14 +694,31 @@ export class WorkOrdersService implements OnModuleInit {
         list = await this.prisma.workOrder.findMany({
           where,
           include: {
-            doctor: { select: { id: true, name: true, clinicName: true, email: true } },
+            doctor: {
+              select: { id: true, name: true, clinicName: true, email: true },
+            },
             prosthesisType: { select: { id: true, name: true } },
             branch: { select: { id: true, name: true, code: true } },
-            createdBy: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+            createdBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                role: true,
+              },
+            },
             processes: {
               orderBy: { sequence: 'asc' },
               include: {
-                technician: { select: { id: true, firstName: true, lastName: true, email: true } },
+                technician: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
               },
             },
           },
@@ -695,7 +735,10 @@ export class WorkOrdersService implements OnModuleInit {
             orderBy: { createdAt: 'desc' },
           });
         } catch (rawError: any) {
-          this.logger.error(`findAll rawError: ${rawError?.message}`, rawError?.stack);
+          this.logger.error(
+            `findAll rawError: ${rawError?.message}`,
+            rawError?.stack,
+          );
           list = [];
         }
       }
@@ -721,7 +764,9 @@ export class WorkOrdersService implements OnModuleInit {
         include: this.fullInclude,
       });
     } catch (fullErr: any) {
-      this.logger.warn(`findOne fullInclude error: ${fullErr?.message}. Falling back to core include.`);
+      this.logger.warn(
+        `findOne fullInclude error: ${fullErr?.message}. Falling back to core include.`,
+      );
       try {
         workOrder = await this.prisma.workOrder.findFirst({
           where: {
@@ -730,14 +775,31 @@ export class WorkOrdersService implements OnModuleInit {
             ...(branchIdContext && { branchId: branchIdContext }),
           },
           include: {
-            doctor: { select: { id: true, name: true, clinicName: true, email: true } },
+            doctor: {
+              select: { id: true, name: true, clinicName: true, email: true },
+            },
             prosthesisType: { select: { id: true, name: true } },
             branch: { select: { id: true, name: true, code: true } },
-            createdBy: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+            createdBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                role: true,
+              },
+            },
             processes: {
               orderBy: { sequence: 'asc' },
               include: {
-                technician: { select: { id: true, firstName: true, lastName: true, email: true } },
+                technician: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
               },
             },
           },
@@ -760,7 +822,7 @@ export class WorkOrdersService implements OnModuleInit {
 
     // Sanitize financial details for technicians and delivery staff
     if (userRole === 'TECHNICIAN' || userRole === 'DELIVERY') {
-      const sanitized = { ...workOrder } as any;
+      const sanitized = { ...workOrder };
       sanitized.totalQuote = null;
       sanitized.initialPayment = null;
       return this.mapWorkOrder(sanitized);
@@ -938,11 +1000,12 @@ export class WorkOrdersService implements OnModuleInit {
 
         return {
           id: ep?.id || null, // Preserve ID if it exists
-          processName: (p.isVerification || false)
-            ? p.technicianId
-              ? 'Verification (Internal)'
-              : 'Verification (External)'
-            : p.processName,
+          processName:
+            p.isVerification || false
+              ? p.technicianId
+                ? 'Verification (Internal)'
+                : 'Verification (External)'
+              : p.processName,
           technicianId: p.technicianId || null,
           sequence: p.sequence,
           isVerification: p.isVerification || false,
@@ -1086,7 +1149,9 @@ export class WorkOrdersService implements OnModuleInit {
           ...(doctorId && { doctorId }),
           ...(patient !== undefined && { patient: patient || null }),
           ...(boxNumber !== undefined && { boxNumber: boxNumber || null }),
-          ...(dto.fileNumber !== undefined && { fileNumber: dto.fileNumber || null }),
+          ...(dto.fileNumber !== undefined && {
+            fileNumber: dto.fileNumber || null,
+          }),
           ...(prosthesisTypeId && { prosthesisTypeId }),
           ...(specification !== undefined && {
             specification: specification || null,
@@ -1098,8 +1163,12 @@ export class WorkOrdersService implements OnModuleInit {
           }),
           ...(totalQuote !== undefined && { totalQuote }),
           ...(initialPayment !== undefined && { initialPayment }),
-          ...(dto.paymentReferenceNumber !== undefined && { paymentReferenceNumber: dto.paymentReferenceNumber || null }),
-          ...(dto.paymentReferenceNumbers !== undefined && { paymentReferenceNumbers: dto.paymentReferenceNumbers }),
+          ...(dto.paymentReferenceNumber !== undefined && {
+            paymentReferenceNumber: dto.paymentReferenceNumber || null,
+          }),
+          ...(dto.paymentReferenceNumbers !== undefined && {
+            paymentReferenceNumbers: dto.paymentReferenceNumbers,
+          }),
           status: actualFinalStatus,
         },
         include: this.fullInclude,
@@ -1197,7 +1266,9 @@ export class WorkOrdersService implements OnModuleInit {
           entityId: updated.id,
           details: {
             userId: firstProcess.technicianId,
-            title: isInternalVerify ? 'Internal Verification Pending Alert' : 'New Work Order Assigned',
+            title: isInternalVerify
+              ? 'Internal Verification Pending Alert'
+              : 'New Work Order Assigned',
           },
         });
       } else if (
@@ -1205,10 +1276,12 @@ export class WorkOrdersService implements OnModuleInit {
         firstProcess.isVerification &&
         !firstProcess.technicianId
       ) {
-        const doctor = updated.doctorId ? await this.prisma.doctor.findUnique({
-          where: { id: updated.doctorId },
-          include: { clinic: true },
-        }) : null;
+        const doctor = updated.doctorId
+          ? await this.prisma.doctor.findUnique({
+              where: { id: updated.doctorId },
+              include: { clinic: true },
+            })
+          : null;
         const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
 
         if (!isExternal) {
@@ -1272,17 +1345,13 @@ export class WorkOrdersService implements OnModuleInit {
       `Work order updated: ${updated.folioNumber} (${updated.id})`,
     );
 
-    this.websocketsGateway.sendToTenant(
-      tenantId,
-      'work_order_updated',
-      {
-        id: updated.id,
-        folioNumber: updated.folioNumber,
-        patient: updated.patient,
-        status: updated.status,
-        branchId: updated.branchId,
-      },
-    );
+    this.websocketsGateway.sendToTenant(tenantId, 'work_order_updated', {
+      id: updated.id,
+      folioNumber: updated.folioNumber,
+      patient: updated.patient,
+      status: updated.status,
+      branchId: updated.branchId,
+    });
 
     if (updated.branchId) {
       this.websocketsGateway.sendToBranch(
@@ -1375,7 +1444,9 @@ export class WorkOrdersService implements OnModuleInit {
       const alerts = await this.prisma.workOrderProcess.findMany({
         where: {
           isVerification: true,
-          status: { in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS] },
+          status: {
+            in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS],
+          },
           workOrder: {
             tenantId,
             ...(branchIdContext && { branchId: branchIdContext }),
@@ -1389,7 +1460,9 @@ export class WorkOrdersService implements OnModuleInit {
               patient: true,
               status: true,
               doctor: { select: { name: true } },
-              branch: { select: { id: true, name: true, defaultAdminId: true } },
+              branch: {
+                select: { id: true, name: true, defaultAdminId: true },
+              },
               processes: {
                 orderBy: { sequence: 'asc' },
                 select: { sequence: true, status: true },
@@ -1411,8 +1484,12 @@ export class WorkOrdersService implements OnModuleInit {
         if (!a.workOrder) return false;
         if (a.status === ProcessStatus.IN_PROGRESS) return true;
         const sortedProcs = (a.workOrder.processes || []) as any[];
-        const preceding = sortedProcs.filter((p: any) => p.sequence < a.sequence);
-        return preceding.every((p: any) => p.status === ProcessStatus.COMPLETED);
+        const preceding = sortedProcs.filter(
+          (p: any) => p.sequence < a.sequence,
+        );
+        return preceding.every(
+          (p: any) => p.status === ProcessStatus.COMPLETED,
+        );
       });
 
       const verificationAlerts = readyAlerts.map((a) => ({
@@ -1499,7 +1576,9 @@ export class WorkOrdersService implements OnModuleInit {
         if (!p.workOrder) return false;
         if (p.sequence === 0) return true;
         const sortedProcs = (p.workOrder.processes || []) as any[];
-        const prev = sortedProcs.find((sp: any) => sp.sequence === p.sequence - 1);
+        const prev = sortedProcs.find(
+          (sp: any) => sp.sequence === p.sequence - 1,
+        );
         return prev && prev.status === ProcessStatus.COMPLETED;
       });
 
@@ -1660,9 +1739,10 @@ export class WorkOrdersService implements OnModuleInit {
         return {
           id: tech.id,
           name: `${tech.firstName} ${tech.lastName}`,
-          activeStep: activeStep && activeStep.workOrder
-            ? `${activeStep.processName} (${activeStep.workOrder.folioNumber})`
-            : 'Idle',
+          activeStep:
+            activeStep && activeStep.workOrder
+              ? `${activeStep.processName} (${activeStep.workOrder.folioNumber})`
+              : 'Idle',
           completedToday,
           reworkCount,
           reworkDetails,
@@ -1934,7 +2014,9 @@ export class WorkOrdersService implements OnModuleInit {
       Math.round((now.getTime() - startedAt.getTime()) / 1000),
     );
 
-    const adminName = executingAdmin ? `${executingAdmin.firstName} ${executingAdmin.lastName}`.trim() : 'Admin';
+    const adminName = executingAdmin
+      ? `${executingAdmin.firstName} ${executingAdmin.lastName}`.trim()
+      : 'Admin';
     const activityNote = !process.technicianId
       ? `External verification resolved by Admin (${adminName}) with outcome ${outcome}.${(process as any).externalDoctorStatus ? ` Doctor status: ${(process as any).externalDoctorStatus}${(process as any).externalDoctorNotes ? ` (Notes: ${(process as any).externalDoctorNotes})` : ''}` : ''}`
       : outcome === 'REWORK'
@@ -1971,7 +2053,9 @@ export class WorkOrdersService implements OnModuleInit {
       tenantId,
       userId,
       userEmail: executingAdmin?.email || undefined,
-      action: !process.technicianId ? 'VERIFICATION_ADMIN_RESOLVED' : 'VERIFICATION_END',
+      action: !process.technicianId
+        ? 'VERIFICATION_ADMIN_RESOLVED'
+        : 'VERIFICATION_END',
       entityName: 'PROCESS',
       entityId: processId,
       details: {
@@ -2009,90 +2093,92 @@ export class WorkOrdersService implements OnModuleInit {
           where: { workOrderId },
         });
 
-        const processesToRework = allProcs.filter((p) =>
-          targetNames!.includes(p.processName) && !p.isVerification
+        const processesToRework = allProcs.filter(
+          (p) => targetNames.includes(p.processName) && !p.isVerification,
         );
 
-      for (const p of processesToRework) {
-        await this.prisma.workOrderProcess.update({
-          where: { id: p.id },
-          data: {
-            status: ProcessStatus.NOT_STARTED,
-            startedAt: null,
-            endedAt: null,
-            verificationStatus: null,
-            lastPausedAt: null,
-            pauseCount: 0,
-            totalPauseDuration: 0,
-            totalActiveDuration: 0,
-            reworkCount: p.reworkCount + 1,
-            reworkActive: true,
-          },
-        });
+        for (const p of processesToRework) {
+          await this.prisma.workOrderProcess.update({
+            where: { id: p.id },
+            data: {
+              status: ProcessStatus.NOT_STARTED,
+              startedAt: null,
+              endedAt: null,
+              verificationStatus: null,
+              lastPausedAt: null,
+              pauseCount: 0,
+              totalPauseDuration: 0,
+              totalActiveDuration: 0,
+              reworkCount: p.reworkCount + 1,
+              reworkActive: true,
+            },
+          });
 
-        await this.prisma.reworkLog.create({
-          data: {
-            workOrderId,
-            processName: p.processName,
-            reworkCount: p.reworkCount + 1,
-            initiatedById: userId,
-            verificationStage: process.processName,
-            technicianId: p.technicianId || null,
-            status: 'Pending',
-          },
-        });
+          await this.prisma.reworkLog.create({
+            data: {
+              workOrderId,
+              processName: p.processName,
+              reworkCount: p.reworkCount + 1,
+              initiatedById: userId,
+              verificationStage: process.processName,
+              technicianId: p.technicianId || null,
+              status: 'Pending',
+            },
+          });
+
+          await this.auditLogsService.log({
+            tenantId,
+            userId,
+            action: 'PROCESS_REWORK_RESET',
+            entityName: 'PROCESS',
+            entityId: p.id,
+            details: {
+              processName: p.processName,
+              reworkCount: p.reworkCount + 1,
+              verificationStage: process.processName,
+            },
+          });
+        }
+
+        const sortedReworked = [...processesToRework].sort(
+          (a: any, b: any) => a.sequence - b.sequence,
+        );
+        const firstReworked: any = sortedReworked[0];
+        if (firstReworked && firstReworked.technicianId) {
+          await this.notificationsService.create({
+            tenantId,
+            userId: firstReworked.technicianId,
+            title: 'WO Rework Flagged',
+            message: `WO "${process.workOrder.folioNumber}" flagged for rework at step "${firstReworked.processName}".`,
+            type: 'WORK_ORDER',
+            referenceId: workOrderId,
+          });
+
+          await this.auditLogsService.log({
+            tenantId,
+            userId,
+            action: 'NOTIFICATION_TRIGGERED',
+            entityName: 'NOTIFICATION',
+            entityId: workOrderId,
+            details: {
+              userId: firstReworked.technicianId,
+              title: 'Work Order Flagged for Rework',
+            },
+          });
+        }
 
         await this.auditLogsService.log({
           tenantId,
           userId,
-          action: 'PROCESS_REWORK_RESET',
-          entityName: 'PROCESS',
-          entityId: p.id,
-          details: {
-            processName: p.processName,
-            reworkCount: p.reworkCount + 1,
-            verificationStage: process.processName,
-          },
-        });
-      }
-
-      const sortedReworked = [...processesToRework].sort((a: any, b: any) => a.sequence - b.sequence);
-      const firstReworked: any = sortedReworked[0];
-      if (firstReworked && firstReworked.technicianId) {
-        await this.notificationsService.create({
-          tenantId,
-          userId: firstReworked.technicianId,
-          title: 'WO Rework Flagged',
-          message: `WO "${process.workOrder.folioNumber}" flagged for rework at step "${firstReworked.processName}".`,
-          type: 'WORK_ORDER',
-          referenceId: workOrderId,
-        });
-
-        await this.auditLogsService.log({
-          tenantId,
-          userId,
-          action: 'NOTIFICATION_TRIGGERED',
-          entityName: 'NOTIFICATION',
+          action: 'REWORK_TRIGGERED',
+          entityName: 'WORK_ORDER',
           entityId: workOrderId,
           details: {
-            userId: firstReworked.technicianId,
-            title: 'Work Order Flagged for Rework',
+            initiatedBy: userId,
+            verificationStage: process.processName,
+            affectedProcesses: processesToRework.map((p) => p.processName),
           },
         });
-      }
-
-      await this.auditLogsService.log({
-        tenantId,
-        userId,
-        action: 'REWORK_TRIGGERED',
-        entityName: 'WORK_ORDER',
-        entityId: workOrderId,
-        details: {
-          initiatedBy: userId,
-          verificationStage: process.processName,
-          affectedProcesses: processesToRework.map((p) => p.processName),
-        },
-      });
       }
     }
 
@@ -2261,10 +2347,12 @@ export class WorkOrdersService implements OnModuleInit {
       if (nextProcess) {
         if (nextProcess.isVerification) {
           if (!nextProcess.technicianId) {
-            const doctor = process.workOrder.doctorId ? await this.prisma.doctor.findUnique({
-              where: { id: process.workOrder.doctorId },
-              include: { clinic: true },
-            }) : null;
+            const doctor = process.workOrder.doctorId
+              ? await this.prisma.doctor.findUnique({
+                  where: { id: process.workOrder.doctorId },
+                  include: { clinic: true },
+                })
+              : null;
             const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
 
             if (!isExternal) {
@@ -2398,7 +2486,13 @@ export class WorkOrdersService implements OnModuleInit {
       orderBy: { createdAt: 'asc' },
       include: {
         author: {
-          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         },
       },
     });
@@ -2409,7 +2503,9 @@ export class WorkOrdersService implements OnModuleInit {
       where: { id: workOrderId },
     });
     if (!workOrder) {
-      throw new NotFoundException(`Work Order with ID "${workOrderId}" not found.`);
+      throw new NotFoundException(
+        `Work Order with ID "${workOrderId}" not found.`,
+      );
     }
 
     if (!content || !content.trim()) {
@@ -2424,13 +2520,24 @@ export class WorkOrdersService implements OnModuleInit {
       },
       include: {
         author: {
-          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         },
       },
     });
   }
 
-  async updateNote(noteId: string, userId: string, userRole: string, content: string) {
+  async updateNote(
+    noteId: string,
+    userId: string,
+    userRole: string,
+    content: string,
+  ) {
     const note = await this.prisma.workOrderNote.findUnique({
       where: { id: noteId },
     });
@@ -2440,7 +2547,9 @@ export class WorkOrdersService implements OnModuleInit {
 
     // Permission check: Technicians can only edit their own notes
     if (userRole === UserRole.TECHNICIAN && note.authorId !== userId) {
-      throw new ForbiddenException('Technicians can only edit their own notes.');
+      throw new ForbiddenException(
+        'Technicians can only edit their own notes.',
+      );
     }
 
     if (!content || !content.trim()) {
@@ -2454,7 +2563,13 @@ export class WorkOrdersService implements OnModuleInit {
       },
       include: {
         author: {
-          select: { id: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         },
       },
     });
@@ -2470,7 +2585,9 @@ export class WorkOrdersService implements OnModuleInit {
 
     // Permission check: Technicians can only delete their own notes
     if (userRole === UserRole.TECHNICIAN && note.authorId !== userId) {
-      throw new ForbiddenException('Technicians can only delete their own notes.');
+      throw new ForbiddenException(
+        'Technicians can only delete their own notes.',
+      );
     }
 
     await this.prisma.workOrderNote.delete({

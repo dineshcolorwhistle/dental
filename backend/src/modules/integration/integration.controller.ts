@@ -89,17 +89,12 @@ export class IntegrationController {
     });
   }
 
-
-
   @Post('config')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Configure integration with external clinic URL and name',
   })
-  async configure(
-    @Req() req: any,
-    @Body() dto: ConfigureIntegrationDto,
-  ) {
+  async configure(@Req() req: any, @Body() dto: ConfigureIntegrationDto) {
     const tenantId = req.apiKeyTenantId;
     const branchId = req.apiKeyBranchId;
 
@@ -135,7 +130,9 @@ export class IntegrationController {
     });
 
     if (!branch) {
-      throw new NotFoundException('Lab branch associated with API key not found');
+      throw new NotFoundException(
+        'Lab branch associated with API key not found',
+      );
     }
 
     return {
@@ -165,10 +162,7 @@ export class IntegrationController {
     const prosthesisTypes = await this.prisma.prosthesisType.findMany({
       where: {
         tenantId,
-        OR: [
-          { branchId: null },
-          { branchId },
-        ],
+        OR: [{ branchId: null }, { branchId }],
       },
       select: {
         id: true,
@@ -260,10 +254,7 @@ export class IntegrationController {
       where: {
         id: dto.prosthesisTypeId,
         tenantId,
-        OR: [
-          { branchId: null },
-          { branchId },
-        ],
+        OR: [{ branchId: null }, { branchId }],
       },
     });
 
@@ -281,11 +272,13 @@ export class IntegrationController {
     );
 
     // 2. Fetch default process steps for this prosthesis type
-    const processAssignments = await this.prisma.prosthesisTypeProcess.findMany({
-      where: { prosthesisTypeId: prosthesisType.id },
-      include: { process: true },
-      orderBy: { sequence: 'asc' },
-    });
+    const processAssignments = await this.prisma.prosthesisTypeProcess.findMany(
+      {
+        where: { prosthesisTypeId: prosthesisType.id },
+        include: { process: true },
+        orderBy: { sequence: 'asc' },
+      },
+    );
 
     const mappedProcesses = processAssignments.map((assign) => ({
       processName: assign.process.name,
@@ -321,7 +314,7 @@ export class IntegrationController {
     // 4. Create the work order and associated processes in a transaction
     const workOrder = await this.prisma.$transaction(async (tx) => {
       // Determine starting statuses
-      const finalMappedProcesses = mappedProcesses.map((p, idx) => {
+      const finalMappedProcesses = mappedProcesses.map((p) => {
         const isVerification = p.isVerification || false;
         const processName = isVerification
           ? p.technicianId
@@ -353,7 +346,9 @@ export class IntegrationController {
           totalQuote: dto.totalQuote ?? 0,
           initialPayment: dto.initialPayment ?? null,
           paymentReferenceNumber: dto.paymentReferenceNumber || null,
-          paymentReferenceNumbers: dto.paymentReferenceNumbers || (dto.paymentReferenceNumber ? [dto.paymentReferenceNumber] : []),
+          paymentReferenceNumbers:
+            dto.paymentReferenceNumbers ||
+            (dto.paymentReferenceNumber ? [dto.paymentReferenceNumber] : []),
           status: WorkOrderStatus.CREATED,
           createdById,
           isExternal: true,
@@ -391,9 +386,15 @@ export class IntegrationController {
     }
 
     // 6. Trigger verification email and clinic notification if starting with an external verification step
-    const sorted = [...workOrder.processes].sort((a: any, b: any) => a.sequence - b.sequence);
+    const sorted = [...workOrder.processes].sort(
+      (a: any, b: any) => a.sequence - b.sequence,
+    );
     const firstProcess: any = sorted[0];
-    if (firstProcess && firstProcess.isVerification && !firstProcess.technicianId) {
+    if (
+      firstProcess &&
+      firstProcess.isVerification &&
+      !firstProcess.technicianId
+    ) {
       if (doctor.email) {
         const tenantRecord = await this.prisma.tenant.findUnique({
           where: { id: tenantId },
@@ -412,7 +413,9 @@ export class IntegrationController {
       if (clinic.url) {
         const notificationUrl = `${clinic.url}/api/integration/notifications`;
         const logger = new Logger('IntegrationController');
-        logger.log(`Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`);
+        logger.log(
+          `Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`,
+        );
 
         const apiKeyRecord = await this.prisma.apiKey.findFirst({
           where: {
@@ -443,7 +446,9 @@ export class IntegrationController {
             }),
           });
         } catch (err: any) {
-          logger.error(`Error notifying clinic at ${notificationUrl}: ${err.message}`);
+          logger.error(
+            `Error notifying clinic at ${notificationUrl}: ${err.message}`,
+          );
         }
       }
     }
@@ -457,12 +462,17 @@ export class IntegrationController {
       branchId,
     });
 
-    this.websocketsGateway.sendToBranch(tenantId, branchId, 'work_order_created', {
-      id: workOrder.id,
-      folioNumber,
-      patient: workOrder.patient,
-      status: workOrder.status,
-    });
+    this.websocketsGateway.sendToBranch(
+      tenantId,
+      branchId,
+      'work_order_created',
+      {
+        id: workOrder.id,
+        folioNumber,
+        patient: workOrder.patient,
+        status: workOrder.status,
+      },
+    );
 
     return {
       ...workOrder,
@@ -513,7 +523,9 @@ export class IntegrationController {
         processes: {
           some: {
             isVerification: true,
-            status: { in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS] },
+            status: {
+              in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS],
+            },
             technicianId: null,
           },
         },
@@ -525,7 +537,9 @@ export class IntegrationController {
         processes: {
           where: {
             isVerification: true,
-            status: { in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS] },
+            status: {
+              in: [ProcessStatus.NOT_STARTED, ProcessStatus.IN_PROGRESS],
+            },
             technicianId: null,
           },
           select: {
@@ -544,7 +558,8 @@ export class IntegrationController {
   @Post('work-orders/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Submit an external doctor verification outcome (SUCCESS or FAILURE) for a work order',
+    summary:
+      'Submit an external doctor verification outcome (SUCCESS or FAILURE) for a work order',
   })
   async verifyWorkOrder(
     @Req() req: any,
@@ -554,7 +569,9 @@ export class IntegrationController {
     const branchId = req.apiKeyBranchId;
 
     if (dto.outcome === 'FAILURE' && (!dto.notes || !dto.notes.trim())) {
-      throw new BadRequestException('Notes are required when submitting a Failure verification result.');
+      throw new BadRequestException(
+        'Notes are required when submitting a Failure verification result.',
+      );
     }
 
     const clinic = await this.prisma.clinic.findFirst({
@@ -566,7 +583,9 @@ export class IntegrationController {
     });
 
     if (!clinic) {
-      throw new NotFoundException(`Clinic with URL "${dto.clinicUrl}" not found.`);
+      throw new NotFoundException(
+        `Clinic with URL "${dto.clinicUrl}" not found.`,
+      );
     }
 
     const workOrder = await this.prisma.workOrder.findFirst({
@@ -590,11 +609,17 @@ export class IntegrationController {
     }
 
     const pendingVerification = workOrder.processes.find(
-      (p) => p.isVerification && (p.status === ProcessStatus.IN_PROGRESS || p.status === ProcessStatus.NOT_STARTED) && !p.technicianId,
+      (p) =>
+        p.isVerification &&
+        (p.status === ProcessStatus.IN_PROGRESS ||
+          p.status === ProcessStatus.NOT_STARTED) &&
+        !p.technicianId,
     );
 
     if (!pendingVerification) {
-      throw new BadRequestException('No pending external verification step found for this work order.');
+      throw new BadRequestException(
+        'No pending external verification step found for this work order.',
+      );
     }
 
     const now = new Date();
@@ -604,7 +629,8 @@ export class IntegrationController {
       where: { id: pendingVerification.id },
       data: {
         externalDoctorStatus: dto.outcome,
-        externalDoctorNotes: dto.outcome === 'FAILURE' ? dto.notes?.trim() || null : null,
+        externalDoctorNotes:
+          dto.outcome === 'FAILURE' ? dto.notes?.trim() || null : null,
         externalDoctorSubmittedAt: now,
         status: ProcessStatus.IN_PROGRESS,
         startedAt: pendingVerification.startedAt || now,
@@ -676,12 +702,17 @@ export class IntegrationController {
     });
 
     if (branchId) {
-      this.websocketsGateway.sendToBranch(tenantId, branchId, 'work_order_updated', {
-        id: workOrder.id,
-        folioNumber: workOrder.folioNumber,
-        patient: workOrder.patient,
-        status: workOrder.status,
-      });
+      this.websocketsGateway.sendToBranch(
+        tenantId,
+        branchId,
+        'work_order_updated',
+        {
+          id: workOrder.id,
+          folioNumber: workOrder.folioNumber,
+          patient: workOrder.patient,
+          status: workOrder.status,
+        },
+      );
     }
 
     return {
@@ -693,12 +724,10 @@ export class IntegrationController {
   @Post('work-orders/start-verification')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Notify that the external doctor has started the verification process',
+    summary:
+      'Notify that the external doctor has started the verification process',
   })
-  async startVerification(
-    @Req() req: any,
-    @Body() dto: StartVerificationDto,
-  ) {
+  async startVerification(@Req() req: any, @Body() dto: StartVerificationDto) {
     const tenantId = req.apiKeyTenantId;
     const branchId = req.apiKeyBranchId;
 
@@ -711,7 +740,9 @@ export class IntegrationController {
     });
 
     if (!clinic) {
-      throw new NotFoundException(`Clinic with URL "${dto.clinicUrl}" not found.`);
+      throw new NotFoundException(
+        `Clinic with URL "${dto.clinicUrl}" not found.`,
+      );
     }
 
     const doctor = await this.prisma.doctor.findFirst({
@@ -724,7 +755,9 @@ export class IntegrationController {
     });
 
     if (!doctor) {
-      throw new NotFoundException(`Doctor with ID "${dto.doctorId}" not found.`);
+      throw new NotFoundException(
+        `Doctor with ID "${dto.doctorId}" not found.`,
+      );
     }
 
     const workOrder = await this.prisma.workOrder.findFirst({
@@ -746,11 +779,16 @@ export class IntegrationController {
     }
 
     const pendingVerification = workOrder.processes.find(
-      (p) => p.isVerification && p.status === ProcessStatus.NOT_STARTED && !p.technicianId,
+      (p) =>
+        p.isVerification &&
+        p.status === ProcessStatus.NOT_STARTED &&
+        !p.technicianId,
     );
 
     if (!pendingVerification) {
-      throw new BadRequestException('No pending external verification step found for this work order.');
+      throw new BadRequestException(
+        'No pending external verification step found for this work order.',
+      );
     }
 
     // Set status to IN_PROGRESS, startedAt, and log the START activity
@@ -797,10 +835,7 @@ export class IntegrationController {
   @ApiOperation({
     summary: 'Retrieve work order status by ID for external clinic/doctors',
   })
-  async getWorkOrderStatus(
-    @Req() req: any,
-    @Param('id') id: string,
-  ) {
+  async getWorkOrderStatus(@Req() req: any, @Param('id') id: string) {
     const tenantId = req.apiKeyTenantId;
     const branchId = req.apiKeyBranchId;
 
@@ -877,7 +912,9 @@ export class IntegrationController {
               const defaultAdmin = (workOrder as any).branch?.defaultAdmin;
               return defaultAdmin
                 ? `${defaultAdmin.firstName} ${defaultAdmin.lastName}`.trim()
-                : (p.technician ? `${p.technician.firstName} ${p.technician.lastName}`.trim() : 'Lab Admin');
+                : p.technician
+                  ? `${p.technician.firstName} ${p.technician.lastName}`.trim()
+                  : 'Lab Admin';
             } else {
               return workOrder.doctor ? workOrder.doctor.name : 'Doctor';
             }
@@ -923,7 +960,10 @@ export class IntegrationController {
     }
 
     // Create a placeholder User with DOCTOR role
-    const dummyHash = await bcrypt.hash(`doctor-${doctor.id}-${Date.now()}`, 10);
+    const dummyHash = await bcrypt.hash(
+      `doctor-${doctor.id}-${Date.now()}`,
+      10,
+    );
     const nameParts = doctor.name.split(' ');
     const firstName = nameParts[0] || 'Doctor';
     const lastName = nameParts.slice(1).join(' ') || '';

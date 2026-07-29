@@ -4,7 +4,6 @@ import {
   IsNumber,
   IsOptional,
   IsUUID,
-  IsEnum,
   Min,
   IsDateString,
   MaxLength,

@@ -235,7 +235,9 @@ export class ProcessesService {
       data: {
         ...(name && { name }),
         ...(processAreaId && { processAreaId }),
-        ...(resolvedProcessAreaName && { processArea: resolvedProcessAreaName }), // Sync legacy column
+        ...(resolvedProcessAreaName && {
+          processArea: resolvedProcessAreaName,
+        }), // Sync legacy column
         ...(defaultTechnicianId && { defaultTechnicianId }),
         ...(branchId !== undefined && { branchId: finalBranchId || null }),
       },

@@ -12,7 +12,10 @@ export class CreateProcessAreaDto {
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Assigned branch ID (optional, defaults to administrator branch context)' })
+  @ApiPropertyOptional({
+    description:
+      'Assigned branch ID (optional, defaults to administrator branch context)',
+  })
   @IsUUID()
   @IsOptional()
   branchId?: string;

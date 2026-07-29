@@ -9,6 +9,8 @@ export { prosthesisTypeService } from './prosthesis-type.service';
 export { processService } from './process.service';
 export { workOrderService } from './work-order.service';
 export { notificationService } from './notification.service';
+export { whatsappTemplateService } from './whatsapp-template.service';
+export type { WhatsAppTemplate, WhatsAppTemplateStatus } from './whatsapp-template.service';
 export { technicianPortalService } from './technician-portal.service';
 export { financeService } from './finance.service';
 export type { LoginPayload, AuthUser, AuthResponse, UserProfile, TenantLimitsResponse } from './auth.service';

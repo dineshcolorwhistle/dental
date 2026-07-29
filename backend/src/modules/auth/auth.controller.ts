@@ -11,7 +11,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshTokenDto, ResetPasswordDto, ForgotPasswordDto } from './dto';
+import {
+  LoginDto,
+  RefreshTokenDto,
+  ResetPasswordDto,
+  ForgotPasswordDto,
+} from './dto';
 import { Public, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Authentication')

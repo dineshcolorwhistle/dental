@@ -197,7 +197,10 @@ export class MailService {
 
       this.logger.log(`Forgot password email sent to ${email} (Lang: ${lang})`);
     } catch (error) {
-      this.logger.error(`Failed to send forgot password email to ${email}`, error);
+      this.logger.error(
+        `Failed to send forgot password email to ${email}`,
+        error,
+      );
     }
   }
 
@@ -220,7 +223,9 @@ export class MailService {
         : `Action Required: Verification pending for order ${folioNumber}`;
 
     const template =
-      lang === 'ES' ? 'external-verification-pending-es' : 'external-verification-pending';
+      lang === 'ES'
+        ? 'external-verification-pending-es'
+        : 'external-verification-pending';
 
     try {
       await this.mailerService.sendMail({
@@ -237,7 +242,9 @@ export class MailService {
         },
       });
 
-      this.logger.log(`External verification notification email sent to ${email} (Lang: ${lang})`);
+      this.logger.log(
+        `External verification notification email sent to ${email} (Lang: ${lang})`,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to send external verification notification email to ${email}`,
@@ -273,4 +280,3 @@ export class MailService {
     }
   }
 }
-

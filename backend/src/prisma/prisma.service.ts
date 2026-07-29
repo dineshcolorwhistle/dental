@@ -18,10 +18,32 @@ export class PrismaService
     await this.$connect();
     try {
       await this.$executeRawUnsafe(
-        'ALTER TABLE "prosthesis_types" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION DEFAULT 0;'
+        'ALTER TABLE "prosthesis_types" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION DEFAULT 0;',
       );
+      await this.$executeRawUnsafe(`
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'WhatsAppTemplateStatus') THEN
+            CREATE TYPE "WhatsAppTemplateStatus" AS ENUM ('ACTIVE', 'INACTIVE');
+          END IF;
+        END $$;
+      `);
+      await this.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "whatsapp_templates" (
+          "id" TEXT NOT NULL,
+          "tenant_id" TEXT NOT NULL,
+          "name" TEXT NOT NULL,
+          "trigger_event" TEXT,
+          "message" TEXT NOT NULL,
+          "status" "WhatsAppTemplateStatus" NOT NULL DEFAULT 'ACTIVE',
+          "placeholders" JSONB NOT NULL DEFAULT '[]',
+          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "whatsapp_templates_pkey" PRIMARY KEY ("id"),
+          CONSTRAINT "whatsapp_templates_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );
+      `);
     } catch (e) {
-      console.error('[SchemaSync] Error ensuring price column exists:', e);
+      console.error('[SchemaSync] Error ensuring schema updates exist:', e);
     }
     await this.runDataMigration();
   }
@@ -41,7 +63,9 @@ export class PrismaService
         return;
       }
 
-      console.log(`[DataMigration] Found ${unmigratedProcesses.length} unmigrated process records. Starting migration...`);
+      console.log(
+        `[DataMigration] Found ${unmigratedProcesses.length} unmigrated process records. Starting migration...`,
+      );
 
       for (const process of unmigratedProcesses) {
         const { tenantId, branchId, processArea: areaName } = process;
@@ -64,7 +88,9 @@ export class PrismaService
               description: `Automatically created during migration from process "${process.name}"`,
             },
           });
-          console.log(`[DataMigration] Created ProcessArea "${areaName}" for Tenant ${tenantId}`);
+          console.log(
+            `[DataMigration] Created ProcessArea "${areaName}" for Tenant ${tenantId}`,
+          );
         }
 
         await this.process.update({
@@ -75,9 +101,14 @@ export class PrismaService
         });
       }
 
-      console.log('[DataMigration] Successfully completed process areas data migration.');
+      console.log(
+        '[DataMigration] Successfully completed process areas data migration.',
+      );
     } catch (error) {
-      console.error('[DataMigration] Error running automatic data migration during bootstrap:', error);
+      console.error(
+        '[DataMigration] Error running automatic data migration during bootstrap:',
+        error,
+      );
     }
   }
 

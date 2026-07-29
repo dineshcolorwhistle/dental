@@ -14,7 +14,11 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { InventoryService } from './inventory.service';
-import { CreateInventoryDto, UpdateInventoryDto, CreateCategoryDto } from './dto';
+import {
+  CreateInventoryDto,
+  UpdateInventoryDto,
+  CreateCategoryDto,
+} from './dto';
 import { Roles, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Inventory')
@@ -89,7 +93,12 @@ export class InventoryController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.inventoryService.createItem(tenantId, branchIdContext, userRole, dto);
+    return this.inventoryService.createItem(
+      tenantId,
+      branchIdContext,
+      userRole,
+      dto,
+    );
   }
 
   @Get()
@@ -142,7 +151,13 @@ export class InventoryController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.inventoryService.updateItem(tenantId, id, branchIdContext, userRole, dto);
+    return this.inventoryService.updateItem(
+      tenantId,
+      id,
+      branchIdContext,
+      userRole,
+      dto,
+    );
   }
 
   @Delete(':id')

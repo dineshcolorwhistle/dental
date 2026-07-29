@@ -27,6 +27,7 @@ import { WorkOrderDetailPage } from './pages/WorkOrderDetailPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { ProcessAreasPage } from './pages/ProcessAreasPage';
 import { GeneralSettingsPage } from './pages/GeneralSettingsPage';
+import { WhatsAppTemplatesPage } from './pages/WhatsAppTemplatesPage';
 import { ConnectedClinicsPage } from './pages/ConnectedClinicsPage';
 import { PublicWorkOrderPage } from './pages/PublicWorkOrderPage';
 import { InterestRequestsPage } from './pages/InterestRequestsPage';
@@ -225,6 +226,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <GeneralSettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/whatsapp-templates"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN']}>
+                  <WhatsAppTemplatesPage />
                 </ProtectedRoute>
               }
             />

@@ -159,19 +159,27 @@ export class TechniciansService {
   /**
    * List all technicians in the organization or filtered by branch.
    */
-  async findAll(tenantId: string, branchIdFilter?: string, includeAdmins?: boolean) {
+  async findAll(
+    tenantId: string,
+    branchIdFilter?: string,
+    includeAdmins?: boolean,
+  ) {
     return this.prisma.user.findMany({
       where: {
         tenantId,
         role: includeAdmins
-          ? { in: [UserRole.TECHNICIAN, UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN] }
+          ? {
+              in: [
+                UserRole.TECHNICIAN,
+                UserRole.ADMIN,
+                UserRole.OWNER,
+                UserRole.SUPER_ADMIN,
+              ],
+            }
           : UserRole.TECHNICIAN,
         ...(branchIdFilter &&
           branchIdFilter !== 'ALL' && {
-            OR: [
-              { branchId: branchIdFilter },
-              { branchId: null },
-            ],
+            OR: [{ branchId: branchIdFilter }, { branchId: null }],
           }),
       },
       include: {

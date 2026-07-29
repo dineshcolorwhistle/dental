@@ -31,9 +31,12 @@ export class InterestRequestsController {
 
   @Get('public/work-orders/qr/:token')
   @Public()
-  @ApiOperation({ summary: 'Get public work order details by QR token (no auth required)' })
+  @ApiOperation({
+    summary: 'Get public work order details by QR token (no auth required)',
+  })
   async getPublicWorkOrder(@Param('token') token: string) {
-    const workOrder = await this.interestRequestsService.getPublicWorkOrderByQrToken(token);
+    const workOrder =
+      await this.interestRequestsService.getPublicWorkOrderByQrToken(token);
 
     if (!workOrder) {
       throw new NotFoundException('Work order not found or invalid QR token.');
@@ -45,7 +48,9 @@ export class InterestRequestsController {
   @Post('public/interest-requests')
   @Public()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Submit an interest request from the public tracking page' })
+  @ApiOperation({
+    summary: 'Submit an interest request from the public tracking page',
+  })
   async createPublicInterestRequest(@Body() dto: CreateInterestRequestDto) {
     return this.interestRequestsService.create(dto);
   }
@@ -76,10 +81,7 @@ export class InterestRequestsController {
   @ApiBearerAuth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update the status of an interest request' })
-  async updateStatus(
-    @Param('id') id: string,
-    @Body('status') status: string,
-  ) {
+  async updateStatus(@Param('id') id: string, @Body('status') status: string) {
     const validStatuses: InterestRequestStatus[] = [
       InterestRequestStatus.PENDING,
       InterestRequestStatus.CONTACTED,

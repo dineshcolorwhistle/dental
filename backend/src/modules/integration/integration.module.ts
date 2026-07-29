@@ -18,5 +18,3 @@ import { WebsocketsModule } from '../websockets/websockets.module';
   controllers: [IntegrationController, ConnectedClinicsController],
 })
 export class IntegrationModule {}
-
-

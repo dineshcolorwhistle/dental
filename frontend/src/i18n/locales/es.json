@@ -111,6 +111,7 @@
     "users": "Usuarios",
     "deliveryManagement": "Gestión de Entregas",
     "otherConfigurations": "Otras Configuraciones",
+    "whatsappTemplates": "Plantillas de WhatsApp",
     "workTypes": "Tipos de Trabajo",
     "interestRequests": "Solicitudes de Interés",
     "calendar": "Calendario"
@@ -1536,5 +1537,25 @@
     "pendingDeliveries": "Entregas Pendientes",
     "completedDeliveries": "Entregas Completadas",
     "overdueDeliveries": "Entregas Vencidas"
+  },
+  "whatsappTemplates": {
+    "title": "Administrar Plantillas de WhatsApp",
+    "subtitle": "Configure plantillas de mensajes para notificaciones a doctores",
+    "editTemplate": "Editar Plantilla",
+    "createTemplate": "Crear Nueva Plantilla",
+    "viewAllTemplates": "Ver todas las plantillas",
+    "templateName": "Nombre de la Plantilla",
+    "status": "Estado",
+    "message": "Mensaje",
+    "placeholdersLabel": "Marcadores de posición:",
+    "insertPlaceholderHint": "Haga clic en cualquier etiqueta para insertarla en el mensaje",
+    "updateTemplate": "Actualizar Plantilla",
+    "cancel": "Cancelar",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "loadError": "Error al cargar las plantillas de WhatsApp",
+    "saveSuccess": "¡Plantilla de WhatsApp actualizada exitosamente!",
+    "saveError": "Error al guardar la plantilla de WhatsApp",
+    "createSuccess": "¡Plantilla de WhatsApp creada exitosamente!"
   }
 }

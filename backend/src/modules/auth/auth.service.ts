@@ -59,7 +59,9 @@ export class AuthService {
           where: { email, tenantId: null, role: UserRole.SUPER_ADMIN },
         });
         if (superAdminExists) {
-          throw new UnauthorizedException('Super Admins cannot log in through tenant subdomains');
+          throw new UnauthorizedException(
+            'Super Admins cannot log in through tenant subdomains',
+          );
         }
 
         // Also check if the user exists but belongs to a different tenant
@@ -67,7 +69,9 @@ export class AuthService {
           where: { email, NOT: { tenantId: tenant.id } },
         });
         if (differentTenantUser) {
-          throw new UnauthorizedException('You do not have access to this tenant subdomain');
+          throw new UnauthorizedException(
+            'You do not have access to this tenant subdomain',
+          );
         }
 
         throw new UnauthorizedException('Invalid credentials');
@@ -87,32 +91,42 @@ export class AuthService {
       }
 
       // Filter to only active accounts
-      const activeUsers = matchingUsers.filter(u => u.status === 'ACTIVE');
+      const activeUsers = matchingUsers.filter((u) => u.status === 'ACTIVE');
       if (activeUsers.length === 0) {
         throw new UnauthorizedException('Account is inactive');
       }
 
       // Filter active users to allowed roles: OWNER, ADMIN, TECHNICIAN
-      const allowedRoles: UserRole[] = [UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN];
-      const activeTenantUsers = activeUsers.filter(u => allowedRoles.includes(u.role));
+      const allowedRoles: UserRole[] = [
+        UserRole.OWNER,
+        UserRole.ADMIN,
+        UserRole.TECHNICIAN,
+      ];
+      const activeTenantUsers = activeUsers.filter((u) =>
+        allowedRoles.includes(u.role),
+      );
 
       if (activeTenantUsers.length === 0) {
-        throw new UnauthorizedException('You do not have access to this tenant subdomain');
+        throw new UnauthorizedException(
+          'You do not have access to this tenant subdomain',
+        );
       }
 
       // If they have multiple active roles in this tenant (e.g. OWNER and ADMIN)
       if (activeTenantUsers.length > 1) {
         if (role) {
-          const selectedUser = activeTenantUsers.find(u => u.role === role);
+          const selectedUser = activeTenantUsers.find((u) => u.role === role);
           if (!selectedUser) {
-            throw new UnauthorizedException('Selected role is not available for this account');
+            throw new UnauthorizedException(
+              'Selected role is not available for this account',
+            );
           }
           user = selectedUser;
         } else {
           // Send response indicating role selection is required
           return {
             requiresRoleSelection: true,
-            roles: activeTenantUsers.map(u => u.role),
+            roles: activeTenantUsers.map((u) => u.role),
             email,
             subdomain,
           };
@@ -132,7 +146,9 @@ export class AuthService {
           where: { email, NOT: { role: UserRole.SUPER_ADMIN } },
         });
         if (regularUser) {
-          throw new UnauthorizedException('Only Super Admins can log in through the primary domain');
+          throw new UnauthorizedException(
+            'Only Super Admins can log in through the primary domain',
+          );
         }
 
         throw new UnauthorizedException('Invalid credentials');
@@ -219,7 +235,8 @@ export class AuthService {
     // Allow a 15-second grace period for concurrent refresh requests (avoids page-load race conditions)
     const gracePeriodMs = 15000;
     const isRevoked = stored.revokedAt !== null;
-    const isWithinGracePeriod = isRevoked && stored.revokedAt!.getTime() > Date.now() - gracePeriodMs;
+    const isWithinGracePeriod =
+      isRevoked && stored.revokedAt!.getTime() > Date.now() - gracePeriodMs;
 
     if (isRevoked && !isWithinGracePeriod) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -363,11 +380,16 @@ export class AuthService {
       }
     } catch (err) {
       // Log error but don't expose it to client to avoid leaking info or errors
-      this.logger.error(`Error in forgotPassword for ${email}: ${err.message}`, err.stack);
+      this.logger.error(
+        `Error in forgotPassword for ${email}: ${err.message}`,
+        err.stack,
+      );
     }
 
     // Always return success to avoid user/account enumeration
-    return { message: 'If this email is registered, we have sent a reset link.' };
+    return {
+      message: 'If this email is registered, we have sent a reset link.',
+    };
   }
 
   /**

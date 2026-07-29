@@ -69,8 +69,12 @@ export class InterestRequestsService {
   async create(dto: CreateInterestRequestDto) {
     const prisma = this.prisma as any;
     if (!prisma.interestRequest) {
-      this.logger.warn('PrismaClient does not have interestRequest delegate. Please run npx prisma generate.');
-      throw new BadRequestException('Interest request module is initializing. Please try again.');
+      this.logger.warn(
+        'PrismaClient does not have interestRequest delegate. Please run npx prisma generate.',
+      );
+      throw new BadRequestException(
+        'Interest request module is initializing. Please try again.',
+      );
     }
 
     const interestRequest = await prisma.interestRequest.create({
@@ -133,7 +137,9 @@ export class InterestRequestsService {
   ) {
     const prisma = this.prisma as any;
     if (!prisma.interestRequest) {
-      this.logger.warn('PrismaClient does not have interestRequest delegate. Please run npx prisma generate.');
+      this.logger.warn(
+        'PrismaClient does not have interestRequest delegate. Please run npx prisma generate.',
+      );
       return [];
     }
 
@@ -182,7 +188,10 @@ export class InterestRequestsService {
         orderBy: { createdAt: 'desc' },
       });
     } catch (error: any) {
-      this.logger.error(`Error in InterestRequestsService.findAll: ${error?.message || error}`, error?.stack);
+      this.logger.error(
+        `Error in InterestRequestsService.findAll: ${error?.message || error}`,
+        error?.stack,
+      );
       return [];
     }
   }
@@ -215,4 +224,3 @@ export class InterestRequestsService {
     return { success: true };
   }
 }
-

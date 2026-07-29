@@ -183,7 +183,8 @@ export class AdminsService {
       );
 
       // Exclude passwordHash from response
-      const { passwordHash: _, ...adminWithoutPassword } = result.admin;
+      const adminWithoutPassword = { ...result.admin };
+      delete (adminWithoutPassword as { passwordHash?: string }).passwordHash;
 
       return {
         ...adminWithoutPassword,

@@ -131,8 +131,7 @@ export class ProcessAreasService {
 
     const { name, description, branchId } = dto;
 
-    const finalBranchId =
-      branchId !== undefined ? branchId : existing.branchId;
+    const finalBranchId = branchId !== undefined ? branchId : existing.branchId;
 
     if (finalBranchId) {
       const branch = await this.prisma.branch.findFirst({

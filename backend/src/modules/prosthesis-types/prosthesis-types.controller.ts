@@ -52,7 +52,12 @@ export class ProsthesisTypesController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.OWNER,
+    UserRole.SUPER_ADMIN,
+    UserRole.TECHNICIAN,
+  )
   @ApiOperation({ summary: 'List all prosthesis/work types' })
   async findAll(
     @CurrentUser('tenantId') tenantId: string,

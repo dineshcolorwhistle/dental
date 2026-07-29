@@ -160,7 +160,11 @@ export class MessagesService {
 
         // Filter last message if cleared
         let lastMessage: any = conv.messages[0] || null;
-        if (lastMessage && clearedAt && new Date(lastMessage.createdAt) < clearedAt) {
+        if (
+          lastMessage &&
+          clearedAt &&
+          new Date(lastMessage.createdAt) < clearedAt
+        ) {
           lastMessage = null;
         }
 
@@ -280,11 +284,7 @@ export class MessagesService {
     };
   }
 
-  async createGroup(
-    user: CurrentUser,
-    name: string,
-    memberIds: string[],
-  ) {
+  async createGroup(user: CurrentUser, name: string, memberIds: string[]) {
     // Validate all members are in the user's contact scope
     const contacts = await this.getContacts(user);
     const contactIds = new Set(contacts.map((c) => c.id));
@@ -370,7 +370,9 @@ export class MessagesService {
     });
 
     if (!participant) {
-      throw new ForbiddenException('You are not a member of this conversation.');
+      throw new ForbiddenException(
+        'You are not a member of this conversation.',
+      );
     }
 
     const where: Prisma.MessageWhereInput = {
@@ -430,7 +432,9 @@ export class MessagesService {
     });
 
     if (!participant) {
-      throw new ForbiddenException('You are not a member of this conversation.');
+      throw new ForbiddenException(
+        'You are not a member of this conversation.',
+      );
     }
 
     // Create message
@@ -588,7 +592,9 @@ export class MessagesService {
     });
 
     if (!participant) {
-      throw new ForbiddenException('You are not a member of this conversation.');
+      throw new ForbiddenException(
+        'You are not a member of this conversation.',
+      );
     }
 
     const now = new Date();
@@ -651,7 +657,9 @@ export class MessagesService {
     });
 
     if (!participant) {
-      throw new ForbiddenException('You are not a member of this conversation.');
+      throw new ForbiddenException(
+        'You are not a member of this conversation.',
+      );
     }
 
     await this.prisma.conversationParticipant.update({
@@ -682,11 +690,12 @@ export class MessagesService {
         senderId: { not: user.id },
       };
 
-      const cutoff = conv.lastReadAt && conv.clearedAt
-        ? conv.lastReadAt > conv.clearedAt
-          ? conv.lastReadAt
-          : conv.clearedAt
-        : conv.lastReadAt || conv.clearedAt;
+      const cutoff =
+        conv.lastReadAt && conv.clearedAt
+          ? conv.lastReadAt > conv.clearedAt
+            ? conv.lastReadAt
+            : conv.clearedAt
+          : conv.lastReadAt || conv.clearedAt;
 
       if (cutoff) {
         where.createdAt = { gt: cutoff };
@@ -711,7 +720,9 @@ export class MessagesService {
     });
 
     if (!participant) {
-      throw new ForbiddenException('You are not a member of this conversation.');
+      throw new ForbiddenException(
+        'You are not a member of this conversation.',
+      );
     }
 
     const conv = await this.prisma.conversation.findUnique({
@@ -758,7 +769,9 @@ export class MessagesService {
       throw new NotFoundException('Conversation not found.');
     }
     if (!conversation.isGroup) {
-      throw new BadRequestException('Cannot add members to a 1:1 conversation.');
+      throw new BadRequestException(
+        'Cannot add members to a 1:1 conversation.',
+      );
     }
     if (conversation.createdById !== user.id && user.role !== 'OWNER') {
       throw new ForbiddenException(
@@ -795,10 +808,7 @@ export class MessagesService {
       });
 
       // Notify all participants
-      const allParticipantIds = [
-        ...Array.from(existingIds),
-        ...newMemberIds,
-      ];
+      const allParticipantIds = [...Array.from(existingIds), ...newMemberIds];
       for (const pid of allParticipantIds) {
         this.websocketsGateway.sendToUser(pid, 'conversation_updated', {
           conversationId,
@@ -859,20 +869,14 @@ export class MessagesService {
     }
 
     // Also notify the removed user
-    this.websocketsGateway.sendToUser(
-      memberUserId,
-      'group_member_removed',
-      { conversationId },
-    );
+    this.websocketsGateway.sendToUser(memberUserId, 'group_member_removed', {
+      conversationId,
+    });
 
     return { success: true };
   }
 
-  async renameGroup(
-    user: CurrentUser,
-    conversationId: string,
-    name: string,
-  ) {
+  async renameGroup(user: CurrentUser, conversationId: string, name: string) {
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { isGroup: true, createdById: true },
@@ -1130,7 +1134,7 @@ export class MessagesService {
 
       // Re-fetch conversation with updated participants
       conversation = await this.prisma.conversation.findUnique({
-        where: { id: conversation!.id },
+        where: { id: conversation.id },
         include: {
           participants: {
             include: {
@@ -1198,7 +1202,8 @@ export class MessagesService {
             content: lastMessage.content,
             createdAt: lastMessage.createdAt,
             senderId: lastMessage.senderId,
-            senderName: `${lastMessage.sender.firstName} ${lastMessage.sender.lastName}`.trim(),
+            senderName:
+              `${lastMessage.sender.firstName} ${lastMessage.sender.lastName}`.trim(),
           }
         : null,
       unreadCount,
@@ -1232,7 +1237,10 @@ export class MessagesService {
     }
 
     // Create a placeholder User with DOCTOR role
-    const dummyHash = await bcrypt.hash(`doctor-${doctor.id}-${Date.now()}`, 10);
+    const dummyHash = await bcrypt.hash(
+      `doctor-${doctor.id}-${Date.now()}`,
+      10,
+    );
     const nameParts = doctor.name.split(' ');
     const firstName = nameParts[0] || 'Doctor';
     const lastName = nameParts.slice(1).join(' ') || '';
@@ -1290,11 +1298,12 @@ export class MessagesService {
       const workOrderId = part.conversation.workOrderId;
       if (!workOrderId) continue;
 
-      const cutoff = part.lastReadAt && part.clearedAt
-        ? part.lastReadAt > part.clearedAt
-          ? part.lastReadAt
-          : part.clearedAt
-        : part.lastReadAt || part.clearedAt;
+      const cutoff =
+        part.lastReadAt && part.clearedAt
+          ? part.lastReadAt > part.clearedAt
+            ? part.lastReadAt
+            : part.clearedAt
+          : part.lastReadAt || part.clearedAt;
 
       const where: Prisma.MessageWhereInput = {
         conversationId: part.conversation.id,

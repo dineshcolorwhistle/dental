@@ -76,15 +76,19 @@ export class TechnicianPortalService {
       // 2. For Integrated Doctors: Notify via Clinic Portal HTTP POST call
       const clinicUrl = doctor.clinic!.url;
       const notificationUrl = `${clinicUrl}/api/integration/notifications`;
-      
-      this.logger.log(`Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`);
-      
-      const apiKeyRecord = workOrder.branchId ? await this.prisma.apiKey.findFirst({
-        where: {
-          branchId: workOrder.branchId,
-          isActive: true,
-        },
-      }) : null;
+
+      this.logger.log(
+        `Notifying integrated clinic at ${notificationUrl} for WO ${workOrder.folioNumber}`,
+      );
+
+      const apiKeyRecord = workOrder.branchId
+        ? await this.prisma.apiKey.findFirst({
+            where: {
+              branchId: workOrder.branchId,
+              isActive: true,
+            },
+          })
+        : null;
       const apiKey = apiKeyRecord ? apiKeyRecord.key : '';
 
       try {
@@ -109,12 +113,16 @@ export class TechnicianPortalService {
         });
 
         if (!response.ok) {
-          this.logger.error(`Failed to notify clinic: ${response.status} - ${response.statusText}`);
+          this.logger.error(
+            `Failed to notify clinic: ${response.status} - ${response.statusText}`,
+          );
         } else {
           this.logger.log(`Successfully notified clinic at ${notificationUrl}`);
         }
       } catch (err: any) {
-        this.logger.error(`Error sending notification to clinic at ${notificationUrl}: ${err.message}`);
+        this.logger.error(
+          `Error sending notification to clinic at ${notificationUrl}: ${err.message}`,
+        );
       }
     } else {
       // 3. For Local Doctors: Notify all active branch admins
@@ -150,7 +158,6 @@ export class TechnicianPortalService {
       }
     }
   }
-
 
   /**
    * Scans and aggregates queue metrics for the logged-in technician.
@@ -337,7 +344,9 @@ export class TechnicianPortalService {
     } = dto;
 
     if (!branchIdContext) {
-      throw new BadRequestException('Branch context is required for technicians.');
+      throw new BadRequestException(
+        'Branch context is required for technicians.',
+      );
     }
 
     // 1. Verify branch exists
@@ -421,12 +430,19 @@ export class TechnicianPortalService {
         doctor: { select: { id: true, name: true, clinicName: true } },
         prosthesisType: { select: { id: true, name: true } },
         branch: { select: { id: true, name: true, code: true } },
-        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
         processes: {
           orderBy: { sequence: 'asc' },
           include: {
             technician: {
-              select: { id: true, firstName: true, lastName: true, email: true },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
             },
             activityLogs: {
               orderBy: { timestamp: 'asc' },
@@ -451,17 +467,13 @@ export class TechnicianPortalService {
     });
 
     // 7. Emit WS event
-    this.websocketsGateway.sendToTenant(
-      tenantId,
-      'work_order_created',
-      {
-        id: workOrder.id,
-        folioNumber,
-        patient,
-        status: workOrder.status,
-        branchId: branchIdContext,
-      },
-    );
+    this.websocketsGateway.sendToTenant(tenantId, 'work_order_created', {
+      id: workOrder.id,
+      folioNumber,
+      patient,
+      status: workOrder.status,
+      branchId: branchIdContext,
+    });
 
     this.websocketsGateway.sendToBranch(
       tenantId,
@@ -532,7 +544,13 @@ export class TechnicianPortalService {
           orderBy: { createdAt: 'asc' as const },
           include: {
             author: {
-              select: { id: true, firstName: true, lastName: true, email: true, role: true },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                role: true,
+              },
             },
           },
         },

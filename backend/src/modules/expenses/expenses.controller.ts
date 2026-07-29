@@ -89,7 +89,12 @@ export class ExpensesController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.expensesService.createExpense(tenantId, branchIdContext, userRole, dto);
+    return this.expensesService.createExpense(
+      tenantId,
+      branchIdContext,
+      userRole,
+      dto,
+    );
   }
 
   @Get()
@@ -107,13 +112,18 @@ export class ExpensesController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.expensesService.findAllExpenses(tenantId, branchIdContext, userRole, {
-      branchId,
-      categoryId,
-      startDate,
-      endDate,
-      search,
-    });
+    return this.expensesService.findAllExpenses(
+      tenantId,
+      branchIdContext,
+      userRole,
+      {
+        branchId,
+        categoryId,
+        startDate,
+        endDate,
+        search,
+      },
+    );
   }
 
   @Get(':id')
@@ -141,7 +151,13 @@ export class ExpensesController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.expensesService.updateExpense(tenantId, id, branchIdContext, userRole, dto);
+    return this.expensesService.updateExpense(
+      tenantId,
+      id,
+      branchIdContext,
+      userRole,
+      dto,
+    );
   }
 
   @Delete(':id')
@@ -157,6 +173,11 @@ export class ExpensesController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.expensesService.removeExpense(tenantId, id, branchIdContext, userRole);
+    return this.expensesService.removeExpense(
+      tenantId,
+      id,
+      branchIdContext,
+      userRole,
+    );
   }
 }

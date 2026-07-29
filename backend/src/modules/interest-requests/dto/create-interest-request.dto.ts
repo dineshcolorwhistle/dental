@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString, IsOptional, IsEmail, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum InterestRequestStatus {
@@ -9,7 +16,10 @@ export enum InterestRequestStatus {
 }
 
 export class CreateInterestRequestDto {
-  @ApiProperty({ example: 'John Doe', description: 'Name of the interested person' })
+  @ApiProperty({
+    example: 'John Doe',
+    description: 'Name of the interested person',
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
@@ -26,17 +36,28 @@ export class CreateInterestRequestDto {
   @MaxLength(30)
   phone: string;
 
-  @ApiProperty({ example: 'uuid-of-tenant', description: 'Tenant ID the request belongs to' })
+  @ApiProperty({
+    example: 'uuid-of-tenant',
+    description: 'Tenant ID the request belongs to',
+  })
   @IsUUID()
   @IsNotEmpty()
   tenantId: string;
 
-  @ApiProperty({ example: 'uuid-of-work-order', description: 'Linked Work Order ID', required: false })
+  @ApiProperty({
+    example: 'uuid-of-work-order',
+    description: 'Linked Work Order ID',
+    required: false,
+  })
   @IsUUID()
   @IsOptional()
   workOrderId?: string;
 
-  @ApiProperty({ example: 'I am interested in your services.', description: 'Optional message/notes', required: false })
+  @ApiProperty({
+    example: 'I am interested in your services.',
+    description: 'Optional message/notes',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   @MaxLength(1000)

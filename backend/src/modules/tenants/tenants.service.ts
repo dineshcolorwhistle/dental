@@ -377,7 +377,9 @@ export class TenantsService {
     });
 
     if (!tenant) {
-      throw new NotFoundException(`Organization with ID "${tenantId}" not found`);
+      throw new NotFoundException(
+        `Organization with ID "${tenantId}" not found`,
+      );
     }
 
     return tenant;
@@ -387,10 +389,14 @@ export class TenantsService {
    * Update tenant logo url.
    */
   async updateMyTenant(tenantId: string, dto: { logoUrl: string }) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
 
     if (!tenant) {
-      throw new NotFoundException(`Organization with ID "${tenantId}" not found`);
+      throw new NotFoundException(
+        `Organization with ID "${tenantId}" not found`,
+      );
     }
 
     const updated = await this.prisma.tenant.update({

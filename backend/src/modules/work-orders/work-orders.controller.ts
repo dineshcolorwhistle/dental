@@ -22,7 +22,7 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @Controller('work-orders')
 @Roles(UserRole.ADMIN, UserRole.OWNER)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) { }
+  constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Post()
   @Roles(UserRole.ADMIN)
@@ -62,9 +62,7 @@ export class WorkOrdersController {
 
     // Determine effective branch filter
     let effectiveBranchFilter =
-      branchIdFilter && branchIdFilter !== 'ALL'
-        ? branchIdFilter
-        : undefined;
+      branchIdFilter && branchIdFilter !== 'ALL' ? branchIdFilter : undefined;
 
     if (userRole === 'ADMIN' && branchIdContext) {
       effectiveBranchFilter = branchIdContext;
@@ -136,8 +134,8 @@ export class WorkOrdersController {
     }
     const branchContext =
       userRole === 'ADMIN' ||
-        userRole === 'TECHNICIAN' ||
-        userRole === 'DELIVERY'
+      userRole === 'TECHNICIAN' ||
+      userRole === 'DELIVERY'
         ? branchIdContext
         : null;
     return this.workOrdersService.findOneByQrToken(
@@ -168,8 +166,8 @@ export class WorkOrdersController {
     }
     const branchContext =
       userRole === 'ADMIN' ||
-        userRole === 'TECHNICIAN' ||
-        userRole === 'DELIVERY'
+      userRole === 'TECHNICIAN' ||
+      userRole === 'DELIVERY'
         ? branchIdContext
         : null;
     return this.workOrdersService.findOne(
@@ -306,14 +304,24 @@ export class WorkOrdersController {
   // ─── Notes Endpoints ─────────────────────────────────────
 
   @Get(':id/notes')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.OWNER,
+    UserRole.ADMIN,
+    UserRole.TECHNICIAN,
+  )
   @ApiOperation({ summary: 'Get all notes history for a work order' })
   async getNotes(@Param('id') id: string) {
     return this.workOrdersService.getNotes(id);
   }
 
   @Post(':id/notes')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.OWNER,
+    UserRole.ADMIN,
+    UserRole.TECHNICIAN,
+  )
   @ApiOperation({ summary: 'Add a new note to a work order' })
   async addNote(
     @Param('id') id: string,
@@ -327,7 +335,12 @@ export class WorkOrdersController {
   }
 
   @Patch(':id/notes/:noteId')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.OWNER,
+    UserRole.ADMIN,
+    UserRole.TECHNICIAN,
+  )
   @ApiOperation({ summary: 'Update an existing note' })
   async updateNote(
     @Param('noteId') noteId: string,
@@ -338,11 +351,21 @@ export class WorkOrdersController {
     if (!body || typeof body.content !== 'string' || !body.content.trim()) {
       throw new BadRequestException('Note content is required.');
     }
-    return this.workOrdersService.updateNote(noteId, userId, userRole, body.content);
+    return this.workOrdersService.updateNote(
+      noteId,
+      userId,
+      userRole,
+      body.content,
+    );
   }
 
   @Delete(':id/notes/:noteId')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.TECHNICIAN)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.OWNER,
+    UserRole.ADMIN,
+    UserRole.TECHNICIAN,
+  )
   @ApiOperation({ summary: 'Delete an existing note' })
   async deleteNote(
     @Param('noteId') noteId: string,

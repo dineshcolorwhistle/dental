@@ -78,9 +78,13 @@ export class NotificationsService implements OnModuleInit {
     let translatedTitle = title;
     let translatedMessage = message;
 
-    if (title === 'New Work Order from Clinic' || title === 'New WO from Clinic') {
+    if (
+      title === 'New Work Order from Clinic' ||
+      title === 'New WO from Clinic'
+    ) {
       translatedTitle = 'Nueva WO de Clínica';
-      const regexNew = /^(?:Work Order|WO) "([^"]+)" \((?:Patient: )?([^)]+)\) (?:has been received|received) from (?:the )?Clinic(?: application)?\.?$/;
+      const regexNew =
+        /^(?:Work Order|WO) "([^"]+)" \((?:Patient: )?([^)]+)\) (?:has been received|received) from (?:the )?Clinic(?: application)?\.?$/;
       const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, patient] = match;
@@ -88,39 +92,57 @@ export class NotificationsService implements OnModuleInit {
       }
     } else if (title === 'New Work Order Assigned' || title === 'WO Assigned') {
       translatedTitle = 'WO Asignada';
-      const regexNew = /^(?:You have been assigned|Assigned) to "([^"]+)" for (?:work order|WO) ([^\s]+) \((?:Patient: )?([^)]+)\)(?: \(Box: ([^)]+)\))?\.?$/;
+      const regexNew =
+        /^(?:You have been assigned|Assigned) to "([^"]+)" for (?:work order|WO) ([^\s]+) \((?:Patient: )?([^)]+)\)(?: \(Box: ([^)]+)\))?\.?$/;
       const match = message.match(regexNew);
       if (match) {
         const [, processName, folioNumber, patient, boxNumber] = match;
         translatedMessage = `Asignado a "${processName}" para WO ${folioNumber} (${patient})${boxNumber ? ` (Caja: ${boxNumber})` : ''}.`;
       }
-    } else if (title === 'Work Order Flagged for Rework' || title === 'WO Rework Flagged') {
+    } else if (
+      title === 'Work Order Flagged for Rework' ||
+      title === 'WO Rework Flagged'
+    ) {
       translatedTitle = 'WO para Retrabajo';
-      const regexNew = /^(?:Work Order|WO) "([^"]+)" (?:has been flagged|flagged) for rework\.?(?: Please review step| at step)? "([^"]+)"\.?$/;
+      const regexNew =
+        /^(?:Work Order|WO) "([^"]+)" (?:has been flagged|flagged) for rework\.?(?: Please review step| at step)? "([^"]+)"\.?$/;
       const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, processName] = match;
         translatedMessage = `WO "${folioNumber}" marcada para retrabajo en paso "${processName}".`;
       }
-    } else if (title === 'Work Order Repetition Triggered' || title === 'WO Repetition Triggered') {
+    } else if (
+      title === 'Work Order Repetition Triggered' ||
+      title === 'WO Repetition Triggered'
+    ) {
       translatedTitle = 'Repetición de WO Activada';
-      const regexNew = /^(?:Work Order|WO) "([^"]+)" (?:has been restarted due to a repetition request from|restarted from) (?:verification step )?"([^"]+)"\.? (?:Please restart|Restart)(?: step)? "([^"]+)"\.?$/;
+      const regexNew =
+        /^(?:Work Order|WO) "([^"]+)" (?:has been restarted due to a repetition request from|restarted from) (?:verification step )?"([^"]+)"\.? (?:Please restart|Restart)(?: step)? "([^"]+)"\.?$/;
       const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, verificationName, processName] = match;
         translatedMessage = `WO "${folioNumber}" reiniciada por "${verificationName}". Reiniciar paso "${processName}".`;
       }
-    } else if (title === 'Verification Pending Alert' || title === 'Internal Verification Pending Alert' || title === 'Verification Pending') {
+    } else if (
+      title === 'Verification Pending Alert' ||
+      title === 'Internal Verification Pending Alert' ||
+      title === 'Verification Pending'
+    ) {
       translatedTitle = 'Verificación Pendiente';
-      const regexNew = /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:requires|needs) (?:internal )?(?:verification step|verification) "([^"]+)"\.?$/;
+      const regexNew =
+        /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:requires|needs) (?:internal )?(?:verification step|verification) "([^"]+)"\.?$/;
       const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, boxNumber, processName] = match;
         translatedMessage = `WO "${folioNumber}"${boxNumber ? ` (Caja: ${boxNumber})` : ''} requiere verificación "${processName}".`;
       }
-    } else if (title === 'New Active Work Order Step' || title === 'WO Step Ready') {
+    } else if (
+      title === 'New Active Work Order Step' ||
+      title === 'WO Step Ready'
+    ) {
       translatedTitle = 'Paso de WO Listo';
-      const regexNew = /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:is ready for you|is ready|ready)\.? (?:The previous|Previous) (?:step "([^"]+)"|verification step) (?:has been completed|completed)\.?$/;
+      const regexNew =
+        /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:is ready for you|is ready|ready)\.? (?:The previous|Previous) (?:step "([^"]+)"|verification step) (?:has been completed|completed)\.?$/;
       const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, boxNumber, processName] = match;
@@ -132,7 +154,8 @@ export class NotificationsService implements OnModuleInit {
       }
     } else if (title === 'Work Order Completed' || title === 'WO Completed') {
       translatedTitle = 'WO Completada';
-      const regexNew = /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:has been fully completed|completed)!?$/;
+      const regexNew =
+        /^(?:Work Order|WO) "([^"]+)"(?:\s*\(Box:\s*([^)]+)\))? (?:has been fully completed|completed)!?$/;
       const match = message.match(regexNew);
       if (match) {
         const [, folioNumber, boxNumber] = match;
@@ -140,7 +163,8 @@ export class NotificationsService implements OnModuleInit {
       }
     } else if (title === 'Limit Upgrade Request') {
       translatedTitle = 'Solicitud de aumento de límite';
-      const regex = /^Owner (.+?) \((.+?)\) requested (?:a limits|limit) upgrade: (.*)$/;
+      const regex =
+        /^Owner (.+?) \((.+?)\) requested (?:a limits|limit) upgrade: (.*)$/;
       const match = message.match(regex);
       if (match) {
         const [, userName, tenantName, detailMessage] = match;

@@ -37,7 +37,12 @@ export class ProcessAreasController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
-    return this.processAreasService.create(tenantId, branchIdContext, userRole, dto);
+    return this.processAreasService.create(
+      tenantId,
+      branchIdContext,
+      userRole,
+      dto,
+    );
   }
 
   @Get()

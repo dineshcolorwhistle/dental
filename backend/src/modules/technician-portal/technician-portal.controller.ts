@@ -147,7 +147,9 @@ export class TechnicianPortalController {
   }
 
   @Get('requested-work-orders')
-  @ApiOperation({ summary: 'List all requested/created work orders for the technician' })
+  @ApiOperation({
+    summary: 'List all requested/created work orders for the technician',
+  })
   async getCreatedWorkOrders(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('id') userId: string,

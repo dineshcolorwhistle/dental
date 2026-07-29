@@ -167,24 +167,20 @@ export class WebsocketsGateway
   // ─── Messaging: Typing Indicator ─────────────────────────
 
   @SubscribeMessage('typing')
-  async handleTyping(
-    client: Socket,
-    payload: { conversationId: string },
-  ) {
+  async handleTyping(client: Socket, payload: { conversationId: string }) {
     const userId = client.data?.userId;
     if (!userId || !payload?.conversationId) return;
 
     try {
       // Verify user is a participant
-      const participant =
-        await this.prisma.conversationParticipant.findUnique({
-          where: {
-            conversationId_userId: {
-              conversationId: payload.conversationId,
-              userId,
-            },
+      const participant = await this.prisma.conversationParticipant.findUnique({
+        where: {
+          conversationId_userId: {
+            conversationId: payload.conversationId,
+            userId,
           },
-        });
+        },
+      });
 
       if (!participant) return;
 
@@ -195,11 +191,10 @@ export class WebsocketsGateway
       });
 
       // Notify all other participants
-      const participants =
-        await this.prisma.conversationParticipant.findMany({
-          where: { conversationId: payload.conversationId },
-          select: { userId: true },
-        });
+      const participants = await this.prisma.conversationParticipant.findMany({
+        where: { conversationId: payload.conversationId },
+        select: { userId: true },
+      });
 
       for (const p of participants) {
         if (p.userId !== userId) {
