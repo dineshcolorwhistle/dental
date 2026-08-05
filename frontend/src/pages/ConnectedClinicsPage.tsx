@@ -13,10 +13,18 @@ import {
   Calendar,
   X,
   Activity,
+  Settings,
+  Layers,
+  Check,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { connectedClinicService, type ConnectedClinicListItem } from '../services';
+import {
+  connectedClinicService,
+  prosthesisTypeService,
+  type ConnectedClinicListItem,
+  type ProsthesisTypeListItem,
+} from '../services';
 import { Pagination } from '../components';
 
 export function ConnectedClinicsPage() {
@@ -27,6 +35,15 @@ export function ConnectedClinicsPage() {
   const [expandedClinicId, setExpandedClinicId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
+
+  // Modal State for Prosthesis Types Management
+  const [selectedClinicForProsthesis, setSelectedClinicForProsthesis] =
+    useState<ConnectedClinicListItem | null>(null);
+  const [allProsthesisTypes, setAllProsthesisTypes] = useState<ProsthesisTypeListItem[]>([]);
+  const [loadingProsthesisTypes, setLoadingProsthesisTypes] = useState(false);
+  const [selectedTypeIds, setSelectedTypeIds] = useState<Set<string>>(new Set());
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [savingProsthesis, setSavingProsthesis] = useState(false);
 
   const fetchClinics = useCallback(async () => {
     try {
@@ -50,13 +67,91 @@ export function ConnectedClinicsPage() {
   }, [searchQuery]);
 
   const toggleExpandClinic = (id: string) => {
-    setExpandedClinicId(prev => (prev === id ? null : id));
+    setExpandedClinicId((prev) => (prev === id ? null : id));
   };
 
-  const filteredClinics = clinics.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.branch.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const handleOpenProsthesisModal = async (clinic: ConnectedClinicListItem) => {
+    setSelectedClinicForProsthesis(clinic);
+    setModalSearchQuery('');
+    setLoadingProsthesisTypes(true);
+
+    const initialSelectedIds = new Set(
+      clinic.allowedProsthesisTypes?.map((cpt) => cpt.prosthesisType.id) || []
+    );
+    setSelectedTypeIds(initialSelectedIds);
+
+    try {
+      const types = await prosthesisTypeService.getAll(clinic.branch.id);
+      setAllProsthesisTypes(types);
+    } catch {
+      toast.error(t('errors.generic') || 'Failed to fetch prosthesis types');
+    } finally {
+      setLoadingProsthesisTypes(false);
+    }
+  };
+
+  const handleCloseProsthesisModal = () => {
+    setSelectedClinicForProsthesis(null);
+    setAllProsthesisTypes([]);
+    setSelectedTypeIds(new Set());
+    setModalSearchQuery('');
+  };
+
+  const handleToggleProsthesisType = (id: string) => {
+    setSelectedTypeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllTypes = () => {
+    const allIds = new Set(allProsthesisTypes.map((pt) => pt.id));
+    setSelectedTypeIds(allIds);
+  };
+
+  const handleDeselectAllTypes = () => {
+    setSelectedTypeIds(new Set());
+  };
+
+  const handleSaveProsthesisTypes = async () => {
+    if (!selectedClinicForProsthesis) return;
+
+    try {
+      setSavingProsthesis(true);
+      const updatedClinic = await connectedClinicService.updateProsthesisTypes(
+        selectedClinicForProsthesis.id,
+        Array.from(selectedTypeIds)
+      );
+
+      setClinics((prev) =>
+        prev.map((c) => (c.id === updatedClinic.id ? updatedClinic : c))
+      );
+
+      toast.success(
+        t('connectedClinics.saveProsthesisSuccess') ||
+          'Clinic prosthesis types updated successfully!'
+      );
+      handleCloseProsthesisModal();
+    } catch {
+      toast.error(
+        t('connectedClinics.saveProsthesisError') ||
+          'Failed to update clinic prosthesis types.'
+      );
+    } finally {
+      setSavingProsthesis(false);
+    }
+  };
+
+  const filteredClinics = clinics.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.branch.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const paginatedClinics = filteredClinics.slice(
@@ -67,7 +162,10 @@ export function ConnectedClinicsPage() {
   const getOrderStats = (workOrders: Array<{ status: string }>) => {
     const total = workOrders.length;
     const active = workOrders.filter(
-      wo => wo.status !== 'COMPLETED' && wo.status !== 'FAILED' && wo.status !== 'CANCELLED'
+      (wo) =>
+        wo.status !== 'COMPLETED' &&
+        wo.status !== 'FAILED' &&
+        wo.status !== 'CANCELLED'
     ).length;
     return { total, active };
   };
@@ -82,11 +180,14 @@ export function ConnectedClinicsPage() {
   // Compute stats for all clinics
   const stats = clinics.reduce(
     (acc, c) => {
-      c.doctors.forEach(doc => {
+      c.doctors.forEach((doc) => {
         acc.totalDoctors += 1;
-        doc.workOrders.forEach(wo => {
+        doc.workOrders.forEach((wo) => {
           acc.totalOrders += 1;
-          const isActive = wo.status !== 'COMPLETED' && wo.status !== 'FAILED' && wo.status !== 'CANCELLED';
+          const isActive =
+            wo.status !== 'COMPLETED' &&
+            wo.status !== 'FAILED' &&
+            wo.status !== 'CANCELLED';
           if (isActive) {
             acc.activeOrders += 1;
           }
@@ -95,6 +196,12 @@ export function ConnectedClinicsPage() {
       return acc;
     },
     { totalClinics: clinics.length, totalDoctors: 0, totalOrders: 0, activeOrders: 0 }
+  );
+
+  const filteredModalTypes = allProsthesisTypes.filter(
+    (pt) =>
+      pt.name.toLowerCase().includes(modalSearchQuery.toLowerCase()) ||
+      (pt.description && pt.description.toLowerCase().includes(modalSearchQuery.toLowerCase()))
   );
 
   return (
@@ -123,7 +230,10 @@ export function ConnectedClinicsPage() {
 
           {/* Total Doctors */}
           <div className="stat-card">
-            <div className="stat-card__icon" style={{ backgroundColor: '#EFF6FF', color: '#3B82F6' }}>
+            <div
+              className="stat-card__icon"
+              style={{ backgroundColor: '#EFF6FF', color: '#3B82F6' }}
+            >
               <User size={24} />
             </div>
             <div className="stat-card__content">
@@ -170,7 +280,10 @@ export function ConnectedClinicsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
-              <button className="search-input__clear" onClick={() => setSearchQuery('')}>
+              <button
+                className="search-input__clear"
+                onClick={() => setSearchQuery('')}
+              >
                 <X size={14} />
               </button>
             )}
@@ -194,7 +307,9 @@ export function ConnectedClinicsPage() {
           </div>
           <h3 className="empty-state__title">{t('connectedClinics.title')}</h3>
           <p className="empty-state__text">
-            {clinics.length === 0 ? t('connectedClinics.noClinics') : t('common.noResults')}
+            {clinics.length === 0
+              ? t('connectedClinics.noClinics')
+              : t('common.noResults')}
           </p>
         </div>
       )}
@@ -211,14 +326,20 @@ export function ConnectedClinicsPage() {
                   <th>{t('connectedClinics.clinicUrl')}</th>
                   <th>{t('connectedClinics.branch')}</th>
                   <th>{t('connectedClinics.registeredAt')}</th>
+                  <th>{t('connectedClinics.prosthesisTypes')}</th>
                   <th>{t('connectedClinics.doctorsCount')}</th>
                   <th>{t('connectedClinics.totalOrders')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('connectedClinics.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedClinics.map((clinic) => {
                   const isExpanded = expandedClinicId === clinic.id;
-                  const totalClinicOrders = clinic.doctors.reduce((sum, doc) => sum + doc.workOrders.length, 0);
+                  const totalClinicOrders = clinic.doctors.reduce(
+                    (sum, doc) => sum + doc.workOrders.length,
+                    0
+                  );
+                  const allowedCount = clinic.allowedProsthesisTypes?.length || 0;
 
                   return (
                     <Fragment key={clinic.id}>
@@ -230,12 +351,27 @@ export function ConnectedClinicsPage() {
                             style={{ color: 'var(--text-secondary)' }}
                             aria-label="Expand details"
                           >
-                            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                            {isExpanded ? (
+                              <ChevronUp size={18} />
+                            ) : (
+                              <ChevronDown size={18} />
+                            )}
                           </button>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            <Building2 size={16} style={{ color: 'var(--accent-primary)' }} />
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
+                            <Building2
+                              size={16}
+                              style={{ color: 'var(--accent-primary)' }}
+                            />
                             {clinic.name}
                           </div>
                         </td>
@@ -244,7 +380,13 @@ export function ConnectedClinicsPage() {
                             href={clinic.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--accent-primary)', fontSize: '0.8125rem' }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              color: 'var(--accent-primary)',
+                              fontSize: '0.8125rem',
+                            }}
                           >
                             {clinic.url}
                             <ExternalLink size={12} />
@@ -256,75 +398,274 @@ export function ConnectedClinicsPage() {
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.8125rem',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
                             <Calendar size={14} />
                             {formatDate(clinic.createdAt)}
                           </div>
                         </td>
                         <td>
-                          <span className="badge badge--primary" style={{ minWidth: '24px', textAlign: 'center' }}>
+                          {allowedCount > 0 ? (
+                            <span
+                              className="badge badge--primary"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '12px',
+                                fontWeight: 500,
+                              }}
+                            >
+                              <Layers size={12} />
+                              {t('connectedClinics.selectedProsthesisCount', {
+                                count: allowedCount,
+                              })}
+                            </span>
+                          ) : (
+                            <span
+                              className="badge badge--warning"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '12px',
+                                fontWeight: 500,
+                              }}
+                            >
+                              <Layers size={12} />
+                              {t('connectedClinics.noProsthesisAllowed')}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span
+                            className="badge badge--primary"
+                            style={{ minWidth: '24px', textAlign: 'center' }}
+                          >
                             {clinic.doctors.length}
                           </span>
                         </td>
                         <td>
-                          <span className="badge badge--success" style={{ minWidth: '24px', textAlign: 'center' }}>
+                          <span
+                            className="badge badge--success"
+                            style={{ minWidth: '24px', textAlign: 'center' }}
+                          >
                             {totalClinicOrders}
                           </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            id={`btn-manage-prosthesis-${clinic.id}`}
+                            className="btn btn--secondary btn--sm"
+                            onClick={() => handleOpenProsthesisModal(clinic)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              fontSize: '0.8125rem',
+                              padding: '0.35rem 0.75rem',
+                            }}
+                          >
+                            <Settings size={14} />
+                            {t('connectedClinics.manageProsthesis')}
+                          </button>
                         </td>
                       </tr>
                       {isExpanded && (
                         <tr>
-                          <td colSpan={7} style={{ background: 'rgba(111, 174, 217, 0.02)', padding: '1.25rem 1.5rem' }}>
-                            <div className="dashboard-card" style={{ padding: '1.25rem' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
-                                <h4 style={{ margin: 0, fontSize: '0.925rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <Building2 size={16} style={{ color: 'var(--accent-primary)' }} />
+                          <td
+                            colSpan={9}
+                            style={{
+                              background: 'rgba(111, 174, 217, 0.02)',
+                              padding: '1.25rem 1.5rem',
+                            }}
+                          >
+                            <div
+                              className="dashboard-card"
+                              style={{ padding: '1.25rem' }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  marginBottom: '1rem',
+                                  borderBottom: '1px solid var(--border)',
+                                  paddingBottom: '0.75rem',
+                                }}
+                              >
+                                <h4
+                                  style={{
+                                    margin: 0,
+                                    fontSize: '0.925rem',
+                                    color: 'var(--text-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                  }}
+                                >
+                                  <Building2
+                                    size={16}
+                                    style={{ color: 'var(--accent-primary)' }}
+                                  />
                                   {clinic.name} - {t('connectedClinics.details')}
                                 </h4>
                               </div>
 
                               {clinic.doctors.length === 0 ? (
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', textAlign: 'center', padding: '1rem 0' }}>
+                                <p
+                                  style={{
+                                    color: 'var(--text-muted)',
+                                    fontSize: '0.8125rem',
+                                    textAlign: 'center',
+                                    padding: '1rem 0',
+                                  }}
+                                >
                                   {t('connectedClinics.noDoctors')}
                                 </p>
                               ) : (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                                <div
+                                  style={{
+                                    display: 'grid',
+                                    gridTemplateColumns:
+                                      'repeat(auto-fill, minmax(280px, 1fr))',
+                                    gap: '1rem',
+                                  }}
+                                >
                                   {clinic.doctors.map((doctor) => {
-                                    const stats = getOrderStats(doctor.workOrders);
+                                    const stats = getOrderStats(
+                                      doctor.workOrders
+                                    );
                                     return (
-                                      <div key={doctor.id} style={{
-                                        background: 'var(--bg-body, rgba(234, 244, 251, 0.5))',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '12px',
-                                        padding: '1rem',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '0.75rem'
-                                      }}>
-                                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                                          <User size={14} style={{ color: 'var(--text-secondary)' }} />
+                                      <div
+                                        key={doctor.id}
+                                        style={{
+                                          background:
+                                            'var(--bg-body, rgba(234, 244, 251, 0.5))',
+                                          border: '1px solid var(--border)',
+                                          borderRadius: '12px',
+                                          padding: '1rem',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          gap: '0.75rem',
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            fontWeight: 600,
+                                            color: 'var(--text-primary)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            fontSize: '0.875rem',
+                                          }}
+                                        >
+                                          <User
+                                            size={14}
+                                            style={{
+                                              color: 'var(--text-secondary)',
+                                            }}
+                                          />
                                           {doctor.name}
                                         </div>
-                                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'none' }}>
+                                        <div
+                                          style={{
+                                            fontSize: '0.8125rem',
+                                            color: 'var(--text-secondary)',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '0.25rem',
+                                          }}
+                                        >
+                                          <div
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '0.5rem',
+                                              textTransform: 'none',
+                                            }}
+                                          >
                                             <Mail size={12} />
                                             {doctor.email || 'N/A'}
                                           </div>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                          <div
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '0.5rem',
+                                            }}
+                                          >
                                             <Phone size={12} />
                                             {doctor.phone || 'N/A'}
                                           </div>
                                         </div>
-                                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            <ClipboardList size={14} style={{ color: 'var(--accent-primary)' }} />
-                                            <span>{t('connectedClinics.totalOrders')}:</span>
-                                            <strong style={{ color: 'var(--text-primary)' }}>{stats.total}</strong>
+                                        <div
+                                          style={{
+                                            borderTop: '1px solid var(--border)',
+                                            paddingTop: '0.75rem',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            fontSize: '0.8125rem',
+                                          }}
+                                        >
+                                          <div
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '0.25rem',
+                                            }}
+                                          >
+                                            <ClipboardList
+                                              size={14}
+                                              style={{
+                                                color: 'var(--accent-primary)',
+                                              }}
+                                            />
+                                            <span>
+                                              {t('connectedClinics.totalOrders')}:
+                                            </span>
+                                            <strong
+                                              style={{
+                                                color: 'var(--text-primary)',
+                                              }}
+                                            >
+                                              {stats.total}
+                                            </strong>
                                           </div>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }}></span>
-                                            <span>{t('connectedClinics.activeOrders')}:</span>
-                                            <strong style={{ color: 'var(--success)' }}>{stats.active}</strong>
+                                          <div
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '0.25rem',
+                                            }}
+                                          >
+                                            <span
+                                              style={{
+                                                width: '8px',
+                                                height: '8px',
+                                                borderRadius: '50%',
+                                                background: 'var(--success)',
+                                              }}
+                                            ></span>
+                                            <span>
+                                              {t('connectedClinics.activeOrders')}:
+                                            </span>
+                                            <strong
+                                              style={{
+                                                color: 'var(--success)',
+                                              }}
+                                            >
+                                              {stats.active}
+                                            </strong>
                                           </div>
                                         </div>
                                       </div>
@@ -349,6 +690,384 @@ export function ConnectedClinicsPage() {
             onPageChange={setCurrentPage}
           />
         </>
+      )}
+
+      {/* Manage Prosthesis Types Modal Overlay */}
+      {selectedClinicForProsthesis && (
+        <div className="modal-overlay" onClick={handleCloseProsthesisModal}>
+          <div
+            className="modal modal--lg"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '640px', overflow: 'hidden' }}
+          >
+            {/* Modal Header */}
+            <div
+              className="modal__header"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1.25rem 1.75rem',
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background:
+                      'linear-gradient(135deg, rgba(111, 174, 217, 0.15), rgba(70, 130, 180, 0.2))',
+                    border: '1px solid rgba(111, 174, 217, 0.3)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: 'var(--accent-primary)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Layers size={22} style={{ display: 'block', margin: 'auto' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <h3
+                    className="modal__title"
+                    style={{ fontSize: '1.125rem', fontWeight: 700, lineHeight: 1.2, margin: 0 }}
+                  >
+                    {t('connectedClinics.configureProsthesis')}
+                  </h3>
+                  <p
+                    className="modal__subtitle"
+                    style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0', lineHeight: 1.2 }}
+                  >
+                    {selectedClinicForProsthesis.name} • {selectedClinicForProsthesis.branch.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal__close"
+                onClick={handleCloseProsthesisModal}
+                aria-label="Close"
+                style={{ margin: 0, display: 'grid', placeItems: 'center' }}
+              >
+                <X size={20} style={{ display: 'block', margin: 'auto' }} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="modal__body" style={{ gap: '1rem', padding: '1.5rem 1.75rem' }}>
+              <p
+                style={{
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary)',
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                {t('connectedClinics.selectProsthesisInstructions')}
+              </p>
+
+              {/* Toolbar & Filters */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div
+                  className="search-input-wrap"
+                  style={{ flex: 1, minWidth: '220px' }}
+                >
+                  <Search size={15} className="search-input__icon" />
+                  <input
+                    id="input-prosthesis-modal-search"
+                    type="text"
+                    className="form-input search-input"
+                    style={{
+                      fontSize: '0.8125rem',
+                      height: '38px',
+                      borderRadius: '8px',
+                    }}
+                    placeholder={t(
+                      'connectedClinics.searchProsthesisPlaceholder'
+                    )}
+                    value={modalSearchQuery}
+                    onChange={(e) => setModalSearchQuery(e.target.value)}
+                  />
+                  {modalSearchQuery && (
+                    <button
+                      className="search-input__clear"
+                      onClick={() => setModalSearchQuery('')}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    onClick={handleSelectAllTypes}
+                    style={{
+                      fontSize: '0.8125rem',
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    {t('connectedClinics.selectAll')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    onClick={handleDeselectAllTypes}
+                    style={{
+                      fontSize: '0.8125rem',
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    {t('connectedClinics.deselectAll')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Badge Indicator */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.8125rem',
+                  fontWeight: 500,
+                  color: 'var(--text-secondary)',
+                  padding: '0.625rem 0.875rem',
+                  background: 'rgba(111, 174, 217, 0.05)',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <span>
+                  {t('connectedClinics.selectedProsthesisCount', {
+                    count: selectedTypeIds.size,
+                  })}
+                </span>
+                <span
+                  style={{
+                    fontWeight: 700,
+                    color: 'var(--accent-primary)',
+                    background: 'rgba(111, 174, 217, 0.12)',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '6px',
+                  }}
+                >
+                  {selectedTypeIds.size} / {allProsthesisTypes.length}
+                </span>
+              </div>
+
+              {/* Prosthesis Selection List */}
+              {loadingProsthesisTypes ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2.5rem',
+                    gap: '0.75rem',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <Loader2 size={24} className="spinner" />
+                  <span>{t('common.loading')}</span>
+                </div>
+              ) : filteredModalTypes.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    color: 'var(--text-muted)',
+                    padding: '2.5rem 1rem',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  {t('common.noResults')}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    maxHeight: '340px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.625rem',
+                    paddingRight: '0.375rem',
+                  }}
+                >
+                  {filteredModalTypes.map((pt) => {
+                    const isChecked = selectedTypeIds.has(pt.id);
+                    return (
+                      <div
+                        key={pt.id}
+                        onClick={() => handleToggleProsthesisType(pt.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.875rem',
+                          padding: '0.875rem 1.125rem',
+                          borderRadius: '12px',
+                          border: isChecked
+                            ? '1.5px solid var(--accent-primary)'
+                            : '1px solid var(--border)',
+                          background: isChecked
+                            ? 'rgba(111, 174, 217, 0.08)'
+                            : 'var(--bg-surface)',
+                          boxShadow: isChecked
+                            ? '0 2px 8px rgba(111, 174, 217, 0.12)'
+                            : 'none',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease-in-out',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '7px',
+                            border: isChecked
+                              ? 'none'
+                              : '1.5px solid var(--border)',
+                            background: isChecked
+                              ? 'var(--accent-primary)'
+                              : 'transparent',
+                            color: '#ffffff',
+                            display: 'grid',
+                            placeItems: 'center',
+                            flexShrink: 0,
+                            transition: 'all 0.15s ease-in-out',
+                          }}
+                        >
+                          {isChecked && (
+                            <Check
+                              size={15}
+                              strokeWidth={3}
+                              style={{ display: 'block', margin: 'auto' }}
+                            />
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              fontSize: '0.875rem',
+                              lineHeight: 1.3,
+                              color: isChecked
+                                ? 'var(--accent-primary)'
+                                : 'var(--text-heading)',
+                            }}
+                          >
+                            {pt.name}
+                          </div>
+                          {pt.description && (
+                            <div
+                              style={{
+                                fontSize: '0.78rem',
+                                color: 'var(--text-muted)',
+                                marginTop: '0.25rem',
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              {pt.description}
+                            </div>
+                          )}
+                        </div>
+                        {pt.price !== undefined &&
+                          pt.price !== null &&
+                          pt.price > 0 && (
+                            <span
+                              className="badge badge--neutral"
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                alignSelf: 'center',
+                              }}
+                            >
+                              ${pt.price.toFixed(2)}
+                            </span>
+                          )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="modal__footer"
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '1.25rem 1.75rem',
+                borderTop: '1px solid var(--border)',
+                background: 'var(--bg-surface)',
+                borderBottomLeftRadius: 'var(--radius-lg)',
+                borderBottomRightRadius: 'var(--radius-lg)',
+                marginTop: 0,
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={handleCloseProsthesisModal}
+                disabled={savingProsthesis}
+                style={{ minWidth: '100px', height: '38px', borderRadius: '8px' }}
+              >
+                {t('connectedClinics.cancel')}
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={handleSaveProsthesisTypes}
+                disabled={savingProsthesis || loadingProsthesisTypes}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  minWidth: '140px',
+                  height: '38px',
+                  borderRadius: '8px',
+                }}
+              >
+                {savingProsthesis ? (
+                  <>
+                    <Loader2 size={16} className="spinner" />
+                    <span>{t('common.loading')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Check
+                      size={16}
+                      style={{ display: 'block', margin: 'auto' }}
+                    />
+                    <span>{t('connectedClinics.save')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

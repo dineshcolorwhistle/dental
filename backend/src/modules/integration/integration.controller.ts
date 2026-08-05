@@ -155,22 +155,82 @@ export class IntegrationController {
   @ApiOperation({
     summary: 'Retrieve prosthesis types and next folio number for WO setup',
   })
-  async getWorkOrderSetup(@Req() req: any) {
+  async getWorkOrderSetup(
+    @Req() req: any,
+    @Query('clinicUrl') clinicUrl?: string,
+    @Query('clinicId') clinicId?: string,
+  ) {
     const tenantId = req.apiKeyTenantId;
     const branchId = req.apiKeyBranchId;
 
-    const prosthesisTypes = await this.prisma.prosthesisType.findMany({
-      where: {
-        tenantId,
-        OR: [{ branchId: null }, { branchId }],
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-      },
-      orderBy: { name: 'asc' },
-    });
+    let prosthesisTypes: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+    }> = [];
+
+    if (clinicUrl || clinicId) {
+      try {
+        const rows: any[] = await this.prisma.$queryRawUnsafe(
+          `SELECT pt.id, pt.name, pt.description 
+           FROM "prosthesis_types" pt
+           INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
+           INNER JOIN "clinics" c ON c.id = cpt.clinic_id
+           WHERE c.tenant_id = $1 AND (c.url = $2 OR c.id = $3)
+           ORDER BY pt.name ASC`,
+          tenantId,
+          clinicUrl || '',
+          clinicId || '',
+        );
+        prosthesisTypes = (rows || []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+        }));
+      } catch {
+        prosthesisTypes = [];
+      }
+    } else {
+      const clinics = await this.prisma.clinic.findMany({
+        where: {
+          tenantId,
+          ...(branchId ? { branchId } : {}),
+        },
+      });
+
+      if (clinics.length === 1) {
+        try {
+          const rows: any[] = await this.prisma.$queryRawUnsafe(
+            `SELECT pt.id, pt.name, pt.description 
+             FROM "prosthesis_types" pt
+             INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
+             WHERE cpt.clinic_id = $1
+             ORDER BY pt.name ASC`,
+            clinics[0].id,
+          );
+          prosthesisTypes = (rows || []).map((r) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description,
+          }));
+        } catch {
+          prosthesisTypes = [];
+        }
+      } else {
+        prosthesisTypes = await this.prisma.prosthesisType.findMany({
+          where: {
+            tenantId,
+            OR: [{ branchId: null }, { branchId }],
+          },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+          orderBy: { name: 'asc' },
+        });
+      }
+    }
 
     const folioNumber = await generateFolioNumber(
       this.prisma,
@@ -208,6 +268,24 @@ export class IntegrationController {
     if (!clinic) {
       throw new NotFoundException(
         `Clinic with URL "${dto.clinicUrl}" not configured. Please run configuration setup first.`,
+      );
+    }
+
+    // Validate that requested prosthesis type is permitted for this clinic
+    let allowedTypeIds: string[] = [];
+    try {
+      const rows: any[] = await this.prisma.$queryRawUnsafe(
+        `SELECT prosthesis_type_id FROM "clinic_prosthesis_types" WHERE clinic_id = $1`,
+        clinic.id,
+      );
+      allowedTypeIds = (rows || []).map((r) => r.prosthesis_type_id);
+    } catch {
+      allowedTypeIds = [];
+    }
+
+    if (!allowedTypeIds.includes(dto.prosthesisTypeId)) {
+      throw new BadRequestException(
+        `Prosthesis type is not permitted for this clinic. Please contact the administrator to enable it.`,
       );
     }
 

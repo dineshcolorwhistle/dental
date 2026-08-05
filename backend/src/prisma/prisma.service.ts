@@ -42,6 +42,18 @@ export class PrismaService
           CONSTRAINT "whatsapp_templates_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE
         );
       `);
+      await this.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "clinic_prosthesis_types" (
+          "id" TEXT NOT NULL,
+          "clinic_id" TEXT NOT NULL,
+          "prosthesis_type_id" TEXT NOT NULL,
+          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "clinic_prosthesis_types_pkey" PRIMARY KEY ("id"),
+          CONSTRAINT "clinic_prosthesis_types_clinic_id_prosthesis_type_id_key" UNIQUE ("clinic_id", "prosthesis_type_id"),
+          CONSTRAINT "clinic_prosthesis_types_clinic_id_fkey" FOREIGN KEY ("clinic_id") REFERENCES "clinics"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+          CONSTRAINT "clinic_prosthesis_types_prosthesis_type_id_fkey" FOREIGN KEY ("prosthesis_type_id") REFERENCES "prosthesis_types"("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );
+      `);
     } catch (e) {
       console.error('[SchemaSync] Error ensuring schema updates exist:', e);
     }

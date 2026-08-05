@@ -276,9 +276,10 @@ model Clinic {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  doctors    Doctor[]
+  tenant                 Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch                 Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  doctors                Doctor[]
+  allowedProsthesisTypes ClinicProsthesisType[]
 
   @@unique([branchId, url])
   @@map("clinics")
@@ -297,13 +298,30 @@ model ProsthesisType {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch             Branch?                 @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  processAssignments ProsthesisTypeProcess[]
-  workOrders         WorkOrder[]
+  tenant                 Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch                 Branch?                @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  processAssignments     ProsthesisTypeProcess[]
+  workOrders             WorkOrder[]
+  clinicProsthesisTypes  ClinicProsthesisType[]
 
   @@unique([tenantId, branchId, name])
   @@map("prosthesis_types")
+}
+
+// ─── Clinic Prosthesis Type ──────────────────────────────
+
+model ClinicProsthesisType {
+  id               String         @id @default(uuid())
+  clinicId         String         @map("clinic_id")
+  prosthesisTypeId String         @map("prosthesis_type_id")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  clinic         Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  prosthesisType ProsthesisType @relation(fields: [prosthesisTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, prosthesisTypeId])
+  @@map("clinic_prosthesis_types")
 }
 
 // ─── Process ─────────────────────────────────────────────

@@ -25,6 +25,13 @@ export interface ConnectedClinicListItem {
     code: string;
   };
   doctors: ConnectedClinicDoctorItem[];
+  allowedProsthesisTypes?: Array<{
+    prosthesisType: {
+      id: string;
+      name: string;
+      description: string | null;
+    };
+  }>;
 }
 
 export const connectedClinicService = {
@@ -32,4 +39,16 @@ export const connectedClinicService = {
     const response = await api.get<ConnectedClinicListItem[]>('/connected-clinics');
     return response.data;
   },
+
+  updateProsthesisTypes: async (
+    clinicId: string,
+    prosthesisTypeIds: string[]
+  ): Promise<ConnectedClinicListItem> => {
+    const response = await api.put<ConnectedClinicListItem>(
+      `/connected-clinics/${clinicId}/prosthesis-types`,
+      { prosthesisTypeIds }
+    );
+    return response.data;
+  },
 };
+

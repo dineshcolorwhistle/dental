@@ -1367,7 +1367,21 @@
     "doctorPhone": "Teléfono",
     "noDoctors": "Aún no hay doctores registrados para esta clínica.",
     "totalClinics": "Total de Clínicas",
-    "totalDoctors": "Total de Doctores"
+    "totalDoctors": "Total de Doctores",
+    "prosthesisTypes": "Tipos de Prótesis",
+    "manageProsthesis": "Gestionar Tipos de Prótesis",
+    "configureProsthesis": "Configurar Tipos de Prótesis",
+    "noProsthesisAllowed": "Sin Tipos Configurados (0)",
+    "selectedProsthesisCount": "{{count}} Tipos Seleccionados",
+    "selectProsthesisInstructions": "Seleccione los tipos de prótesis disponibles para esta clínica al crear órdenes de trabajo.",
+    "selectAll": "Seleccionar Todos",
+    "deselectAll": "Deseleccionar Todos",
+    "saveProsthesisSuccess": "¡Tipos de prótesis de la clínica actualizados con éxito!",
+    "saveProsthesisError": "Error al actualizar los tipos de prótesis de la clínica.",
+    "searchProsthesisPlaceholder": "Buscar tipos de prótesis...",
+    "save": "Guardar Cambios",
+    "cancel": "Cancelar",
+    "actions": "Acciones"
   },
   "workOrderChat": {
     "title": "Chat de Orden de Trabajo",
