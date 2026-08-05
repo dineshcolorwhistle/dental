@@ -50,6 +50,12 @@ enum ProcessStatus {
   CANCELLED
 }
 
+enum ProcessType {
+  PRODUCTION
+  INTERNAL_VERIFICATION
+  EXTERNAL_VERIFICATION
+}
+
 enum Language {
   EN
   ES
@@ -327,21 +333,22 @@ model ClinicProsthesisType {
 // ─── Process ─────────────────────────────────────────────
 
 model Process {
-  id                  String   @id @default(uuid())
-  tenantId            String   @map("tenant_id")
-  branchId            String?  @map("branch_id")
+  id                  String      @id @default(uuid())
+  tenantId            String      @map("tenant_id")
+  branchId            String?     @map("branch_id")
   name                String
-  processArea         String   @map("process_area") // e.g. "Scanning", "Design", "Milling", "QC"
-  processAreaId       String?  @map("process_area_id")
-  defaultTechnicianId String   @map("default_technician_id")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  type                ProcessType @default(PRODUCTION)
+  processArea         String      @map("process_area") // e.g. "Scanning", "Design", "Milling", "QC"
+  processAreaId       String?     @map("process_area_id")
+  defaultTechnicianId String?     @map("default_technician_id")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
 
   // Relations
   tenant                    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branch                    Branch?                 @relation(fields: [branchId], references: [id], onDelete: SetNull)
   processAreaRelation       ProcessArea?            @relation(fields: [processAreaId], references: [id], onDelete: SetNull)
-  defaultTechnician         User                    @relation("ProcessDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: Cascade)
+  defaultTechnician         User?                   @relation("ProcessDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: SetNull)
   prosthesisTypeAssignments ProsthesisTypeProcess[]
 
   @@map("processes")

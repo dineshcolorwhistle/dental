@@ -445,21 +445,36 @@ export class WorkOrdersService implements OnModuleInit {
     const folioNumber = await this.generateFolioNumber(tenantId, finalBranchId);
 
     // 5. Determine processes and status
-    const mappedProcesses = processes.map((p) => {
-      const isVerification = p.isVerification || false;
-      const processName = isVerification
-        ? p.technicianId
-          ? 'Verification (Internal)'
-          : 'Verification (External)'
-        : p.processName;
-      return {
-        processName,
-        technicianId: p.technicianId || null,
-        sequence: p.sequence,
-        isVerification,
-        status: (p as any).status || ProcessStatus.NOT_STARTED,
-      };
-    });
+    const mappedProcesses = await Promise.all(
+      processes.map(async (p) => {
+        const isVerification = p.isVerification || false;
+        let validTechnicianId: string | null = null;
+
+        if (p.technicianId) {
+          const userExists = await this.prisma.user.findFirst({
+            where: { id: p.technicianId, tenantId },
+          });
+          if (userExists) {
+            validTechnicianId = userExists.id;
+          }
+        }
+
+        const isExternalVerification = isVerification && !validTechnicianId;
+        const processName =
+          p.processName ||
+          (isExternalVerification
+            ? 'Verification (External)'
+            : 'Verification (Internal)');
+
+        return {
+          processName,
+          technicianId: validTechnicianId,
+          sequence: p.sequence,
+          isVerification,
+          status: (p as any).status || ProcessStatus.NOT_STARTED,
+        };
+      }),
+    );
 
     const status =
       action === 'create'

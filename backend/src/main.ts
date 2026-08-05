@@ -10,7 +10,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
-  // Reload DashboardLayout restore
+  // Reload Process Verification DTO & Service Update v2
 
   // Global prefix
   app.setGlobalPrefix('api');

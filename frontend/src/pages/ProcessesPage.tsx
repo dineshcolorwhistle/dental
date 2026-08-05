@@ -9,6 +9,7 @@ import {
   Trash2,
   Building2,
   GitMerge,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -17,11 +18,13 @@ import {
   technicianService,
   branchService,
   processAreaService,
+  adminService,
   type ProcessListItem,
   type TechnicianListItem,
   type BranchListItem,
   type CreateProcessPayload,
   type ProcessAreaListItem,
+  type AdminListItem,
 } from '../services';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect } from '../components';
@@ -59,6 +62,8 @@ export function ProcessesPage() {
   // Form dropdown data
   const [formTechnicians, setFormTechnicians] = useState<TechnicianListItem[]>([]);
   const [loadingTechs, setLoadingTechs] = useState(false);
+  const [formAdmins, setFormAdmins] = useState<AdminListItem[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [processAreas, setProcessAreas] = useState<ProcessAreaListItem[]>([]);
   const [loadingAreas, setLoadingAreas] = useState(false);
 
@@ -70,6 +75,7 @@ export function ProcessesPage() {
   // Form states
   const [form, setForm] = useState<CreateProcessPayload>({
     name: '',
+    type: 'PRODUCTION',
     processAreaId: '',
     defaultTechnicianId: '',
     branchId: '',
@@ -117,7 +123,23 @@ export function ProcessesPage() {
     }
   }, []);
 
-  // Sync technicians and process areas dropdowns when form branchId changes
+  const fetchAdminsForBranch = useCallback(async (branchId: string) => {
+    if (!branchId) {
+      setFormAdmins([]);
+      return;
+    }
+    try {
+      setLoadingAdmins(true);
+      const admins = await adminService.getAll(branchId);
+      setFormAdmins(admins.filter((a) => a.status === 'ACTIVE'));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingAdmins(false);
+    }
+  }, []);
+
+  // Sync technicians, admins and process areas dropdowns when form branchId changes
   const fetchProcessAreasForBranch = useCallback(async (branchId: string) => {
     if (!branchId) {
       setProcessAreas([]);
@@ -139,13 +161,15 @@ export function ProcessesPage() {
       const activeBranchId = isAdmin ? user?.branchId : form.branchId;
       if (activeBranchId) {
         fetchTechniciansForBranch(activeBranchId);
+        fetchAdminsForBranch(activeBranchId);
         fetchProcessAreasForBranch(activeBranchId);
       } else {
         setFormTechnicians([]);
+        setFormAdmins([]);
         setProcessAreas([]);
       }
     }
-  }, [form.branchId, showCreateModal, showEditModal, isAdmin, user, fetchTechniciansForBranch, fetchProcessAreasForBranch]);
+  }, [form.branchId, showCreateModal, showEditModal, isAdmin, user, fetchTechniciansForBranch, fetchAdminsForBranch, fetchProcessAreasForBranch]);
 
   // ─── Filtering & Sorting ────────────────────────────
 
@@ -178,8 +202,15 @@ export function ProcessesPage() {
     const errors: Partial<Record<keyof CreateProcessPayload, string>> = {};
 
     if (!form.name.trim()) errors.name = t('validation.fieldRequired');
-    if (!form.processAreaId) errors.processAreaId = t('validation.fieldRequired');
-    if (!form.defaultTechnicianId) errors.defaultTechnicianId = t('validation.fieldRequired');
+
+    const pType = form.type || 'PRODUCTION';
+    if (pType === 'PRODUCTION') {
+      if (!form.processAreaId) errors.processAreaId = t('validation.fieldRequired');
+      if (!form.defaultTechnicianId) errors.defaultTechnicianId = t('validation.fieldRequired');
+    } else if (pType === 'INTERNAL_VERIFICATION') {
+      if (!form.defaultTechnicianId) errors.defaultTechnicianId = t('validation.fieldRequired');
+    }
+
     if (!isAdmin && !form.branchId) {
       errors.branchId = t('validation.fieldRequired');
     }
@@ -192,6 +223,7 @@ export function ProcessesPage() {
     const defaultBranchId = isAdmin ? user?.branchId || '' : branches[0]?.id || '';
     setForm({
       name: '',
+      type: 'PRODUCTION',
       processAreaId: '',
       defaultTechnicianId: '',
       branchId: defaultBranchId,
@@ -204,8 +236,9 @@ export function ProcessesPage() {
     setSelectedProcess(proc);
     setForm({
       name: proc.name,
+      type: proc.type || 'PRODUCTION',
       processAreaId: (proc as any).processAreaId || '',
-      defaultTechnicianId: proc.defaultTechnicianId,
+      defaultTechnicianId: proc.defaultTechnicianId || '',
       branchId: proc.branchId || '',
     });
     setFormErrors({});
@@ -220,8 +253,9 @@ export function ProcessesPage() {
       setSaving(true);
       const payload: CreateProcessPayload = {
         name: form.name,
-        processAreaId: form.processAreaId,
-        defaultTechnicianId: form.defaultTechnicianId,
+        type: form.type || 'PRODUCTION',
+        processAreaId: form.processAreaId || undefined,
+        defaultTechnicianId: (form.type || 'PRODUCTION') === 'EXTERNAL_VERIFICATION' ? undefined : (form.defaultTechnicianId || undefined),
         branchId: isAdmin ? user?.branchId || undefined : form.branchId,
       };
       await processService.create(payload);
@@ -244,8 +278,9 @@ export function ProcessesPage() {
       setSaving(true);
       const payload: Partial<CreateProcessPayload> = {
         name: form.name,
-        processAreaId: form.processAreaId,
-        defaultTechnicianId: form.defaultTechnicianId,
+        type: form.type || 'PRODUCTION',
+        processAreaId: form.processAreaId || undefined,
+        defaultTechnicianId: (form.type || 'PRODUCTION') === 'EXTERNAL_VERIFICATION' ? undefined : (form.defaultTechnicianId || undefined),
         branchId: isAdmin ? user?.branchId || undefined : form.branchId || undefined,
       };
       await processService.update(selectedProcess.id, payload);
@@ -437,8 +472,8 @@ export function ProcessesPage() {
                 <tr key={proc.id}>
                   <td>
                     <div className="cell-primary">
-                      <div className="cell-avatar" style={{ background: 'linear-gradient(135deg, #FFECD2, #FCB69F)' }}>
-                        P
+                      <div className="cell-avatar" style={{ background: proc.type === 'INTERNAL_VERIFICATION' ? 'linear-gradient(135deg, #C7D2FE, #818CF8)' : proc.type === 'EXTERNAL_VERIFICATION' ? 'linear-gradient(135deg, #A7F3D0, #34D399)' : 'linear-gradient(135deg, #FFECD2, #FCB69F)' }}>
+                        {proc.type === 'INTERNAL_VERIFICATION' || proc.type === 'EXTERNAL_VERIFICATION' ? <ShieldCheck size={16} color="#fff" /> : 'P'}
                       </div>
                       <div>
                         <span className="cell-primary__name">{proc.name}</span>
@@ -446,12 +481,29 @@ export function ProcessesPage() {
                     </div>
                   </td>
                   <td>
-                    <span className="badge badge--primary" style={{ textTransform: 'capitalize' }}>
-                      {proc.processArea}
-                    </span>
+                    {proc.type === 'INTERNAL_VERIFICATION' ? (
+                      <span className="badge" style={{ backgroundColor: '#EEF2FF', color: '#4F46E5', gap: '0.25rem', display: 'inline-flex', alignItems: 'center', fontWeight: 600 }}>
+                        <ShieldCheck size={12} />
+                        {t('enums.processType.INTERNAL_VERIFICATION')}
+                      </span>
+                    ) : proc.type === 'EXTERNAL_VERIFICATION' ? (
+                      <span className="badge" style={{ backgroundColor: '#F0FDF4', color: '#16A34A', gap: '0.25rem', display: 'inline-flex', alignItems: 'center', fontWeight: 600 }}>
+                        <ShieldCheck size={12} />
+                        {t('enums.processType.EXTERNAL_VERIFICATION')}
+                      </span>
+                    ) : (
+                      <span className="badge badge--primary" style={{ textTransform: 'capitalize' }}>
+                        {proc.processArea}
+                      </span>
+                    )}
                   </td>
                   <td>
-                    {proc.defaultTechnician ? (
+                    {proc.type === 'EXTERNAL_VERIFICATION' ? (
+                      <div className="cell-user" style={{ color: '#059669', fontSize: '0.8125rem', fontWeight: 500 }}>
+                        <ShieldCheck size={14} style={{ display: 'inline', marginRight: 4 }} />
+                        {t('enums.userRole.DOCTOR')} ({t('workOrders.selectedDoctor', { defaultValue: 'Assigned Doctor' })})
+                      </div>
+                    ) : proc.defaultTechnician ? (
                       <div className="cell-user">
                         <span className="cell-user__name">
                           {proc.defaultTechnician.firstName} {proc.defaultTechnician.lastName}
@@ -580,6 +632,30 @@ export function ProcessesPage() {
                 </div>
               )}
 
+              <div className="form-group">
+                <label className="form-label" htmlFor="select-process-type">
+                  {t('processesPage.processType')} *
+                </label>
+                <SearchableSelect
+                  id="select-process-type"
+                  options={[
+                    { value: 'PRODUCTION', label: t('processesPage.productionProcess') },
+                    { value: 'INTERNAL_VERIFICATION', label: t('processesPage.internalVerification') },
+                    { value: 'EXTERNAL_VERIFICATION', label: t('processesPage.externalVerification') },
+                  ]}
+                  value={form.type || 'PRODUCTION'}
+                  onChange={(val) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      type: val as any,
+                      defaultTechnicianId: '',
+                    }));
+                  }}
+                  disabled={saving}
+                  placeholder={t('processesPage.processType')}
+                />
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-process-name">
@@ -604,7 +680,7 @@ export function ProcessesPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-process-area">
-                    {t('processesPage.processArea', { defaultValue: 'Process Area' })} *
+                    {t('processesPage.processArea', { defaultValue: 'Process Area' })} {(form.type || 'PRODUCTION') === 'PRODUCTION' ? '*' : ''}
                   </label>
                   <SearchableSelect
                     id="select-process-area"
@@ -612,7 +688,7 @@ export function ProcessesPage() {
                       value: area.id,
                       label: area.name,
                     }))}
-                    value={form.processAreaId}
+                    value={form.processAreaId || ''}
                     onChange={(val) => handleInputChange('processAreaId', val)}
                     disabled={saving || loadingAreas || (!isAdmin && !form.branchId)}
                     placeholder={
@@ -634,36 +710,81 @@ export function ProcessesPage() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="select-process-technician">
-                  {t('processesPage.defaultTechnician')} *
-                </label>
-                <SearchableSelect
-                  id="select-process-technician"
-                  options={formTechnicians.map((tech) => ({
-                    value: tech.id,
-                    label: `${tech.firstName} ${tech.lastName}${tech.role === 'ADMIN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''} (${tech.email})`,
-                  }))}
-                  value={form.defaultTechnicianId}
-                  onChange={(val) => handleInputChange('defaultTechnicianId', val)}
-                  disabled={saving || loadingTechs || (!isAdmin && !form.branchId)}
-                  placeholder={
-                    loadingTechs
-                      ? t('technicians.loading', { defaultValue: 'Loading technicians...' })
-                      : !isAdmin && !form.branchId
-                      ? t('processesPage.selectBranchFirst', { defaultValue: 'Select a branch first' })
-                      : formTechnicians.length === 0
-                      ? t('processesPage.noTechniciansBranch', { defaultValue: 'No technicians in this branch' })
-                      : t('processesPage.selectDefaultTechnician', { defaultValue: 'Select pre-assigned default technician' })
-                  }
-                  error={!!formErrors.defaultTechnicianId}
-                />
-                {formErrors.defaultTechnicianId && (
-                  <span className="form-error">
-                    <AlertCircle size={12} /> {formErrors.defaultTechnicianId}
-                  </span>
-                )}
-              </div>
+              {(form.type || 'PRODUCTION') === 'PRODUCTION' && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="select-process-technician">
+                    {t('processesPage.defaultTechnician')} *
+                  </label>
+                  <SearchableSelect
+                    id="select-process-technician"
+                    options={formTechnicians.map((tech) => ({
+                      value: tech.id,
+                      label: `${tech.firstName} ${tech.lastName}${tech.role === 'ADMIN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''} (${tech.email})`,
+                    }))}
+                    value={form.defaultTechnicianId || ''}
+                    onChange={(val) => handleInputChange('defaultTechnicianId', val)}
+                    disabled={saving || loadingTechs || (!isAdmin && !form.branchId)}
+                    placeholder={
+                      loadingTechs
+                        ? t('technicians.loading', { defaultValue: 'Loading technicians...' })
+                        : !isAdmin && !form.branchId
+                        ? t('processesPage.selectBranchFirst', { defaultValue: 'Select a branch first' })
+                        : formTechnicians.length === 0
+                        ? t('processesPage.noTechniciansBranch', { defaultValue: 'No technicians in this branch' })
+                        : t('processesPage.selectDefaultTechnician', { defaultValue: 'Select pre-assigned default technician' })
+                    }
+                    error={!!formErrors.defaultTechnicianId}
+                  />
+                  {formErrors.defaultTechnicianId && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {formErrors.defaultTechnicianId}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {form.type === 'INTERNAL_VERIFICATION' && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="select-process-admin">
+                    {t('processesPage.selectDefaultAdmin', { defaultValue: 'Select pre-assigned default Admin' })} *
+                  </label>
+                  <SearchableSelect
+                    id="select-process-admin"
+                    options={formAdmins.map((admin) => ({
+                      value: admin.id,
+                      label: `${admin.firstName} ${admin.lastName} (${admin.email})`,
+                    }))}
+                    value={form.defaultTechnicianId || ''}
+                    onChange={(val) => handleInputChange('defaultTechnicianId', val)}
+                    disabled={saving || loadingAdmins || (!isAdmin && !form.branchId)}
+                    placeholder={
+                      loadingAdmins
+                        ? t('common.loading', { defaultValue: 'Loading...' })
+                        : !isAdmin && !form.branchId
+                        ? t('processesPage.selectBranchFirst', { defaultValue: 'Select a branch first' })
+                        : formAdmins.length === 0
+                        ? t('processesPage.noAdminsBranch', { defaultValue: 'No admins in this branch' })
+                        : t('processesPage.selectDefaultAdmin', { defaultValue: 'Select pre-assigned default Admin' })
+                    }
+                    error={!!formErrors.defaultTechnicianId}
+                  />
+                  {formErrors.defaultTechnicianId && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {formErrors.defaultTechnicianId}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {form.type === 'EXTERNAL_VERIFICATION' && (
+                <div className="form-group">
+                  <label className="form-label">{t('processesPage.assignedTo', { defaultValue: 'Assigned To' })}</label>
+                  <div style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ShieldCheck size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                    <span>{t('processesPage.assignedDoctorNotice')}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="modal__footer">
                 <button
@@ -740,6 +861,30 @@ export function ProcessesPage() {
                 </div>
               )}
 
+              <div className="form-group">
+                <label className="form-label" htmlFor="select-edit-process-type">
+                  {t('processesPage.processType')} *
+                </label>
+                <SearchableSelect
+                  id="select-edit-process-type"
+                  options={[
+                    { value: 'PRODUCTION', label: t('processesPage.productionProcess') },
+                    { value: 'INTERNAL_VERIFICATION', label: t('processesPage.internalVerification') },
+                    { value: 'EXTERNAL_VERIFICATION', label: t('processesPage.externalVerification') },
+                  ]}
+                  value={form.type || 'PRODUCTION'}
+                  onChange={(val) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      type: val as any,
+                      defaultTechnicianId: '',
+                    }));
+                  }}
+                  disabled={saving}
+                  placeholder={t('processesPage.processType')}
+                />
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-edit-process-name">
@@ -764,7 +909,7 @@ export function ProcessesPage() {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-edit-process-area">
-                    {t('processesPage.processArea', { defaultValue: 'Process Area' })} *
+                    {t('processesPage.processArea', { defaultValue: 'Process Area' })} {(form.type || 'PRODUCTION') === 'PRODUCTION' ? '*' : ''}
                   </label>
                   <SearchableSelect
                     id="select-edit-process-area"
@@ -772,7 +917,7 @@ export function ProcessesPage() {
                       value: area.id,
                       label: area.name,
                     }))}
-                    value={form.processAreaId}
+                    value={form.processAreaId || ''}
                     onChange={(val) => handleInputChange('processAreaId', val)}
                     disabled={saving || loadingAreas}
                     placeholder={
@@ -792,28 +937,65 @@ export function ProcessesPage() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="select-edit-process-technician">
-                  {t('processesPage.defaultTechnician')} *
-                </label>
-                <SearchableSelect
-                  id="select-edit-process-technician"
-                  options={formTechnicians.map((tech) => ({
-                    value: tech.id,
-                    label: `${tech.firstName} ${tech.lastName}${tech.role === 'ADMIN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''} (${tech.email})`,
-                  }))}
-                  value={form.defaultTechnicianId}
-                  onChange={(val) => handleInputChange('defaultTechnicianId', val)}
-                  disabled={saving || loadingTechs}
-                  placeholder={loadingTechs ? t('technicians.loading', { defaultValue: 'Loading technicians...' }) : t('processesPage.selectDefaultTechnician', { defaultValue: 'Select pre-assigned default technician' })}
-                  error={!!formErrors.defaultTechnicianId}
-                />
-                {formErrors.defaultTechnicianId && (
-                  <span className="form-error">
-                    <AlertCircle size={12} /> {formErrors.defaultTechnicianId}
-                  </span>
-                )}
-              </div>
+              {(form.type || 'PRODUCTION') === 'PRODUCTION' && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="select-edit-process-technician">
+                    {t('processesPage.defaultTechnician')} *
+                  </label>
+                  <SearchableSelect
+                    id="select-edit-process-technician"
+                    options={formTechnicians.map((tech) => ({
+                      value: tech.id,
+                      label: `${tech.firstName} ${tech.lastName}${tech.role === 'ADMIN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''} (${tech.email})`,
+                    }))}
+                    value={form.defaultTechnicianId || ''}
+                    onChange={(val) => handleInputChange('defaultTechnicianId', val)}
+                    disabled={saving || loadingTechs}
+                    placeholder={loadingTechs ? t('technicians.loading', { defaultValue: 'Loading technicians...' }) : t('processesPage.selectDefaultTechnician', { defaultValue: 'Select pre-assigned default technician' })}
+                    error={!!formErrors.defaultTechnicianId}
+                  />
+                  {formErrors.defaultTechnicianId && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {formErrors.defaultTechnicianId}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {form.type === 'INTERNAL_VERIFICATION' && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="select-edit-process-admin">
+                    {t('processesPage.selectDefaultAdmin', { defaultValue: 'Select pre-assigned default Admin' })} *
+                  </label>
+                  <SearchableSelect
+                    id="select-edit-process-admin"
+                    options={formAdmins.map((admin) => ({
+                      value: admin.id,
+                      label: `${admin.firstName} ${admin.lastName} (${admin.email})`,
+                    }))}
+                    value={form.defaultTechnicianId || ''}
+                    onChange={(val) => handleInputChange('defaultTechnicianId', val)}
+                    disabled={saving || loadingAdmins}
+                    placeholder={loadingAdmins ? t('common.loading', { defaultValue: 'Loading...' }) : t('processesPage.selectDefaultAdmin', { defaultValue: 'Select pre-assigned default Admin' })}
+                    error={!!formErrors.defaultTechnicianId}
+                  />
+                  {formErrors.defaultTechnicianId && (
+                    <span className="form-error">
+                      <AlertCircle size={12} /> {formErrors.defaultTechnicianId}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {form.type === 'EXTERNAL_VERIFICATION' && (
+                <div className="form-group">
+                  <label className="form-label">{t('processesPage.assignedTo', { defaultValue: 'Assigned To' })}</label>
+                  <div style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ShieldCheck size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                    <span>{t('processesPage.assignedDoctorNotice')}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="modal__footer">
                 <button

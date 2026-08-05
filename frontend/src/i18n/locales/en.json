@@ -157,6 +157,11 @@
       "INTERNAL": "Internal",
       "EXTERNAL": "External"
     },
+    "processType": {
+      "PRODUCTION": "Production",
+      "INTERNAL_VERIFICATION": "Internal Verification",
+      "EXTERNAL_VERIFICATION": "External Verification"
+    },
     "verificationOutcome": {
       "SUCCESS": "Success",
       "REWORK": "Rework",
@@ -829,6 +834,13 @@
     "createProcess": "Create Process",
     "editProcess": "Edit Process",
     "processName": "Process Name",
+    "processType": "Process Type",
+    "productionProcess": "Production Process",
+    "internalVerification": "Internal Verification",
+    "externalVerification": "External Verification",
+    "selectDefaultAdmin": "Select pre-assigned default Admin",
+    "assignedDoctorNotice": "Assigned automatically to the Doctor selected during Work Order creation",
+    "noAdminsBranch": "No admins in this branch",
     "estimatedDuration": "Estimated Duration",
     "defaultTechnician": "Default Technician",
     "noProcesses": "No processes found",

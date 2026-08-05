@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   FileText,
   PlusCircle,
-  ShieldPlus,
   Eye,
   Pencil,
   Lock,
@@ -102,6 +101,7 @@ interface ProcessFormItem {
   technicianId: string;
   sequence: number;
   isVerification: boolean;
+  processType?: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION';
   status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   rework?: boolean;
   reworkCount?: number;
@@ -325,11 +325,6 @@ export function WorkOrdersPage() {
   const [newProcessName, setNewProcessName] = useState('');
   const [newProcessTechnicianId, setNewProcessTechnicianId] = useState('');
 
-  // Add verification inline
-  const [showAddVerificationForm, setShowAddVerificationForm] = useState(false);
-  const [verificationType, setVerificationType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
-  const [verificationTechnicianId, setVerificationTechnicianId] = useState('');
-
   // ─── Data Fetching ───────────────────────────
   const fetchData = useCallback(async (silent = false) => {
     try {
@@ -469,19 +464,7 @@ export function WorkOrdersPage() {
     completed: workOrders.filter((wo) => wo.status === 'COMPLETED').length,
   };
 
-  const getDefaultAdminId = () => {
-    const currentBranchId = form.branchId || user?.branchId;
-    if (!currentBranchId) return '';
-    if (isOwner) {
-      const selectedBranch = branches.find(b => b.id === currentBranchId);
-      return selectedBranch?.defaultAdminId || '';
-    } else {
-      const foundAdmin = admins.find(a => a.branchId === currentBranchId && a.branch?.defaultAdminId === a.id);
-      if (foundAdmin) return foundAdmin.id;
-      const anyAdminInBranch = admins.find(a => a.branchId === currentBranchId);
-      return anyAdminInBranch?.branch?.defaultAdminId || '';
-    }
-  };
+
 
   // ─── Form Handling ──────────────────────────
   const validateTab1Details = (): boolean => {
@@ -587,9 +570,6 @@ export function WorkOrdersPage() {
     setGeneratedFolio('');
     setModalTab('details');
     setFormStatus('CREATED');
-    setShowAddVerificationForm(false);
-    setVerificationType('INTERNAL');
-    setVerificationTechnicianId('');
 
     // Fetch the next folio number!
     if (branchId) {
@@ -619,14 +599,30 @@ export function WorkOrdersPage() {
       // Load processes for this prosthesis type in sequence order
       const assignments = await prosthesisTypeService.getProcesses(ptId);
 
-      const items: ProcessFormItem[] = assignments.map((assign, idx) => ({
-        tempId: `proc-${Date.now()}-${idx}`,
-        processName: assign.process.name,
-        technicianId: assign.process.defaultTechnicianId || '',
-        sequence: assign.sequence,
-        isVerification: false,
-        status: 'NOT_STARTED',
-      }));
+      const items: ProcessFormItem[] = assignments.map((assign, idx) => {
+        const proc = assign.process as any;
+        const processType: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' =
+          proc?.type || (proc?.name?.toLowerCase().includes('external') ? 'EXTERNAL_VERIFICATION' : proc?.name?.toLowerCase().includes('verification') ? 'INTERNAL_VERIFICATION' : 'PRODUCTION');
+        const isVerification = processType === 'INTERNAL_VERIFICATION' || processType === 'EXTERNAL_VERIFICATION';
+        const isExternal = processType === 'EXTERNAL_VERIFICATION';
+
+        let defaultTechId = proc.defaultTechnicianId || '';
+        if (processType === 'INTERNAL_VERIFICATION' && !defaultTechId) {
+          defaultTechId = admins[0]?.id || '';
+        } else if (processType === 'PRODUCTION' && !defaultTechId) {
+          defaultTechId = technicians[0]?.id || '';
+        }
+
+        return {
+          tempId: `proc-${Date.now()}-${idx}`,
+          processName: proc.name,
+          technicianId: isExternal ? (form.doctorId || '') : defaultTechId,
+          sequence: assign.sequence,
+          isVerification,
+          processType,
+          status: 'NOT_STARTED',
+        };
+      });
 
       setProcessList(items);
     } catch (err) {
@@ -638,6 +634,18 @@ export function WorkOrdersPage() {
   const handleInputChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) setFormErrors((prev) => ({ ...prev, [field]: '' }));
+
+    if (field === 'doctorId') {
+      // Automatically assign selected doctor to external verification steps
+      setProcessList((prev) =>
+        prev.map((p) => {
+          if (p.processType === 'EXTERNAL_VERIFICATION' || (p.isVerification && (!p.technicianId || p.processName.toLowerCase().includes('external')))) {
+            return { ...p, technicianId: value };
+          }
+          return p;
+        })
+      );
+    }
   };
 
   // ─── Process List Manipulation ──────────────────
@@ -658,11 +666,7 @@ export function WorkOrdersPage() {
     setProcessList((prev) =>
       prev.map((p, i) => {
         if (i === index) {
-          const updated = { ...p, technicianId: techId };
-          if (p.isVerification) {
-            updated.processName = techId ? 'Verification (Internal)' : 'Verification (External)';
-          }
-          return updated;
+          return { ...p, technicianId: techId };
         }
         return p;
       }),
@@ -674,7 +678,19 @@ export function WorkOrdersPage() {
     const proc = availableProcesses.find((p) => p.id === procId);
     if (proc) {
       setNewProcessName(proc.name);
-      setNewProcessTechnicianId(proc.defaultTechnicianId || '');
+      const isExternal = proc.type === 'EXTERNAL_VERIFICATION' || proc.name.toLowerCase().includes('external');
+      const isInternal = proc.type === 'INTERNAL_VERIFICATION' || proc.name.toLowerCase().includes('verification');
+
+      if (isExternal) {
+        setNewProcessTechnicianId(form.doctorId || '');
+      } else if (isInternal) {
+        setNewProcessTechnicianId(proc.defaultTechnicianId || (admins[0]?.id || ''));
+      } else {
+        setNewProcessTechnicianId(proc.defaultTechnicianId || (technicians[0]?.id || ''));
+      }
+    } else {
+      setNewProcessName('');
+      setNewProcessTechnicianId('');
     }
   };
 
@@ -689,16 +705,24 @@ export function WorkOrdersPage() {
       toast.error(t('workOrders.validationProcessRequired', { defaultValue: 'Process selection is required' }));
       return;
     }
-    if (!newProcessTechnicianId) {
+    const proc = availableProcesses.find((p) => p.id === newProcessId);
+    const processType: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' =
+      proc?.type || 'PRODUCTION';
+    const isVerification = processType === 'INTERNAL_VERIFICATION' || processType === 'EXTERNAL_VERIFICATION';
+    const isExternal = processType === 'EXTERNAL_VERIFICATION';
+
+    if (!isExternal && !newProcessTechnicianId) {
       toast.error(t('workOrders.validationTechRequired', { defaultValue: 'Technician assignment is required' }));
       return;
     }
+
     const newItem: ProcessFormItem = {
       tempId: `proc-${Date.now()}`,
       processName: newProcessName.trim(),
-      technicianId: newProcessTechnicianId,
+      technicianId: isExternal ? (form.doctorId || '') : newProcessTechnicianId,
       sequence: processList.length,
-      isVerification: false,
+      isVerification,
+      processType,
       status: 'NOT_STARTED',
     };
     setProcessList((prev) => [...prev, newItem]);
@@ -706,25 +730,6 @@ export function WorkOrdersPage() {
     setNewProcessName('');
     setNewProcessTechnicianId('');
     setShowAddProcess(false);
-  };
-
-  const handleAddVerification = () => {
-    if (verificationType === 'INTERNAL' && !verificationTechnicianId) {
-      toast.error(t('workOrders.validationInternalVerifyTechRequired', { defaultValue: 'Technician assignment is required for internal verification' }));
-      return;
-    }
-
-    const newItem: ProcessFormItem = {
-      tempId: `ver-${Date.now()}`,
-      processName: verificationType === 'INTERNAL' ? 'Verification (Internal)' : 'Verification (External)',
-      technicianId: verificationType === 'INTERNAL' ? verificationTechnicianId : '',
-      sequence: processList.length,
-      isVerification: true,
-      status: 'NOT_STARTED',
-    };
-    setProcessList((prev) => [...prev, newItem]);
-    setShowAddVerificationForm(false);
-    setVerificationTechnicianId('');
   };
 
   // ─── Submit ──────────────────────────
@@ -740,13 +745,16 @@ export function WorkOrdersPage() {
 
     try {
       setSaving(true);
-      const processes: CreateWorkOrderProcessPayload[] = processList.map((p) => ({
-        processName: p.processName,
-        technicianId: p.technicianId || undefined,
-        sequence: p.sequence,
-        isVerification: p.isVerification,
-        status: p.status || 'NOT_STARTED',
-      }));
+      const processes: CreateWorkOrderProcessPayload[] = processList.map((p) => {
+        const isExternal = p.processType === 'EXTERNAL_VERIFICATION' || (p.isVerification && (!p.technicianId || p.technicianId === form.doctorId));
+        return {
+          processName: p.processName,
+          technicianId: isExternal ? undefined : (p.technicianId || undefined),
+          sequence: p.sequence,
+          isVerification: p.isVerification,
+          status: p.status || 'NOT_STARTED',
+        };
+      });
 
       const payload: CreateWorkOrderPayload = {
         doctorId: form.doctorId,
@@ -819,9 +827,6 @@ export function WorkOrdersPage() {
     setModalTab('details');
     setFormStatus(wo.status);
     setNewProcessId('');
-    setShowAddVerificationForm(false);
-    setVerificationType('INTERNAL');
-    setVerificationTechnicianId('');
 
     // Populate existing process steps and verification steps
     const items: ProcessFormItem[] = (wo.processes || []).map((p, idx) => {
@@ -1707,7 +1712,6 @@ export function WorkOrdersPage() {
                         className="btn btn--ghost btn--sm"
                         onClick={() => {
                           setShowAddProcess(true);
-                          setShowAddVerificationForm(false);
                           setNewProcessId('');
                           setNewProcessName('');
                           setNewProcessTechnicianId('');
@@ -1716,20 +1720,6 @@ export function WorkOrdersPage() {
                       >
                         <PlusCircle size={14} />
                         <span>{t('workOrders.addProcess', { defaultValue: 'Add Process' })}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => {
-                          setShowAddVerificationForm(true);
-                          setShowAddProcess(false);
-                          setVerificationType('INTERNAL');
-                          setVerificationTechnicianId(getDefaultAdminId());
-                        }}
-                        disabled={saving || showAddVerificationForm}
-                      >
-                        <ShieldPlus size={14} />
-                        <span>{t('workOrders.addVerification', { defaultValue: 'Add Verification' })}</span>
                       </button>
                     </div>
                   </div>
@@ -1740,7 +1730,7 @@ export function WorkOrdersPage() {
                     </span>
                   )}
 
-                  {processList.length === 0 && !showAddProcess && !showAddVerificationForm ? (
+                  {processList.length === 0 && !showAddProcess ? (
                     <div className="wo-process-empty" style={{ border: '1px dashed var(--border)', borderRadius: '8px' }}>
                       <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
                       <span>{t('workOrders.noProcessesLoaded', { defaultValue: 'No processes loaded yet. Choose prosthesis type in details or add processes.' })}</span>
@@ -1756,63 +1746,92 @@ export function WorkOrdersPage() {
                             <span className="wo-process-item__number">{idx + 1}</span>
                           </div>
 
-                          <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px' }}>
-                            <span>
-                              {proc.isVerification
-                                ? proc.technicianId
-                                  ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
-                                  : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
-                                : proc.processName}
+                          <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {proc.processName}
                             </span>
-                            {proc.isVerification && (
-                              <span className="wo-process-item__tag" style={{
-                                backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                                color: proc.technicianId ? '#8B5CF6' : '#6366F1'
-                              }}>
-                                {proc.technicianId ? t('workOrders.internalVerification', { defaultValue: 'Internal Verification' }) : t('workOrders.externalVerification', { defaultValue: 'External Verification' })}
-                              </span>
-                            )}
+                            {(() => {
+                              const isExternal = proc.processType === 'EXTERNAL_VERIFICATION' || (proc.isVerification && !proc.technicianId && proc.processType !== 'INTERNAL_VERIFICATION');
+                              const isInternal = proc.processType === 'INTERNAL_VERIFICATION' || (proc.isVerification && !isExternal);
+
+                              if (isInternal) {
+                                return (
+                                  <span className="wo-process-item__tag" style={{
+                                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                    color: '#8B5CF6',
+                                    marginLeft: '0.5rem'
+                                  }}>
+                                    {t('enums.processType.INTERNAL_VERIFICATION', { defaultValue: 'Internal Verification' })}
+                                  </span>
+                                );
+                              }
+                              if (isExternal) {
+                                return (
+                                  <span className="wo-process-item__tag" style={{
+                                    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                                    color: '#D97706',
+                                    marginLeft: '0.5rem'
+                                  }}>
+                                    {t('enums.processType.EXTERNAL_VERIFICATION', { defaultValue: 'External Verification' })}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
 
                           {/* Technician Assignment */}
                           <div className="wo-process-item__technician" style={{ width: '200px' }}>
-                            {proc.isVerification && !proc.technicianId ? (
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                height: '32px',
-                                fontSize: '0.75rem',
-                                color: 'var(--accent-primary)',
-                                fontWeight: 700,
-                                padding: '0 0.5rem',
-                                backgroundColor: 'var(--bg-muted, #F3F4F6)',
-                                borderRadius: '6px',
-                                border: '1px solid var(--border)'
-                              }}>
-                                {(() => {
-                                  const selectedDoc = doctors.find((d) => d.id === form.doctorId);
-                                  return selectedDoc ? selectedDoc.name : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' });
-                                })()}
-                              </div>
-                            ) : (
-                              <SearchableSelect
-                                id={`select-proc-tech-${proc.tempId}`}
-                                options={(() => {
-                                  const map = new Map<string, any>();
-                                  [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
-                                  const list = Array.from(map.values());
-                                  const filteredList = proc.isVerification ? (admins.length > 0 ? admins : list) : list;
-                                  return filteredList.map((u) => ({
-                                    value: u.id,
-                                    label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
-                                  }));
-                                })()}
-                                value={proc.technicianId}
-                                onChange={(val) => updateProcessTechnician(idx, val)}
-                                disabled={saving}
-                                placeholder={proc.isVerification ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
-                              />
-                            )}
+                            {(() => {
+                              const isExternal = proc.processType === 'EXTERNAL_VERIFICATION' || (proc.isVerification && !proc.technicianId && proc.processType !== 'INTERNAL_VERIFICATION');
+                              const isInternal = proc.processType === 'INTERNAL_VERIFICATION' || (proc.isVerification && !isExternal);
+
+                              if (isExternal) {
+                                return (
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    height: '32px',
+                                    fontSize: '0.75rem',
+                                    color: 'var(--accent-primary)',
+                                    fontWeight: 700,
+                                    padding: '0 0.5rem',
+                                    backgroundColor: 'var(--bg-muted, #F3F4F6)',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border)'
+                                  }}>
+                                    {(() => {
+                                      const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                                      return selectedDoc ? selectedDoc.name : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' });
+                                    })()}
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <SearchableSelect
+                                  id={`select-proc-tech-${proc.tempId}`}
+                                  options={(() => {
+                                    const map = new Map<string, any>();
+                                    [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
+                                    const list = Array.from(map.values());
+                                    let filteredList = isInternal ? (admins.length > 0 ? admins : list) : list;
+                                    if (proc.technicianId && !filteredList.some((u) => u.id === proc.technicianId)) {
+                                      const foundUser = map.get(proc.technicianId);
+                                      if (foundUser) filteredList = [foundUser, ...filteredList];
+                                    }
+                                    return filteredList.map((u) => ({
+                                      value: u.id,
+                                      label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
+                                    }));
+                                  })()}
+                                  value={proc.technicianId}
+                                  onChange={(val) => updateProcessTechnician(idx, val)}
+                                  disabled={saving}
+                                  placeholder={isInternal ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
+                                />
+                              );
+                            })()}
                           </div>
 
                           {/* Process Status selection */}
@@ -1875,10 +1894,20 @@ export function WorkOrdersPage() {
                         <div style={{ flex: 1, minWidth: '220px' }}>
                           <SearchableSelect
                             id="select-add-process-master"
-                            options={availableProcesses.map((p) => ({
-                              value: p.id,
-                              label: `${p.name} (${p.processArea})`,
-                            }))}
+                            options={availableProcesses.map((p) => {
+                              let typeLabel = '';
+                              if (p.type === 'INTERNAL_VERIFICATION') {
+                                typeLabel = ` [${t('enums.processType.INTERNAL_VERIFICATION', { defaultValue: 'Internal Verification' })}]`;
+                              } else if (p.type === 'EXTERNAL_VERIFICATION') {
+                                typeLabel = ` [${t('enums.processType.EXTERNAL_VERIFICATION', { defaultValue: 'External Verification' })}]`;
+                              } else if (p.processArea) {
+                                typeLabel = ` (${p.processArea})`;
+                              }
+                              return {
+                                value: p.id,
+                                label: `${p.name}${typeLabel}`,
+                              };
+                            })}
                             value={newProcessId}
                             onChange={handleAvailableProcessChange}
                             disabled={saving}
@@ -1886,21 +1915,50 @@ export function WorkOrdersPage() {
                           />
                         </div>
                         <div style={{ flex: 1, minWidth: '180px' }}>
-                          <SearchableSelect
-                            id="select-add-process-tech"
-                            options={(() => {
-                              const map = new Map<string, any>();
-                              [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
-                              return Array.from(map.values()).map((tech) => ({
-                                value: tech.id,
-                                label: `${tech.firstName} ${tech.lastName}${tech.role && tech.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
-                              }));
-                            })()}
-                            value={newProcessTechnicianId}
-                            onChange={setNewProcessTechnicianId}
-                            disabled={saving}
-                            placeholder={t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
-                          />
+                          {(() => {
+                            const selectedProc = availableProcesses.find((p) => p.id === newProcessId);
+                            const isExternal = selectedProc ? (selectedProc.type === 'EXTERNAL_VERIFICATION' || selectedProc.name.toLowerCase().includes('external')) : false;
+                            const isInternal = selectedProc ? (selectedProc.type === 'INTERNAL_VERIFICATION' || selectedProc.name.toLowerCase().includes('verification')) : false;
+
+                            if (isExternal) {
+                              const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                              return (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  height: '38px',
+                                  fontSize: '0.8125rem',
+                                  color: 'var(--accent-primary)',
+                                  fontWeight: 700,
+                                  padding: '0 0.75rem',
+                                  backgroundColor: 'var(--bg-muted, #F3F4F6)',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--border)'
+                                }}>
+                                  {selectedDoc ? selectedDoc.name : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' })}
+                                </div>
+                              );
+                            }
+
+                            const map = new Map<string, any>();
+                            [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
+                            const list = Array.from(map.values());
+                            const filteredList = isInternal ? (admins.length > 0 ? admins : list) : list;
+
+                            return (
+                              <SearchableSelect
+                                id="select-add-process-tech"
+                                options={filteredList.map((tech) => ({
+                                  value: tech.id,
+                                  label: `${tech.firstName} ${tech.lastName}${tech.role && tech.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
+                                }))}
+                                value={newProcessTechnicianId}
+                                onChange={setNewProcessTechnicianId}
+                                disabled={saving}
+                                placeholder={isInternal ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
+                              />
+                            );
+                          })()}
                         </div>
                         <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
                           {t('common.add')}
@@ -1908,71 +1966,6 @@ export function WorkOrdersPage() {
                         <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessId(''); setNewProcessName(''); setNewProcessTechnicianId(''); }}>
                           {t('common.cancel')}
                         </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Inline Add Verification Form */}
-                  {showAddVerificationForm && (
-                    <div className="wo-process-add" style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-muted, #F3F4F6)' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('workOrders.addVerificationStep', { defaultValue: 'Add Verification Step' })}</span>
-                        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap', alignItems: 'center' }}>
-                          <select
-                            className="form-input form-input--sm"
-                            value={verificationType}
-                            onChange={(e) => {
-                              const val = e.target.value as 'INTERNAL' | 'EXTERNAL';
-                              setVerificationType(val);
-                              if (val === 'INTERNAL') {
-                                setVerificationTechnicianId(getDefaultAdminId());
-                              } else {
-                                setVerificationTechnicianId('');
-                              }
-                            }}
-                            style={{ flex: 1, minWidth: '120px' }}
-                          >
-                            <option value="INTERNAL">{t('workOrders.internalVerification', { defaultValue: 'Internal Verification' })}</option>
-                            <option value="EXTERNAL">{t('workOrders.externalVerification', { defaultValue: 'External Verification' })}</option>
-                          </select>
-
-                          {verificationType === 'INTERNAL' ? (
-                            <div style={{ flex: 1, minWidth: '180px' }}>
-                              <SearchableSelect
-                                id="select-add-verification-admin"
-                                options={admins.map((a) => ({
-                                  value: a.id,
-                                  label: `${a.firstName} ${a.lastName}`,
-                                }))}
-                                value={verificationTechnicianId}
-                                onChange={setVerificationTechnicianId}
-                                disabled={saving}
-                                placeholder={t('workOrders.selectAdmin', { defaultValue: 'Select admin' })}
-                              />
-                            </div>
-                          ) : (
-                            <div style={{
-                              flex: 1,
-                              minWidth: '120px',
-                              fontSize: '0.75rem',
-                              color: 'var(--text-secondary)',
-                              padding: '0 0.5rem',
-                              fontStyle: 'italic'
-                            }}>
-                              {t('common.assigned', { defaultValue: 'Assigned' })}: {(() => {
-                                const selectedDoc = doctors.find((d) => d.id === form.doctorId);
-                                return selectedDoc ? `${selectedDoc.name} (${t('common.doctor')})` : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' });
-                              })()}
-                            </div>
-                          )}
-
-                          <button type="button" className="btn btn--primary btn--sm" onClick={handleAddVerification}>
-                            {t('common.add')}
-                          </button>
-                          <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddVerificationForm(false); setVerificationTechnicianId(''); }}>
-                            {t('common.cancel')}
-                          </button>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -2571,7 +2564,6 @@ export function WorkOrdersPage() {
                               className="btn btn--ghost btn--sm"
                               onClick={() => {
                                 setShowAddProcess(true);
-                                setShowAddVerificationForm(false);
                                 setNewProcessId('');
                                 setNewProcessName('');
                                 setNewProcessTechnicianId('');
@@ -2580,20 +2572,6 @@ export function WorkOrdersPage() {
                             >
                               <PlusCircle size={14} />
                               <span>{t('workOrders.addProcess', { defaultValue: 'Add Process' })}</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn--ghost btn--sm"
-                              onClick={() => {
-                                setShowAddVerificationForm(true);
-                                setShowAddProcess(false);
-                                setVerificationType('INTERNAL');
-                                setVerificationTechnicianId(getDefaultAdminId());
-                              }}
-                              disabled={saving || showAddVerificationForm}
-                            >
-                              <ShieldPlus size={14} />
-                              <span>{t('workOrders.addVerification', { defaultValue: 'Add Verification' })}</span>
                             </button>
                           </div>
                         </div>
@@ -2607,7 +2585,7 @@ export function WorkOrdersPage() {
                     </span>
                   )}
 
-                  {processList.length === 0 && !showAddProcess && !showAddVerificationForm ? (
+                  {processList.length === 0 && !showAddProcess ? (
                     <div className="wo-process-empty" style={{ border: '1px dashed var(--border)', borderRadius: '8px' }}>
                       <FileText size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
                       <span>{t('workOrders.noProcessesLoaded', { defaultValue: 'No processes loaded yet. Choose prosthesis type in details or add processes.' })}</span>
@@ -2628,22 +2606,36 @@ export function WorkOrdersPage() {
                               <span className="wo-process-item__number">{idx + 1}</span>
                             </div>
 
-                            <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <span>
-                              {proc.isVerification
-                                ? proc.technicianId
-                                  ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
-                                  : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
-                                : proc.processName}
-                            </span>
-                              {proc.isVerification && (
-                                <span className="wo-process-item__tag" style={{
-                                  backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                                  color: proc.technicianId ? '#8B5CF6' : '#6366F1'
-                                }}>
-                                  {proc.technicianId ? t('workOrders.internalVerification', { defaultValue: 'Internal Verification' }) : t('workOrders.externalVerification', { defaultValue: 'External Verification' })}
-                                </span>
-                              )}
+                            <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {proc.processName}
+                              </span>
+                              {(() => {
+                                const isExternal = proc.processType === 'EXTERNAL_VERIFICATION' || (proc.isVerification && !proc.technicianId && proc.processType !== 'INTERNAL_VERIFICATION');
+                                const isInternal = proc.processType === 'INTERNAL_VERIFICATION' || (proc.isVerification && !isExternal);
+
+                                if (isInternal) {
+                                  return (
+                                    <span className="wo-process-item__tag" style={{
+                                      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                      color: '#8B5CF6'
+                                    }}>
+                                      {t('enums.processType.INTERNAL_VERIFICATION', { defaultValue: 'Internal Verification' })}
+                                    </span>
+                                  );
+                                }
+                                if (isExternal) {
+                                  return (
+                                    <span className="wo-process-item__tag" style={{
+                                      backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                                      color: '#D97706'
+                                    }}>
+                                      {t('enums.processType.EXTERNAL_VERIFICATION', { defaultValue: 'External Verification' })}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
                               {formStatus !== 'COMPLETED' && (proc.status === 'COMPLETED' || proc.reworkActive) && !proc.isVerification && (
                                 <label style={{
                                   display: 'inline-flex',
@@ -2682,43 +2674,56 @@ export function WorkOrdersPage() {
 
                             {/* Technician Assignment */}
                             <div className="wo-process-item__technician" style={{ width: '200px' }}>
-                              {proc.isVerification && !proc.technicianId ? (
-                                <div style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  height: '32px',
-                                  fontSize: '0.75rem',
-                                  color: 'var(--accent-primary)',
-                                  fontWeight: 700,
-                                  padding: '0 0.5rem',
-                                  backgroundColor: 'var(--bg-muted, #F3F4F6)',
-                                  borderRadius: '6px',
-                                  border: '1px solid var(--border)'
-                                }}>
-                                  {(() => {
-                                    const selectedDoc = doctors.find((d) => d.id === form.doctorId);
-                                    return selectedDoc ? selectedDoc.name : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' });
-                                  })()}
-                                </div>
-                              ) : (
-                                <SearchableSelect
-                                  id={`select-edit-proc-tech-${proc.tempId}`}
-                                  options={(() => {
-                                    const map = new Map<string, any>();
-                                    [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
-                                    const list = Array.from(map.values());
-                                    const filteredList = proc.isVerification ? (admins.length > 0 ? admins : list) : list;
-                                    return filteredList.map((u) => ({
-                                      value: u.id,
-                                      label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
-                                    }));
-                                  })()}
-                                  value={proc.technicianId}
-                                  onChange={(val) => updateProcessTechnician(idx, val)}
-                                  disabled={saving || isStepStarted}
-                                  placeholder={proc.isVerification ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
-                                />
-                              )}
+                              {(() => {
+                                const isExternal = proc.processType === 'EXTERNAL_VERIFICATION' || (proc.isVerification && !proc.technicianId && proc.processType !== 'INTERNAL_VERIFICATION');
+                                const isInternal = proc.processType === 'INTERNAL_VERIFICATION' || (proc.isVerification && !isExternal);
+
+                                if (isExternal) {
+                                  return (
+                                    <div style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      height: '32px',
+                                      fontSize: '0.75rem',
+                                      color: 'var(--accent-primary)',
+                                      fontWeight: 700,
+                                      padding: '0 0.5rem',
+                                      backgroundColor: 'var(--bg-muted, #F3F4F6)',
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--border)'
+                                    }}>
+                                      {(() => {
+                                        const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                                        return selectedDoc ? selectedDoc.name : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' });
+                                      })()}
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <SearchableSelect
+                                    id={`select-edit-proc-tech-${proc.tempId}`}
+                                    options={(() => {
+                                      const map = new Map<string, any>();
+                                      [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
+                                      const list = Array.from(map.values());
+                                      let filteredList = isInternal ? (admins.length > 0 ? admins : list) : list;
+                                      if (proc.technicianId && !filteredList.some((u) => u.id === proc.technicianId)) {
+                                        const foundUser = map.get(proc.technicianId);
+                                        if (foundUser) filteredList = [foundUser, ...filteredList];
+                                      }
+                                      return filteredList.map((u) => ({
+                                        value: u.id,
+                                        label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
+                                      }));
+                                    })()}
+                                    value={proc.technicianId}
+                                    onChange={(val) => updateProcessTechnician(idx, val)}
+                                    disabled={saving || isStepStarted}
+                                    placeholder={isInternal ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
+                                  />
+                                );
+                              })()}
                             </div>
 
                             {/* Process Status selection */}
@@ -2782,10 +2787,20 @@ export function WorkOrdersPage() {
                         <div style={{ flex: 1, minWidth: '220px' }}>
                           <SearchableSelect
                             id="select-edit-add-process-master"
-                            options={availableProcesses.map((p) => ({
-                              value: p.id,
-                              label: `${p.name} (${p.processArea})`,
-                            }))}
+                            options={availableProcesses.map((p) => {
+                              let typeLabel = '';
+                              if (p.type === 'INTERNAL_VERIFICATION') {
+                                typeLabel = ` [${t('enums.processType.INTERNAL_VERIFICATION', { defaultValue: 'Internal Verification' })}]`;
+                              } else if (p.type === 'EXTERNAL_VERIFICATION') {
+                                typeLabel = ` [${t('enums.processType.EXTERNAL_VERIFICATION', { defaultValue: 'External Verification' })}]`;
+                              } else if (p.processArea) {
+                                typeLabel = ` (${p.processArea})`;
+                              }
+                              return {
+                                value: p.id,
+                                label: `${p.name}${typeLabel}`,
+                              };
+                            })}
                             value={newProcessId}
                             onChange={handleAvailableProcessChange}
                             disabled={saving}
@@ -2793,21 +2808,50 @@ export function WorkOrdersPage() {
                           />
                         </div>
                         <div style={{ flex: 1, minWidth: '180px' }}>
-                          <SearchableSelect
-                            id="select-edit-add-process-tech"
-                            options={(() => {
-                              const map = new Map<string, any>();
-                              [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
-                              return Array.from(map.values()).map((u) => ({
-                                value: u.id,
-                                label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
-                              }));
-                            })()}
-                            value={newProcessTechnicianId}
-                            onChange={setNewProcessTechnicianId}
-                            disabled={saving}
-                            placeholder={t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
-                          />
+                          {(() => {
+                            const selectedProc = availableProcesses.find((p) => p.id === newProcessId);
+                            const isExternal = selectedProc ? (selectedProc.type === 'EXTERNAL_VERIFICATION' || selectedProc.name.toLowerCase().includes('external')) : false;
+                            const isInternal = selectedProc ? (selectedProc.type === 'INTERNAL_VERIFICATION' || selectedProc.name.toLowerCase().includes('verification')) : false;
+
+                            if (isExternal) {
+                              const selectedDoc = doctors.find((d) => d.id === form.doctorId);
+                              return (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  height: '38px',
+                                  fontSize: '0.8125rem',
+                                  color: 'var(--accent-primary)',
+                                  fontWeight: 700,
+                                  padding: '0 0.75rem',
+                                  backgroundColor: 'var(--bg-muted, #F3F4F6)',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--border)'
+                                }}>
+                                  {selectedDoc ? selectedDoc.name : t('doctors.selectedDoctor', { defaultValue: 'Selected Doctor' })}
+                                </div>
+                              );
+                            }
+
+                            const map = new Map<string, any>();
+                            [...technicians, ...admins].forEach((u) => { if (u?.id) map.set(u.id, u); });
+                            const list = Array.from(map.values());
+                            const filteredList = isInternal ? (admins.length > 0 ? admins : list) : list;
+
+                            return (
+                              <SearchableSelect
+                                id="select-edit-add-process-tech"
+                                options={filteredList.map((u) => ({
+                                  value: u.id,
+                                  label: `${u.firstName} ${u.lastName}${u.role && u.role !== 'TECHNICIAN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''}`,
+                                }))}
+                                value={newProcessTechnicianId}
+                                onChange={setNewProcessTechnicianId}
+                                disabled={saving}
+                                placeholder={isInternal ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
+                              />
+                            );
+                          })()}
                         </div>
                         <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
                           Add
@@ -2819,70 +2863,7 @@ export function WorkOrdersPage() {
                     </div>
                   )}
 
-                  {/* Inline Add Verification Form */}
-                  {showAddVerificationForm && (
-                    <div className="wo-process-add" style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-muted, #F3F4F6)' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>Add Verification Step</span>
-                        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap', alignItems: 'center' }}>
-                          <select
-                            className="form-input form-input--sm"
-                            value={verificationType}
-                            onChange={(e) => {
-                              const val = e.target.value as 'INTERNAL' | 'EXTERNAL';
-                              setVerificationType(val);
-                              if (val === 'INTERNAL') {
-                                setVerificationTechnicianId(getDefaultAdminId());
-                              } else {
-                                setVerificationTechnicianId('');
-                              }
-                            }}
-                            style={{ flex: 1, minWidth: '120px' }}
-                          >
-                            <option value="INTERNAL">Internal Verification</option>
-                            <option value="EXTERNAL">External Verification</option>
-                          </select>
 
-                          {verificationType === 'INTERNAL' ? (
-                            <div style={{ flex: 1, minWidth: '180px' }}>
-                              <SearchableSelect
-                                id="select-edit-add-verification-admin"
-                                options={admins.map((a) => ({
-                                  value: a.id,
-                                  label: `${a.firstName} ${a.lastName}`,
-                                }))}
-                                value={verificationTechnicianId}
-                                onChange={setVerificationTechnicianId}
-                                disabled={saving}
-                                placeholder="Select admin"
-                              />
-                            </div>
-                          ) : (
-                            <div style={{
-                              flex: 1,
-                              minWidth: '120px',
-                              fontSize: '0.75rem',
-                              color: 'var(--text-secondary)',
-                              padding: '0 0.5rem',
-                              fontStyle: 'italic'
-                            }}>
-                              Assigned: {(() => {
-                                const selectedDoc = doctors.find((d) => d.id === form.doctorId);
-                                return selectedDoc ? `${selectedDoc.name} (Doctor)` : 'Selected Doctor';
-                              })()}
-                            </div>
-                          )}
-
-                          <button type="button" className="btn btn--primary btn--sm" onClick={handleAddVerification}>
-                            Add
-                          </button>
-                          <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddVerificationForm(false); setVerificationTechnicianId(''); }}>
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                 </div>
               )}

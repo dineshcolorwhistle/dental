@@ -5,8 +5,10 @@ import {
   MaxLength,
   MinLength,
   IsUUID,
+  IsEnum,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { ProcessType } from '@prisma/client';
 
 export class CreateProcessDto {
   @ApiProperty({
@@ -20,12 +22,23 @@ export class CreateProcessDto {
   name: string;
 
   @ApiProperty({
+    enum: ProcessType,
+    example: 'PRODUCTION',
+    description: 'Type of process (PRODUCTION, INTERNAL_VERIFICATION, EXTERNAL_VERIFICATION)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  type?: ProcessType;
+
+  @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
     description: 'Process Area ID',
+    required: false,
   })
   @IsUUID()
-  @IsNotEmpty()
-  processAreaId: string;
+  @IsOptional()
+  processAreaId?: string;
 
   @ApiProperty({
     example: 'Design',
@@ -38,11 +51,12 @@ export class CreateProcessDto {
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
-    description: 'ID of the pre-assigned default technician',
+    description: 'ID of the pre-assigned default technician or admin',
+    required: false,
   })
   @IsUUID()
-  @IsNotEmpty()
-  defaultTechnicianId: string;
+  @IsOptional()
+  defaultTechnicianId?: string;
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',

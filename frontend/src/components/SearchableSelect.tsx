@@ -40,15 +40,26 @@ export function SearchableSelect({
   const optionsListRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+  const [coords, setCoords] = useState({ top: 0, bottom: 0, left: 0, width: 0, openUpward: false, maxHeight: 220 });
 
   const updateCoords = useCallback(() => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      const openUpward = spaceBelow < 220 && spaceAbove > spaceBelow;
+      const availableSpace = openUpward ? Math.min(spaceAbove - 16, 250) : Math.min(spaceBelow - 16, 250);
+      const maxHeight = Math.max(availableSpace, 120);
+
       setCoords({
         top: rect.bottom,
+        bottom: viewportHeight - rect.top,
         left: rect.left,
         width: rect.width,
+        openUpward,
+        maxHeight,
       });
     }
   }, []);
@@ -193,7 +204,9 @@ export function SearchableSelect({
           className="searchable-select__dropdown"
           style={{
             position: 'fixed',
-            top: `${coords.top + 4}px`,
+            ...(coords.openUpward
+              ? { bottom: `${coords.bottom + 4}px`, top: 'auto' }
+              : { top: `${coords.top + 4}px`, bottom: 'auto' }),
             left: `${coords.left}px`,
             width: `${coords.width}px`,
             zIndex: 9999,
@@ -225,6 +238,7 @@ export function SearchableSelect({
             ref={optionsListRef}
             className="searchable-select__options"
             role="listbox"
+            style={{ maxHeight: `${coords.maxHeight}px`, overflowY: 'auto' }}
           >
             {filteredOptions.length === 0 ? (
               <div className="searchable-select__no-results">{t('common.noResults')}</div>

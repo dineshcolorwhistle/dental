@@ -1,0 +1,6 @@
+-- CreateEnum
+CREATE TYPE "ProcessType" AS ENUM ('PRODUCTION', 'INTERNAL_VERIFICATION', 'EXTERNAL_VERIFICATION');
+
+-- AlterTable
+ALTER TABLE "processes" ADD COLUMN "type" "ProcessType" NOT NULL DEFAULT 'PRODUCTION',
+ALTER COLUMN "default_technician_id" DROP NOT NULL;

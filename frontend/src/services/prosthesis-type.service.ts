@@ -6,6 +6,7 @@ export interface ProsthesisTypeProcessAssignment {
   process: {
     id: string;
     name: string;
+    type?: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION';
     processArea: string;
     defaultTechnicianId: string;
     defaultTechnician?: {

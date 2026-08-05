@@ -5,9 +5,10 @@ export interface ProcessListItem {
   tenantId: string;
   branchId: string | null;
   name: string;
+  type?: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION';
   processArea: string;
   processAreaId?: string | null;
-  defaultTechnicianId: string;
+  defaultTechnicianId?: string | null;
   createdAt: string;
   updatedAt: string;
   branch?: {
@@ -19,7 +20,7 @@ export interface ProcessListItem {
     firstName: string;
     lastName: string;
     email: string;
-  };
+  } | null;
   prosthesisTypeAssignments?: {
     id: string;
     sequence: number;
@@ -32,8 +33,9 @@ export interface ProcessListItem {
 
 export interface CreateProcessPayload {
   name: string;
-  processAreaId: string;
-  defaultTechnicianId: string;
+  type?: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION';
+  processAreaId?: string;
+  defaultTechnicianId?: string;
   branchId?: string;
 }
 

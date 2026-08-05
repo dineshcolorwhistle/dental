@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProcessDto, UpdateProcessDto } from './dto';
-import { UserRole } from '@prisma/client';
+import { UserRole, ProcessType } from '@prisma/client';
 
 @Injectable()
 export class ProcessesService {
@@ -20,7 +20,7 @@ export class ProcessesService {
     userRole: string,
     dto: CreateProcessDto,
   ) {
-    const { name, processAreaId, defaultTechnicianId, branchId } = dto;
+    const { name, type = ProcessType.PRODUCTION, processAreaId, defaultTechnicianId, branchId } = dto;
 
     // Force branch for Administrators
     let finalBranchId = branchId;
@@ -45,35 +45,72 @@ export class ProcessesService {
       }
     }
 
-    // Verify process area exists and belongs to correct tenant/branch
-    const processAreaRecord = await this.prisma.processArea.findFirst({
-      where: {
-        id: processAreaId,
-        tenantId,
-        ...(finalBranchId && { branchId: finalBranchId }),
-      },
-    });
+    const processTypeStr = String(type || 'PRODUCTION');
 
-    if (!processAreaRecord) {
-      throw new BadRequestException(
-        'Selected Process Area is invalid or does not belong to the selected branch.',
-      );
+    let processAreaName = processTypeStr === 'INTERNAL_VERIFICATION'
+      ? 'Internal Verification'
+      : processTypeStr === 'EXTERNAL_VERIFICATION'
+      ? 'External Verification'
+      : 'General';
+
+    if (processAreaId) {
+      const processAreaRecord = await this.prisma.processArea.findFirst({
+        where: {
+          id: processAreaId,
+          tenantId,
+          ...(finalBranchId && { branchId: finalBranchId }),
+        },
+      });
+
+      if (!processAreaRecord) {
+        throw new BadRequestException(
+          'Selected Process Area is invalid or does not belong to the selected branch.',
+        );
+      }
+      processAreaName = processAreaRecord.name;
+    } else if (processTypeStr === 'PRODUCTION') {
+      throw new BadRequestException('Process Area is required for production processes.');
     }
 
-    // 2. Verify default technician exists, has role TECHNICIAN, belongs to same tenant, and same branch
-    const technician = await this.prisma.user.findFirst({
-      where: {
-        id: defaultTechnicianId,
-        tenantId,
-        role: UserRole.TECHNICIAN,
-        ...(finalBranchId && { branchId: finalBranchId }),
-      },
-    });
+    // 2. Verify pre-assigned user depending on process type
+    let finalDefaultTechnicianId: string | null = null;
 
-    if (!technician) {
-      throw new BadRequestException(
-        `Default technician is not a valid technician in the assigned branch.`,
-      );
+    if (processTypeStr === 'EXTERNAL_VERIFICATION') {
+      finalDefaultTechnicianId = null;
+    } else if (processTypeStr === 'INTERNAL_VERIFICATION') {
+      if (!defaultTechnicianId) {
+        throw new BadRequestException('Default admin assignment is required for internal verification processes.');
+      }
+      const adminUser = await this.prisma.user.findFirst({
+        where: {
+          id: defaultTechnicianId,
+          tenantId,
+        },
+      });
+
+      if (!adminUser) {
+        throw new BadRequestException(
+          'Assigned user for internal verification was not found.',
+        );
+      }
+      finalDefaultTechnicianId = defaultTechnicianId;
+    } else {
+      if (!defaultTechnicianId) {
+        throw new BadRequestException('Default technician is required for production processes.');
+      }
+      const technician = await this.prisma.user.findFirst({
+        where: {
+          id: defaultTechnicianId,
+          tenantId,
+        },
+      });
+
+      if (!technician) {
+        throw new BadRequestException(
+          'Default technician is not valid in your organization.',
+        );
+      }
+      finalDefaultTechnicianId = defaultTechnicianId;
     }
 
     const process = await this.prisma.process.create({
@@ -81,9 +118,10 @@ export class ProcessesService {
         tenantId,
         branchId: finalBranchId || null,
         name,
-        processArea: processAreaRecord.name, // Sync legacy column
-        processAreaId,
-        defaultTechnicianId,
+        type,
+        processArea: processAreaName, // Sync legacy column
+        processAreaId: processAreaId || null,
+        defaultTechnicianId: finalDefaultTechnicianId,
       },
       include: {
         branch: {
@@ -104,7 +142,7 @@ export class ProcessesService {
     });
 
     this.logger.log(
-      `Process created: ${process.name} (${process.id}) for tenant ${tenantId}`,
+      `Process created: ${process.name} (${process.id}) [Type: ${process.type}] for tenant ${tenantId}`,
     );
     return process;
   }
@@ -177,10 +215,11 @@ export class ProcessesService {
     // Verify existence
     const existingProcess = await this.findOne(tenantId, id, branchIdContext);
 
-    const { name, processAreaId, defaultTechnicianId, branchId } = dto;
+    const { name, type, processAreaId, defaultTechnicianId, branchId } = dto;
 
     const finalBranchId =
       branchId !== undefined ? branchId : existingProcess.branchId;
+    const finalType = type || existingProcess.type;
 
     // 1. Verify branch belongs to tenant if updated
     if (finalBranchId) {
@@ -212,21 +251,26 @@ export class ProcessesService {
       resolvedProcessAreaName = processAreaRecord.name;
     }
 
-    // 2. Verify default technician exists, has role TECHNICIAN, belongs to same tenant, and same branch
-    if (defaultTechnicianId) {
-      const technician = await this.prisma.user.findFirst({
+    const finalTypeStr = String(finalType || 'PRODUCTION');
+
+    // Verify assigned user based on finalTypeStr
+    let finalDefaultTechnicianId: string | null | undefined =
+      defaultTechnicianId !== undefined
+        ? defaultTechnicianId
+        : existingProcess.defaultTechnicianId;
+
+    if (finalTypeStr === 'EXTERNAL_VERIFICATION') {
+      finalDefaultTechnicianId = null;
+    } else if (defaultTechnicianId) {
+      const userRecord = await this.prisma.user.findFirst({
         where: {
           id: defaultTechnicianId,
           tenantId,
-          role: UserRole.TECHNICIAN,
-          ...(finalBranchId && { branchId: finalBranchId }),
         },
       });
 
-      if (!technician) {
-        throw new BadRequestException(
-          `Default technician is not a valid technician in the assigned branch.`,
-        );
+      if (!userRecord) {
+        throw new BadRequestException('Assigned user is not valid in your organization.');
       }
     }
 
@@ -234,11 +278,12 @@ export class ProcessesService {
       where: { id },
       data: {
         ...(name && { name }),
-        ...(processAreaId && { processAreaId }),
+        ...(type && { type }),
+        ...(processAreaId !== undefined && { processAreaId: processAreaId || null }),
         ...(resolvedProcessAreaName && {
           processArea: resolvedProcessAreaName,
         }), // Sync legacy column
-        ...(defaultTechnicianId && { defaultTechnicianId }),
+        defaultTechnicianId: finalDefaultTechnicianId,
         ...(branchId !== undefined && { branchId: finalBranchId || null }),
       },
       include: {

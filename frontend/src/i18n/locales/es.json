@@ -157,6 +157,11 @@
       "INTERNAL": "Interna",
       "EXTERNAL": "Externa"
     },
+    "processType": {
+      "PRODUCTION": "Producción",
+      "INTERNAL_VERIFICATION": "Verificación Interna",
+      "EXTERNAL_VERIFICATION": "Verificación Externa"
+    },
     "verificationOutcome": {
       "SUCCESS": "Éxito",
       "REWORK": "Retrabajo",
@@ -829,6 +834,13 @@
     "createProcess": "Crear Proceso",
     "editProcess": "Editar Proceso",
     "processName": "Nombre del Proceso",
+    "processType": "Tipo de Proceso",
+    "productionProcess": "Proceso de Producción",
+    "internalVerification": "Verificación Interna",
+    "externalVerification": "Verificación Externa",
+    "selectDefaultAdmin": "Seleccione el Administrador predeterminado preasignado",
+    "assignedDoctorNotice": "Asignado automáticamente al Médico seleccionado durante la creación de la Orden de Trabajo",
+    "noAdminsBranch": "No hay administradores en esta sucursal",
     "estimatedDuration": "Duración Estimada",
     "defaultTechnician": "Técnico Predeterminado",
     "noProcesses": "No se encontraron procesos",

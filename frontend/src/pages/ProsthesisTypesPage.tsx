@@ -14,6 +14,8 @@ import {
   ArrowDown,
   ListOrdered,
   Layers,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -350,6 +352,56 @@ export function ProsthesisTypesPage() {
     return p.name.toLowerCase().includes(query) || (p.processArea && p.processArea.toLowerCase().includes(query));
   });
 
+  const renderProcessSubtitle = (proc: { processArea?: string; type?: string }) => {
+    if (proc.type === 'INTERNAL_VERIFICATION') {
+      return (
+        <span
+          style={{
+            fontSize: '0.6875rem',
+            fontWeight: 600,
+            color: '#4F46E5',
+            backgroundColor: '#EEF2FF',
+            padding: '1px 6px',
+            borderRadius: '4px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            marginTop: '2px',
+          }}
+        >
+          <ShieldCheck size={10} />
+          {t('enums.processType.INTERNAL_VERIFICATION', { defaultValue: 'Internal Verification' })}
+        </span>
+      );
+    }
+    if (proc.type === 'EXTERNAL_VERIFICATION') {
+      return (
+        <span
+          style={{
+            fontSize: '0.6875rem',
+            fontWeight: 600,
+            color: '#D97706',
+            backgroundColor: '#FEF3C7',
+            padding: '1px 6px',
+            borderRadius: '4px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            marginTop: '2px',
+          }}
+        >
+          <ShieldAlert size={10} />
+          {t('enums.processType.EXTERNAL_VERIFICATION', { defaultValue: 'External Verification' })}
+        </span>
+      );
+    }
+    return (
+      <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+        {proc.processArea || 'General'}
+      </span>
+    );
+  };
+
   return (
     <div className="admins-page">
       {/* Page Header */}
@@ -511,26 +563,49 @@ export function ProsthesisTypesPage() {
                         style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center', cursor: 'help' }}
                         title={item.processAssignments.map((a, idx) => `${idx + 1}. ${a.process.name}`).join('\n')}
                       >
-                        {item.processAssignments.slice(0, 4).map((a, idx) => (
-                          <span
-                            key={a.id}
-                            className="badge"
-                            style={{
-                              backgroundColor: 'var(--success-light, #ECFDF5)',
-                              color: 'var(--success, #10B981)',
-                              border: '1px solid var(--success-glow, #A7F3D0)',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              padding: '0.125rem 0.5rem',
-                              borderRadius: '6px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <span style={{ opacity: 0.7, marginRight: '4px', fontWeight: 800 }}>{idx + 1}.</span>
-                            {a.process.name}
-                          </span>
-                        ))}
+                        {item.processAssignments.slice(0, 4).map((a, idx) => {
+                          const procType = a.process.type;
+                          const isIV = procType === 'INTERNAL_VERIFICATION';
+                          const isEV = procType === 'EXTERNAL_VERIFICATION';
+                          let bg = 'var(--success-light, #ECFDF5)';
+                          let color = 'var(--success, #10B981)';
+                          let border = '1px solid var(--success-glow, #A7F3D0)';
+                          let Icon = null;
+                          if (isIV) {
+                            bg = '#EEF2FF';
+                            color = '#4F46E5';
+                            border = '1px solid #C7D2FE';
+                            Icon = ShieldCheck;
+                          } else if (isEV) {
+                            bg = '#FEF3C7';
+                            color = '#D97706';
+                            border = '1px solid #FDE68A';
+                            Icon = ShieldAlert;
+                          }
+
+                          return (
+                            <span
+                              key={a.id}
+                              className="badge"
+                              style={{
+                                backgroundColor: bg,
+                                color: color,
+                                border: border,
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                padding: '0.125rem 0.5rem',
+                                borderRadius: '6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}
+                            >
+                              <span style={{ opacity: 0.7, marginRight: '2px', fontWeight: 800 }}>{idx + 1}.</span>
+                              {Icon && <Icon size={11} />}
+                              {a.process.name}
+                            </span>
+                          );
+                        })}
                         {item.processAssignments.length > 4 && (
                           <span
                             className="badge"
@@ -818,7 +893,7 @@ export function ProsthesisTypesPage() {
                               >
                                 <div style={{ flexGrow: 1, minWidth: 0 }}>
                                   <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{p.processArea}</span>
+                                  {renderProcessSubtitle(p)}
                                 </div>
                                 {!isSelected && (
                                   <span style={{
@@ -882,7 +957,7 @@ export function ProsthesisTypesPage() {
                                 </span>
                                 <div style={{ flexGrow: 1, minWidth: 0 }}>
                                   <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{p.processArea}</span>
+                                  {renderProcessSubtitle(p)}
                                 </div>
                                 <div style={{ display: 'flex', gap: '4px', marginLeft: '0.25rem', alignItems: 'center' }}>
                                   <button
@@ -1144,7 +1219,7 @@ export function ProsthesisTypesPage() {
                               >
                                 <div style={{ flexGrow: 1, minWidth: 0 }}>
                                   <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{p.processArea}</span>
+                                  {renderProcessSubtitle(p)}
                                 </div>
                                 {!isSelected && (
                                   <span style={{
@@ -1208,7 +1283,7 @@ export function ProsthesisTypesPage() {
                                 </span>
                                 <div style={{ flexGrow: 1, minWidth: 0 }}>
                                   <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{p.processArea}</span>
+                                  {renderProcessSubtitle(p)}
                                 </div>
                                 <div style={{ display: 'flex', gap: '4px', marginLeft: '0.25rem', alignItems: 'center' }}>
                                   <button
@@ -1355,9 +1430,7 @@ export function ProsthesisTypesPage() {
                           <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {item.process.name}
                           </span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                            {item.process.processArea}
-                          </span>
+                          {renderProcessSubtitle(item.process)}
                         </div>
                         <div style={{ display: 'flex', gap: '4px', marginLeft: '0.5rem' }}>
                           <button
