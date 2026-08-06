@@ -163,34 +163,40 @@ export class IntegrationController {
     const tenantId = req.apiKeyTenantId;
     const branchId = req.apiKeyBranchId;
 
-    let prosthesisTypes: Array<{
-      id: string;
-      name: string;
-      description: string | null;
-    }> = [];
+    let targetClinicId: string | null = null;
 
-    if (clinicUrl || clinicId) {
-      try {
-        const rows: any[] = await this.prisma.$queryRawUnsafe(
-          `SELECT pt.id, pt.name, pt.description 
-           FROM "prosthesis_types" pt
-           INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
-           INNER JOIN "clinics" c ON c.id = cpt.clinic_id
-           WHERE c.tenant_id = $1 AND (c.url = $2 OR c.id = $3)
-           ORDER BY pt.name ASC`,
+    if (clinicId) {
+      const clinic = await this.prisma.clinic.findFirst({
+        where: {
+          id: clinicId,
           tenantId,
-          clinicUrl || '',
-          clinicId || '',
-        );
-        prosthesisTypes = (rows || []).map((r) => ({
-          id: r.id,
-          name: r.name,
-          description: r.description,
-        }));
-      } catch {
-        prosthesisTypes = [];
+          ...(branchId ? { branchId } : {}),
+        },
+      });
+      if (clinic) {
+        targetClinicId = clinic.id;
       }
-    } else {
+    }
+
+    if (!targetClinicId && clinicUrl) {
+      const cleanUrl = clinicUrl.trim().replace(/\/+$/, '');
+      const clinic = await this.prisma.clinic.findFirst({
+        where: {
+          tenantId,
+          ...(branchId ? { branchId } : {}),
+          OR: [
+            { url: clinicUrl },
+            { url: cleanUrl },
+            { url: `${cleanUrl}/` },
+          ],
+        },
+      });
+      if (clinic) {
+        targetClinicId = clinic.id;
+      }
+    }
+
+    if (!targetClinicId) {
       const clinics = await this.prisma.clinic.findMany({
         where: {
           tenantId,
@@ -199,36 +205,33 @@ export class IntegrationController {
       });
 
       if (clinics.length === 1) {
-        try {
-          const rows: any[] = await this.prisma.$queryRawUnsafe(
-            `SELECT pt.id, pt.name, pt.description 
-             FROM "prosthesis_types" pt
-             INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
-             WHERE cpt.clinic_id = $1
-             ORDER BY pt.name ASC`,
-            clinics[0].id,
-          );
-          prosthesisTypes = (rows || []).map((r) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-          }));
-        } catch {
-          prosthesisTypes = [];
-        }
-      } else {
-        prosthesisTypes = await this.prisma.prosthesisType.findMany({
-          where: {
-            tenantId,
-            OR: [{ branchId: null }, { branchId }],
-          },
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-          orderBy: { name: 'asc' },
-        });
+        targetClinicId = clinics[0].id;
+      }
+    }
+
+    let prosthesisTypes: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+    }> = [];
+
+    if (targetClinicId) {
+      try {
+        const rows: any[] = await this.prisma.$queryRawUnsafe(
+          `SELECT pt.id, pt.name, pt.description 
+           FROM "prosthesis_types" pt
+           INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
+           WHERE cpt.clinic_id = $1
+           ORDER BY pt.name ASC`,
+          targetClinicId,
+        );
+        prosthesisTypes = (rows || []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+        }));
+      } catch {
+        prosthesisTypes = [];
       }
     }
 
