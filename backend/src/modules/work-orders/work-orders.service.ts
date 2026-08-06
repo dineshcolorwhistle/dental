@@ -1830,7 +1830,14 @@ export class WorkOrdersService implements OnModuleInit {
           ...(branchIdContext && { branchId: branchIdContext }),
         },
         include: {
-          doctor: { select: { id: true, name: true } },
+          doctor: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              user: { select: { phone: true } },
+            },
+          },
           prosthesisType: { select: { id: true, name: true } },
           branch: {
             select: { id: true, name: true, code: true, defaultAdminId: true },

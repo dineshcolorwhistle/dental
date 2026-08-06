@@ -353,25 +353,39 @@ export class IntegrationController {
     }
 
     // Resolve or create the doctor dynamically
+    const cleanDoctorName = dto.doctorName ? dto.doctorName.trim() : '';
+    const cleanPhone = dto.doctorPhone ? dto.doctorPhone.trim() : null;
+    const cleanEmail = dto.doctorEmail ? dto.doctorEmail.trim() : null;
+    const cleanAddress = dto.doctorAddress ? dto.doctorAddress.trim() : null;
+
+    // Search for existing doctor by case-insensitive name, email, or phone within tenant/branch
     let doctor = await this.prisma.doctor.findFirst({
       where: {
-        name: dto.doctorName,
-        clinicId: clinic.id,
         tenantId,
-        branchId,
+        ...(branchId ? { branchId } : {}),
+        OR: [
+          ...(cleanDoctorName
+            ? [{ name: { equals: cleanDoctorName, mode: 'insensitive' as const } }]
+            : []),
+          ...(cleanEmail
+            ? [{ email: { equals: cleanEmail, mode: 'insensitive' as const } }]
+            : []),
+          ...(cleanPhone ? [{ phone: cleanPhone }] : []),
+        ],
       },
     });
 
     if (doctor) {
-      // Update doctor contact details if they are provided
+      // Update doctor contact details and clinic association if provided
       doctor = await this.prisma.doctor.update({
         where: { id: doctor.id },
         data: {
-          email: dto.doctorEmail || doctor.email,
-          phone: dto.doctorPhone || doctor.phone,
-          address: dto.doctorAddress || doctor.address,
-          clinicName: clinic.name,
-          externalId: clinic.url,
+          email: cleanEmail || doctor.email,
+          phone: cleanPhone || doctor.phone,
+          address: cleanAddress || doctor.address,
+          clinicId: doctor.clinicId || clinic.id,
+          clinicName: clinic.name || doctor.clinicName,
+          externalId: clinic.url || doctor.externalId,
         },
       });
     } else {
@@ -380,10 +394,10 @@ export class IntegrationController {
           tenantId,
           branchId,
           clinicId: clinic.id,
-          name: dto.doctorName,
-          email: dto.doctorEmail,
-          phone: dto.doctorPhone,
-          address: dto.doctorAddress,
+          name: cleanDoctorName || dto.doctorName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          address: cleanAddress,
           clinicName: clinic.name,
           externalId: clinic.url,
           isActive: true,

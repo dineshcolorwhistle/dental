@@ -607,6 +607,36 @@ export function DashboardPage() {
                         }}>
                           {wo.status === 'INTERNAL_VERIFICATION' ? t('enums.verificationType.INTERNAL') : t('enums.verificationType.EXTERNAL')} {t('dashboard.verification')}
                         </span>
+                        {wo.status === 'EXTERNAL_VERIFICATION' && Boolean(wo.doctor?.phone || wo.doctor?.user?.phone) && (
+                          <button
+                            className="btn-action"
+                            style={{
+                              color: '#FFFFFF',
+                              backgroundColor: '#25D366',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '4px 6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => {
+                              setWhatsAppModalData({
+                                recipientName: wo.doctor?.name || 'Doctor',
+                                recipientPhone: wo.doctor?.phone || wo.doctor?.user?.phone || '',
+                                workOrderData: {
+                                  workOrderId: wo.id,
+                                  folioNumber: wo.folioNumber,
+                                  boxNumber: wo.boxNumber,
+                                },
+                              });
+                            }}
+                            title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
+                          >
+                            <WhatsAppIcon size={14} />
+                          </button>
+                        )}
                         <button
                           className="btn-action"
                           style={{
