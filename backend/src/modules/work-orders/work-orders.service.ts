@@ -1487,9 +1487,17 @@ export class WorkOrdersService implements OnModuleInit {
             select: {
               id: true,
               folioNumber: true,
+              boxNumber: true,
               patient: true,
               status: true,
-              doctor: { select: { name: true } },
+              doctor: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                  user: { select: { phone: true } },
+                },
+              },
               branch: {
                 select: { id: true, name: true, defaultAdminId: true },
               },
@@ -1526,7 +1534,13 @@ export class WorkOrdersService implements OnModuleInit {
         id: a.id,
         workOrderId: a.workOrderId,
         folioNumber: a.workOrder?.folioNumber || '',
+        boxNumber: a.workOrder?.boxNumber || null,
         patient: a.workOrder?.patient || '',
+        doctorName: a.workOrder?.doctor?.name || '',
+        doctorPhone:
+          a.workOrder?.doctor?.phone ||
+          a.workOrder?.doctor?.user?.phone ||
+          null,
         processName: a.processName,
         isVerification: true,
         type: a.technicianId ? 'INTERNAL' : 'EXTERNAL',

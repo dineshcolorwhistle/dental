@@ -6,5 +6,4 @@ export { QRLabelModal } from './QRLabelModal';
 export { DateRangePicker } from './DateRangePicker';
 export { PhoneInput } from './PhoneInput';
 export { WorkOrderChat } from './WorkOrderChat';
-
-
+export { SendWhatsAppModal, WhatsAppIcon } from './SendWhatsAppModal';

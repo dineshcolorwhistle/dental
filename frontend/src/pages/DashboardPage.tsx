@@ -24,7 +24,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService } from '../services';
-import { ViewWorkOrderModal } from '../components';
+import { ViewWorkOrderModal, SendWhatsAppModal, WhatsAppIcon } from '../components';
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
@@ -55,6 +55,15 @@ export function DashboardPage() {
   const [hoveredType, setHoveredType] = useState<'rework' | 'repetition' | null>(null);
   const [activeModalTech, setActiveModalTech] = useState<any | null>(null);
   const [activeModalType, setActiveModalType] = useState<'rework' | 'repetition' | null>(null);
+  const [whatsAppModalData, setWhatsAppModalData] = useState<{
+    recipientName: string;
+    recipientPhone: string;
+    workOrderData: {
+      workOrderId: string;
+      folioNumber: string;
+      boxNumber?: string | null;
+    };
+  } | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -293,7 +302,7 @@ export function DashboardPage() {
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <button
                       className="btn btn--ghost btn--sm"
                       style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--border)' }}
@@ -304,6 +313,37 @@ export function DashboardPage() {
                     >
                       <Eye size={12} /> {t('dashboard.viewWO')}
                     </button>
+                    {(alert.type === 'EXTERNAL' || !alert.technicianId) && Boolean(alert.doctorPhone) && (
+                      <button
+                        className="btn btn--sm"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '6px 10px',
+                          backgroundColor: '#25D366',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                        }}
+                        title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
+                        onClick={() => {
+                          setWhatsAppModalData({
+                            recipientName: alert.doctorName || alert.assignedTo || 'Doctor',
+                            recipientPhone: alert.doctorPhone,
+                            workOrderData: {
+                              workOrderId: alert.workOrderId,
+                              folioNumber: alert.folioNumber,
+                              boxNumber: alert.boxNumber,
+                            },
+                          });
+                        }}
+                      >
+                        <WhatsAppIcon size={16} />
+                      </button>
+                    )}
                     {(() => {
                       const isExternal = alert.type === 'EXTERNAL';
                       const isAssigned = isExternal
@@ -1377,6 +1417,14 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+      {/* Send WhatsApp Modal */}
+      <SendWhatsAppModal
+        isOpen={Boolean(whatsAppModalData)}
+        onClose={() => setWhatsAppModalData(null)}
+        recipientName={whatsAppModalData?.recipientName || ''}
+        recipientPhone={whatsAppModalData?.recipientPhone || ''}
+        workOrderData={whatsAppModalData?.workOrderData}
+      />
     </div>
   );
 }
