@@ -121,6 +121,7 @@ export function WorkOrdersPage() {
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canDelete = isOwner;
   const canCreate = isAdmin;
+  const canEdit = isAdmin;
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
@@ -542,6 +543,7 @@ export function WorkOrdersPage() {
   };
 
   const handleCreateOpen = async () => {
+    if (!canCreate) return;
     await loadReferenceData();
     const branchId = isAdmin ? user?.branchId || '' : '';
     setForm({
@@ -800,6 +802,7 @@ export function WorkOrdersPage() {
 
   // ─── Edit ────────────────────────────
   const handleEditOpen = async (wo: WorkOrderListItem) => {
+    if (!canEdit) return;
     await loadReferenceData();
     setEditingWO(wo);
     const { userNotes } = parseNotesAndPayments(wo.notes);
@@ -853,7 +856,7 @@ export function WorkOrdersPage() {
   };
 
   const handleEditSubmit = async (isAssign = true, skipConfirm = false) => {
-    if (!editingWO) return;
+    if (!canEdit || !editingWO) return;
     if (!validateForm(isAssign)) return;
 
     if (isAssign && editingWO.status === 'CREATED' && !skipConfirm) {
@@ -884,14 +887,17 @@ export function WorkOrdersPage() {
       };
 
       if (isAssign) {
-        payload.processes = processList.map((p) => ({
-          processName: p.processName,
-          technicianId: p.technicianId || undefined,
-          sequence: p.sequence,
-          isVerification: p.isVerification,
-          status: p.status || 'NOT_STARTED',
-          rework: p.rework || false,
-        }));
+        payload.processes = processList.map((p) => {
+          const isExternal = p.processType === 'EXTERNAL_VERIFICATION' || (p.isVerification && (!p.technicianId || p.technicianId === form.doctorId));
+          return {
+            processName: p.processName,
+            technicianId: isExternal ? undefined : (p.technicianId || undefined),
+            sequence: p.sequence,
+            isVerification: p.isVerification,
+            status: p.status || 'NOT_STARTED',
+            rework: p.rework || false,
+          };
+        });
       }
 
       await workOrderService.update(editingWO.id, payload);
@@ -908,12 +914,13 @@ export function WorkOrdersPage() {
 
   // ─── Delete ──────────────────────────
   const confirmDelete = (wo: WorkOrderListItem) => {
+    if (!canDelete) return;
     setWoToDelete(wo);
     setDeleteModalOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!woToDelete) return;
+    if (!canDelete || !woToDelete) return;
     try {
       setDeleting(true);
       await workOrderService.delete(woToDelete.id);
@@ -1278,7 +1285,7 @@ export function WorkOrdersPage() {
                         >
                           <QrCode size={15} />
                         </button>
-                        {(isAdmin || isOwner) && (
+                        {canEdit && (
                           <button
                             className="btn-action"
                             style={{ color: '#D97706', backgroundColor: '#FEF3C7' }}

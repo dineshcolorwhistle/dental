@@ -136,7 +136,7 @@ function App() {
             <Route
               path="/work-orders"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN', 'TECHNICIAN', 'DELIVERY']}>
                   <WorkOrdersPage />
                 </ProtectedRoute>
               }
@@ -152,7 +152,7 @@ function App() {
             <Route
               path="/work-orders/:id"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'TECHNICIAN']}>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN', 'TECHNICIAN', 'DELIVERY']}>
                   <WorkOrderDetailPage />
                 </ProtectedRoute>
               }

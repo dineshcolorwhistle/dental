@@ -20,7 +20,13 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @ApiTags('Work Orders')
 @ApiBearerAuth()
 @Controller('work-orders')
-@Roles(UserRole.ADMIN, UserRole.OWNER)
+@Roles(
+  UserRole.SUPER_ADMIN,
+  UserRole.OWNER,
+  UserRole.ADMIN,
+  UserRole.TECHNICIAN,
+  UserRole.DELIVERY,
+)
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 
@@ -48,6 +54,13 @@ export class WorkOrdersController {
   }
 
   @Get()
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.OWNER,
+    UserRole.ADMIN,
+    UserRole.TECHNICIAN,
+    UserRole.DELIVERY,
+  )
   @ApiOperation({ summary: 'List all work orders' })
   async findAll(
     @CurrentUser('tenantId') tenantId: string,

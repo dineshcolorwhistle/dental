@@ -964,6 +964,21 @@ export class WorkOrdersService implements OnModuleInit {
     let mappedProcesses = undefined;
 
     if (processes) {
+      // Validate technicianIds are actual User records (prevent FK violations from doctor IDs, etc.)
+      for (const p of processes) {
+        if (p.technicianId) {
+          const userExists = await this.prisma.user.findFirst({
+            where: { id: p.technicianId, tenantId },
+          });
+          if (!userExists) {
+            this.logger.warn(
+              `technicianId "${p.technicianId}" for process "${p.processName}" is not a valid User. Setting to null.`,
+            );
+            p.technicianId = undefined;
+          }
+        }
+      }
+
       // Find reworked steps
       const reworkedItems = processes.filter((p) => p.rework === true);
       if (reworkedItems.length > 0) {
