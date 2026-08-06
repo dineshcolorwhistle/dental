@@ -151,6 +151,21 @@ export class IntegrationController {
     };
   }
 
+  private extractDomain(urlStr?: string): string | null {
+    if (!urlStr) return null;
+    try {
+      const trimmed = urlStr.trim();
+      const withProtocol =
+        trimmed.startsWith('http://') || trimmed.startsWith('https://')
+          ? trimmed
+          : `https://${trimmed}`;
+      const parsed = new URL(withProtocol);
+      return parsed.hostname.toLowerCase();
+    } catch {
+      return urlStr.trim().toLowerCase().replace(/\/+$/, '');
+    }
+  }
+
   @Get('work-orders/setup')
   @ApiOperation({
     summary: 'Retrieve prosthesis types and next folio number for WO setup',
@@ -162,6 +177,12 @@ export class IntegrationController {
   ) {
     const tenantId = req.apiKeyTenantId;
     const branchId = req.apiKeyBranchId;
+
+    const rawClinicUrl =
+      clinicUrl ||
+      (req.headers['origin'] as string) ||
+      (req.headers['referer'] as string) ||
+      '';
 
     let targetClinicId: string | null = null;
 
@@ -178,21 +199,30 @@ export class IntegrationController {
       }
     }
 
-    if (!targetClinicId && clinicUrl) {
-      const cleanUrl = clinicUrl.trim().replace(/\/+$/, '');
-      const clinic = await this.prisma.clinic.findFirst({
+    if (!targetClinicId && rawClinicUrl) {
+      const targetDomain = this.extractDomain(rawClinicUrl);
+      const clinics = await this.prisma.clinic.findMany({
         where: {
           tenantId,
           ...(branchId ? { branchId } : {}),
-          OR: [
-            { url: clinicUrl },
-            { url: cleanUrl },
-            { url: `${cleanUrl}/` },
-          ],
         },
       });
-      if (clinic) {
-        targetClinicId = clinic.id;
+
+      const matched = clinics.find((c) => {
+        if (!c.url) return false;
+        if (
+          c.url === rawClinicUrl ||
+          c.url.trim().replace(/\/+$/, '') ===
+            rawClinicUrl.trim().replace(/\/+$/, '')
+        ) {
+          return true;
+        }
+        const dbDomain = this.extractDomain(c.url);
+        return Boolean(targetDomain && dbDomain && targetDomain === dbDomain);
+      });
+
+      if (matched) {
+        targetClinicId = matched.id;
       }
     }
 
@@ -225,6 +255,36 @@ export class IntegrationController {
            ORDER BY pt.name ASC`,
           targetClinicId,
         );
+        prosthesisTypes = (rows || []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+        }));
+      } catch {
+        prosthesisTypes = [];
+      }
+    } else {
+      try {
+        const rows: any[] = branchId
+          ? await this.prisma.$queryRawUnsafe(
+              `SELECT DISTINCT pt.id, pt.name, pt.description 
+               FROM "prosthesis_types" pt
+               INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
+               INNER JOIN "clinics" c ON c.id = cpt.clinic_id
+               WHERE c.tenant_id = $1 AND c.branch_id = $2
+               ORDER BY pt.name ASC`,
+              tenantId,
+              branchId,
+            )
+          : await this.prisma.$queryRawUnsafe(
+              `SELECT DISTINCT pt.id, pt.name, pt.description 
+               FROM "prosthesis_types" pt
+               INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
+               INNER JOIN "clinics" c ON c.id = cpt.clinic_id
+               WHERE c.tenant_id = $1
+               ORDER BY pt.name ASC`,
+              tenantId,
+            );
         prosthesisTypes = (rows || []).map((r) => ({
           id: r.id,
           name: r.name,
