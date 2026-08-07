@@ -18,8 +18,8 @@ export const getSubdomain = () => {
     return parts[0];
   }
 
-  // For staging/dev domains like dental.agentwhistle.com or smile.dental.agentwhistle.com
-  if (hostname.endsWith('.agentwhistle.com')) {
+  // For staging/dev domains like dental.agentwhistle.com or labs.sarvadent.com
+  if (hostname.endsWith('.agentwhistle.com') || hostname.endsWith('.sarvadent.com')) {
     if (parts.length >= 4) {
       return parts[0];
     }
