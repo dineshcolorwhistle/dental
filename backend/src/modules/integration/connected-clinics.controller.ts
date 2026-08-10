@@ -28,7 +28,7 @@ export class ConnectedClinicsController {
   private async ensurePriceColumnExists() {
     try {
       await this.prisma.$executeRawUnsafe(
-        `ALTER TABLE "clinic_prosthesis_types" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION;`
+        `ALTER TABLE "clinic_prosthesis_types" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION;`,
       );
     } catch {
       // Column may already exist or ALTER not allowed
@@ -47,8 +47,14 @@ export class ConnectedClinicsController {
         clinicId,
       );
       return (rows || []).map((row) => {
-        const commonPrice = row.common_price !== null && row.common_price !== undefined ? Number(row.common_price) : 0;
-        const clinicPrice = row.clinic_price !== null && row.clinic_price !== undefined ? Number(row.clinic_price) : commonPrice;
+        const commonPrice =
+          row.common_price !== null && row.common_price !== undefined
+            ? Number(row.common_price)
+            : 0;
+        const clinicPrice =
+          row.clinic_price !== null && row.clinic_price !== undefined
+            ? Number(row.clinic_price)
+            : commonPrice;
         return {
           prosthesisType: {
             id: row.id,
@@ -144,7 +150,9 @@ export class ConnectedClinicsController {
     if (dto.items && dto.items.length > 0) {
       itemsToSave = dto.items;
     } else if (dto.prosthesisTypeIds && dto.prosthesisTypeIds.length > 0) {
-      itemsToSave = dto.prosthesisTypeIds.map((id) => ({ prosthesisTypeId: id }));
+      itemsToSave = dto.prosthesisTypeIds.map((id) => ({
+        prosthesisTypeId: id,
+      }));
     }
 
     const typeIds = itemsToSave.map((item) => item.prosthesisTypeId);
@@ -196,9 +204,13 @@ export class ConnectedClinicsController {
         }
       }
     } catch (e: any) {
-      this.logger.error(`Failed to update clinic prosthesis types for clinic ${clinicId}:`, e.stack || e);
+      this.logger.error(
+        `Failed to update clinic prosthesis types for clinic ${clinicId}:`,
+        e.stack || e,
+      );
       throw new InternalServerErrorException(
-        'Failed to save clinic prosthesis types: ' + (e.message || 'Database error'),
+        'Failed to save clinic prosthesis types: ' +
+          (e.message || 'Database error'),
       );
     }
 

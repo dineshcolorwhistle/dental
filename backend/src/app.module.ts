@@ -28,6 +28,7 @@ import { QueuesModule } from './modules/queues/queues.module';
 import { ProcessAreasModule } from './modules/process-areas/process-areas.module';
 import { InterestRequestsModule } from './modules/interest-requests/interest-requests.module';
 import { WhatsAppTemplatesModule } from './modules/whatsapp-templates/whatsapp-templates.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { WhatsAppTemplatesModule } from './modules/whatsapp-templates/whatsapp-t
     MessagesModule,
     InterestRequestsModule,
     WhatsAppTemplatesModule,
+    RemindersModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default

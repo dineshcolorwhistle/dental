@@ -14,7 +14,12 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { DoctorsService } from './doctors.service';
-import { CreateDoctorDto, UpdateDoctorDto, CreateDoctorListDto, UpdateDoctorListDto } from './dto';
+import {
+  CreateDoctorDto,
+  UpdateDoctorDto,
+  CreateDoctorListDto,
+  UpdateDoctorListDto,
+} from './dto';
 import { Roles, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Doctors')

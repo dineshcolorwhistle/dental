@@ -73,6 +73,25 @@ enum WhatsAppTemplateStatus {
   INACTIVE
 }
 
+enum ReminderPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ReminderRecurrence {
+  ONE_TIME
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum ReminderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
 
 // ─── Tenant ──────────────────────────────────────────────
 
@@ -112,6 +131,7 @@ model Tenant {
   interestRequests  InterestRequest[]
   whatsAppTemplates WhatsAppTemplate[]
   doctorLists       DoctorList[]
+  reminders         Reminder[]
 
   @@map("tenants")
 }
@@ -163,6 +183,7 @@ model Branch {
   expenses        Expense[]
   apiKeys         ApiKey[]
   doctorLists     DoctorList[]
+  reminders       Reminder[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -208,6 +229,8 @@ model User {
   doctor                    Doctor?                @relation("DoctorUser")
   workOrderNotes            WorkOrderNote[]
   resolvedVerifications     WorkOrderProcess[]     @relation("VerificationResolvedBy")
+  createdReminders          Reminder[]             @relation("ReminderCreatedBy")
+  reminderAssignments       ReminderAssignee[]
 
   @@unique([email, tenantId, role])
   @@map("users")
@@ -841,4 +864,46 @@ model WhatsAppTemplate {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("whatsapp_templates")
+}
+
+// ─── Reminder ─────────────────────────────────────────────
+
+model Reminder {
+  id              String             @id @default(uuid())
+  tenantId        String             @map("tenant_id")
+  branchId        String?            @map("branch_id")
+  title           String
+  description     String?
+  category        String?
+  priority        ReminderPriority   @default(MEDIUM)
+  reminderDate    DateTime?          @map("reminder_date")
+  reminderTime    String             @map("reminder_time")
+  recurrence      ReminderRecurrence @default(ONE_TIME)
+  status          ReminderStatus     @default(PENDING)
+  createdById     String             @map("created_by_id")
+  lastNotifiedAt  DateTime?          @map("last_notified_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdBy User               @relation("ReminderCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  assignees ReminderAssignee[]
+
+  @@map("reminders")
+}
+
+model ReminderAssignee {
+  id         String   @id @default(uuid())
+  reminderId String   @map("reminder_id")
+  userId     String   @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  reminder Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, userId])
+  @@map("reminder_assignees")
 }

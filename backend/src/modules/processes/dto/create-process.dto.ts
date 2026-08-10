@@ -24,7 +24,8 @@ export class CreateProcessDto {
   @ApiProperty({
     enum: ProcessType,
     example: 'PRODUCTION',
-    description: 'Type of process (PRODUCTION, INTERNAL_VERIFICATION, EXTERNAL_VERIFICATION)',
+    description:
+      'Type of process (PRODUCTION, INTERNAL_VERIFICATION, EXTERNAL_VERIFICATION)',
     required: false,
   })
   @IsString()

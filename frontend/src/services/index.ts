@@ -63,5 +63,7 @@ export { connectedClinicService } from './connected-clinic.service';
 export type { ConnectedClinicDoctorItem, ConnectedClinicListItem, ConnectedClinicProsthesisItem, UpdateClinicProsthesisItem } from './connected-clinic.service';
 export { interestRequestService } from './interest-request.service';
 export type { PublicWorkOrder, PublicProcessItem, CreateInterestRequestPayload, InterestRequestItem } from './interest-request.service';
+export { reminderService } from './reminder.service';
+export type { ReminderItem, ReminderAssignee, ReminderAssigneeUser, AssignableUser, CreateReminderPayload, UpdateReminderPayload } from './reminder.service';
 
 

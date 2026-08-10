@@ -6,7 +6,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateDoctorDto, UpdateDoctorDto, CreateDoctorListDto, UpdateDoctorListDto } from './dto';
+import {
+  CreateDoctorDto,
+  UpdateDoctorDto,
+  CreateDoctorListDto,
+  UpdateDoctorListDto,
+} from './dto';
 
 @Injectable()
 export class DoctorsService {
@@ -317,7 +322,9 @@ export class DoctorsService {
 
     const listId = randomUUID();
     const branchVal = finalBranchId ? `'${finalBranchId}'` : 'NULL';
-    const descVal = description ? `'${description.replace(/'/g, "''")}'` : 'NULL';
+    const descVal = description
+      ? `'${description.replace(/'/g, "''")}'`
+      : 'NULL';
     const safeName = name.replace(/'/g, "''");
 
     await this.prisma.$executeRawUnsafe(`
@@ -366,10 +373,16 @@ export class DoctorsService {
       setFields.push(`"name" = '${name.replace(/'/g, "''")}'`);
     }
     if (description !== undefined) {
-      setFields.push(description ? `"description" = '${description.replace(/'/g, "''")}'` : `"description" = NULL`);
+      setFields.push(
+        description
+          ? `"description" = '${description.replace(/'/g, "''")}'`
+          : `"description" = NULL`,
+      );
     }
     if (branchId !== undefined) {
-      setFields.push(branchId ? `"branch_id" = '${branchId}'` : `"branch_id" = NULL`);
+      setFields.push(
+        branchId ? `"branch_id" = '${branchId}'` : `"branch_id" = NULL`,
+      );
     }
 
     await this.prisma.$executeRawUnsafe(`

@@ -256,8 +256,14 @@ export class IntegrationController {
           targetClinicId,
         );
         prosthesisTypes = (rows || []).map((r) => {
-          const commonPrice = r.common_price !== null && r.common_price !== undefined ? Number(r.common_price) : 0;
-          const clinicPrice = r.clinic_price !== null && r.clinic_price !== undefined ? Number(r.clinic_price) : commonPrice;
+          const commonPrice =
+            r.common_price !== null && r.common_price !== undefined
+              ? Number(r.common_price)
+              : 0;
+          const clinicPrice =
+            r.clinic_price !== null && r.clinic_price !== undefined
+              ? Number(r.clinic_price)
+              : commonPrice;
           return {
             id: r.id,
             name: r.name,
@@ -291,8 +297,14 @@ export class IntegrationController {
               tenantId,
             );
         prosthesisTypes = (rows || []).map((r) => {
-          const commonPrice = r.common_price !== null && r.common_price !== undefined ? Number(r.common_price) : 0;
-          const clinicPrice = r.clinic_price !== null && r.clinic_price !== undefined ? Number(r.clinic_price) : commonPrice;
+          const commonPrice =
+            r.common_price !== null && r.common_price !== undefined
+              ? Number(r.common_price)
+              : 0;
+          const clinicPrice =
+            r.clinic_price !== null && r.clinic_price !== undefined
+              ? Number(r.clinic_price)
+              : commonPrice;
           return {
             id: r.id,
             name: r.name,
@@ -375,7 +387,14 @@ export class IntegrationController {
         ...(branchId ? { branchId } : {}),
         OR: [
           ...(cleanDoctorName
-            ? [{ name: { equals: cleanDoctorName, mode: 'insensitive' as const } }]
+            ? [
+                {
+                  name: {
+                    equals: cleanDoctorName,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              ]
             : []),
           ...(cleanEmail
             ? [{ email: { equals: cleanEmail, mode: 'insensitive' as const } }]
@@ -490,12 +509,23 @@ export class IntegrationController {
         if (cptRows && cptRows.length > 0) {
           const cp = cptRows[0].clinic_price;
           const ptP = cptRows[0].common_price;
-          calculatedQuote = cp !== null && cp !== undefined ? Number(cp) : (ptP !== null && ptP !== undefined ? Number(ptP) : 0);
+          calculatedQuote =
+            cp !== null && cp !== undefined
+              ? Number(cp)
+              : ptP !== null && ptP !== undefined
+                ? Number(ptP)
+                : 0;
         } else {
-          calculatedQuote = prosthesisType.price !== null && prosthesisType.price !== undefined ? Number(prosthesisType.price) : 0;
+          calculatedQuote =
+            prosthesisType.price !== null && prosthesisType.price !== undefined
+              ? Number(prosthesisType.price)
+              : 0;
         }
       } catch {
-        calculatedQuote = prosthesisType.price !== null && prosthesisType.price !== undefined ? Number(prosthesisType.price) : 0;
+        calculatedQuote =
+          prosthesisType.price !== null && prosthesisType.price !== undefined
+            ? Number(prosthesisType.price)
+            : 0;
       }
     }
 

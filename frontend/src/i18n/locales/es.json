@@ -114,7 +114,8 @@
     "whatsappTemplates": "Plantillas de WhatsApp",
     "workTypes": "Tipos de Trabajo",
     "interestRequests": "Solicitudes de Interés",
-    "calendar": "Calendario"
+    "calendar": "Calendario",
+    "reminders": "Recordatorios"
   },
   "enums": {
     "workOrderStatus": {
@@ -195,6 +196,22 @@
     "productType": {
       "for_use": "Para Uso",
       "for_sale": "Para Venta"
+    },
+    "reminderStatus": {
+      "PENDING": "Pendiente",
+      "COMPLETED": "Completado",
+      "CANCELLED": "Cancelado"
+    },
+    "reminderPriority": {
+      "LOW": "Baja",
+      "MEDIUM": "Media",
+      "HIGH": "Alta"
+    },
+    "reminderRecurrence": {
+      "ONE_TIME": "Una vez",
+      "DAILY": "Diario",
+      "WEEKLY": "Semanal",
+      "MONTHLY": "Mensual"
     }
   },
   "auth": {
@@ -1593,5 +1610,95 @@
     "cancel": "Cancelar",
     "noTemplates": "No hay plantillas de WhatsApp configuradas.",
     "sendSuccess": "Abriendo WhatsApp..."
+  },
+  "reminders": {
+    "title": "Recordatorios",
+    "subtitle": "Gestiona recordatorios y seguimientos para tu equipo",
+    "createReminder": "Crear Recordatorio",
+    "editReminder": "Editar Recordatorio",
+    "deleteReminder": "Eliminar Recordatorio",
+    "listView": "Vista de Lista",
+    "calendarView": "Vista de Calendario",
+    "fields": {
+      "title": "Título",
+      "titlePlaceholder": "Ingrese el título del recordatorio",
+      "priority": "Prioridad",
+      "reminderDate": "Fecha del Recordatorio",
+      "reminderTime": "Hora del Recordatorio",
+      "timeHelperText": "Se le notificará 2 horas antes de la hora programada.",
+      "category": "Categoría",
+      "categoryPlaceholder": "ej. Limpieza, Inventario, Seguimiento",
+      "assignedTo": "Asignado a",
+      "assignedToPlaceholder": "Seleccionar usuarios para asignar",
+      "recurrence": "Recurrencia",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Detalles opcionales sobre este recordatorio",
+      "descriptionHelper": "Agregue detalles sobre la visita del paciente, seguimiento o actividad a recordar.",
+      "status": "Estado",
+      "createdBy": "Creado por",
+      "branch": "Sucursal"
+    },
+    "priority": {
+      "LOW": "Baja",
+      "MEDIUM": "Media",
+      "HIGH": "Alta"
+    },
+    "recurrence": {
+      "ONE_TIME": "Una vez (Sin recurrencia)",
+      "DAILY": "Diario",
+      "WEEKLY": "Semanal",
+      "MONTHLY": "Mensual"
+    },
+    "status": {
+      "PENDING": "Pendiente",
+      "COMPLETED": "Completado",
+      "CANCELLED": "Cancelado"
+    },
+    "filters": {
+      "searchPlaceholder": "Buscar recordatorios...",
+      "allPriorities": "Todas las Prioridades",
+      "allStatuses": "Todos los Estados",
+      "allRecurrences": "Todas las Recurrencias"
+    },
+    "actions": {
+      "markComplete": "Marcar como Completado",
+      "markPending": "Marcar como Pendiente",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "cancel": "Cancelar",
+      "save": "Guardar"
+    },
+    "confirmDelete": {
+      "title": "Eliminar Recordatorio",
+      "message": "¿Está seguro de que desea eliminar este recordatorio? Esta acción no se puede deshacer.",
+      "confirm": "Eliminar",
+      "cancel": "Cancelar"
+    },
+    "empty": {
+      "title": "No se encontraron recordatorios",
+      "description": "Cree su primer recordatorio para hacer seguimiento de tareas y actividades importantes."
+    },
+    "createSuccess": "¡Recordatorio creado exitosamente!",
+    "updateSuccess": "¡Recordatorio actualizado exitosamente!",
+    "deleteSuccess": "¡Recordatorio eliminado exitosamente!",
+    "statusUpdateSuccess": "¡Estado del recordatorio actualizado!",
+    "loadError": "Error al cargar los recordatorios",
+    "createError": "Error al crear el recordatorio",
+    "updateError": "Error al actualizar el recordatorio",
+    "deleteError": "Error al eliminar el recordatorio",
+    "statusUpdateError": "Error al actualizar el estado del recordatorio",
+    "validation": {
+      "titleRequired": "El título es obligatorio",
+      "timeRequired": "La hora del recordatorio es obligatoria",
+      "dateRequired": "La fecha del recordatorio es obligatoria para recordatorios de una sola vez",
+      "assigneesRequired": "Se requiere al menos un asignado"
+    },
+    "calendar": {
+      "today": "Hoy",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "noReminders": "No hay recordatorios en esta fecha",
+      "remindersCount": "{{count}} recordatorio(s)"
+    }
   }
 }

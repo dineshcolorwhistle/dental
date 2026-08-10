@@ -20,7 +20,13 @@ export class ProcessesService {
     userRole: string,
     dto: CreateProcessDto,
   ) {
-    const { name, type = ProcessType.PRODUCTION, processAreaId, defaultTechnicianId, branchId } = dto;
+    const {
+      name,
+      type = ProcessType.PRODUCTION,
+      processAreaId,
+      defaultTechnicianId,
+      branchId,
+    } = dto;
 
     // Force branch for Administrators
     let finalBranchId = branchId;
@@ -47,11 +53,12 @@ export class ProcessesService {
 
     const processTypeStr = String(type || 'PRODUCTION');
 
-    let processAreaName = processTypeStr === 'INTERNAL_VERIFICATION'
-      ? 'Internal Verification'
-      : processTypeStr === 'EXTERNAL_VERIFICATION'
-      ? 'External Verification'
-      : 'General';
+    let processAreaName =
+      processTypeStr === 'INTERNAL_VERIFICATION'
+        ? 'Internal Verification'
+        : processTypeStr === 'EXTERNAL_VERIFICATION'
+          ? 'External Verification'
+          : 'General';
 
     if (processAreaId) {
       const processAreaRecord = await this.prisma.processArea.findFirst({
@@ -69,7 +76,9 @@ export class ProcessesService {
       }
       processAreaName = processAreaRecord.name;
     } else if (processTypeStr === 'PRODUCTION') {
-      throw new BadRequestException('Process Area is required for production processes.');
+      throw new BadRequestException(
+        'Process Area is required for production processes.',
+      );
     }
 
     // 2. Verify pre-assigned user depending on process type
@@ -79,7 +88,9 @@ export class ProcessesService {
       finalDefaultTechnicianId = null;
     } else if (processTypeStr === 'INTERNAL_VERIFICATION') {
       if (!defaultTechnicianId) {
-        throw new BadRequestException('Default admin assignment is required for internal verification processes.');
+        throw new BadRequestException(
+          'Default admin assignment is required for internal verification processes.',
+        );
       }
       const adminUser = await this.prisma.user.findFirst({
         where: {
@@ -96,7 +107,9 @@ export class ProcessesService {
       finalDefaultTechnicianId = defaultTechnicianId;
     } else {
       if (!defaultTechnicianId) {
-        throw new BadRequestException('Default technician is required for production processes.');
+        throw new BadRequestException(
+          'Default technician is required for production processes.',
+        );
       }
       const technician = await this.prisma.user.findFirst({
         where: {
@@ -270,7 +283,9 @@ export class ProcessesService {
       });
 
       if (!userRecord) {
-        throw new BadRequestException('Assigned user is not valid in your organization.');
+        throw new BadRequestException(
+          'Assigned user is not valid in your organization.',
+        );
       }
     }
 
@@ -279,7 +294,9 @@ export class ProcessesService {
       data: {
         ...(name && { name }),
         ...(type && { type }),
-        ...(processAreaId !== undefined && { processAreaId: processAreaId || null }),
+        ...(processAreaId !== undefined && {
+          processAreaId: processAreaId || null,
+        }),
         ...(resolvedProcessAreaName && {
           processArea: resolvedProcessAreaName,
         }), // Sync legacy column

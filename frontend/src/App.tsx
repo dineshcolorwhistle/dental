@@ -32,6 +32,7 @@ import { ConnectedClinicsPage } from './pages/ConnectedClinicsPage';
 import { PublicWorkOrderPage } from './pages/PublicWorkOrderPage';
 import { InterestRequestsPage } from './pages/InterestRequestsPage';
 import { CalendarPage } from './pages/CalendarPage';
+import { RemindersPage } from './pages/RemindersPage';
 
 
 function App() {
@@ -146,6 +147,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <CalendarPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reminders"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <RemindersPage />
                 </ProtectedRoute>
               }
             />

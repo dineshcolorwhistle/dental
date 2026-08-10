@@ -114,7 +114,8 @@
     "whatsappTemplates": "WhatsApp Templates",
     "workTypes": "Work Types",
     "interestRequests": "Interest Requests",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "reminders": "Reminders"
   },
   "enums": {
     "workOrderStatus": {
@@ -195,6 +196,22 @@
     "productType": {
       "for_use": "For Use",
       "for_sale": "For Sale"
+    },
+    "reminderStatus": {
+      "PENDING": "Pending",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "reminderPriority": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High"
+    },
+    "reminderRecurrence": {
+      "ONE_TIME": "One time",
+      "DAILY": "Daily",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly"
     }
   },
   "auth": {
@@ -1593,5 +1610,95 @@
     "cancel": "Cancel",
     "noTemplates": "No WhatsApp templates configured.",
     "sendSuccess": "Opening WhatsApp..."
+  },
+  "reminders": {
+    "title": "Reminders",
+    "subtitle": "Manage reminders and follow-ups for your team",
+    "createReminder": "Create Reminder",
+    "editReminder": "Edit Reminder",
+    "deleteReminder": "Delete Reminder",
+    "listView": "List View",
+    "calendarView": "Calendar View",
+    "fields": {
+      "title": "Title",
+      "titlePlaceholder": "Enter reminder title",
+      "priority": "Priority",
+      "reminderDate": "Reminder Date",
+      "reminderTime": "Reminder Time",
+      "timeHelperText": "You will be notified 2 hours before the scheduled time.",
+      "category": "Category",
+      "categoryPlaceholder": "e.g. Cleaning, Inventory, Follow-up",
+      "assignedTo": "Assigned To",
+      "assignedToPlaceholder": "Select users to assign",
+      "recurrence": "Recurrence",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional details about this reminder",
+      "descriptionHelper": "Add details about the patient visit, follow-up, or activity to remember.",
+      "status": "Status",
+      "createdBy": "Created By",
+      "branch": "Branch"
+    },
+    "priority": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High"
+    },
+    "recurrence": {
+      "ONE_TIME": "One time (No recurrence)",
+      "DAILY": "Daily",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly"
+    },
+    "status": {
+      "PENDING": "Pending",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "filters": {
+      "searchPlaceholder": "Search reminders...",
+      "allPriorities": "All Priorities",
+      "allStatuses": "All Statuses",
+      "allRecurrences": "All Recurrences"
+    },
+    "actions": {
+      "markComplete": "Mark as Complete",
+      "markPending": "Mark as Pending",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "confirmDelete": {
+      "title": "Delete Reminder",
+      "message": "Are you sure you want to delete this reminder? This action cannot be undone.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "empty": {
+      "title": "No reminders found",
+      "description": "Create your first reminder to keep track of important tasks and follow-ups."
+    },
+    "createSuccess": "Reminder created successfully!",
+    "updateSuccess": "Reminder updated successfully!",
+    "deleteSuccess": "Reminder deleted successfully!",
+    "statusUpdateSuccess": "Reminder status updated!",
+    "loadError": "Failed to load reminders",
+    "createError": "Failed to create reminder",
+    "updateError": "Failed to update reminder",
+    "deleteError": "Failed to delete reminder",
+    "statusUpdateError": "Failed to update reminder status",
+    "validation": {
+      "titleRequired": "Title is required",
+      "timeRequired": "Reminder time is required",
+      "dateRequired": "Reminder date is required for one-time reminders",
+      "assigneesRequired": "At least one assignee is required"
+    },
+    "calendar": {
+      "today": "Today",
+      "previous": "Previous",
+      "next": "Next",
+      "noReminders": "No reminders on this date",
+      "remindersCount": "{{count}} reminder(s)"
+    }
   }
 }

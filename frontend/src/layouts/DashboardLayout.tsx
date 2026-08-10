@@ -21,7 +21,6 @@ import {
   Sparkles,
   GitMerge,
   ClipboardList,
-  Calendar,
   PlusCircle,
   Check,
   Trash2,
@@ -401,15 +400,15 @@ export function DashboardLayout() {
               </NavLink>
 
               <NavLink
-                to="/calendar"
+                to="/reminders"
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
                 onClick={() => setSidebarOpen(false)}
-                data-tooltip={t('navigation.calendar')}
+                data-tooltip={t('navigation.reminders')}
               >
-                <Calendar size={20} />
-                <span>{t('navigation.calendar')}</span>
+                <Bell size={20} />
+                <span>{t('navigation.reminders')}</span>
               </NavLink>
 
               <NavLink

@@ -279,4 +279,52 @@ export class MailService {
       return frontendUrl;
     }
   }
+
+  /**
+   * Send a reminder notification email to an assigned user.
+   */
+  async sendReminderNotification(
+    email: string,
+    userName: string,
+    title: string,
+    description: string,
+    category: string,
+    priority: string,
+    reminderTime: string,
+    recurrence: string,
+    tenantName: string,
+    lang: 'EN' | 'ES',
+  ): Promise<void> {
+    const subject =
+      lang === 'ES'
+        ? `Recordatorio: ${title} — ${tenantName}`
+        : `Reminder: ${title} — ${tenantName}`;
+
+    const template =
+      lang === 'ES' ? 'reminder-notification-es' : 'reminder-notification';
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject,
+        template,
+        context: {
+          userName,
+          title,
+          description,
+          category,
+          priority,
+          reminderTime,
+          recurrence,
+          tenantName,
+        },
+      });
+      this.logger.log(`Reminder notification sent to ${email}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send reminder notification to ${email}`,
+        error,
+      );
+    }
+  }
 }
