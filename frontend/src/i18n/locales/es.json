@@ -1693,6 +1693,13 @@
       "dateRequired": "La fecha del recordatorio es obligatoria para recordatorios de una sola vez",
       "assigneesRequired": "Se requiere al menos un asignado"
     },
+    "viewReminder": "Detalles del Recordatorio",
+    "viewDetails": "Ver Detalles",
+    "assignedTeamMembers": "Miembros del Equipo Asignados",
+    "lastNotified": "Última Notificación",
+    "notNotifiedYet": "Aún no notificado",
+    "createdBy": "Creado por",
+    "createdAt": "Fecha de Creación",
     "calendar": {
       "today": "Hoy",
       "previous": "Anterior",

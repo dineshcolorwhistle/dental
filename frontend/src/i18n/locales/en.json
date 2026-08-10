@@ -1693,6 +1693,13 @@
       "dateRequired": "Reminder date is required for one-time reminders",
       "assigneesRequired": "At least one assignee is required"
     },
+    "viewReminder": "Reminder Details",
+    "viewDetails": "View Details",
+    "assignedTeamMembers": "Assigned Team Members",
+    "lastNotified": "Last Notified",
+    "notNotifiedYet": "Not notified yet",
+    "createdBy": "Created By",
+    "createdAt": "Created At",
     "calendar": {
       "today": "Today",
       "previous": "Previous",

@@ -13,6 +13,7 @@ import {
   XCircle,
   Trash2,
   Edit3,
+  Eye,
   X,
   Loader2,
   AlertCircle,
@@ -121,8 +122,10 @@ export function RemindersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ReminderItem | null>(null);
   const [deletingReminder, setDeletingReminder] = useState<ReminderItem | null>(null);
+  const [viewingReminder, setViewingReminder] = useState<ReminderItem | null>(null);
 
   // Day View Modal for Calendar
   const [dayModal, setDayModal] = useState<{ isOpen: boolean; date: Date | null; reminders: ReminderItem[] }>({
@@ -459,6 +462,11 @@ export function RemindersPage() {
     setShowEditModal(true);
   };
 
+  const openViewModal = (reminder: ReminderItem) => {
+    setViewingReminder(reminder);
+    setShowViewModal(true);
+  };
+
   const openDeleteModal = (reminder: ReminderItem) => {
     setDeletingReminder(reminder);
     setShowDeleteModal(true);
@@ -522,213 +530,215 @@ export function RemindersPage() {
 
   // ─── Render Modal Form Fields ─────────────
   const renderFormFields = (onSubmit: (e: React.FormEvent) => void, isEdit: boolean) => (
-    <form className="modal__body" onSubmit={onSubmit}>
-      {/* Row 1: Title + Priority */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '1rem' }}>
-        <div className="form-group">
-          <label className="form-label" htmlFor="input-reminder-title">
-            {t('reminders.fields.title', { defaultValue: 'Title' })} *
-          </label>
-          <input
-            id="input-reminder-title"
-            className={`form-input ${formErrors.title ? 'form-input--error' : ''}`}
-            type="text"
-            placeholder={t('reminders.fields.titlePlaceholder', { defaultValue: 'Enter reminder title' })}
-            value={form.title}
-            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            disabled={saving}
-            autoFocus
-          />
-          {formErrors.title && (
-            <span className="form-error">
-              <AlertCircle size={12} /> {formErrors.title}
-            </span>
-          )}
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="select-reminder-priority">
-            {t('reminders.fields.priority', { defaultValue: 'Priority' })}
-          </label>
-          <select
-            id="select-reminder-priority"
-            className="form-input"
-            value={form.priority}
-            onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value as any }))}
-            disabled={saving}
-          >
-            <option value="LOW">{t('enums.reminderPriority.LOW', { defaultValue: 'Low' })}</option>
-            <option value="MEDIUM">{t('enums.reminderPriority.MEDIUM', { defaultValue: 'Medium' })}</option>
-            <option value="HIGH">{t('enums.reminderPriority.HIGH', { defaultValue: 'High' })}</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Row 2: Category + Recurrence */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-        <div className="form-group">
-          <label className="form-label" htmlFor="input-reminder-category">
-            {t('reminders.fields.category', { defaultValue: 'Category' })}
-          </label>
-          <input
-            id="input-reminder-category"
-            className="form-input"
-            type="text"
-            placeholder={t('reminders.fields.categoryPlaceholder', { defaultValue: 'e.g. Cleaning, Inventory' })}
-            value={form.category}
-            onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-            disabled={saving}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="select-reminder-recurrence">
-            {t('reminders.fields.recurrence', { defaultValue: 'Recurrence' })}
-          </label>
-          <select
-            id="select-reminder-recurrence"
-            className="form-input"
-            value={form.recurrence}
-            onChange={(e) => setForm((p) => ({ ...p, recurrence: e.target.value as any }))}
-            disabled={saving}
-          >
-            <option value="ONE_TIME">{t('enums.reminderRecurrence.ONE_TIME', { defaultValue: 'One time (No recurrence)' })}</option>
-            <option value="DAILY">{t('enums.reminderRecurrence.DAILY', { defaultValue: 'Daily' })}</option>
-            <option value="WEEKLY">{t('enums.reminderRecurrence.WEEKLY', { defaultValue: 'Weekly' })}</option>
-            <option value="MONTHLY">{t('enums.reminderRecurrence.MONTHLY', { defaultValue: 'Monthly' })}</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Row 3: Date & Time */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-        {form.recurrence === 'ONE_TIME' && (
+    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      <div className="modal__body" style={{ flex: 1, overflowY: 'auto' }}>
+        {/* Row 1: Title + Priority */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '1rem' }}>
           <div className="form-group">
-            <label className="form-label" htmlFor="input-reminder-date">
-              {t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' })} *
+            <label className="form-label" htmlFor="input-reminder-title">
+              {t('reminders.fields.title', { defaultValue: 'Title' })} *
             </label>
             <input
-              id="input-reminder-date"
-              className={`form-input ${formErrors.reminderDate ? 'form-input--error' : ''}`}
-              type="date"
-              min={getTodayDateString()}
-              value={form.reminderDate}
-              onChange={(e) => setForm((p) => ({ ...p, reminderDate: e.target.value }))}
+              id="input-reminder-title"
+              className={`form-input ${formErrors.title ? 'form-input--error' : ''}`}
+              type="text"
+              placeholder={t('reminders.fields.titlePlaceholder', { defaultValue: 'Enter reminder title' })}
+              value={form.title}
+              onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
               disabled={saving}
+              autoFocus
             />
-            {formErrors.reminderDate && (
+            {formErrors.title && (
               <span className="form-error">
-                <AlertCircle size={12} /> {formErrors.reminderDate}
+                <AlertCircle size={12} /> {formErrors.title}
               </span>
             )}
           </div>
-        )}
-        <div className="form-group">
-          <label className="form-label" htmlFor="input-reminder-time">
-            {t('reminders.fields.reminderTime', { defaultValue: 'Reminder Time' })} *
+          <div className="form-group">
+            <label className="form-label" htmlFor="select-reminder-priority">
+              {t('reminders.fields.priority', { defaultValue: 'Priority' })}
+            </label>
+            <select
+              id="select-reminder-priority"
+              className="form-input"
+              value={form.priority}
+              onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value as any }))}
+              disabled={saving}
+            >
+              <option value="LOW">{t('enums.reminderPriority.LOW', { defaultValue: 'Low' })}</option>
+              <option value="MEDIUM">{t('enums.reminderPriority.MEDIUM', { defaultValue: 'Medium' })}</option>
+              <option value="HIGH">{t('enums.reminderPriority.HIGH', { defaultValue: 'High' })}</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Row 2: Category + Recurrence */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="input-reminder-category">
+              {t('reminders.fields.category', { defaultValue: 'Category' })}
+            </label>
+            <input
+              id="input-reminder-category"
+              className="form-input"
+              type="text"
+              placeholder={t('reminders.fields.categoryPlaceholder', { defaultValue: 'e.g. Cleaning, Inventory' })}
+              value={form.category}
+              onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+              disabled={saving}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="select-reminder-recurrence">
+              {t('reminders.fields.recurrence', { defaultValue: 'Recurrence' })}
+            </label>
+            <select
+              id="select-reminder-recurrence"
+              className="form-input"
+              value={form.recurrence}
+              onChange={(e) => setForm((p) => ({ ...p, recurrence: e.target.value as any }))}
+              disabled={saving}
+            >
+              <option value="ONE_TIME">{t('enums.reminderRecurrence.ONE_TIME', { defaultValue: 'One time (No recurrence)' })}</option>
+              <option value="DAILY">{t('enums.reminderRecurrence.DAILY', { defaultValue: 'Daily' })}</option>
+              <option value="WEEKLY">{t('enums.reminderRecurrence.WEEKLY', { defaultValue: 'Weekly' })}</option>
+              <option value="MONTHLY">{t('enums.reminderRecurrence.MONTHLY', { defaultValue: 'Monthly' })}</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Row 3: Date & Time */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          {form.recurrence === 'ONE_TIME' && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="input-reminder-date">
+                {t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' })} *
+              </label>
+              <input
+                id="input-reminder-date"
+                className={`form-input ${formErrors.reminderDate ? 'form-input--error' : ''}`}
+                type="date"
+                min={getTodayDateString()}
+                value={form.reminderDate}
+                onChange={(e) => setForm((p) => ({ ...p, reminderDate: e.target.value }))}
+                disabled={saving}
+              />
+              {formErrors.reminderDate && (
+                <span className="form-error">
+                  <AlertCircle size={12} /> {formErrors.reminderDate}
+                </span>
+              )}
+            </div>
+          )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="input-reminder-time">
+              {t('reminders.fields.reminderTime', { defaultValue: 'Reminder Time' })} *
+            </label>
+            <input
+              id="input-reminder-time"
+              className={`form-input ${formErrors.reminderTime ? 'form-input--error' : ''}`}
+              type="time"
+              value={form.reminderTime}
+              onChange={(e) => setForm((p) => ({ ...p, reminderTime: e.target.value }))}
+              disabled={saving}
+            />
+            {formErrors.reminderTime && (
+              <span className="form-error">
+                <AlertCircle size={12} /> {formErrors.reminderTime}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Row 4: Assigned To - Mandatory with min 1 */}
+        <div className="form-group" style={{ marginTop: '1rem' }}>
+          <label className="form-label" htmlFor="select-reminder-assignees">
+            {t('reminders.fields.assignedTo', { defaultValue: 'Assigned To' })} *
           </label>
-          <input
-            id="input-reminder-time"
-            className={`form-input ${formErrors.reminderTime ? 'form-input--error' : ''}`}
-            type="time"
-            value={form.reminderTime}
-            onChange={(e) => setForm((p) => ({ ...p, reminderTime: e.target.value }))}
-            disabled={saving}
+
+          {/* Selected Assignees Badges */}
+          {selectedAssignees.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              {selectedAssignees.map((u) => (
+                <span
+                  key={u.id}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    fontSize: '0.8125rem',
+                    fontWeight: 500,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    color: 'var(--primary, #3B82F6)',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                  }}
+                >
+                  <User size={13} />
+                  <span>{u.firstName} {u.lastName} ({u.role})</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAssignee(u.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: 'inherit',
+                      marginLeft: '2px',
+                    }}
+                    title={t('common.remove', { defaultValue: 'Remove' })}
+                  >
+                    <X size={13} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Searchable Select Input */}
+          <SearchableSelect
+            id="select-reminder-assignees"
+            options={availableAssigneeOptions}
+            value=""
+            onChange={addAssignee}
+            error={!!formErrors.assigneeIds}
+            placeholder={
+              availableAssigneeOptions.length === 0 && selectedAssignees.length > 0
+                ? t('reminders.fields.allUsersSelected', { defaultValue: 'All users selected' })
+                : t('reminders.fields.assignedToPlaceholder', { defaultValue: 'Search and select users to assign...' })
+            }
+            disabled={saving || availableAssigneeOptions.length === 0}
           />
-          {formErrors.reminderTime && (
-            <span className="form-error">
-              <AlertCircle size={12} /> {formErrors.reminderTime}
+          {formErrors.assigneeIds && (
+            <span className="form-error" style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <AlertCircle size={12} /> {formErrors.assigneeIds}
             </span>
           )}
         </div>
+
+        {/* Row 5: Description */}
+        <div className="form-group" style={{ marginTop: '1rem' }}>
+          <label className="form-label" htmlFor="input-reminder-desc">
+            {t('reminders.fields.description', { defaultValue: 'Description' })}
+          </label>
+          <textarea
+            id="input-reminder-desc"
+            className="form-input"
+            rows={3}
+            placeholder={t('reminders.fields.descriptionPlaceholder', { defaultValue: 'Optional details...' })}
+            value={form.description}
+            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            disabled={saving}
+          />
+        </div>
       </div>
 
-      {/* Row 4: Assigned To - Mandatory with min 1 */}
-      <div className="form-group" style={{ marginTop: '1rem' }}>
-        <label className="form-label" htmlFor="select-reminder-assignees">
-          {t('reminders.fields.assignedTo', { defaultValue: 'Assigned To' })} *
-        </label>
-
-        {/* Selected Assignees Badges */}
-        {selectedAssignees.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            {selectedAssignees.map((u) => (
-              <span
-                key={u.id}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  fontSize: '0.8125rem',
-                  fontWeight: 500,
-                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                  color: 'var(--primary, #3B82F6)',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                }}
-              >
-                <User size={13} />
-                <span>{u.firstName} {u.lastName} ({u.role})</span>
-                <button
-                  type="button"
-                  onClick={() => removeAssignee(u.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    color: 'inherit',
-                    marginLeft: '2px',
-                  }}
-                  title={t('common.remove', { defaultValue: 'Remove' })}
-                >
-                  <X size={13} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Searchable Select Input */}
-        <SearchableSelect
-          id="select-reminder-assignees"
-          options={availableAssigneeOptions}
-          value=""
-          onChange={addAssignee}
-          error={!!formErrors.assigneeIds}
-          placeholder={
-            availableAssigneeOptions.length === 0 && selectedAssignees.length > 0
-              ? t('reminders.fields.allUsersSelected', { defaultValue: 'All users selected' })
-              : t('reminders.fields.assignedToPlaceholder', { defaultValue: 'Search and select users to assign...' })
-          }
-          disabled={saving || availableAssigneeOptions.length === 0}
-        />
-        {formErrors.assigneeIds && (
-          <span className="form-error" style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <AlertCircle size={12} /> {formErrors.assigneeIds}
-          </span>
-        )}
-      </div>
-
-      {/* Row 5: Description */}
-      <div className="form-group" style={{ marginTop: '1rem' }}>
-        <label className="form-label" htmlFor="input-reminder-desc">
-          {t('reminders.fields.description', { defaultValue: 'Description' })}
-        </label>
-        <textarea
-          id="input-reminder-desc"
-          className="form-input"
-          rows={3}
-          placeholder={t('reminders.fields.descriptionPlaceholder', { defaultValue: 'Optional details...' })}
-          value={form.description}
-          onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-          disabled={saving}
-        />
-      </div>
-
-      {/* Modal Actions */}
-      <div className="modal__footer" style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+      {/* Modal Footer */}
+      <div className="modal__footer" style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', backgroundColor: 'var(--bg-surface)', marginTop: 0 }}>
         <button
           type="button"
           className="btn btn-outline"
@@ -1042,7 +1052,12 @@ export function RemindersPage() {
                             <Bell size={14} />
                           </div>
                           <div>
-                            <span className="cell-primary__name" style={{ fontWeight: 600 }}>
+                            <span
+                              className="cell-primary__name"
+                              style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--primary, #3B82F6)' }}
+                              onClick={() => openViewModal(r)}
+                              title={t('reminders.viewDetails', { defaultValue: 'View Details' })}
+                            >
                               {r.title}
                             </span>
                             {r.category && (
@@ -1164,9 +1179,17 @@ export function RemindersPage() {
                         </span>
                       </td>
 
-                      {/* ACTIONS: STANDARD APPLICATION BTN-ACTION DESIGN */}
+                      {/* ACTIONS: VIEW DETAILS (ADMIN & OWNER), COMPLETE, EDIT, DELETE */}
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button
+                            className="btn-action"
+                            title={t('reminders.viewDetails', { defaultValue: 'View Details' })}
+                            onClick={() => openViewModal(r)}
+                          >
+                            <Eye size={14} />
+                            <span>{t('common.view', { defaultValue: 'View' })}</span>
+                          </button>
                           <button
                             className={`btn-action ${r.status === 'COMPLETED' ? 'btn-action--success' : ''}`}
                             title={r.status === 'PENDING' ? t('reminders.actions.markComplete', { defaultValue: 'Mark Complete' }) : t('reminders.actions.markPending', { defaultValue: 'Mark Pending' })}
@@ -1308,7 +1331,7 @@ export function RemindersPage() {
                           return (
                             <div
                               key={rem.id}
-                              onClick={() => (canEdit ? openEditModal(rem) : null)}
+                              onClick={() => openViewModal(rem)}
                               style={{
                                 padding: '4px 6px',
                                 borderRadius: '5px',
@@ -1427,7 +1450,7 @@ export function RemindersPage() {
                           return (
                             <div
                               key={rem.id}
-                              onClick={() => (canEdit ? openEditModal(rem) : null)}
+                              onClick={() => openViewModal(rem)}
                               style={{
                                 padding: '6px 8px',
                                 borderRadius: '6px',
@@ -1484,7 +1507,7 @@ export function RemindersPage() {
                       return (
                         <div
                           key={rem.id}
-                          onClick={() => (canEdit ? openEditModal(rem) : null)}
+                          onClick={() => openViewModal(rem)}
                           style={{
                             padding: '1.125rem',
                             borderRadius: '10px',
@@ -1557,7 +1580,7 @@ export function RemindersPage() {
       {/* ─── CREATE MODAL ─── */}
       {showCreateModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '640px' }}>
+          <div className="modal" style={{ maxWidth: '640px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal__header">
               <h3 className="modal__title">{t('reminders.createReminder', { defaultValue: 'New Reminder' })}</h3>
               <button className="modal__close" onClick={() => setShowCreateModal(false)}>
@@ -1572,7 +1595,7 @@ export function RemindersPage() {
       {/* ─── EDIT MODAL ─── */}
       {showEditModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '640px' }}>
+          <div className="modal" style={{ maxWidth: '640px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal__header">
               <h3 className="modal__title">{t('reminders.editReminder', { defaultValue: 'Edit Reminder' })}</h3>
               <button className="modal__close" onClick={() => setShowEditModal(false)}>
@@ -1584,10 +1607,183 @@ export function RemindersPage() {
         </div>
       )}
 
+      {/* ─── VIEW MODAL (ADMIN & OWNER) ─── */}
+      {showViewModal && viewingReminder && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '640px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+            <div className="modal__header">
+              <h3 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Eye size={20} style={{ color: 'var(--primary, #3B82F6)' }} />
+                {t('reminders.viewReminder', { defaultValue: 'Reminder Details' })}
+              </h3>
+              <button className="modal__close" onClick={() => setShowViewModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal__body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Header Info Banner */}
+              <div style={{ padding: '1rem', borderRadius: '10px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {viewingReminder.title}
+                  </h4>
+                  {viewingReminder.category && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', display: 'inline-block', marginTop: '4px' }}>
+                      🏷️ {viewingReminder.category}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {/* Priority Badge */}
+                  <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, color: PRIORITY_CONFIG[viewingReminder.priority]?.color, backgroundColor: PRIORITY_CONFIG[viewingReminder.priority]?.bg, border: `1px solid ${PRIORITY_CONFIG[viewingReminder.priority]?.border}` }}>
+                    {t(`enums.reminderPriority.${viewingReminder.priority}`, { defaultValue: viewingReminder.priority })}
+                  </span>
+                  {/* Status Badge */}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, color: STATUS_CONFIG[viewingReminder.status]?.color, backgroundColor: STATUS_CONFIG[viewingReminder.status]?.bg, border: `1px solid ${STATUS_CONFIG[viewingReminder.status]?.border}` }}>
+                    {STATUS_CONFIG[viewingReminder.status]?.icon}
+                    {t(`enums.reminderStatus.${viewingReminder.status}`, { defaultValue: viewingReminder.status })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Details Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                    📅 {t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' })}
+                  </span>
+                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    {viewingReminder.reminderDate ? new Date(viewingReminder.reminderDate).toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                  </strong>
+                </div>
+
+                <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                    ⏰ {t('reminders.fields.reminderTime', { defaultValue: 'Reminder Time' })}
+                  </span>
+                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    {viewingReminder.reminderTime}
+                  </strong>
+                </div>
+
+                <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                    🔄 {t('reminders.fields.recurrence', { defaultValue: 'Recurrence' })}
+                  </span>
+                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    {t(`enums.reminderRecurrence.${viewingReminder.recurrence}`, { defaultValue: viewingReminder.recurrence })}
+                  </strong>
+                </div>
+
+                <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                    🏢 {t('common.branch', { defaultValue: 'Branch' })}
+                  </span>
+                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    {viewingReminder.branch?.name || '—'}
+                  </strong>
+                </div>
+
+                <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                    👤 {t('reminders.createdBy', { defaultValue: 'Created By' })}
+                  </span>
+                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    {viewingReminder.createdBy ? `${viewingReminder.createdBy.firstName} ${viewingReminder.createdBy.lastName} (${viewingReminder.createdBy.role})` : '—'}
+                  </strong>
+                </div>
+
+                <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                    ⏰ {t('reminders.lastNotified', { defaultValue: 'Last Notified' })}
+                  </span>
+                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    {viewingReminder.lastNotifiedAt ? new Date(viewingReminder.lastNotifiedAt).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('reminders.notNotifiedYet', { defaultValue: 'Not notified yet' })}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Description Section */}
+              {viewingReminder.description && (
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600 }}>
+                    {t('reminders.fields.description', { defaultValue: 'Description' })}
+                  </label>
+                  <div style={{ padding: '0.875rem', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', fontSize: '0.875rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                    {viewingReminder.description}
+                  </div>
+                </div>
+              )}
+
+              {/* Assigned Team Members Section */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <User size={15} />
+                  {t('reminders.assignedTeamMembers', { defaultValue: 'Assigned Team Members' })} ({viewingReminder.assignees.length})
+                </label>
+                {viewingReminder.assignees.length === 0 ? (
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: 0 }}>—</p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    {viewingReminder.assignees.map((a) => (
+                      <div
+                        key={a.id}
+                        style={{
+                          padding: '0.625rem 0.875rem',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                          border: '1px solid rgba(59, 130, 246, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.625rem',
+                        }}
+                      >
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--primary, #3B82F6)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8125rem' }}>
+                          {a.user.firstName[0]}
+                        </div>
+                        <div>
+                          <strong style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
+                            {a.user.firstName} {a.user.lastName}
+                          </strong>
+                          <span style={{ fontSize: '0.7188rem', color: 'var(--text-secondary)' }}>
+                            {a.user.email} • {a.user.role}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="modal__footer" style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', backgroundColor: 'var(--bg-surface)', marginTop: 0 }}>
+              <button className="btn btn-outline" onClick={() => setShowViewModal(false)}>
+                {t('common.close', { defaultValue: 'Close' })}
+              </button>
+              {canEdit && (
+                <button
+                  className="btn btn--primary"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    openEditModal(viewingReminder);
+                  }}
+                >
+                  <Edit3 size={15} />
+                  <span>{t('common.edit', { defaultValue: 'Edit' })}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── DELETE MODAL ─── */}
       {showDeleteModal && deletingReminder && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '440px' }}>
+          <div className="modal" style={{ maxWidth: '440px', display: 'flex', flexDirection: 'column' }}>
             <div className="modal__header">
               <h3 className="modal__title">{t('reminders.confirmDelete.title', { defaultValue: 'Delete Reminder' })}</h3>
               <button className="modal__close" onClick={() => setShowDeleteModal(false)}>
@@ -1605,7 +1801,7 @@ export function RemindersPage() {
                 )}
               </div>
             </div>
-            <div className="modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <div className="modal__footer" style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', backgroundColor: 'var(--bg-surface)', marginTop: 0 }}>
               <button className="btn btn-outline" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
                 {t('common.cancel', { defaultValue: 'Cancel' })}
               </button>
@@ -1627,7 +1823,7 @@ export function RemindersPage() {
       {/* ─── DAY DETAIL MODAL ─── */}
       {dayModal.isOpen && dayModal.date && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '520px' }}>
+          <div className="modal" style={{ maxWidth: '520px', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
             <div className="modal__header">
               <h3 className="modal__title">
                 {t('reminders.calendar.titleDate', { defaultValue: 'Reminders for' })} {dayModal.date.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -1636,7 +1832,7 @@ export function RemindersPage() {
                 <X size={18} />
               </button>
             </div>
-            <div className="modal__body" style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="modal__body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {dayModal.reminders.map((rem) => {
                 const pConfig = PRIORITY_CONFIG[rem.priority] || PRIORITY_CONFIG.MEDIUM;
                 const sConfig = STATUS_CONFIG[rem.status] || STATUS_CONFIG.PENDING;
@@ -1664,6 +1860,16 @@ export function RemindersPage() {
                       <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sConfig.color }}>
                         {t(`enums.reminderStatus.${rem.status}`, { defaultValue: rem.status })}
                       </span>
+                      <button
+                        className="btn-icon"
+                        onClick={() => {
+                          setDayModal({ isOpen: false, date: null, reminders: [] });
+                          openViewModal(rem);
+                        }}
+                        title={t('reminders.viewDetails', { defaultValue: 'View Details' })}
+                      >
+                        <Eye size={16} />
+                      </button>
                       {canEdit && (
                         <button
                           className="btn-icon"
@@ -1680,7 +1886,7 @@ export function RemindersPage() {
                 );
               })}
             </div>
-            <div className="modal__footer">
+            <div className="modal__footer" style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', backgroundColor: 'var(--bg-surface)', marginTop: 0 }}>
               <button className="btn btn-outline" onClick={() => setDayModal({ isOpen: false, date: null, reminders: [] })}>
                 {t('common.close', { defaultValue: 'Close' })}
               </button>
