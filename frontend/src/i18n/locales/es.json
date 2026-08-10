@@ -725,7 +725,36 @@
     "selectDoctor": "Seleccione un doctor",
     "selectExternalDoctor": "Seleccione un doctor del Portal de Doctores",
     "selectedDoctor": "Doctor Seleccionado",
-    "deleteConfirmText": "¿Está seguro de que desea eliminar al doctor {{name}}? Esta acción eliminará permanentemente el registro de la base de datos."
+    "deleteConfirmText": "¿Está seguro de que desea eliminar al doctor {{name}}? Esta acción eliminará permanentemente el registro de la base de datos.",
+    "tabs": {
+      "allDoctors": "Todos los Doctores",
+      "doctorLists": "Listas de Doctores"
+    },
+    "lists": {
+      "title": "Listas de Grupos de Doctores",
+      "subtitle": "Organice doctores en listas personalizadas de grupos",
+      "createList": "Crear Lista de Doctores",
+      "editList": "Editar Lista de Doctores",
+      "listName": "Nombre de la Lista",
+      "listNamePlaceholder": "ej., Lista de Doctores VIP",
+      "description": "Descripción",
+      "descriptionPlaceholder": "ej., Lista prioritaria para clínicas de alto volumen",
+      "memberCount": "Miembros",
+      "assignedDoctors": "Doctores Asignados",
+      "selectDoctors": "Seleccionar Doctores",
+      "searchDoctors": "Buscar y seleccionar doctores...",
+      "noLists": "No se encontraron listas de doctores",
+      "createSuccess": "¡Lista de doctores creada exitosamente!",
+      "updateSuccess": "¡Lista de doctores actualizada exitosamente!",
+      "deleteSuccess": "¡Lista de doctores eliminada exitosamente!",
+      "deleteConfirm": "¿Estás seguro de que deseas eliminar la lista {{name}}?",
+      "deleteConfirmText": "¿Estás seguro de que deseas eliminar la lista de doctores {{name}}? Esta acción no se puede deshacer.",
+      "searchPlaceholder": "Buscar listas de doctores...",
+      "addToList": "Agregar a Lista",
+      "manageMembers": "Gestionar Miembros",
+      "membersSelected": "{{count}} doctor(es) seleccionado(s)",
+      "noMembers": "Sin doctores asignados a esta lista"
+    }
   },
   "technicians": {
     "title": "Técnicos",

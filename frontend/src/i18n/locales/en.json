@@ -725,7 +725,36 @@
     "selectDoctor": "Select a doctor",
     "selectExternalDoctor": "Select a doctor from Doctor Portal",
     "selectedDoctor": "Selected Doctor",
-    "deleteConfirmText": "Are you sure you want to delete doctor {{name}}? This action will permanently remove the record from the database."
+    "deleteConfirmText": "Are you sure you want to delete doctor {{name}}? This action will permanently remove the record from the database.",
+    "tabs": {
+      "allDoctors": "All Doctors",
+      "doctorLists": "Doctor Lists"
+    },
+    "lists": {
+      "title": "Doctor Group Lists",
+      "subtitle": "Organize doctors into custom group lists",
+      "createList": "Create Doctor List",
+      "editList": "Edit Doctor List",
+      "listName": "List Name",
+      "listNamePlaceholder": "e.g., VIP Doctors List",
+      "description": "Description",
+      "descriptionPlaceholder": "e.g., Priority doctor list for high volume clinics",
+      "memberCount": "Members",
+      "assignedDoctors": "Assigned Doctors",
+      "selectDoctors": "Select Doctors",
+      "searchDoctors": "Search and select doctors...",
+      "noLists": "No doctor lists found",
+      "createSuccess": "Doctor list created successfully!",
+      "updateSuccess": "Doctor list updated successfully!",
+      "deleteSuccess": "Doctor list deleted successfully!",
+      "deleteConfirm": "Are you sure you want to delete doctor list {{name}}?",
+      "deleteConfirmText": "Are you sure you want to delete doctor list {{name}}? This action cannot be undone.",
+      "searchPlaceholder": "Search doctor lists...",
+      "addToList": "Add to List",
+      "manageMembers": "Manage Members",
+      "membersSelected": "{{count}} doctor(s) selected",
+      "noMembers": "No doctors assigned to this list"
+    }
   },
   "technicians": {
     "title": "Technicians",

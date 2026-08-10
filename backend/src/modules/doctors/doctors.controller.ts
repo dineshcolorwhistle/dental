@@ -14,7 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { DoctorsService } from './doctors.service';
-import { CreateDoctorDto, UpdateDoctorDto } from './dto';
+import { CreateDoctorDto, UpdateDoctorDto, CreateDoctorListDto, UpdateDoctorListDto } from './dto';
 import { Roles, CurrentUser } from '../../common/decorators';
 
 @ApiTags('Doctors')
@@ -23,6 +23,115 @@ import { Roles, CurrentUser } from '../../common/decorators';
 @Roles(UserRole.ADMIN, UserRole.OWNER)
 export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
+
+  // ─── Doctor Lists Endpoints (Placed before parameterized :id) ─────
+
+  @Get('lists/all')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'List all doctor groups/lists' })
+  async findAllLists(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+    @Query('branchId') branchIdFilter?: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (userRole === 'ADMIN' || userRole === 'TECHNICIAN') {
+      return this.doctorsService.findAllLists(
+        tenantId,
+        branchIdContext || undefined,
+      );
+    }
+    return this.doctorsService.findAllLists(tenantId, branchIdFilter);
+  }
+
+  @Post('lists/create')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new doctor list' })
+  async createList(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+    @Body() dto: CreateDoctorListDto,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    return this.doctorsService.createList(
+      tenantId,
+      branchIdContext,
+      userRole,
+      dto,
+    );
+  }
+
+  @Get('lists/detail/:id')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Get details of a doctor list' })
+  async findListById(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.doctorsService.findListById(
+      tenantId,
+      id,
+      branchContext || undefined,
+    );
+  }
+
+  @Patch('lists/update/:id')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @ApiOperation({ summary: 'Update a doctor list' })
+  async updateList(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateDoctorListDto,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.doctorsService.updateList(
+      tenantId,
+      id,
+      dto,
+      branchContext || undefined,
+    );
+  }
+
+  @Delete('lists/delete/:id')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a doctor list' })
+  async removeList(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.doctorsService.deleteList(
+      tenantId,
+      id,
+      branchContext || undefined,
+    );
+  }
+
+  // ─── Single Doctor Endpoints ────────────────────────────────
 
   @Post()
   @Roles(UserRole.ADMIN)

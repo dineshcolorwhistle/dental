@@ -23,7 +23,7 @@ export type {
 } from './tenant.service';
 export type { CreateBranchPayload, BranchListItem } from './branch.service';
 export type { CreateAdminPayload, AdminListItem } from './admin.service';
-export type { CreateDoctorPayload, UpdateDoctorPayload, DoctorListItem } from './doctor.service';
+export type { CreateDoctorPayload, UpdateDoctorPayload, DoctorListItem, DoctorGroupListItem, DoctorListMemberItem, CreateDoctorListPayload, UpdateDoctorListPayload } from './doctor.service';
 export type { CreateTechnicianPayload, UpdateTechnicianPayload, TechnicianListItem } from './technician.service';
 export type { CreateProsthesisTypePayload, ProsthesisTypeListItem, ProsthesisTypeProcessAssignment } from './prosthesis-type.service';
 export type { CreateProcessPayload, ProcessListItem } from './process.service';

@@ -96,4 +96,4 @@ async function bootstrap() {
 
 void bootstrap();
 
-// Server initialized cleanly with BadRequestException import fix
+// Server initialized cleanly with doctor_lists SQL service reload

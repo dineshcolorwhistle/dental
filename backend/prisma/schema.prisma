@@ -111,6 +111,7 @@ model Tenant {
   conversations     Conversation[]
   interestRequests  InterestRequest[]
   whatsAppTemplates WhatsAppTemplate[]
+  doctorLists       DoctorList[]
 
   @@map("tenants")
 }
@@ -161,6 +162,7 @@ model Branch {
   inventoryItems  InventoryItem[]
   expenses        Expense[]
   apiKeys         ApiKey[]
+  doctorLists     DoctorList[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -263,13 +265,45 @@ model Doctor {
   userId       String?  @unique @map("user_id")
 
   // Relations
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch     Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  clinic     Clinic?     @relation(fields: [clinicId], references: [id], onDelete: SetNull)
-  user       User?       @relation("DoctorUser", fields: [userId], references: [id], onDelete: SetNull)
-  workOrders WorkOrder[]
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch          Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  clinic          Clinic?            @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+  user            User?              @relation("DoctorUser", fields: [userId], references: [id], onDelete: SetNull)
+  workOrders      WorkOrder[]
+  listMemberships DoctorListMember[]
 
   @@map("doctors")
+}
+
+model DoctorList {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String?  @map("branch_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch  Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  members DoctorListMember[]
+
+  @@map("doctor_lists")
+}
+
+model DoctorListMember {
+  id        String   @id @default(uuid())
+  listId    String   @map("list_id")
+  doctorId  String   @map("doctor_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  list   DoctorList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  doctor Doctor     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, doctorId])
+  @@map("doctor_list_members")
 }
 
 model Clinic {
