@@ -863,6 +863,7 @@
     "noAreasBranch": "No process areas in this branch",
     "selectBranchFirst": "Select a branch first",
     "noTechniciansBranch": "No technicians in this branch",
+    "assignedTo": "Assigned To",
     "selectArea": "Select Process Area",
     "loadingAreas": "Loading areas...",
     "enterProcessNamePlaceholder": "e.g., CAD Design Stage",

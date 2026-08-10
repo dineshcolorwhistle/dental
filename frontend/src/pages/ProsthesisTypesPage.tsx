@@ -519,7 +519,6 @@ export function ProsthesisTypesPage() {
                 </th>
                 <th>{t('prosthesisTypes.price', { defaultValue: 'Price' })}</th>
                 <th>{t('common.description')}</th>
-                <th>{t('prosthesisTypes.assignedSequence', { defaultValue: 'Assigned Workflow Sequence' })}</th>
                 {!isAdmin && <th>{t('common.branch')}</th>}
                 <th>
                   <button className="th-sort" onClick={() => toggleSort('createdAt')}>
@@ -555,78 +554,6 @@ export function ProsthesisTypesPage() {
                       </span>
                     ) : (
                       <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td>
-                    {item.processAssignments && item.processAssignments.length > 0 ? (
-                      <div 
-                        style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center', cursor: 'help' }}
-                        title={item.processAssignments.map((a, idx) => `${idx + 1}. ${a.process.name}`).join('\n')}
-                      >
-                        {item.processAssignments.slice(0, 4).map((a, idx) => {
-                          const procType = a.process.type;
-                          const isIV = procType === 'INTERNAL_VERIFICATION';
-                          const isEV = procType === 'EXTERNAL_VERIFICATION';
-                          let bg = 'var(--success-light, #ECFDF5)';
-                          let color = 'var(--success, #10B981)';
-                          let border = '1px solid var(--success-glow, #A7F3D0)';
-                          let Icon = null;
-                          if (isIV) {
-                            bg = '#EEF2FF';
-                            color = '#4F46E5';
-                            border = '1px solid #C7D2FE';
-                            Icon = ShieldCheck;
-                          } else if (isEV) {
-                            bg = '#FEF3C7';
-                            color = '#D97706';
-                            border = '1px solid #FDE68A';
-                            Icon = ShieldAlert;
-                          }
-
-                          return (
-                            <span
-                              key={a.id}
-                              className="badge"
-                              style={{
-                                backgroundColor: bg,
-                                color: color,
-                                border: border,
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                padding: '0.125rem 0.5rem',
-                                borderRadius: '6px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                              }}
-                            >
-                              <span style={{ opacity: 0.7, marginRight: '2px', fontWeight: 800 }}>{idx + 1}.</span>
-                              {Icon && <Icon size={11} />}
-                              {a.process.name}
-                            </span>
-                          );
-                        })}
-                        {item.processAssignments.length > 4 && (
-                          <span
-                            className="badge"
-                            style={{
-                              backgroundColor: 'var(--accent-primary-glow, #EFF6FF)',
-                              color: 'var(--accent-primary, #3B82F6)',
-                              border: '1px dashed var(--accent-primary, #3B82F6)',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              padding: '0.125rem 0.5rem',
-                              borderRadius: '6px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                            }}
-                          >
-                            + {t('prosthesisTypes.moreCount', { count: item.processAssignments.length - 4, defaultValue: `${item.processAssignments.length - 4} more` })}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-muted" style={{ fontSize: '0.75rem' }}>{t('prosthesisTypes.noProcesses', { defaultValue: 'No processes assigned' })}</span>
                     )}
                   </td>
                   {!isAdmin && (

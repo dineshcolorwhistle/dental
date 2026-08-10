@@ -529,28 +529,55 @@ export function ProcessesPage() {
                     </td>
                   )}
                   <td>
-                    {proc.prosthesisTypeAssignments && proc.prosthesisTypeAssignments.length > 0 ? (
-                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                        {proc.prosthesisTypeAssignments.map((a) => (
+                    {(() => {
+                      const count = proc.prosthesisTypeAssignments?.length || 0;
+                      if (count === 0) {
+                        return (
                           <span
-                            key={a.id}
-                            className="badge"
                             style={{
-                              backgroundColor: 'var(--accent-primary-light)',
-                              color: 'var(--accent-primary)',
-                              fontSize: '0.6875rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '22px',
+                              height: '22px',
+                              borderRadius: '11px',
+                              backgroundColor: 'var(--bg-overlay, rgba(148, 163, 184, 0.12))',
+                              color: 'var(--text-muted)',
+                              fontSize: '0.75rem',
                               fontWeight: 600,
-                              padding: '0.125rem 0.5rem',
-                              borderRadius: '4px',
+                              padding: '0 6px',
                             }}
                           >
-                            {a.prosthesisType.name}
+                            0
                           </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-muted" style={{ fontSize: '0.75rem' }}>{t('processesPage.notAssigned', { defaultValue: 'Not assigned' })}</span>
-                    )}
+                        );
+                      }
+                      const tooltipText = (proc.prosthesisTypeAssignments || [])
+                        .map((a) => `• ${a.prosthesisType.name}`)
+                        .join('\n');
+                      return (
+                        <span
+                          className="badge badge--primary"
+                          data-tooltip-top={tooltipText}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: '22px',
+                            height: '22px',
+                            borderRadius: '11px',
+                            backgroundColor: 'var(--accent-primary-light, rgba(59, 130, 246, 0.15))',
+                            color: 'var(--accent-primary, #3B82F6)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '0 6px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {count}
+                        </span>
+                      );
+                    })()}
                   </td>
                   {canEdit && (
                     <td>
