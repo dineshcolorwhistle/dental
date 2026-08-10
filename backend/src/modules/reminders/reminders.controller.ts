@@ -25,6 +25,7 @@ export class RemindersController {
   constructor(private readonly remindersService: RemindersService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new reminder (ADMIN only)' })
   async create(

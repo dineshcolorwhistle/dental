@@ -26,9 +26,9 @@ export class RemindersService {
       throw new BadRequestException('User context is required.');
     }
 
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.OWNER) {
+    if (userRole !== UserRole.ADMIN) {
       throw new ForbiddenException(
-        'Only lab admins and owners can create reminders.',
+        'Only lab admins can create reminders.',
       );
     }
 

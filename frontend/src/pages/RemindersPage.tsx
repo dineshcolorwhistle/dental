@@ -92,9 +92,8 @@ export function RemindersPage() {
 
   const isAdmin = user?.role === 'ADMIN';
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
-  const isLabManager = isAdmin || isOwner;
-  const canCreate = isLabManager;
-  const canEdit = isLabManager;
+  const canCreate = isAdmin;
+  const canEdit = isAdmin;
   const canDelete = isOwner;
 
   // Data
@@ -149,7 +148,7 @@ export function RemindersPage() {
     try {
       const [remindersData, usersData] = await Promise.all([
         reminderService.getAll(),
-        isLabManager ? reminderService.getAssignableUsers() : Promise.resolve([]),
+        isAdmin ? reminderService.getAssignableUsers() : Promise.resolve([]),
       ]);
       setReminders(remindersData);
       setAssignableUsers(usersData);
@@ -158,7 +157,7 @@ export function RemindersPage() {
     } finally {
       setLoading(false);
     }
-  }, [t, isLabManager]);
+  }, [t, isAdmin]);
 
   useEffect(() => {
     fetchData();
