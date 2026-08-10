@@ -24,6 +24,7 @@ import {
   prosthesisTypeService,
   type ConnectedClinicListItem,
   type ProsthesisTypeListItem,
+  type UpdateClinicProsthesisItem,
 } from '../services';
 import { Pagination } from '../components';
 
@@ -42,6 +43,7 @@ export function ConnectedClinicsPage() {
   const [allProsthesisTypes, setAllProsthesisTypes] = useState<ProsthesisTypeListItem[]>([]);
   const [loadingProsthesisTypes, setLoadingProsthesisTypes] = useState(false);
   const [selectedTypeIds, setSelectedTypeIds] = useState<Set<string>>(new Set());
+  const [selectedTypePrices, setSelectedTypePrices] = useState<Record<string, number>>({});
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [savingProsthesis, setSavingProsthesis] = useState(false);
 
@@ -80,9 +82,27 @@ export function ConnectedClinicsPage() {
     );
     setSelectedTypeIds(initialSelectedIds);
 
+    const initialPrices: Record<string, number> = {};
+    clinic.allowedProsthesisTypes?.forEach((cpt) => {
+      const p = cpt.price !== undefined && cpt.price !== null ? cpt.price : (cpt.prosthesisType.price ?? 0);
+      initialPrices[cpt.prosthesisType.id] = p;
+    });
+    setSelectedTypePrices(initialPrices);
+
     try {
       const types = await prosthesisTypeService.getAll(clinic.branch.id);
       setAllProsthesisTypes(types);
+
+      // Pre-fill default common prices for any types not already in clinic custom prices
+      setSelectedTypePrices((prev) => {
+        const updated = { ...prev };
+        types.forEach((pt) => {
+          if (updated[pt.id] === undefined) {
+            updated[pt.id] = pt.price ?? 0;
+          }
+        });
+        return updated;
+      });
     } catch {
       toast.error(t('errors.generic') || 'Failed to fetch prosthesis types');
     } finally {
@@ -94,6 +114,7 @@ export function ConnectedClinicsPage() {
     setSelectedClinicForProsthesis(null);
     setAllProsthesisTypes([]);
     setSelectedTypeIds(new Set());
+    setSelectedTypePrices({});
     setModalSearchQuery('');
   };
 
@@ -123,9 +144,14 @@ export function ConnectedClinicsPage() {
 
     try {
       setSavingProsthesis(true);
+      const payload: UpdateClinicProsthesisItem[] = Array.from(selectedTypeIds).map((id) => ({
+        prosthesisTypeId: id,
+        price: selectedTypePrices[id] ?? 0,
+      }));
+
       const updatedClinic = await connectedClinicService.updateProsthesisTypes(
         selectedClinicForProsthesis.id,
-        Array.from(selectedTypeIds)
+        payload
       );
 
       setClinics((prev) =>
@@ -133,13 +159,13 @@ export function ConnectedClinicsPage() {
       );
 
       toast.success(
-        t('connectedClinics.saveProsthesisSuccess') ||
+        t('connectedClinics.saveSuccess') ||
           'Clinic prosthesis types updated successfully!'
       );
       handleCloseProsthesisModal();
     } catch {
       toast.error(
-        t('connectedClinics.saveProsthesisError') ||
+        t('connectedClinics.saveError') ||
           'Failed to update clinic prosthesis types.'
       );
     } finally {
@@ -339,7 +365,11 @@ export function ConnectedClinicsPage() {
                     (sum, doc) => sum + doc.workOrders.length,
                     0
                   );
-                  const allowedCount = clinic.allowedProsthesisTypes?.length || 0;
+                  const allowedItems = clinic.allowedProsthesisTypes || [];
+                  const allowedCount = allowedItems.length;
+                  const tooltipText = allowedCount > 0
+                    ? allowedItems.map((item) => `• ${item.prosthesisType.name}: $${((item.price !== undefined && item.price !== null) ? item.price : (item.prosthesisType.price ?? 0)).toFixed(2)}`).join('\n')
+                    : (t('connectedClinics.noProsthesisConfigured') || 'No prosthesis types configured');
 
                   return (
                     <Fragment key={clinic.id}>
@@ -412,39 +442,23 @@ export function ConnectedClinicsPage() {
                           </div>
                         </td>
                         <td>
-                          {allowedCount > 0 ? (
-                            <span
-                              className="badge badge--primary"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
-                                padding: '0.25rem 0.6rem',
-                                borderRadius: '12px',
-                                fontWeight: 500,
-                              }}
-                            >
-                              <Layers size={12} />
-                              {t('connectedClinics.selectedProsthesisCount', {
-                                count: allowedCount,
-                              })}
-                            </span>
-                          ) : (
-                            <span
-                              className="badge badge--warning"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
-                                padding: '0.25rem 0.6rem',
-                                borderRadius: '12px',
-                                fontWeight: 500,
-                              }}
-                            >
-                              <Layers size={12} />
-                              {t('connectedClinics.noProsthesisAllowed')}
-                            </span>
-                          )}
+                          <span
+                            className={`badge ${allowedCount > 0 ? 'badge--primary' : 'badge--warning'}`}
+                            data-tooltip-top={tooltipText}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              fontWeight: 700,
+                              fontSize: '0.8125rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {allowedCount}
+                          </span>
                         </td>
                         <td>
                           <span
@@ -698,7 +712,7 @@ export function ConnectedClinicsPage() {
           <div
             className="modal modal--lg"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '640px', overflow: 'hidden' }}
+            style={{ maxWidth: '680px', overflow: 'hidden' }}
           >
             {/* Modal Header */}
             <div
@@ -733,7 +747,7 @@ export function ConnectedClinicsPage() {
                     className="modal__title"
                     style={{ fontSize: '1.125rem', fontWeight: 700, lineHeight: 1.2, margin: 0 }}
                   >
-                    {t('connectedClinics.configureProsthesis')}
+                    {t('connectedClinics.manageProsthesis')}
                   </h3>
                   <p
                     className="modal__subtitle"
@@ -764,7 +778,7 @@ export function ConnectedClinicsPage() {
                   lineHeight: 1.5,
                 }}
               >
-                {t('connectedClinics.selectProsthesisInstructions')}
+                {t('connectedClinics.subtitle')}
               </p>
 
               {/* Toolbar & Filters */}
@@ -791,9 +805,7 @@ export function ConnectedClinicsPage() {
                       height: '38px',
                       borderRadius: '8px',
                     }}
-                    placeholder={t(
-                      'connectedClinics.searchProsthesisPlaceholder'
-                    )}
+                    placeholder={t('common.search')}
                     value={modalSearchQuery}
                     onChange={(e) => setModalSearchQuery(e.target.value)}
                   />
@@ -818,7 +830,7 @@ export function ConnectedClinicsPage() {
                       borderRadius: '8px',
                     }}
                   >
-                    {t('connectedClinics.selectAll')}
+                    {t('common.all')}
                   </button>
                   <button
                     type="button"
@@ -830,7 +842,7 @@ export function ConnectedClinicsPage() {
                       borderRadius: '8px',
                     }}
                   >
-                    {t('connectedClinics.deselectAll')}
+                    {t('common.none')}
                   </button>
                 </div>
               </div>
@@ -851,7 +863,7 @@ export function ConnectedClinicsPage() {
                 }}
               >
                 <span>
-                  {t('connectedClinics.selectedProsthesisCount', {
+                  {t('connectedClinics.typesSelected', {
                     count: selectedTypeIds.size,
                   })}
                 </span>
@@ -907,6 +919,8 @@ export function ConnectedClinicsPage() {
                 >
                   {filteredModalTypes.map((pt) => {
                     const isChecked = selectedTypeIds.has(pt.id);
+                    const displayPrice = selectedTypePrices[pt.id] ?? pt.price ?? 0;
+
                     return (
                       <div
                         key={pt.id}
@@ -989,9 +1003,46 @@ export function ConnectedClinicsPage() {
                             </div>
                           )}
                         </div>
-                        {pt.price !== undefined &&
-                          pt.price !== null &&
-                          pt.price > 0 && (
+
+                        {/* Price Display & Custom Price Input */}
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                          }}
+                        >
+                          {isChecked ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {t('connectedClinics.clinicPrice')}: $
+                              </span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="form-input"
+                                style={{
+                                  width: '90px',
+                                  height: '32px',
+                                  padding: '0.2rem 0.4rem',
+                                  fontSize: '0.8125rem',
+                                  fontWeight: 600,
+                                }}
+                                placeholder={t('connectedClinics.enterAmount')}
+                                value={displayPrice}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  const val = parseFloat(e.target.value);
+                                  setSelectedTypePrices((prev) => ({
+                                    ...prev,
+                                    [pt.id]: isNaN(val) ? 0 : val,
+                                  }));
+                                }}
+                              />
+                            </div>
+                          ) : (
                             <span
                               className="badge badge--neutral"
                               style={{
@@ -1000,9 +1051,10 @@ export function ConnectedClinicsPage() {
                                 alignSelf: 'center',
                               }}
                             >
-                              ${pt.price.toFixed(2)}
+                              {t('connectedClinics.commonPrice')}: ${(pt.price ?? 0).toFixed(2)}
                             </span>
                           )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1033,7 +1085,7 @@ export function ConnectedClinicsPage() {
                 disabled={savingProsthesis}
                 style={{ minWidth: '100px', height: '38px', borderRadius: '8px' }}
               >
-                {t('connectedClinics.cancel')}
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1061,7 +1113,7 @@ export function ConnectedClinicsPage() {
                       size={16}
                       style={{ display: 'block', margin: 'auto' }}
                     />
-                    <span>{t('connectedClinics.save')}</span>
+                    <span>{t('common.save')}</span>
                   </>
                 )}
               </button>

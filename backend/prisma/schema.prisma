@@ -354,6 +354,7 @@ model ClinicProsthesisType {
   id               String         @id @default(uuid())
   clinicId         String         @map("clinic_id")
   prosthesisTypeId String         @map("prosthesis_type_id")
+  price            Float?         @map("price")
   createdAt        DateTime       @default(now()) @map("created_at")
 
   // Relations

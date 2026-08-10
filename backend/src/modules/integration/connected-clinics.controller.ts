@@ -6,9 +6,12 @@ import {
   Body,
   BadRequestException,
   NotFoundException,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { Roles, CurrentUser } from '../../common/decorators';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateClinicProsthesisTypesDto } from './dto';
@@ -18,26 +21,46 @@ import { UpdateClinicProsthesisTypesDto } from './dto';
 @Controller('connected-clinics')
 @Roles(UserRole.ADMIN, UserRole.OWNER)
 export class ConnectedClinicsController {
+  private readonly logger = new Logger(ConnectedClinicsController.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  private async ensurePriceColumnExists() {
+    try {
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE "clinic_prosthesis_types" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION;`
+      );
+    } catch {
+      // Column may already exist or ALTER not allowed
+    }
+  }
 
   private async getClinicProsthesisTypes(clinicId: string) {
     try {
+      await this.ensurePriceColumnExists();
       const rows: any[] = await this.prisma.$queryRawUnsafe(
-        `SELECT pt.id, pt.name, pt.description 
+        `SELECT pt.id, pt.name, pt.description, pt.price AS common_price, cpt.price AS clinic_price
          FROM "prosthesis_types" pt
          INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
          WHERE cpt.clinic_id = $1
          ORDER BY pt.name ASC`,
         clinicId,
       );
-      return (rows || []).map((row) => ({
-        prosthesisType: {
-          id: row.id,
-          name: row.name,
-          description: row.description,
-        },
-      }));
-    } catch {
+      return (rows || []).map((row) => {
+        const commonPrice = row.common_price !== null && row.common_price !== undefined ? Number(row.common_price) : 0;
+        const clinicPrice = row.clinic_price !== null && row.clinic_price !== undefined ? Number(row.clinic_price) : commonPrice;
+        return {
+          prosthesisType: {
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            price: commonPrice,
+          },
+          price: clinicPrice,
+        };
+      });
+    } catch (e) {
+      this.logger.error('Error in getClinicProsthesisTypes:', e);
       return [];
     }
   }
@@ -117,35 +140,65 @@ export class ConnectedClinicsController {
       throw new NotFoundException('Clinic not found or access denied.');
     }
 
-    if (dto.prosthesisTypeIds.length > 0) {
+    let itemsToSave: { prosthesisTypeId: string; price?: number }[] = [];
+    if (dto.items && dto.items.length > 0) {
+      itemsToSave = dto.items;
+    } else if (dto.prosthesisTypeIds && dto.prosthesisTypeIds.length > 0) {
+      itemsToSave = dto.prosthesisTypeIds.map((id) => ({ prosthesisTypeId: id }));
+    }
+
+    const typeIds = itemsToSave.map((item) => item.prosthesisTypeId);
+
+    if (typeIds.length > 0) {
       const count = await this.prisma.prosthesisType.count({
         where: {
-          id: { in: dto.prosthesisTypeIds },
+          id: { in: typeIds },
           tenantId,
         },
       });
 
-      if (count !== dto.prosthesisTypeIds.length) {
+      if (count !== typeIds.length) {
         throw new BadRequestException(
           'One or more invalid prosthesis type IDs provided.',
         );
       }
     }
 
-    // Delete existing assignments for clinic
-    await this.prisma.$executeRawUnsafe(
-      `DELETE FROM "clinic_prosthesis_types" WHERE "clinic_id" = $1`,
-      clinicId,
-    );
+    try {
+      await this.ensurePriceColumnExists();
 
-    // Insert new assignments
-    for (const prosthesisTypeId of dto.prosthesisTypeIds) {
+      // Delete existing assignments for clinic
       await this.prisma.$executeRawUnsafe(
-        `INSERT INTO "clinic_prosthesis_types" ("id", "clinic_id", "prosthesis_type_id", "created_at")
-         VALUES (gen_random_uuid(), $1, $2, NOW())
-         ON CONFLICT DO NOTHING`,
+        `DELETE FROM "clinic_prosthesis_types" WHERE "clinic_id" = $1`,
         clinicId,
-        prosthesisTypeId,
+      );
+
+      // Insert new assignments with node-generated UUID
+      for (const item of itemsToSave) {
+        const id = randomUUID();
+        if (item.price !== undefined && item.price !== null) {
+          await this.prisma.$executeRawUnsafe(
+            `INSERT INTO "clinic_prosthesis_types" ("id", "clinic_id", "prosthesis_type_id", "price", "created_at")
+             VALUES ($1, $2, $3, $4, NOW())`,
+            id,
+            clinicId,
+            item.prosthesisTypeId,
+            item.price,
+          );
+        } else {
+          await this.prisma.$executeRawUnsafe(
+            `INSERT INTO "clinic_prosthesis_types" ("id", "clinic_id", "prosthesis_type_id", "created_at")
+             VALUES ($1, $2, $3, NOW())`,
+            id,
+            clinicId,
+            item.prosthesisTypeId,
+          );
+        }
+      }
+    } catch (e: any) {
+      this.logger.error(`Failed to update clinic prosthesis types for clinic ${clinicId}:`, e.stack || e);
+      throw new InternalServerErrorException(
+        'Failed to save clinic prosthesis types: ' + (e.message || 'Database error'),
       );
     }
 

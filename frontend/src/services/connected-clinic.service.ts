@@ -11,6 +11,16 @@ export interface ConnectedClinicDoctorItem {
   }>;
 }
 
+export interface ConnectedClinicProsthesisItem {
+  prosthesisType: {
+    id: string;
+    name: string;
+    description: string | null;
+    price?: number | null;
+  };
+  price?: number | null;
+}
+
 export interface ConnectedClinicListItem {
   id: string;
   tenantId: string;
@@ -25,13 +35,12 @@ export interface ConnectedClinicListItem {
     code: string;
   };
   doctors: ConnectedClinicDoctorItem[];
-  allowedProsthesisTypes?: Array<{
-    prosthesisType: {
-      id: string;
-      name: string;
-      description: string | null;
-    };
-  }>;
+  allowedProsthesisTypes?: ConnectedClinicProsthesisItem[];
+}
+
+export interface UpdateClinicProsthesisItem {
+  prosthesisTypeId: string;
+  price?: number;
 }
 
 export const connectedClinicService = {
@@ -42,13 +51,15 @@ export const connectedClinicService = {
 
   updateProsthesisTypes: async (
     clinicId: string,
-    prosthesisTypeIds: string[]
+    payload: string[] | UpdateClinicProsthesisItem[]
   ): Promise<ConnectedClinicListItem> => {
+    const body = Array.isArray(payload) && payload.length > 0 && typeof payload[0] === 'object'
+      ? { items: payload }
+      : { prosthesisTypeIds: payload as string[] };
     const response = await api.put<ConnectedClinicListItem>(
       `/connected-clinics/${clinicId}/prosthesis-types`,
-      { prosthesisTypeIds }
+      body
     );
     return response.data;
   },
 };
-

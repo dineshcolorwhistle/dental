@@ -248,18 +248,23 @@ export class IntegrationController {
     if (targetClinicId) {
       try {
         const rows: any[] = await this.prisma.$queryRawUnsafe(
-          `SELECT pt.id, pt.name, pt.description 
+          `SELECT pt.id, pt.name, pt.description, pt.price AS common_price, cpt.price AS clinic_price 
            FROM "prosthesis_types" pt
            INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
            WHERE cpt.clinic_id = $1
            ORDER BY pt.name ASC`,
           targetClinicId,
         );
-        prosthesisTypes = (rows || []).map((r) => ({
-          id: r.id,
-          name: r.name,
-          description: r.description,
-        }));
+        prosthesisTypes = (rows || []).map((r) => {
+          const commonPrice = r.common_price !== null && r.common_price !== undefined ? Number(r.common_price) : 0;
+          const clinicPrice = r.clinic_price !== null && r.clinic_price !== undefined ? Number(r.clinic_price) : commonPrice;
+          return {
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            price: clinicPrice,
+          };
+        });
       } catch {
         prosthesisTypes = [];
       }
@@ -267,7 +272,7 @@ export class IntegrationController {
       try {
         const rows: any[] = branchId
           ? await this.prisma.$queryRawUnsafe(
-              `SELECT DISTINCT pt.id, pt.name, pt.description 
+              `SELECT DISTINCT pt.id, pt.name, pt.description, pt.price AS common_price, cpt.price AS clinic_price 
                FROM "prosthesis_types" pt
                INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
                INNER JOIN "clinics" c ON c.id = cpt.clinic_id
@@ -277,7 +282,7 @@ export class IntegrationController {
               branchId,
             )
           : await this.prisma.$queryRawUnsafe(
-              `SELECT DISTINCT pt.id, pt.name, pt.description 
+              `SELECT DISTINCT pt.id, pt.name, pt.description, pt.price AS common_price, cpt.price AS clinic_price 
                FROM "prosthesis_types" pt
                INNER JOIN "clinic_prosthesis_types" cpt ON cpt.prosthesis_type_id = pt.id
                INNER JOIN "clinics" c ON c.id = cpt.clinic_id
@@ -285,11 +290,16 @@ export class IntegrationController {
                ORDER BY pt.name ASC`,
               tenantId,
             );
-        prosthesisTypes = (rows || []).map((r) => ({
-          id: r.id,
-          name: r.name,
-          description: r.description,
-        }));
+        prosthesisTypes = (rows || []).map((r) => {
+          const commonPrice = r.common_price !== null && r.common_price !== undefined ? Number(r.common_price) : 0;
+          const clinicPrice = r.clinic_price !== null && r.clinic_price !== undefined ? Number(r.clinic_price) : commonPrice;
+          return {
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            price: clinicPrice,
+          };
+        });
       } catch {
         prosthesisTypes = [];
       }
@@ -466,6 +476,29 @@ export class IntegrationController {
       );
     }
 
+    let calculatedQuote: number = dto.totalQuote ?? 0;
+    if (dto.totalQuote === undefined || dto.totalQuote === null) {
+      try {
+        const cptRows: any[] = await this.prisma.$queryRawUnsafe(
+          `SELECT cpt.price AS clinic_price, pt.price AS common_price
+           FROM "clinic_prosthesis_types" cpt
+           INNER JOIN "prosthesis_types" pt ON pt.id = cpt.prosthesis_type_id
+           WHERE cpt.clinic_id = $1 AND cpt.prosthesis_type_id = $2`,
+          clinic.id,
+          prosthesisType.id,
+        );
+        if (cptRows && cptRows.length > 0) {
+          const cp = cptRows[0].clinic_price;
+          const ptP = cptRows[0].common_price;
+          calculatedQuote = cp !== null && cp !== undefined ? Number(cp) : (ptP !== null && ptP !== undefined ? Number(ptP) : 0);
+        } else {
+          calculatedQuote = prosthesisType.price !== null && prosthesisType.price !== undefined ? Number(prosthesisType.price) : 0;
+        }
+      } catch {
+        calculatedQuote = prosthesisType.price !== null && prosthesisType.price !== undefined ? Number(prosthesisType.price) : 0;
+      }
+    }
+
     // 4. Create the work order and associated processes in a transaction
     const workOrder = await this.prisma.$transaction(async (tx) => {
       // Determine starting statuses
@@ -498,7 +531,7 @@ export class IntegrationController {
           notes: dto.notes || null,
           specification: dto.specification || '',
           deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
-          totalQuote: dto.totalQuote ?? 0,
+          totalQuote: calculatedQuote,
           initialPayment: dto.initialPayment ?? null,
           paymentReferenceNumber: dto.paymentReferenceNumber || null,
           paymentReferenceNumbers:

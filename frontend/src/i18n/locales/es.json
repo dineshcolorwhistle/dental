@@ -1424,7 +1424,15 @@
     "searchProsthesisPlaceholder": "Buscar tipos de prótesis...",
     "save": "Guardar Cambios",
     "cancel": "Cancelar",
-    "actions": "Acciones"
+    "actions": "Acciones",
+    "commonPrice": "Precio común",
+    "clinicPrice": "Precio clínica",
+    "enterAmount": "Ingrese el monto",
+    "noProsthesisConfigured": "Sin tipos de prótesis configurados",
+    "typesSelected": "{{count}} Tipos seleccionados",
+    "saveSuccess": "Tipos de prótesis de la clínica actualizados con éxito",
+    "saveError": "Error al actualizar los tipos de prótesis de la clínica",
+    "failedLoad": "Error al cargar las clínicas"
   },
   "workOrderChat": {
     "title": "Chat de Orden de Trabajo",

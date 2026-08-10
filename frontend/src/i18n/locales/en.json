@@ -1424,7 +1424,15 @@
     "searchProsthesisPlaceholder": "Search prosthesis types...",
     "save": "Save Changes",
     "cancel": "Cancel",
-    "actions": "Actions"
+    "actions": "Actions",
+    "commonPrice": "Common Price",
+    "clinicPrice": "Clinic Price",
+    "enterAmount": "Enter amount",
+    "noProsthesisConfigured": "No prosthesis types configured",
+    "typesSelected": "{{count}} Types Selected",
+    "saveSuccess": "Clinic prosthesis types updated successfully",
+    "saveError": "Failed to update clinic prosthesis types",
+    "failedLoad": "Failed to load clinics"
   },
   "workOrderChat": {
     "title": "Work Order Chat",

@@ -60,7 +60,7 @@ export type { Contact, ConversationSummary, ChatMessage, ConversationParticipant
 export { processAreaService } from './process-area.service';
 export type { ProcessAreaListItem, CreateProcessAreaPayload } from './process-area.service';
 export { connectedClinicService } from './connected-clinic.service';
-export type { ConnectedClinicDoctorItem, ConnectedClinicListItem } from './connected-clinic.service';
+export type { ConnectedClinicDoctorItem, ConnectedClinicListItem, ConnectedClinicProsthesisItem, UpdateClinicProsthesisItem } from './connected-clinic.service';
 export { interestRequestService } from './interest-request.service';
 export type { PublicWorkOrder, PublicProcessItem, CreateInterestRequestPayload, InterestRequestItem } from './interest-request.service';
 
