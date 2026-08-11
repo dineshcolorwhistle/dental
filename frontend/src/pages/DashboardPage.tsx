@@ -315,19 +315,9 @@ export function DashboardPage() {
                     </button>
                     {(alert.type === 'EXTERNAL' || !alert.technicianId) && Boolean(alert.doctorPhone) && (
                       <button
-                        className="btn btn--sm"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '6px 10px',
-                          backgroundColor: '#25D366',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                        }}
+                        type="button"
+                        className="btn-whatsapp"
+                        style={{ padding: '6px 10px' }}
                         title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
                         onClick={() => {
                           setWhatsAppModalData({
@@ -609,18 +599,8 @@ export function DashboardPage() {
                         </span>
                         {wo.status === 'EXTERNAL_VERIFICATION' && Boolean(wo.doctor?.phone || wo.doctor?.user?.phone) && (
                           <button
-                            className="btn-action"
-                            style={{
-                              color: '#FFFFFF',
-                              backgroundColor: '#25D366',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '4px 6px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                            }}
+                            type="button"
+                            className="btn-whatsapp"
                             onClick={() => {
                               setWhatsAppModalData({
                                 recipientName: wo.doctor?.name || 'Doctor',
@@ -634,7 +614,7 @@ export function DashboardPage() {
                             }}
                             title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
                           >
-                            <WhatsAppIcon size={14} />
+                            <WhatsAppIcon size={16} />
                           </button>
                         )}
                         <button
