@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProcessDto, UpdateProcessDto } from './dto';
-import { UserRole, ProcessType } from '@prisma/client';
+import { ProcessType } from '@prisma/client';
 
 @Injectable()
 export class ProcessesService {

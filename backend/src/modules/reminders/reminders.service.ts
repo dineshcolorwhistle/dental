@@ -27,9 +27,7 @@ export class RemindersService {
     }
 
     if (userRole !== UserRole.ADMIN) {
-      throw new ForbiddenException(
-        'Only lab admins can create reminders.',
-      );
+      throw new ForbiddenException('Only lab admins can create reminders.');
     }
 
     // For ONE_TIME recurrence, reminderDate is required
@@ -385,8 +383,13 @@ export class RemindersService {
     const updateData: Record<string, any> = { status };
 
     // Option 1: For recurring reminders, marking complete advances the reminder date to the next cycle and keeps status PENDING
-    if (status === ReminderStatus.COMPLETED && existing.recurrence !== ReminderRecurrence.ONE_TIME) {
-      const baseDate = existing.reminderDate ? new Date(existing.reminderDate) : new Date();
+    if (
+      status === ReminderStatus.COMPLETED &&
+      existing.recurrence !== ReminderRecurrence.ONE_TIME
+    ) {
+      const baseDate = existing.reminderDate
+        ? new Date(existing.reminderDate)
+        : new Date();
       const nextDate = new Date(baseDate);
 
       if (existing.recurrence === ReminderRecurrence.DAILY) {

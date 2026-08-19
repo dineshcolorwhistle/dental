@@ -139,7 +139,7 @@ export class DoctorsController {
   // ─── Single Doctor Endpoints ────────────────────────────────
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new doctor/clinic record' })
   async create(
@@ -199,7 +199,7 @@ export class DoctorsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: "Update a specific doctor/clinic's details" })
   async update(
     @CurrentUser('tenantId') tenantId: string,

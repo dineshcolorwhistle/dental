@@ -28,6 +28,7 @@ export interface CreateDoctorPayload {
   phone?: string;
   address?: string;
   branchId?: string;
+  isActive?: boolean;
 }
 
 export interface UpdateDoctorPayload {

@@ -6,6 +6,7 @@ import {
   MaxLength,
   MinLength,
   IsUUID,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -65,4 +66,13 @@ export class CreateDoctorDto {
   @IsUUID()
   @IsOptional()
   branchId?: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'Is the doctor active',
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }

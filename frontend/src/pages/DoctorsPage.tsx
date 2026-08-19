@@ -64,8 +64,8 @@ export function DoctorsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorListItem | null>(null);
   const [saving, setSaving] = useState(false);
-  const [sortField, setSortField] = useState<'name' | 'clinicName' | 'createdAt'>('name');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<'name' | 'clinicName' | 'createdAt'>('createdAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Single Doctor Delete modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -287,7 +287,7 @@ export function DoctorsPage() {
       setSortDir((d: 'asc' | 'desc') => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      setSortDir('asc');
+      setSortDir(field === 'createdAt' ? 'desc' : 'asc');
     }
   };
 

@@ -25,7 +25,7 @@ export class DoctorsService {
     userRole: string,
     dto: CreateDoctorDto,
   ) {
-    const { name, clinicName, email, phone, address, branchId } = dto;
+    const { name, clinicName, email, phone, address, branchId, isActive } = dto;
 
     // If logged in as ADMIN, force their branch context
     let finalBranchId = branchId;
@@ -59,6 +59,7 @@ export class DoctorsService {
         email,
         phone,
         address,
+        ...(isActive !== undefined && { isActive }),
       },
       include: {
         branch: {

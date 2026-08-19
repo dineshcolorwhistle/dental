@@ -28,7 +28,7 @@ export class CreateProcessDto {
       'Type of process (PRODUCTION, INTERNAL_VERIFICATION, EXTERNAL_VERIFICATION)',
     required: false,
   })
-  @IsString()
+  @IsEnum(ProcessType)
   @IsOptional()
   type?: ProcessType;
 
