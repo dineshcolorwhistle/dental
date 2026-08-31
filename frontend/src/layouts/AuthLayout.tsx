@@ -5,12 +5,24 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { getSubdomain } from '../utils/subdomain';
 import { authService } from '../services';
 
+/**
+ * Detects if the app is running on the old agentwhistle.com domain.
+ */
+function isAgentWhistleDomain(): boolean {
+  return window.location.hostname.endsWith('.agentwhistle.com');
+}
+
 export function AuthLayout() {
   const { t } = useTranslation();
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
+  const isMigration = isAgentWhistleDomain();
+
   useEffect(() => {
+    // Skip tenant info fetch on agentwhistle (migration page doesn't need it)
+    if (isMigration) return;
+
     const subdomain = getSubdomain();
     if (subdomain) {
       authService.getTenantInfo(subdomain)
@@ -28,7 +40,29 @@ export function AuthLayout() {
           console.error('Failed to fetch tenant info:', err);
         });
     }
-  }, []);
+  }, [isMigration]);
+
+  // Simplified layout for agentwhistle migration notice
+  if (isMigration) {
+    return (
+      <div className="auth-layout">
+        {/* Language Switcher in Top Right */}
+        <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 10 }}>
+          <LanguageSwitcher />
+        </div>
+
+        <div className="auth-layout__background">
+          <div className="auth-layout__gradient-orb auth-layout__gradient-orb--1" />
+          <div className="auth-layout__gradient-orb auth-layout__gradient-orb--2" />
+          <div className="auth-layout__gradient-orb auth-layout__gradient-orb--3" />
+        </div>
+
+        <div className="auth-layout__container" style={{ maxWidth: '860px' }}>
+          <Outlet />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-layout">

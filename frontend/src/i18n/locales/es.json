@@ -238,6 +238,23 @@
       "roleNotAvailable": "El rol seleccionado no está disponible para esta cuenta."
     }
   },
+  "migration": {
+    "siteHasMoved": "Este sitio se ha mudado",
+    "movedDescription": "El sistema ha sido trasladado al nuevo servidor. Por favor, inicie sesión en el nuevo sitio. Esta dirección ya no está en uso.",
+    "goToNewLogin": "Ir al nuevo inicio de sesión",
+    "importantNotice": "AVISO IMPORTANTE",
+    "migrationCompleted": "Migración del servidor completada",
+    "migrationDescription": "El sistema ha sido trasladado al nuevo servidor. Por favor, inicie sesión en el nuevo sitio. Esta dirección ya no está en uso.",
+    "status": "Estado",
+    "completed": "Completado",
+    "timelineNow": "Ahora",
+    "timelineMigration": "Migración",
+    "timelineBackOnline": "En línea",
+    "useExistingCredentials": "Use su nombre de usuario y contraseña existentes en el nuevo sitio",
+    "bookmarkNewAddress": "Guarde la nueva dirección en sus favoritos para acceso futuro",
+    "doNotAddRecords": "No agregue ni edite registros en este sitio antiguo",
+    "thankYou": "Gracias por su paciencia durante la mudanza."
+  },
   "resetPassword": {
     "setYourPassword": "Establece Tu Contraseña",
     "createNewPassword": "Crea una nueva contraseña para proteger tu cuenta.",

@@ -3,11 +3,40 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertCircle, ExternalLink, CheckCircle, User, Bookmark, Ban } from 'lucide-react';
 import { useAuth } from '../context';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { getSubdomain } from '../utils/subdomain';
+
+/**
+ * Detects if the app is running on the old agentwhistle.com domain.
+ */
+function isAgentWhistleDomain(): boolean {
+  return window.location.hostname.endsWith('.agentwhistle.com');
+}
+
+/**
+ * Builds the redirect URL from the current agentwhistle URL to the new sarvadent URL.
+ * E.g.:
+ *   crima.dental.agentwhistle.com/login → crima.labs.sarvadent.com/login
+ *   dental.agentwhistle.com/login       → labs.sarvadent.com/login
+ */
+function getSarvadentRedirectUrl(): string {
+  const hostname = window.location.hostname;
+  const parts = hostname.split('.');
+  // parts for "crima.dental.agentwhistle.com" = ["crima", "dental", "agentwhistle", "com"]
+  // parts for "dental.agentwhistle.com" = ["dental", "agentwhistle", "com"]
+
+  if (parts.length >= 4) {
+    // Has a subdomain before "dental.agentwhistle.com"
+    // e.g. crima.dental.agentwhistle.com → crima.labs.sarvadent.com
+    const tenantSubdomain = parts[0];
+    return `https://${tenantSubdomain}.labs.sarvadent.com/login`;
+  }
+  // No tenant subdomain, just dental.agentwhistle.com → labs.sarvadent.com
+  return 'https://labs.sarvadent.com/login';
+}
 
 
 export function LoginPage() {
@@ -128,6 +157,92 @@ export function LoginPage() {
       setIsSubmitting(false);
     }
   };
+
+  // ─── Migration Notice for agentwhistle.com ─────────────────────
+  if (isAgentWhistleDomain()) {
+    const redirectUrl = getSarvadentRedirectUrl();
+
+    return (
+      <div className="migration-notice">
+        {/* Left Panel - Summary Card */}
+        <div className="migration-notice__left">
+          <div className="migration-notice__left-content">
+            <p className="migration-notice__moved-label">{t('migration.siteHasMoved')}</p>
+            <div className="migration-notice__moved-message">
+              <p>{t('migration.movedDescription')}</p>
+            </div>
+            <a
+              href={redirectUrl}
+              className="migration-notice__cta-btn"
+              id="migration-go-to-new-login"
+            >
+              <ExternalLink size={18} />
+              <span>{t('migration.goToNewLogin')}</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Right Panel - Details */}
+        <div className="migration-notice__right">
+          <div className="migration-notice__badge">
+            <CheckCircle size={14} />
+            <span>{t('migration.importantNotice')}</span>
+          </div>
+
+          <div className="migration-notice__status-card">
+            <CheckCircle size={28} className="migration-notice__check-icon" />
+            <h2 className="migration-notice__title">{t('migration.migrationCompleted')}</h2>
+            <p className="migration-notice__description">
+              {t('migration.migrationDescription')}
+            </p>
+
+            {/* Status Bar */}
+            <div className="migration-notice__status-bar">
+              <div className="migration-notice__status-row">
+                <div className="migration-notice__status-label">
+                  <CheckCircle size={16} />
+                  <span>{t('migration.status')}</span>
+                </div>
+                <span className="migration-notice__status-value">{t('migration.completed')}</span>
+              </div>
+            </div>
+
+            {/* Progress Timeline */}
+            <div className="migration-notice__timeline">
+              <div className="migration-notice__timeline-dot migration-notice__timeline-dot--done" />
+              <div className="migration-notice__timeline-line migration-notice__timeline-line--done" />
+              <div className="migration-notice__timeline-dot migration-notice__timeline-dot--done" />
+              <div className="migration-notice__timeline-line migration-notice__timeline-line--done" />
+              <div className="migration-notice__timeline-dot migration-notice__timeline-dot--active" />
+            </div>
+            <div className="migration-notice__timeline-labels">
+              <span>{t('migration.timelineNow')}</span>
+              <span>{t('migration.timelineMigration')}</span>
+              <span className="migration-notice__timeline-active-label">{t('migration.timelineBackOnline')}</span>
+            </div>
+          </div>
+
+          {/* Instruction Items */}
+          <div className="migration-notice__instructions">
+            <div className="migration-notice__instruction-item">
+              <User size={16} className="migration-notice__instruction-icon migration-notice__instruction-icon--user" />
+              <span>{t('migration.useExistingCredentials')}</span>
+            </div>
+            <div className="migration-notice__instruction-item">
+              <Bookmark size={16} className="migration-notice__instruction-icon migration-notice__instruction-icon--bookmark" />
+              <span>{t('migration.bookmarkNewAddress')}</span>
+            </div>
+            <div className="migration-notice__instruction-item">
+              <Ban size={16} className="migration-notice__instruction-icon migration-notice__instruction-icon--ban" />
+              <span>{t('migration.doNotAddRecords')}</span>
+            </div>
+          </div>
+
+          <p className="migration-notice__thanks">{t('migration.thankYou')}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (roleSelectionData) {
     return (

@@ -238,6 +238,23 @@
       "roleNotAvailable": "Selected role is not available for this account."
     }
   },
+  "migration": {
+    "siteHasMoved": "This site has moved",
+    "movedDescription": "The system has been moved to the new server. Please sign in on the new site. This address is no longer in use.",
+    "goToNewLogin": "Go to new login",
+    "importantNotice": "IMPORTANT NOTICE",
+    "migrationCompleted": "Server migration completed",
+    "migrationDescription": "The system has been moved to the new server. Please sign in on the new site. This address is no longer in use.",
+    "status": "Status",
+    "completed": "Completed",
+    "timelineNow": "Now",
+    "timelineMigration": "Migration",
+    "timelineBackOnline": "Back online",
+    "useExistingCredentials": "Use your existing username and password on the new site",
+    "bookmarkNewAddress": "Bookmark the new address for future access",
+    "doNotAddRecords": "Do not add or edit records on this old site",
+    "thankYou": "Thank you for your patience during the move."
+  },
   "resetPassword": {
     "setYourPassword": "Set Your Password",
     "createNewPassword": "Please create a new password to secure your account.",
