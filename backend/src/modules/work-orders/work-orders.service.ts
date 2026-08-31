@@ -35,6 +35,10 @@ export class WorkOrdersService implements OnModuleInit {
 
   async onModuleInit() {
     try {
+      // Only recalculate work orders that have at least one process with
+      // actual activity (not all NOT_STARTED). This prevents overwriting
+      // intentionally-set statuses (e.g. CREATED) on work orders where
+      // no process work has begun yet.
       const activeWorkOrders = await this.prisma.workOrder.findMany({
         where: {
           status: {
@@ -42,12 +46,37 @@ export class WorkOrdersService implements OnModuleInit {
           },
         },
         select: { id: true },
+        // Require at least one process that has progressed beyond NOT_STARTED
+        // to avoid recalculating work orders with no in-flight activity.
       });
+
+      let recalculatedCount = 0;
+      let skippedCount = 0;
+
       for (const wo of activeWorkOrders) {
+        const processes = await this.prisma.workOrderProcess.findMany({
+          where: { workOrderId: wo.id },
+          select: { status: true },
+        });
+
+        // Skip recalculation if no processes exist or ALL processes are
+        // still NOT_STARTED — the current status was set intentionally
+        // (e.g. via "create" action) and should not be overridden.
+        const hasInFlightProcess = processes.some(
+          (p) => p.status !== ProcessStatus.NOT_STARTED,
+        );
+
+        if (!hasInFlightProcess) {
+          skippedCount++;
+          continue;
+        }
+
         await this.updateWorkOrderStatus(wo.id);
+        recalculatedCount++;
       }
+
       this.logger.log(
-        `Recalculated status for ${activeWorkOrders.length} active work orders on startup.`,
+        `Startup status sync: recalculated ${recalculatedCount}, skipped ${skippedCount} (no in-flight processes) out of ${activeWorkOrders.length} active work orders.`,
       );
     } catch (err) {
       this.logger.error(
