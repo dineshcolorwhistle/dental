@@ -114,6 +114,7 @@
     "whatsappTemplates": "Plantillas de WhatsApp",
     "workTypes": "Tipos de Trabajo",
     "interestRequests": "Solicitudes de Interés",
+    "onboardingTenants": "Incorporación de Laboratorios",
     "calendar": "Calendario",
     "reminders": "Recordatorios"
   },
@@ -1702,8 +1703,7 @@
     "loadError": "Error al cargar los recordatorios",
     "createError": "Error al crear el recordatorio",
     "updateError": "Error al actualizar el recordatorio",
-    "deleteError": "Error al eliminar el recordatorio",
-    "statusUpdateError": "Error al actualizar el estado del recordatorio",
+    "statusUpdateError": "¡Error al actualizar el estado del recordatorio!",
     "validation": {
       "titleRequired": "El título es obligatorio",
       "timeRequired": "La hora del recordatorio es obligatoria",
@@ -1723,6 +1723,115 @@
       "next": "Siguiente",
       "noReminders": "No hay recordatorios en esta fecha",
       "remindersCount": "{{count}} recordatorio(s)"
+    }
+  },
+  "tenantOnboarding": {
+    "title": "Guía de Incorporación de Laboratorios",
+    "subtitle": "Guía paso a paso que explica los prerrequisitos y el flujo de trabajo para incorporar un nuevo laboratorio dental en la plataforma.",
+    "createTenant": "Crear Laboratorio",
+    "filterAll": "Todos los Pasos",
+    "prerequisites": "Prerrequisitos",
+    "requiredFields": "Campos Requeridos",
+    "whatHappens": "¿Qué sucede después?",
+    "roles": {
+      "SUPER_ADMIN": "Super Administrador",
+      "OWNER": "Propietario de Lab",
+      "ADMIN": "Administrador de Lab",
+      "TECHNICIAN": "Técnico"
+    },
+    "steps": {
+      "step1": {
+        "number": "1",
+        "title": "Super Admin crea el Laboratorio",
+        "role": "SUPER_ADMIN",
+        "desc": "El Super Administrador registra el nuevo laboratorio dental en la plataforma y asigna los límites de usuarios iniciales.",
+        "prereq": "Ninguno (primer paso de la plataforma).",
+        "fields": ["Nombre del Lab", "Nombre del Propietario", "Correo del Propietario", "Límites de Usuarios"],
+        "whatHappens": "El sistema crea el entorno aislado del laboratorio y envía un correo automático de invitación / restablecimiento de contraseña al propietario.",
+        "actionUrl": "/tenants",
+        "actionLabel": "Ir a Laboratorios"
+      },
+      "step2": {
+        "number": "2",
+        "title": "El Propietario restablece la contraseña e inicia sesión",
+        "role": "OWNER",
+        "desc": "El propietario del laboratorio abre el correo recibido, hace clic en el enlace seguro para definir su contraseña y accede a la plataforma.",
+        "prereq": "Laboratorio creado por el Super Admin (Paso 1).",
+        "fields": ["Nueva Contraseña", "Confirmar Contraseña"],
+        "whatHappens": "La cuenta se activa y el propietario es redirigido a su Panel de Propietario.",
+        "actionUrl": "/login",
+        "actionLabel": "Ir al Acceso"
+      },
+      "step3": {
+        "number": "3",
+        "title": "El Propietario crea la primera Sucursal",
+        "role": "OWNER",
+        "desc": "El propietario crea al menos una sucursal física. El personal, técnicos y órdenes de trabajo deben pertenecer a una sucursal.",
+        "prereq": "Propietario autenticado en la plataforma (Paso 2).",
+        "fields": ["Nombre de Sucursal", "Código de Sucursal", "Teléfono", "Dirección"],
+        "whatHappens": "Establece la sede operativa para asignar personal y enrutar las órdenes de trabajo.",
+        "actionUrl": "/branches",
+        "actionLabel": "Ir a Sucursales"
+      },
+      "step4": {
+        "number": "4",
+        "title": "El Propietario crea Administrador(es) de Lab",
+        "role": "OWNER",
+        "desc": "El propietario invita a Administradores de Laboratorio para gestionar la recepción de órdenes, asignación de técnicos y atención a clínicas.",
+        "prereq": "Al menos una Sucursal creada (Paso 3).",
+        "fields": ["Nombre", "Apellidos", "Correo Electrónico", "Sucursal Asignada"],
+        "whatHappens": "El administrador recibe un correo de invitación con enlace para definir su contraseña.",
+        "actionUrl": "/admins",
+        "actionLabel": "Ir a Administradores"
+      },
+      "step5": {
+        "number": "5",
+        "title": "Configurar Datos Maestros de Producción",
+        "role": "ADMIN",
+        "desc": "Antes de crear órdenes de trabajo, el laboratorio debe configurar su catálogo de producción en este orden exacto:",
+        "prereq": "Sucursal (Paso 3) y Administrador de Lab (Paso 4) creados.",
+        "substeps": [
+          { "num": "5.1", "name": "Técnicos", "url": "/technicians", "desc": "Agregar técnicos con su sucursal y especialidades (CAD/CAM, Cerámica, Metal, Pulido)." },
+          { "num": "5.2", "name": "Áreas de Proceso", "url": "/process-areas", "desc": "Crear estaciones de trabajo físicas (ej., CAD/CAM, Cerámica, Impresión 3D, Control de Calidad)." },
+          { "num": "5.3", "name": "Procesos", "url": "/processes", "desc": "Definir etapas individuales de trabajo (ej., Escaneo, Diseño, Fresado, Sinterizado, Glaseado) vinculadas a áreas." },
+          { "num": "5.4", "name": "Tipos de Prótesis", "url": "/prosthesis-types", "desc": "Definir catálogo de productos (ej., Corona Zirconia, Puente Metal-Porcelana, Férula) con precio base y flujo de etapas." },
+          { "num": "5.5", "name": "Doctores y Clínicas", "url": "/doctors", "desc": "Registrar odontólogos y clínicas clientes con datos de contacto y dirección." }
+        ],
+        "whatHappens": "Configura todas las plantillas de producto y asignación técnica necesarias para emitir órdenes de trabajo."
+      },
+      "step6": {
+        "number": "6",
+        "title": "Crear Orden de Trabajo y Asignar Técnicos",
+        "role": "ADMIN",
+        "desc": "El Administrador crea una orden para un doctor, selecciona la prótesis, diente/color, fecha de entrega y asigna técnicos a cada etapa.",
+        "prereq": "Doctor, Tipo de Prótesis y Técnicos configurados (Paso 5).",
+        "fields": ["Doctor / Clínica", "ID / Nombre de Paciente", "Tipo de Prótesis", "Dientes y Color", "Fecha de Entrega", "Técnico por Etapa"],
+        "whatHappens": "Genera un número secuencial de Orden y un código QR único para seguimiento en estaciones de trabajo.",
+        "actionUrl": "/work-orders",
+        "actionLabel": "Ir a Órdenes de Trabajo"
+      },
+      "step7": {
+        "number": "7",
+        "title": "Producción en Taller y Control de Calidad",
+        "role": "TECHNICIAN",
+        "desc": "Los técnicos escanean el código QR o ven sus órdenes asignadas, actualizan el estado (En Progreso -> Completada) y el Administrador realiza el control de calidad.",
+        "prereq": "Orden de Trabajo creada y asignada (Paso 6).",
+        "fields": ["Estado de la Etapa (En Progreso / Completada)", "Notas Técnicas / Lote", "Verificación de Ajuste y Calidad"],
+        "whatHappens": "Registra los tiempos de cada etapa, alerta al siguiente técnico y avanza la orden hacia su finalización.",
+        "actionUrl": "/work-orders",
+        "actionLabel": "Ver Órdenes de Trabajo"
+      },
+      "step8": {
+        "number": "8",
+        "title": "Empaque, Entrega y Facturación",
+        "role": "ADMIN",
+        "desc": "La prótesis terminada se empaqueta, se entrega con comprobante de recepción firmado, se marca como Completada y se factura en Finanzas.",
+        "prereq": "Orden de Trabajo completada y aprobada en calidad (Paso 7).",
+        "fields": ["Albarán de Entrega y Firma", "Detalle de Factura y Cobro"],
+        "whatHappens": "Finaliza el ciclo de vida del caso, actualiza las métricas del laboratorio y registra la cuenta por cobrar en Finanzas.",
+        "actionUrl": "/finance",
+        "actionLabel": "Ir a Finanzas"
+      }
     }
   }
 }

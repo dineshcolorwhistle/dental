@@ -33,6 +33,7 @@ import { PublicWorkOrderPage } from './pages/PublicWorkOrderPage';
 import { InterestRequestsPage } from './pages/InterestRequestsPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { RemindersPage } from './pages/RemindersPage';
+import { TenantOnboardingPage } from './pages/TenantOnboardingPage';
 
 
 function App() {
@@ -251,6 +252,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                   <InterestRequestsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tenant-onboarding"
+              element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                  <TenantOnboardingPage />
                 </ProtectedRoute>
               }
             />

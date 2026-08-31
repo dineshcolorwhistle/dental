@@ -36,6 +36,7 @@ import {
   Heart,
   Volume2,
   VolumeX,
+  Rocket,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, tenantService, type NotificationItem } from '../services';
@@ -702,6 +703,17 @@ export function DashboardLayout() {
               >
                 <Heart size={20} />
                 <span>{t('navigation.interestRequests', { defaultValue: 'Interest Requests' })}</span>
+              </NavLink>
+              <NavLink
+                to="/tenant-onboarding"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.onboardingTenants', { defaultValue: 'Onboarding Tenants' })}
+              >
+                <Rocket size={20} />
+                <span>{t('navigation.onboardingTenants', { defaultValue: 'Onboarding Tenants' })}</span>
               </NavLink>
             </>
           )}

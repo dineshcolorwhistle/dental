@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context';
 import { tenantService, type TenantListItem } from '../services';
-import { Building2, ShieldCheck, Loader2, ArrowRight } from 'lucide-react';
+import { Building2, ShieldCheck, Loader2, ArrowRight, Rocket } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function SuperAdminDashboardPage() {
@@ -197,14 +197,24 @@ export function SuperAdminDashboardPage() {
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
           {t('superAdminDashboard.welcome', { defaultValue: 'Welcome back, Super Admin! Select an action to view and manage laboratory tenants on the platform.' })}
         </p>
-        <Link
-          to="/tenants"
-          className="btn btn--primary"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1.25rem', borderRadius: '8px' }}
-        >
-          <span>{t('superAdminDashboard.manageTenants', { defaultValue: 'Manage Tenants' })}</span>
-          <ArrowRight size={16} />
-        </Link>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <Link
+            to="/tenants"
+            className="btn btn--primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1.25rem', borderRadius: '8px' }}
+          >
+            <span>{t('superAdminDashboard.manageTenants', { defaultValue: 'Manage Tenants' })}</span>
+            <ArrowRight size={16} />
+          </Link>
+          <Link
+            to="/tenant-onboarding"
+            className="btn btn--outline"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1.25rem', borderRadius: '8px' }}
+          >
+            <Rocket size={16} />
+            <span>{t('navigation.onboardingTenants', { defaultValue: 'Onboarding Tenants' })}</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

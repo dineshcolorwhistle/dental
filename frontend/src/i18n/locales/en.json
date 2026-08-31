@@ -114,6 +114,7 @@
     "whatsappTemplates": "WhatsApp Templates",
     "workTypes": "Work Types",
     "interestRequests": "Interest Requests",
+    "onboardingTenants": "Onboarding Tenants",
     "calendar": "Calendar",
     "reminders": "Reminders"
   },
@@ -1723,6 +1724,115 @@
       "next": "Next",
       "noReminders": "No reminders on this date",
       "remindersCount": "{{count}} reminder(s)"
+    }
+  },
+  "tenantOnboarding": {
+    "title": "Tenant Onboarding Guide",
+    "subtitle": "Step-by-step prerequisite and workflow guide for onboarding a new dental lab tenant onto the platform.",
+    "createTenant": "Create Tenant",
+    "filterAll": "All Steps",
+    "prerequisites": "Prerequisites",
+    "requiredFields": "Required Fields",
+    "whatHappens": "What Happens Next",
+    "roles": {
+      "SUPER_ADMIN": "Super Admin",
+      "OWNER": "Lab Owner",
+      "ADMIN": "Lab Admin",
+      "TECHNICIAN": "Technician"
+    },
+    "steps": {
+      "step1": {
+        "number": "1",
+        "title": "Super Admin creates Tenant",
+        "role": "SUPER_ADMIN",
+        "desc": "Super Admin registers the new dental laboratory on the platform and assigns initial user limits.",
+        "prereq": "None (initial platform step).",
+        "fields": ["Lab Name", "Owner Full Name", "Owner Email", "User Quotas (Owners, Admins, Techs)"],
+        "whatHappens": "System creates the tenant database boundary and automatically sends an invitation / password reset email to the owner.",
+        "actionUrl": "/tenants",
+        "actionLabel": "Go to Tenants"
+      },
+      "step2": {
+        "number": "2",
+        "title": "Owner resets password & logs in",
+        "role": "OWNER",
+        "desc": "The lab owner opens the invitation email, clicks the secure link to set their master password, and logs into the platform.",
+        "prereq": "Tenant created by Super Admin (Step 1).",
+        "fields": ["New Password", "Confirm Password"],
+        "whatHappens": "Account is activated and the owner is redirected to the Owner Dashboard.",
+        "actionUrl": "/login",
+        "actionLabel": "Go to Login"
+      },
+      "step3": {
+        "number": "3",
+        "title": "Owner creates first Branch",
+        "role": "OWNER",
+        "desc": "The owner creates at least one physical branch/facility. Staff, technicians, and work orders must belong to a branch.",
+        "prereq": "Owner authenticated into the platform (Step 2).",
+        "fields": ["Branch Name", "Branch Code", "Phone", "Address"],
+        "whatHappens": "Establishes the operational base for staff assignments and case routing.",
+        "actionUrl": "/branches",
+        "actionLabel": "Go to Branches"
+      },
+      "step4": {
+        "number": "4",
+        "title": "Owner creates Lab Admin(s)",
+        "role": "OWNER",
+        "desc": "The owner invites Lab Administrators to handle daily order intake, technician task assignment, and clinic communication.",
+        "prereq": "At least one Branch created (Step 3).",
+        "fields": ["First Name", "Last Name", "Email", "Assigned Branch"],
+        "whatHappens": "Administrator receives an email invite with an activation link to set their password.",
+        "actionUrl": "/admins",
+        "actionLabel": "Go to Admins"
+      },
+      "step5": {
+        "number": "5",
+        "title": "Setup Production Master Data",
+        "role": "ADMIN",
+        "desc": "Before creating work orders, the lab must configure its production catalog in this exact sequence:",
+        "prereq": "Branch (Step 3) and Lab Admin (Step 4) created.",
+        "substeps": [
+          { "num": "5.1", "name": "Technicians", "url": "/technicians", "desc": "Add lab technicians with their specialties (CAD/CAM, Ceramics, Metal, Polish)." },
+          { "num": "5.2", "name": "Process Areas", "url": "/process-areas", "desc": "Create workstation departments (e.g., CAD/CAM Station, Ceramics, 3D Printing, QC)." },
+          { "num": "5.3", "name": "Processes", "url": "/processes", "desc": "Define individual work stages (e.g., Scan, CAD Design, Milling, Sintering, Glaze) linked to areas." },
+          { "num": "5.4", "name": "Prosthesis Types", "url": "/prosthesis-types", "desc": "Define product catalog (e.g., Zirconia Crown, PFM Bridge, Night Guard) with base price and stage workflow." },
+          { "num": "5.5", "name": "Doctors & Clinics", "url": "/doctors", "desc": "Register prescribing dentists and dental clinics with contact info and address." }
+        ],
+        "whatHappens": "Configures all product templates and technician routing required to generate work orders."
+      },
+      "step6": {
+        "number": "6",
+        "title": "Create Work Order & Assign Technicians",
+        "role": "ADMIN",
+        "desc": "Admin creates a work order for a doctor, selects prosthesis, tooth/shade, delivery date, and assigns technicians to each stage.",
+        "prereq": "Doctor, Prosthesis Type, and Technicians configured (Step 5).",
+        "fields": ["Doctor / Clinic", "Patient ID / Name", "Prosthesis Type", "Teeth & Shade", "Delivery Date", "Technician per Stage"],
+        "whatHappens": "Generates a sequential Work Order number and unique QR tracking code for workstation tracking.",
+        "actionUrl": "/work-orders",
+        "actionLabel": "Go to Work Orders"
+      },
+      "step7": {
+        "number": "7",
+        "title": "Production Execution & Quality Check",
+        "role": "TECHNICIAN",
+        "desc": "Technicians scan the case QR code or view assigned orders, update stage status (In Progress -> Completed), and Admin performs QC inspection.",
+        "prereq": "Work Order created and assigned (Step 6).",
+        "fields": ["Stage Status (In Progress / Completed)", "Technical Notes / Lot #", "QC Fit & Margin Verification"],
+        "whatHappens": "Tracks stage cycle times, alerts next technician, and advances the work order toward completion.",
+        "actionUrl": "/work-orders",
+        "actionLabel": "View Work Orders"
+      },
+      "step8": {
+        "number": "8",
+        "title": "Packaging, Delivery & Invoicing",
+        "role": "ADMIN",
+        "desc": "The completed restoration is packaged, dispatched with delivery confirmation slip, marked Completed, and billed in Finance.",
+        "prereq": "Work Order completed and QC approved (Step 7).",
+        "fields": ["Delivery Manifest & Signature", "Invoice Itemization & Payment"],
+        "whatHappens": "Finalizes the case lifecycle, updates turnaround metrics, and logs the invoice in accounts receivable.",
+        "actionUrl": "/finance",
+        "actionLabel": "Go to Finance"
+      }
     }
   }
 }
