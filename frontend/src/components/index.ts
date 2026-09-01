@@ -7,3 +7,4 @@ export { DateRangePicker } from './DateRangePicker';
 export { PhoneInput } from './PhoneInput';
 export { WorkOrderChat } from './WorkOrderChat';
 export { SendWhatsAppModal, WhatsAppIcon } from './SendWhatsAppModal';
+export { RecurrencePanel } from './RecurrencePanel';

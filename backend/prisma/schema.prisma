@@ -84,6 +84,7 @@ enum ReminderRecurrence {
   DAILY
   WEEKLY
   MONTHLY
+  YEARLY
 }
 
 enum ReminderStatus {
@@ -880,6 +881,18 @@ model Reminder {
   reminderTime    String             @map("reminder_time")
   recurrence      ReminderRecurrence @default(ONE_TIME)
   status          ReminderStatus     @default(PENDING)
+
+  // Recurrence configuration
+  repeatInterval         Int       @default(1) @map("repeat_interval")
+  endType                String    @default("NEVER") @map("end_type")
+  endDate                DateTime? @map("end_date")
+  endAfterOccurrences    Int?      @map("end_after_occurrences")
+  completedOccurrences   Int       @default(0) @map("completed_occurrences")
+  weeklyDays             String?   @map("weekly_days")
+  monthlyPattern         String?   @map("monthly_pattern")
+  monthlyDayOfMonth      Int?      @map("monthly_day_of_month")
+  monthlyWeekPosition    String?   @map("monthly_week_position")
+  monthlyWeekDay         Int?      @map("monthly_week_day")
   createdById     String             @map("created_by_id")
   lastNotifiedAt  DateTime?          @map("last_notified_at")
   createdAt       DateTime           @default(now()) @map("created_at")

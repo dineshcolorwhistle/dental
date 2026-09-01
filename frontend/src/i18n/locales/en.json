@@ -212,7 +212,8 @@
       "ONE_TIME": "One time",
       "DAILY": "Daily",
       "WEEKLY": "Weekly",
-      "MONTHLY": "Monthly"
+      "MONTHLY": "Monthly",
+      "YEARLY": "Yearly"
     }
   },
   "auth": {
@@ -1673,7 +1674,52 @@
       "ONE_TIME": "One time (No recurrence)",
       "DAILY": "Daily",
       "WEEKLY": "Weekly",
-      "MONTHLY": "Monthly"
+      "MONTHLY": "Monthly",
+      "YEARLY": "Yearly"
+    },
+    "recurrencePanel": {
+      "repeatEvery": "Repeat every",
+      "days": "day(s)",
+      "weeks": "week(s)",
+      "months": "month(s)",
+      "years": "year(s)",
+      "repeatOn": "Repeat on",
+      "weekdays": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      },
+      "onDay": "On day",
+      "ofTheMonth": "of the month",
+      "onThe": "On the",
+      "monthPositions": {
+        "FIRST": "First",
+        "SECOND": "Second",
+        "THIRD": "Third",
+        "FOURTH": "Fourth",
+        "LAST": "Last"
+      },
+      "weekdayNames": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      },
+      "ends": "Ends",
+      "onDate": "On date",
+      "after": "After",
+      "never": "Never",
+      "occurrences": "occurrences",
+      "helperText": "Choose how often this reminder repeats, which days it uses, and when the series should stop. Limited to 365 upcoming occurrences, and never beyond 3 years from today.",
+      "startDate": "Start Date",
+      "startDateHint": "Choose a date within the next 3 years."
     },
     "status": {
       "PENDING": "Pending",
@@ -1708,6 +1754,7 @@
     "updateSuccess": "Reminder updated successfully!",
     "deleteSuccess": "Reminder deleted successfully!",
     "statusUpdateSuccess": "Reminder status updated!",
+    "recurringCompleted": "Completed today's instance! Advanced to next cycle.",
     "loadError": "Failed to load reminders",
     "createError": "Failed to create reminder",
     "updateError": "Failed to update reminder",
@@ -1717,7 +1764,33 @@
       "titleRequired": "Title is required",
       "timeRequired": "Reminder time is required",
       "dateRequired": "Reminder date is required for one-time reminders",
-      "assigneesRequired": "At least one assignee is required"
+      "startDateRequired": "Start date is required for recurring reminders",
+      "pastDateNotAllowed": "Reminder date cannot be in the past",
+      "assigneeRequired": "At least 1 assignee is required",
+      "assigneesRequired": "At least one assignee is required",
+      "repeatIntervalMin": "Repeat interval must be at least 1",
+      "weeklyDaysRequired": "Select at least one day of the week",
+      "endDateRequired": "End date is required when ending on a date",
+      "endDateBeforeStart": "End date must not be before start date",
+      "occurrencesRequired": "Number of occurrences is required",
+      "occurrencesMin": "Occurrences must be at least 1",
+      "occurrencesMax": "Maximum 365 occurrences allowed",
+      "monthlyDayRequired": "Day of the month is required",
+      "monthlyDayRange": "Day must be between 1 and 31",
+      "monthlyPositionRequired": "Week position is required",
+      "monthlyWeekdayRequired": "Weekday is required",
+      "maxDateExceeded": "Date cannot be beyond 3 years from today"
+    },
+    "recurrenceSummary": {
+      "everyDay": "Every {{interval}} day(s)",
+      "everyWeek": "Every {{interval}} week(s) on {{days}}",
+      "everyMonthDay": "Every {{interval}} month(s) on day {{day}}",
+      "everyMonthPosition": "Every {{interval}} month(s) on the {{position}} {{weekday}}",
+      "everyYear": "Every {{interval}} year(s)",
+      "endsOnDate": "Ends on {{date}}",
+      "endsAfter": "Ends after {{count}} occurrences",
+      "neverEnds": "Never ends",
+      "seriesCompleted": "Series completed ({{completed}}/{{total}} occurrences)"
     },
     "viewReminder": "Reminder Details",
     "viewDetails": "View Details",
@@ -1841,6 +1914,169 @@
         "actionUrl": "/finance",
         "actionLabel": "Go to Finance"
       }
+    }
+  },
+  "reminders": {
+    "title": "Reminders",
+    "subtitle": "Manage reminders and follow-ups for your team",
+    "calendarView": "Reminders Calendar",
+    "calendarSubtitle": "Overview of reminders scheduled by date",
+    "listView": "List View",
+    "createReminder": "New Reminder",
+    "editReminder": "Edit Reminder",
+    "viewReminder": "Reminder Details",
+    "viewDetails": "View Details",
+    "assignedTeamMembers": "Assigned Team Members",
+    "assignedOne": "Assigned",
+    "assignedMany": "Assigned",
+    "createdBy": "Created By",
+    "lastNotified": "Last Notified",
+    "notNotifiedYet": "Not notified yet",
+    "loadError": "Failed to load reminders",
+    "createSuccess": "Reminder created successfully!",
+    "createError": "Failed to create reminder",
+    "updateSuccess": "Reminder updated successfully!",
+    "updateError": "Failed to update reminder",
+    "deleteSuccess": "Reminder deleted successfully!",
+    "deleteError": "Failed to delete reminder",
+    "statusUpdateSuccess": "Reminder status updated!",
+    "statusUpdateError": "Failed to update status",
+    "recurringCompleted": "Completed today's instance! Advanced to next cycle.",
+    "empty": {
+      "title": "No reminders yet",
+      "description": "Create your first reminder to track tasks and follow-ups."
+    },
+    "filters": {
+      "searchPlaceholder": "Search by title, category...",
+      "allStatuses": "All Statuses",
+      "allPriorities": "All Priorities"
+    },
+    "fields": {
+      "title": "Title",
+      "titlePlaceholder": "Enter reminder title",
+      "priority": "Priority",
+      "category": "Category",
+      "categoryPlaceholder": "e.g. Cleaning, Inventory",
+      "assignedTo": "Assigned To",
+      "assignedToPlaceholder": "Search and select users to assign...",
+      "allUsersSelected": "All users selected",
+      "recurrence": "Recurrence",
+      "reminderDate": "Reminder Date",
+      "reminderTime": "Reminder Time",
+      "timeHelperText": "You will be notified 2 hours before the scheduled time.",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional details..."
+    },
+    "actions": {
+      "markComplete": "Mark Complete",
+      "markPending": "Mark Pending"
+    },
+    "confirmDelete": {
+      "title": "Delete Reminder",
+      "message": "Are you sure you want to delete this reminder?"
+    },
+    "calendar": {
+      "today": "Today",
+      "previous": "Previous",
+      "next": "Next",
+      "titleDate": "Reminders for",
+      "remindersCount": "{{count}} Reminders",
+      "noReminders": "No reminders scheduled for this date.",
+      "noRemindersPast": "No reminders recorded for this past date.",
+      "pastDate": "Past Date",
+      "pastDateTooltip": "Past date — reminders cannot be scheduled",
+      "pastDayNotice": "Past date — reminders cannot be scheduled for past dates",
+      "clickToCreate": "Click to create reminder for this date",
+      "clickToAdd": "Click to add reminder",
+      "addReminder": "Add Reminder",
+      "addForThisDay": "Add Reminder for this Day",
+      "addReminderForDate": "Add reminder for this date"
+    },
+    "validation": {
+      "titleRequired": "Title is required",
+      "timeRequired": "Time is required",
+      "dateRequired": "Date is required for one-time reminders",
+      "pastDateNotAllowed": "Reminder date cannot be in the past",
+      "maxDateExceeded": "Date cannot be beyond 3 years from today",
+      "startDateRequired": "Start date is required for recurring reminders",
+      "repeatIntervalMin": "Repeat interval must be at least 1",
+      "weeklyDaysRequired": "Select at least one day of the week",
+      "monthlyDayRange": "Day must be between 1 and 31",
+      "monthlyPositionRequired": "Week position is required",
+      "monthlyWeekdayRequired": "Weekday is required",
+      "endDateRequired": "End date is required when ending on a date",
+      "endDateBeforeStart": "End date must not be before start date",
+      "occurrencesMin": "Occurrences must be at least 1",
+      "occurrencesMax": "Maximum 365 occurrences allowed",
+      "assigneeRequired": "At least 1 assignee is required"
+    },
+    "recurrencePanel": {
+      "repeatEvery": "Repeat every",
+      "days": "day(s)",
+      "weeks": "week(s)",
+      "months": "month(s)",
+      "years": "year(s)",
+      "repeatOn": "Repeat on",
+      "startDate": "Start Date",
+      "startDateHint": "Choose a date within the next 3 years.",
+      "onDay": "On day",
+      "ofTheMonth": "of the month",
+      "onThe": "On the",
+      "ends": "Ends",
+      "onDate": "On date",
+      "after": "After",
+      "occurrences": "occurrences",
+      "never": "Never",
+      "helperText": "Choose how often this reminder repeats, which days it uses, and when the series should stop. Limited to 365 upcoming occurrences, and never beyond 3 years from today.",
+      "weekdays": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      },
+      "monthPositions": {
+        "FIRST": "First",
+        "SECOND": "Second",
+        "THIRD": "Third",
+        "FOURTH": "Fourth",
+        "LAST": "Last"
+      },
+      "weekdayNames": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      }
+    },
+    "recurrenceSummary": {
+      "everyDay": "Every {{interval}} day(s)",
+      "everyWeek": "Every {{interval}} week(s) on {{days}}",
+      "everyMonthPosition": "Every {{interval}} month(s) on the {{position}} {{weekday}}",
+      "everyMonthDay": "Every {{interval}} month(s) on day {{day}}",
+      "everyYear": "Every {{interval}} year(s)",
+      "endsOnDate": "Ends on {{date}}",
+      "endsAfter": "Ends after {{count}} occurrences",
+      "neverEnds": "Never ends"
+    },
+    "occurrenceProgress": "Occurrence Progress",
+    "remaining": "left",
+    "ends": "Ends",
+    "done": "done",
+    "occurrenceBreakdown": {
+      "title": "Occurrence Schedule & Breakdown",
+      "occurrence": "Occurrence",
+      "currentDue": "Current Due",
+      "upcoming": "Upcoming",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "showingNext": "Showing next {{count}} occurrences (series repeats indefinitely)",
+      "totalOccurrences": "{{completed}} of {{total}} completed"
     }
   }
 }

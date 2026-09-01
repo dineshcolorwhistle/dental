@@ -25,12 +25,24 @@ export interface ReminderItem {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   reminderDate: string | null;
   reminderTime: string;
-  recurrence: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  recurrence: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   createdById: string;
   lastNotifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // Recurrence config
+  repeatInterval: number;
+  endType: string;
+  endDate: string | null;
+  endAfterOccurrences: number | null;
+  completedOccurrences: number;
+  weeklyDays: string | null;
+  monthlyPattern: string | null;
+  monthlyDayOfMonth: number | null;
+  monthlyWeekPosition: string | null;
+  monthlyWeekDay: number | null;
+  // Relations
   assignees: ReminderAssignee[];
   createdBy: {
     id: string;
@@ -59,9 +71,19 @@ export interface CreateReminderPayload {
   priority?: 'LOW' | 'MEDIUM' | 'HIGH';
   reminderDate?: string;
   reminderTime: string;
-  recurrence?: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  recurrence?: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
   assigneeIds: string[];
   branchId?: string;
+  // Recurrence config
+  repeatInterval?: number;
+  endType?: 'ON_DATE' | 'AFTER' | 'NEVER';
+  endDate?: string;
+  endAfterOccurrences?: number;
+  weeklyDays?: number[];
+  monthlyPattern?: 'DAY_OF_MONTH' | 'POSITIONAL_WEEKDAY';
+  monthlyDayOfMonth?: number;
+  monthlyWeekPosition?: 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 'LAST';
+  monthlyWeekDay?: number;
 }
 
 export interface UpdateReminderPayload {
@@ -71,9 +93,19 @@ export interface UpdateReminderPayload {
   priority?: 'LOW' | 'MEDIUM' | 'HIGH';
   reminderDate?: string;
   reminderTime?: string;
-  recurrence?: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  recurrence?: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
   assigneeIds?: string[];
   branchId?: string;
+  // Recurrence config
+  repeatInterval?: number;
+  endType?: 'ON_DATE' | 'AFTER' | 'NEVER';
+  endDate?: string;
+  endAfterOccurrences?: number;
+  weeklyDays?: number[];
+  monthlyPattern?: 'DAY_OF_MONTH' | 'POSITIONAL_WEEKDAY';
+  monthlyDayOfMonth?: number;
+  monthlyWeekPosition?: 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 'LAST';
+  monthlyWeekDay?: number;
 }
 
 export const reminderService = {

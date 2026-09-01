@@ -8,6 +8,10 @@ import {
   IsDateString,
   Matches,
   ArrayMinSize,
+  IsInt,
+  Min,
+  Max,
+  IsIn,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { ReminderPriority, ReminderRecurrence } from '@prisma/client';
@@ -50,7 +54,7 @@ export class CreateReminderDto {
 
   @ApiProperty({
     example: '2026-08-15T00:00:00.000Z',
-    description: 'Reminder date (required only for ONE_TIME recurrence)',
+    description: 'Reminder date (start date for recurring, required for ONE_TIME)',
     required: false,
   })
   @IsDateString()
@@ -76,6 +80,62 @@ export class CreateReminderDto {
   @IsEnum(ReminderRecurrence)
   @IsOptional()
   recurrence?: ReminderRecurrence;
+
+  // ── Recurrence configuration fields ──────────────────────
+
+  @ApiProperty({ example: 1, description: 'Repeat every N units', required: false })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  repeatInterval?: number;
+
+  @ApiProperty({ example: 'NEVER', description: 'End type: ON_DATE, AFTER, or NEVER', required: false })
+  @IsIn(['ON_DATE', 'AFTER', 'NEVER'])
+  @IsOptional()
+  endType?: string;
+
+  @ApiProperty({ example: '2027-01-01T12:00:00.000Z', description: 'End date for ON_DATE end type', required: false })
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @ApiProperty({ example: 10, description: 'End after N occurrences', required: false })
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  @IsOptional()
+  endAfterOccurrences?: number;
+
+  @ApiProperty({ example: [1, 3, 5], description: 'Weekly days (0=Sun..6=Sat)', required: false })
+  @IsArray()
+  @IsOptional()
+  weeklyDays?: number[];
+
+  @ApiProperty({ example: 'DAY_OF_MONTH', description: 'Monthly pattern type', required: false })
+  @IsIn(['DAY_OF_MONTH', 'POSITIONAL_WEEKDAY'])
+  @IsOptional()
+  monthlyPattern?: string;
+
+  @ApiProperty({ example: 15, description: 'Day of month for DAY_OF_MONTH pattern', required: false })
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  @IsOptional()
+  monthlyDayOfMonth?: number;
+
+  @ApiProperty({ example: 'LAST', description: 'Week position for POSITIONAL_WEEKDAY pattern', required: false })
+  @IsIn(['FIRST', 'SECOND', 'THIRD', 'FOURTH', 'LAST'])
+  @IsOptional()
+  monthlyWeekPosition?: string;
+
+  @ApiProperty({ example: 1, description: 'Weekday for POSITIONAL_WEEKDAY pattern (0=Sun..6=Sat)', required: false })
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  @IsOptional()
+  monthlyWeekDay?: number;
+
+  // ── Assignees & Branch ───────────────────────────────────
 
   @ApiProperty({
     example: ['uuid-1', 'uuid-2'],

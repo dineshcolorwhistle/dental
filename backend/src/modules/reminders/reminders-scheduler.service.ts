@@ -7,6 +7,10 @@ import {
   getHHmmInTz,
   getDateKeyInTz,
 } from '../../common/utils/timezone.util';
+import {
+  isOccurrenceDate,
+  type RecurrenceConfig,
+} from '../../common/utils/recurrence.util';
 
 @Injectable()
 export class RemindersSchedulerService {
@@ -100,6 +104,7 @@ export class RemindersSchedulerService {
   /**
    * Determine if a reminder should trigger a notification right now.
    * All date comparisons use the tenant's timezone.
+   * Uses the recurrence utility for recurring types.
    */
   private shouldSendNotification(
     reminder: {
@@ -107,6 +112,16 @@ export class RemindersSchedulerService {
       reminderDate: Date | null;
       reminderTime: string;
       lastNotifiedAt: Date | null;
+      repeatInterval: number;
+      endType: string;
+      endDate: Date | null;
+      endAfterOccurrences: number | null;
+      completedOccurrences: number;
+      weeklyDays: string | null;
+      monthlyPattern: string | null;
+      monthlyDayOfMonth: number | null;
+      monthlyWeekPosition: string | null;
+      monthlyWeekDay: number | null;
     },
     now: Date,
     targetHHmm: string,
@@ -124,64 +139,70 @@ export class RemindersSchedulerService {
     // Get "today" in the tenant's timezone (YYYY-MM-DD key)
     const todayKey = getDateKeyInTz(now, tz);
 
-    switch (reminder.recurrence) {
-      case ReminderRecurrence.ONE_TIME: {
-        if (!reminder.reminderDate) return false;
-        // Compare reminder date against "today" in tenant's timezone
-        const reminderDateKey = getDateKeyInTz(reminder.reminderDate, tz);
-        if (reminderDateKey !== todayKey) return false;
-        // Check if already notified today
-        if (reminder.lastNotifiedAt) {
-          const lastNotifiedKey = getDateKeyInTz(
-            reminder.lastNotifiedAt,
-            tz,
-          );
-          if (lastNotifiedKey === todayKey) return false;
-        }
-        return true;
-      }
-
-      case ReminderRecurrence.DAILY: {
-        // Send every day if not already notified today (in tenant's TZ)
-        if (reminder.lastNotifiedAt) {
-          const lastNotifiedKey = getDateKeyInTz(
-            reminder.lastNotifiedAt,
-            tz,
-          );
-          if (lastNotifiedKey === todayKey) return false;
-        }
-        return true;
-      }
-
-      case ReminderRecurrence.WEEKLY: {
-        // Send on same day-of-week if not already notified this week
-        if (reminder.lastNotifiedAt) {
-          const daysSinceLastNotified = Math.floor(
-            (now.getTime() - reminder.lastNotifiedAt.getTime()) /
-              (1000 * 60 * 60 * 24),
-          );
-          if (daysSinceLastNotified < 7) return false;
-        }
-        return true;
-      }
-
-      case ReminderRecurrence.MONTHLY: {
-        // Send on same day-of-month if not already notified this month (in tenant's TZ)
-        if (reminder.lastNotifiedAt) {
-          const lastNotifiedKey = getDateKeyInTz(
-            reminder.lastNotifiedAt,
-            tz,
-          );
-          const lastMonth = lastNotifiedKey.slice(0, 7); // YYYY-MM
-          const currentMonth = todayKey.slice(0, 7);
-          if (lastMonth === currentMonth) return false;
-        }
-        return true;
-      }
-
-      default:
-        return false;
+    // Check if already notified today
+    if (reminder.lastNotifiedAt) {
+      const lastNotifiedKey = getDateKeyInTz(reminder.lastNotifiedAt, tz);
+      if (lastNotifiedKey === todayKey) return false;
     }
+
+    // ONE_TIME: simple date comparison
+    if (reminder.recurrence === ReminderRecurrence.ONE_TIME) {
+      if (!reminder.reminderDate) return false;
+      const reminderDateKey = getDateKeyInTz(reminder.reminderDate, tz);
+      return reminderDateKey === todayKey;
+    }
+
+    // Recurring types: use the recurrence utility
+    const config = this.buildRecurrenceConfig(reminder);
+    if (!config) return false;
+
+    // Create a noon-UTC date for "today" to check against
+    const [year, month, day] = todayKey.split('-').map(Number);
+    const todayNoon = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+    return isOccurrenceDate(
+      config,
+      todayNoon,
+      reminder.completedOccurrences,
+    );
+  }
+
+  /**
+   * Build a RecurrenceConfig from a reminder record.
+   */
+  private buildRecurrenceConfig(reminder: {
+    recurrence: ReminderRecurrence;
+    reminderDate: Date | null;
+    repeatInterval: number;
+    endType: string;
+    endDate: Date | null;
+    endAfterOccurrences: number | null;
+    weeklyDays: string | null;
+    monthlyPattern: string | null;
+    monthlyDayOfMonth: number | null;
+    monthlyWeekPosition: string | null;
+    monthlyWeekDay: number | null;
+  }): RecurrenceConfig | null {
+    if (reminder.recurrence === ReminderRecurrence.ONE_TIME) return null;
+    if (!reminder.reminderDate) return null;
+
+    return {
+      recurrence: reminder.recurrence as RecurrenceConfig['recurrence'],
+      startDate: reminder.reminderDate,
+      repeatInterval: reminder.repeatInterval || 1,
+      endType: (reminder.endType || 'NEVER') as RecurrenceConfig['endType'],
+      endDate: reminder.endDate,
+      endAfterOccurrences: reminder.endAfterOccurrences,
+      weeklyDays: reminder.weeklyDays
+        ? JSON.parse(reminder.weeklyDays)
+        : undefined,
+      monthlyPattern:
+        reminder.monthlyPattern as RecurrenceConfig['monthlyPattern'],
+      monthlyDayOfMonth: reminder.monthlyDayOfMonth ?? undefined,
+      monthlyWeekPosition:
+        reminder.monthlyWeekPosition as RecurrenceConfig['monthlyWeekPosition'],
+      monthlyWeekDay: reminder.monthlyWeekDay ?? undefined,
+    };
   }
 
   /**

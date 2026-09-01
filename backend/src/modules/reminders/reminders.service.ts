@@ -11,10 +11,208 @@ import {
   isDateBeforeTodayInTz,
   parseCalendarDate,
 } from '../../common/utils/timezone.util';
+import {
+  getNextOccurrence,
+  type RecurrenceConfig,
+} from '../../common/utils/recurrence.util';
+
+/** Standard include for Reminder queries */
+const REMINDER_INCLUDE = {
+  assignees: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
+  },
+  createdBy: {
+    select: { id: true, firstName: true, lastName: true, role: true },
+  },
+};
+
+const REMINDER_INCLUDE_WITH_BRANCH = {
+  ...REMINDER_INCLUDE,
+  branch: {
+    select: { id: true, name: true },
+  },
+};
 
 @Injectable()
 export class RemindersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
+
+  /**
+   * Cross-field validation for recurrence configuration.
+   */
+  private validateRecurrenceConfig(dto: CreateReminderDto): void {
+    const recurrence = dto.recurrence || ReminderRecurrence.ONE_TIME;
+
+    if (recurrence === ReminderRecurrence.ONE_TIME) return;
+
+    // All recurring types require a start date
+    if (!dto.reminderDate) {
+      throw new BadRequestException(
+        'Start date (reminderDate) is required for recurring reminders.',
+      );
+    }
+
+    // Validate endType conditions
+    if (dto.endType === 'ON_DATE') {
+      if (!dto.endDate) {
+        throw new BadRequestException(
+          'End date is required when end type is ON_DATE.',
+        );
+      }
+      if (dto.endDate && dto.reminderDate && dto.endDate < dto.reminderDate) {
+        throw new BadRequestException(
+          'End date must not be before the start date.',
+        );
+      }
+    }
+
+    if (dto.endType === 'AFTER') {
+      if (
+        dto.endAfterOccurrences === undefined ||
+        dto.endAfterOccurrences === null
+      ) {
+        throw new BadRequestException(
+          'Number of occurrences is required when end type is AFTER.',
+        );
+      }
+      if (dto.endAfterOccurrences < 1 || dto.endAfterOccurrences > 365) {
+        throw new BadRequestException(
+          'Occurrences must be between 1 and 365.',
+        );
+      }
+    }
+
+    // Weekly-specific
+    if (recurrence === ReminderRecurrence.WEEKLY) {
+      if (!dto.weeklyDays || dto.weeklyDays.length === 0) {
+        throw new BadRequestException(
+          'At least one weekday must be selected for weekly recurrence.',
+        );
+      }
+      for (const d of dto.weeklyDays) {
+        if (d < 0 || d > 6) {
+          throw new BadRequestException(
+            'Weekly days must be between 0 (Sunday) and 6 (Saturday).',
+          );
+        }
+      }
+    }
+
+    // Monthly-specific
+    if (recurrence === ReminderRecurrence.MONTHLY) {
+      if (!dto.monthlyPattern) {
+        throw new BadRequestException(
+          'Monthly pattern is required for monthly recurrence.',
+        );
+      }
+
+      if (dto.monthlyPattern === 'DAY_OF_MONTH') {
+        if (
+          dto.monthlyDayOfMonth === undefined ||
+          dto.monthlyDayOfMonth === null
+        ) {
+          throw new BadRequestException(
+            'Day of month is required for DAY_OF_MONTH pattern.',
+          );
+        }
+        if (dto.monthlyDayOfMonth < 1 || dto.monthlyDayOfMonth > 31) {
+          throw new BadRequestException('Day of month must be between 1 and 31.');
+        }
+      }
+
+      if (dto.monthlyPattern === 'POSITIONAL_WEEKDAY') {
+        if (!dto.monthlyWeekPosition) {
+          throw new BadRequestException(
+            'Week position is required for POSITIONAL_WEEKDAY pattern.',
+          );
+        }
+        if (
+          dto.monthlyWeekDay === undefined ||
+          dto.monthlyWeekDay === null
+        ) {
+          throw new BadRequestException(
+            'Weekday is required for POSITIONAL_WEEKDAY pattern.',
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Build the recurrence data fields from DTO.
+   */
+  private buildRecurrenceData(dto: Partial<CreateReminderDto>): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
+
+    if (dto.repeatInterval !== undefined)
+      data.repeatInterval = dto.repeatInterval;
+    if (dto.endType !== undefined) data.endType = dto.endType;
+    if (dto.endDate !== undefined)
+      data.endDate = dto.endDate ? parseCalendarDate(dto.endDate) : null;
+    if (dto.endAfterOccurrences !== undefined)
+      data.endAfterOccurrences = dto.endAfterOccurrences;
+    if (dto.weeklyDays !== undefined)
+      data.weeklyDays = dto.weeklyDays
+        ? JSON.stringify(dto.weeklyDays)
+        : null;
+    if (dto.monthlyPattern !== undefined)
+      data.monthlyPattern = dto.monthlyPattern;
+    if (dto.monthlyDayOfMonth !== undefined)
+      data.monthlyDayOfMonth = dto.monthlyDayOfMonth;
+    if (dto.monthlyWeekPosition !== undefined)
+      data.monthlyWeekPosition = dto.monthlyWeekPosition;
+    if (dto.monthlyWeekDay !== undefined)
+      data.monthlyWeekDay = dto.monthlyWeekDay;
+
+    return data;
+  }
+
+  /**
+   * Build a RecurrenceConfig from a Reminder record.
+   */
+  private buildRecurrenceConfig(reminder: {
+    recurrence: ReminderRecurrence;
+    reminderDate: Date | null;
+    repeatInterval: number;
+    endType: string;
+    endDate: Date | null;
+    endAfterOccurrences: number | null;
+    weeklyDays: string | null;
+    monthlyPattern: string | null;
+    monthlyDayOfMonth: number | null;
+    monthlyWeekPosition: string | null;
+    monthlyWeekDay: number | null;
+  }): RecurrenceConfig | null {
+    if (reminder.recurrence === ReminderRecurrence.ONE_TIME) return null;
+    if (!reminder.reminderDate) return null;
+
+    return {
+      recurrence: reminder.recurrence as RecurrenceConfig['recurrence'],
+      startDate: reminder.reminderDate,
+      repeatInterval: reminder.repeatInterval || 1,
+      endType: (reminder.endType || 'NEVER') as RecurrenceConfig['endType'],
+      endDate: reminder.endDate,
+      endAfterOccurrences: reminder.endAfterOccurrences,
+      weeklyDays: reminder.weeklyDays
+        ? JSON.parse(reminder.weeklyDays)
+        : undefined,
+      monthlyPattern: reminder.monthlyPattern as RecurrenceConfig['monthlyPattern'],
+      monthlyDayOfMonth: reminder.monthlyDayOfMonth ?? undefined,
+      monthlyWeekPosition:
+        reminder.monthlyWeekPosition as RecurrenceConfig['monthlyWeekPosition'],
+      monthlyWeekDay: reminder.monthlyWeekDay ?? undefined,
+    };
+  }
 
   /**
    * Create a reminder — ADMIN only.
@@ -43,6 +241,9 @@ export class RemindersService {
         'Reminder date is required for one-time reminders.',
       );
     }
+
+    // Validate recurrence config cross-field rules
+    this.validateRecurrenceConfig(dto);
 
     if (dto.reminderDate) {
       // Fetch tenant timezone for date comparison
@@ -88,6 +289,9 @@ export class RemindersService {
       }
     }
 
+    // Build recurrence data
+    const recurrenceData = this.buildRecurrenceData(dto);
+
     const reminder = await this.prisma.reminder.create({
       data: {
         tenantId,
@@ -100,33 +304,17 @@ export class RemindersService {
         reminderTime: dto.reminderTime,
         recurrence: dto.recurrence || 'ONE_TIME',
         createdById: userId,
+        ...recurrenceData,
         assignees:
           dto.assigneeIds && dto.assigneeIds.length > 0
             ? {
-                create: dto.assigneeIds.map((uid) => ({
-                  userId: uid,
-                })),
-              }
+              create: dto.assigneeIds.map((uid) => ({
+                userId: uid,
+              })),
+            }
             : undefined,
       },
-      include: {
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-        },
-        createdBy: {
-          select: { id: true, firstName: true, lastName: true, role: true },
-        },
-      },
+      include: REMINDER_INCLUDE,
     });
 
     return reminder;
@@ -196,27 +384,7 @@ export class RemindersService {
 
     return this.prisma.reminder.findMany({
       where,
-      include: {
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-        },
-        createdBy: {
-          select: { id: true, firstName: true, lastName: true, role: true },
-        },
-        branch: {
-          select: { id: true, name: true },
-        },
-      },
+      include: REMINDER_INCLUDE_WITH_BRANCH,
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     });
   }
@@ -227,27 +395,7 @@ export class RemindersService {
   async findOne(tenantId: string, id: string) {
     const reminder = await this.prisma.reminder.findFirst({
       where: { id, tenantId },
-      include: {
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-        },
-        createdBy: {
-          select: { id: true, firstName: true, lastName: true, role: true },
-        },
-        branch: {
-          select: { id: true, name: true },
-        },
-      },
+      include: REMINDER_INCLUDE_WITH_BRANCH,
     });
 
     if (!reminder) {
@@ -294,6 +442,34 @@ export class RemindersService {
       }
     }
 
+    // Validate recurrence config if recurrence fields are being updated
+    if (
+      recurrence !== ReminderRecurrence.ONE_TIME &&
+      (dto.recurrence !== undefined ||
+        dto.weeklyDays !== undefined ||
+        dto.monthlyPattern !== undefined ||
+        dto.endType !== undefined)
+    ) {
+      // Build a merged DTO for validation
+      const mergedDto: CreateReminderDto = {
+        title: dto.title ?? existing.title,
+        reminderTime: dto.reminderTime ?? existing.reminderTime,
+        assigneeIds: dto.assigneeIds ?? [],
+        recurrence: recurrence as ReminderRecurrence,
+        reminderDate: dto.reminderDate ?? (existing.reminderDate?.toISOString() || undefined),
+        repeatInterval: dto.repeatInterval ?? existing.repeatInterval,
+        endType: dto.endType ?? existing.endType,
+        endDate: dto.endDate ?? (existing.endDate?.toISOString() || undefined),
+        endAfterOccurrences: dto.endAfterOccurrences ?? (existing.endAfterOccurrences || undefined),
+        weeklyDays: dto.weeklyDays ?? (existing.weeklyDays ? JSON.parse(existing.weeklyDays) : undefined),
+        monthlyPattern: dto.monthlyPattern ?? (existing.monthlyPattern || undefined),
+        monthlyDayOfMonth: dto.monthlyDayOfMonth ?? (existing.monthlyDayOfMonth || undefined),
+        monthlyWeekPosition: dto.monthlyWeekPosition ?? (existing.monthlyWeekPosition || undefined),
+        monthlyWeekDay: dto.monthlyWeekDay ?? (existing.monthlyWeekDay ?? undefined),
+      };
+      this.validateRecurrenceConfig(mergedDto);
+    }
+
     // Build update data
     const updateData: Record<string, unknown> = {};
 
@@ -309,6 +485,21 @@ export class RemindersService {
       updateData.reminderTime = dto.reminderTime;
     if (dto.recurrence !== undefined) updateData.recurrence = dto.recurrence;
     if (dto.branchId !== undefined) updateData.branchId = dto.branchId;
+
+    // Add recurrence config data
+    const recurrenceData = this.buildRecurrenceData(dto);
+    Object.assign(updateData, recurrenceData);
+
+    // Reset completed occurrences if recurrence config changed
+    if (
+      dto.recurrence !== undefined ||
+      dto.repeatInterval !== undefined ||
+      dto.endType !== undefined ||
+      dto.weeklyDays !== undefined ||
+      dto.monthlyPattern !== undefined
+    ) {
+      updateData.completedOccurrences = 0;
+    }
 
     // Handle assignees update
     if (dto.assigneeIds !== undefined) {
@@ -355,29 +546,14 @@ export class RemindersService {
     return this.prisma.reminder.update({
       where: { id },
       data: updateData,
-      include: {
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-        },
-        createdBy: {
-          select: { id: true, firstName: true, lastName: true, role: true },
-        },
-      },
+      include: REMINDER_INCLUDE,
     });
   }
 
   /**
    * Update reminder status (PENDING / COMPLETED / CANCELLED).
+   * For recurring reminders, completing advances to the next occurrence
+   * using the recurrence engine.
    */
   async updateStatus(tenantId: string, id: string, status: ReminderStatus) {
     const existing = await this.prisma.reminder.findFirst({
@@ -390,50 +566,68 @@ export class RemindersService {
 
     const updateData: Record<string, any> = { status };
 
-    // Option 1: For recurring reminders, marking complete advances the reminder date to the next cycle and keeps status PENDING
+    // For recurring reminders, marking complete advances to next cycle
     if (
       status === ReminderStatus.COMPLETED &&
       existing.recurrence !== ReminderRecurrence.ONE_TIME
     ) {
-      const baseDate = existing.reminderDate
-        ? new Date(existing.reminderDate)
-        : new Date();
-      const nextDate = new Date(baseDate);
+      const config = this.buildRecurrenceConfig(existing);
+      const newCompletedCount = existing.completedOccurrences + 1;
 
-      if (existing.recurrence === ReminderRecurrence.DAILY) {
-        nextDate.setDate(nextDate.getDate() + 1);
-      } else if (existing.recurrence === ReminderRecurrence.WEEKLY) {
-        nextDate.setDate(nextDate.getDate() + 7);
-      } else if (existing.recurrence === ReminderRecurrence.MONTHLY) {
-        nextDate.setMonth(nextDate.getMonth() + 1);
+      if (config) {
+        // Check if we've reached the AFTER limit
+        if (
+          config.endType === 'AFTER' &&
+          config.endAfterOccurrences != null &&
+          newCompletedCount >= config.endAfterOccurrences
+        ) {
+          // Series is truly complete
+          updateData.status = ReminderStatus.COMPLETED;
+          updateData.completedOccurrences = newCompletedCount;
+        } else {
+          const currentDate = existing.reminderDate || new Date();
+          const nextDate = getNextOccurrence(config, currentDate);
+
+          if (nextDate) {
+            // Advance to next occurrence
+            updateData.status = ReminderStatus.PENDING;
+            updateData.reminderDate = nextDate;
+            updateData.lastNotifiedAt = null;
+            updateData.completedOccurrences = newCompletedCount;
+          } else {
+            // No more occurrences — series complete
+            updateData.status = ReminderStatus.COMPLETED;
+            updateData.completedOccurrences = newCompletedCount;
+          }
+        }
+      } else {
+        // Fallback: legacy reminder without config — use simple advance
+        const baseDate = existing.reminderDate
+          ? new Date(existing.reminderDate)
+          : new Date();
+        const nextDate = new Date(baseDate);
+
+        if (existing.recurrence === ReminderRecurrence.DAILY) {
+          nextDate.setDate(nextDate.getDate() + (existing.repeatInterval || 1));
+        } else if (existing.recurrence === ReminderRecurrence.WEEKLY) {
+          nextDate.setDate(nextDate.getDate() + 7 * (existing.repeatInterval || 1));
+        } else if (existing.recurrence === ReminderRecurrence.MONTHLY) {
+          nextDate.setMonth(nextDate.getMonth() + (existing.repeatInterval || 1));
+        } else if (existing.recurrence === ReminderRecurrence.YEARLY) {
+          nextDate.setFullYear(nextDate.getFullYear() + (existing.repeatInterval || 1));
+        }
+
+        updateData.status = ReminderStatus.PENDING;
+        updateData.reminderDate = nextDate;
+        updateData.lastNotifiedAt = null;
+        updateData.completedOccurrences = newCompletedCount;
       }
-
-      updateData.status = ReminderStatus.PENDING;
-      updateData.reminderDate = nextDate;
-      updateData.lastNotifiedAt = null;
     }
 
     return this.prisma.reminder.update({
       where: { id },
       data: updateData,
-      include: {
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-        },
-        createdBy: {
-          select: { id: true, firstName: true, lastName: true, role: true },
-        },
-      },
+      include: REMINDER_INCLUDE,
     });
   }
 

@@ -723,6 +723,218 @@ a:hover { color: var(--accent-primary-hover); }
   color: var(--danger);
 }
 
+/* ─── Recurrence Panel ───────────────────────────────────── */
+
+.recurrence-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.125rem 1.25rem;
+  background: var(--bg-overlay);
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  animation: recurrenceFadeIn 0.25s ease;
+}
+
+@keyframes recurrenceFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.recurrence-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.recurrence-panel__section-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  display: block;
+  letter-spacing: 0.01em;
+}
+
+.recurrence-panel__interval-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.125rem;
+}
+
+.recurrence-panel__interval-input {
+  width: 72px;
+  height: 34px;
+  padding: 0 0.5rem;
+  text-align: center;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.recurrence-panel__unit-label {
+  font-size: 0.8438rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Weekday toggle button group */
+.recurrence-weekdays {
+  display: flex;
+  gap: 0;
+  margin-top: 0.125rem;
+}
+
+.recurrence-weekday-btn {
+  min-width: 42px;
+  height: 34px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-left: -1px;
+}
+
+.recurrence-weekday-btn:first-child {
+  margin-left: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.recurrence-weekday-btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.recurrence-weekday-btn--active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  border-color: var(--accent-primary);
+  font-weight: 600;
+  z-index: 1;
+  position: relative;
+  box-shadow: 0 1px 4px var(--accent-primary-glow);
+}
+
+.recurrence-weekday-btn:hover:not(.recurrence-weekday-btn--active) {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+}
+
+/* Options list with aligned rows */
+.recurrence-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.125rem;
+}
+
+.recurrence-option-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  min-height: 42px;
+}
+
+.recurrence-option-row:hover {
+  background: rgba(111, 174, 217, 0.05);
+}
+
+.recurrence-option-row--active {
+  background: rgba(111, 174, 217, 0.08);
+  border-color: rgba(111, 174, 217, 0.25);
+}
+
+.recurrence-radio-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.recurrence-radio-input {
+  accent-color: var(--accent-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.recurrence-option-label {
+  min-width: 76px;
+  font-size: 0.8438rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.recurrence-option-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+  transition: opacity var(--transition-fast);
+}
+
+.recurrence-option-row:not(.recurrence-option-row--active) .recurrence-option-controls {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.recurrence-option-suffix {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  user-select: none;
+}
+
+.recurrence-panel__small-input {
+  height: 32px;
+  padding: 0 0.5rem;
+  font-size: 0.8125rem;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.recurrence-panel__date-input {
+  height: 32px;
+  padding: 0 0.625rem;
+  font-size: 0.8125rem;
+  border-radius: 6px;
+  width: auto;
+  min-width: 155px;
+}
+
+.recurrence-panel__select {
+  height: 32px;
+  padding: 0 0.5rem;
+  font-size: 0.8125rem;
+  border-radius: 6px;
+  width: auto;
+}
+
+/* Helper text at bottom */
+.recurrence-panel__helper {
+  font-size: 0.7188rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: 0.125rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border);
+}
+
+
 /* ─── Buttons ────────────────────────────────────────────── */
 
 .btn {

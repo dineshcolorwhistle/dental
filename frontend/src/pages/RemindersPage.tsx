@@ -30,7 +30,7 @@ import {
   type UpdateReminderPayload,
 } from '../services';
 import { useAuth } from '../context';
-import { Pagination, SearchableSelect } from '../components';
+import { Pagination, SearchableSelect, RecurrencePanel } from '../components';
 import toast from 'react-hot-toast';
 import {
   formatDate,
@@ -38,6 +38,7 @@ import {
   normalizeCalendarDate,
   getTodayKeyInTz,
 } from '../utils/dateUtils';
+import { getOccurrenceKeys } from '../utils/recurrence.util';
 
 type ViewMode = 'list' | 'calendar';
 type CalendarViewMode = 'month' | 'week' | 'day';
@@ -67,6 +68,12 @@ const getTodayDateString = (tz?: string): string => {
   return getTodayKeyInTz(tz || 'America/Mexico_City');
 };
 
+const getMaxAllowedDate = (): string => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 3);
+  return d.toISOString().slice(0, 10);
+};
+
 interface ReminderFormState {
   title: string;
   description: string;
@@ -74,8 +81,17 @@ interface ReminderFormState {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   reminderDate: string;
   reminderTime: string;
-  recurrence: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  recurrence: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
   assigneeIds: string[];
+  repeatInterval: number;
+  endType: 'ON_DATE' | 'AFTER' | 'NEVER';
+  endDate: string;
+  endAfterOccurrences: number;
+  weeklyDays: number[];
+  monthlyPattern: 'DAY_OF_MONTH' | 'POSITIONAL_WEEKDAY';
+  monthlyDayOfMonth: number;
+  monthlyWeekPosition: 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 'LAST';
+  monthlyWeekDay: number;
 }
 
 const INITIAL_FORM: ReminderFormState = {
@@ -87,6 +103,15 @@ const INITIAL_FORM: ReminderFormState = {
   reminderTime: '09:00',
   recurrence: 'ONE_TIME',
   assigneeIds: [],
+  repeatInterval: 1,
+  endType: 'ON_DATE',
+  endDate: '',
+  endAfterOccurrences: 10,
+  weeklyDays: [],
+  monthlyPattern: 'DAY_OF_MONTH',
+  monthlyDayOfMonth: 1,
+  monthlyWeekPosition: 'LAST',
+  monthlyWeekDay: 1,
 };
 
 export function RemindersPage() {
@@ -270,52 +295,55 @@ export function RemindersPage() {
 
   const remindersByDate = useMemo(() => {
     const map: Record<string, ReminderItem[]> = {};
+
     filteredReminders.forEach((r) => {
-      if (r.recurrence === 'ONE_TIME' && r.reminderDate) {
-        const key = getLocalDateKey(normalizeCalendarDate(r.reminderDate));
-        if (!map[key]) map[key] = [];
-        map[key].push(r);
-      } else if (r.recurrence === 'DAILY') {
-        monthGridDays.forEach(({ date }) => {
-          const key = getLocalDateKey(date);
-          if (!map[key]) map[key] = [];
-          if (!map[key].some((item) => item.id === r.id)) {
-            map[key].push(r);
-          }
-        });
-      } else if (r.recurrence === 'WEEKLY') {
-        const createdDate = new Date(r.createdAt);
-        const dayOfWeek = createdDate.getDay();
-        monthGridDays
-          .filter(({ date }) => date.getDay() === dayOfWeek)
-          .forEach(({ date }) => {
-            const key = getLocalDateKey(date);
-            if (!map[key]) map[key] = [];
-            if (!map[key].some((item) => item.id === r.id)) {
-              map[key].push(r);
-            }
-          });
-      } else if (r.recurrence === 'MONTHLY') {
-        const createdDate = new Date(r.createdAt);
-        const dayOfMonth = createdDate.getDate();
-        monthGridDays
-          .filter(({ date }) => date.getDate() === dayOfMonth)
-          .forEach(({ date }) => {
-            const key = getLocalDateKey(date);
-            if (!map[key]) map[key] = [];
-            if (!map[key].some((item) => item.id === r.id)) {
-              map[key].push(r);
-            }
-          });
+      const startDateStr = r.reminderDate
+        ? r.reminderDate.slice(0, 10)
+        : new Date(r.createdAt).toISOString().slice(0, 10);
+      const endDateStr = r.endDate ? r.endDate.slice(0, 10) : undefined;
+
+      let weeklyDaysList: number[] | undefined;
+      if (r.weeklyDays) {
+        try {
+          weeklyDaysList = typeof r.weeklyDays === 'string' ? JSON.parse(r.weeklyDays) : r.weeklyDays;
+        } catch {
+          weeklyDaysList = undefined;
+        }
       }
+
+      const keys = getOccurrenceKeys(
+        {
+          recurrence: r.recurrence,
+          startDate: startDateStr,
+          repeatInterval: r.repeatInterval || 1,
+          endType: (r.endType as 'ON_DATE' | 'AFTER' | 'NEVER') || 'NEVER',
+          endDate: endDateStr,
+          endAfterOccurrences: r.endAfterOccurrences ?? undefined,
+          weeklyDays: weeklyDaysList,
+          monthlyPattern: (r.monthlyPattern as 'DAY_OF_MONTH' | 'POSITIONAL_WEEKDAY') || undefined,
+          monthlyDayOfMonth: r.monthlyDayOfMonth ?? undefined,
+          monthlyWeekPosition: (r.monthlyWeekPosition as 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 'LAST') || undefined,
+          monthlyWeekDay: r.monthlyWeekDay ?? undefined,
+        },
+        r.completedOccurrences || 0,
+      );
+
+      keys.forEach((key) => {
+        if (!map[key]) map[key] = [];
+        if (!map[key].some((item) => item.id === r.id)) {
+          map[key].push(r);
+        }
+      });
     });
+
     return map;
-  }, [filteredReminders, monthGridDays]);
+  }, [filteredReminders]);
 
   // ─── Form Handlers & Validation ──────────────
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
-    const todayStr = getTodayDateString();
+    const todayStr = getTodayDateString(user?.timezone);
+    const maxDateStr = getMaxAllowedDate();
 
     if (!form.title.trim()) {
       errors.title = t('reminders.validation.titleRequired', { defaultValue: 'Title is required' });
@@ -329,6 +357,59 @@ export function RemindersPage() {
         errors.reminderDate = t('reminders.validation.dateRequired', { defaultValue: 'Date is required for one-time reminders' });
       } else if (form.reminderDate < todayStr) {
         errors.reminderDate = t('reminders.validation.pastDateNotAllowed', { defaultValue: 'Reminder date cannot be in the past' });
+      } else if (form.reminderDate > maxDateStr) {
+        errors.reminderDate = t('reminders.validation.maxDateExceeded', { defaultValue: 'Date cannot be beyond 3 years from today' });
+      }
+    } else {
+      if (!form.reminderDate) {
+        errors.reminderDate = t('reminders.validation.startDateRequired', { defaultValue: 'Start date is required for recurring reminders' });
+      } else if (form.reminderDate < todayStr) {
+        errors.reminderDate = t('reminders.validation.pastDateNotAllowed', { defaultValue: 'Start date cannot be in the past' });
+      } else if (form.reminderDate > maxDateStr) {
+        errors.reminderDate = t('reminders.validation.maxDateExceeded', { defaultValue: 'Date cannot be beyond 3 years from today' });
+      }
+
+      if (!form.repeatInterval || form.repeatInterval < 1) {
+        errors.repeatInterval = t('reminders.validation.repeatIntervalMin', { defaultValue: 'Repeat interval must be at least 1' });
+      }
+
+      if (form.recurrence === 'WEEKLY') {
+        if (!form.weeklyDays || form.weeklyDays.length === 0) {
+          errors.weeklyDays = t('reminders.validation.weeklyDaysRequired', { defaultValue: 'Select at least one day of the week' });
+        }
+      }
+
+      if (form.recurrence === 'MONTHLY') {
+        if (form.monthlyPattern === 'DAY_OF_MONTH') {
+          if (!form.monthlyDayOfMonth || form.monthlyDayOfMonth < 1 || form.monthlyDayOfMonth > 31) {
+            errors.monthlyDayOfMonth = t('reminders.validation.monthlyDayRange', { defaultValue: 'Day must be between 1 and 31' });
+          }
+        } else if (form.monthlyPattern === 'POSITIONAL_WEEKDAY') {
+          if (!form.monthlyWeekPosition) {
+            errors.monthlyWeekPosition = t('reminders.validation.monthlyPositionRequired', { defaultValue: 'Week position is required' });
+          }
+          if (form.monthlyWeekDay === undefined || form.monthlyWeekDay === null) {
+            errors.monthlyWeekDay = t('reminders.validation.monthlyWeekdayRequired', { defaultValue: 'Weekday is required' });
+          }
+        }
+      }
+
+      if (form.endType === 'ON_DATE') {
+        if (!form.endDate) {
+          errors.endDate = t('reminders.validation.endDateRequired', { defaultValue: 'End date is required when ending on a date' });
+        } else if (form.reminderDate && form.endDate < form.reminderDate) {
+          errors.endDate = t('reminders.validation.endDateBeforeStart', { defaultValue: 'End date must not be before start date' });
+        } else if (form.endDate < todayStr) {
+          errors.endDate = t('reminders.validation.pastDateNotAllowed', { defaultValue: 'End date cannot be in the past' });
+        } else if (form.endDate > maxDateStr) {
+          errors.endDate = t('reminders.validation.maxDateExceeded', { defaultValue: 'End date cannot be beyond 3 years from today' });
+        }
+      } else if (form.endType === 'AFTER') {
+        if (!form.endAfterOccurrences || form.endAfterOccurrences < 1) {
+          errors.endAfterOccurrences = t('reminders.validation.occurrencesMin', { defaultValue: 'Occurrences must be at least 1' });
+        } else if (form.endAfterOccurrences > 365) {
+          errors.endAfterOccurrences = t('reminders.validation.occurrencesMax', { defaultValue: 'Maximum 365 occurrences allowed' });
+        }
       }
     }
 
@@ -356,9 +437,34 @@ export function RemindersPage() {
         recurrence: form.recurrence,
         assigneeIds: form.assigneeIds,
       };
-      if (form.recurrence === 'ONE_TIME' && form.reminderDate) {
+
+      if (form.reminderDate) {
         payload.reminderDate = `${form.reminderDate.slice(0, 10)}T12:00:00.000Z`;
       }
+
+      if (form.recurrence !== 'ONE_TIME') {
+        payload.repeatInterval = form.repeatInterval;
+        payload.endType = form.endType;
+        if (form.endType === 'ON_DATE' && form.endDate) {
+          payload.endDate = `${form.endDate.slice(0, 10)}T12:00:00.000Z`;
+        }
+        if (form.endType === 'AFTER') {
+          payload.endAfterOccurrences = form.endAfterOccurrences;
+        }
+        if (form.recurrence === 'WEEKLY') {
+          payload.weeklyDays = form.weeklyDays;
+        }
+        if (form.recurrence === 'MONTHLY') {
+          payload.monthlyPattern = form.monthlyPattern;
+          if (form.monthlyPattern === 'DAY_OF_MONTH') {
+            payload.monthlyDayOfMonth = form.monthlyDayOfMonth;
+          } else {
+            payload.monthlyWeekPosition = form.monthlyWeekPosition;
+            payload.monthlyWeekDay = form.monthlyWeekDay;
+          }
+        }
+      }
+
       await reminderService.create(payload);
       toast.success(t('reminders.createSuccess', { defaultValue: 'Reminder created successfully!' }));
       setShowCreateModal(false);
@@ -388,9 +494,36 @@ export function RemindersPage() {
         recurrence: form.recurrence,
         assigneeIds: form.assigneeIds,
       };
-      if (form.recurrence === 'ONE_TIME' && form.reminderDate) {
+
+      if (form.reminderDate) {
         payload.reminderDate = `${form.reminderDate.slice(0, 10)}T12:00:00.000Z`;
       }
+
+      if (form.recurrence !== 'ONE_TIME') {
+        payload.repeatInterval = form.repeatInterval;
+        payload.endType = form.endType;
+        if (form.endType === 'ON_DATE' && form.endDate) {
+          payload.endDate = `${form.endDate.slice(0, 10)}T12:00:00.000Z`;
+        } else {
+          payload.endDate = undefined;
+        }
+        if (form.endType === 'AFTER') {
+          payload.endAfterOccurrences = form.endAfterOccurrences;
+        }
+        if (form.recurrence === 'WEEKLY') {
+          payload.weeklyDays = form.weeklyDays;
+        }
+        if (form.recurrence === 'MONTHLY') {
+          payload.monthlyPattern = form.monthlyPattern;
+          if (form.monthlyPattern === 'DAY_OF_MONTH') {
+            payload.monthlyDayOfMonth = form.monthlyDayOfMonth;
+          } else {
+            payload.monthlyWeekPosition = form.monthlyWeekPosition;
+            payload.monthlyWeekDay = form.monthlyWeekDay;
+          }
+        }
+      }
+
       await reminderService.update(editingReminder.id, payload);
       toast.success(t('reminders.updateSuccess', { defaultValue: 'Reminder updated successfully!' }));
       setShowEditModal(false);
@@ -437,10 +570,34 @@ export function RemindersPage() {
     }
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = (presetDate?: string | Date) => {
+    const todayStr = getTodayDateString(user?.timezone);
+    let targetDateStr = todayStr;
+    let targetDateObj = normalizeCalendarDate(todayStr);
+
+    if (presetDate) {
+      if (typeof presetDate === 'string') {
+        targetDateStr = presetDate.slice(0, 10);
+        targetDateObj = normalizeCalendarDate(presetDate);
+      } else {
+        targetDateStr = getLocalDateKey(presetDate);
+        targetDateObj = presetDate;
+      }
+
+      if (targetDateStr < todayStr) {
+        toast.error(t('reminders.validation.pastDateNotAllowed', { defaultValue: 'Reminder date cannot be in the past' }));
+        return;
+      }
+    }
+
+    const dayOfWeek = targetDateObj.getDay();
+    const dayOfMonth = targetDateObj.getDate();
+
     setForm({
       ...INITIAL_FORM,
-      reminderDate: getTodayDateString(user?.timezone),
+      reminderDate: targetDateStr,
+      weeklyDays: [dayOfWeek],
+      monthlyDayOfMonth: dayOfMonth,
     });
     setFormErrors({});
     setShowCreateModal(true);
@@ -448,6 +605,14 @@ export function RemindersPage() {
 
   const openEditModal = (reminder: ReminderItem) => {
     setEditingReminder(reminder);
+    let parsedWeeklyDays: number[] = [];
+    if (reminder.weeklyDays) {
+      try {
+        parsedWeeklyDays = typeof reminder.weeklyDays === 'string' ? JSON.parse(reminder.weeklyDays) : reminder.weeklyDays;
+      } catch {
+        parsedWeeklyDays = [];
+      }
+    }
     setForm({
       title: reminder.title,
       description: reminder.description || '',
@@ -459,6 +624,15 @@ export function RemindersPage() {
       reminderTime: reminder.reminderTime,
       recurrence: reminder.recurrence,
       assigneeIds: reminder.assignees.map((a) => a.user.id),
+      repeatInterval: reminder.repeatInterval || 1,
+      endType: (reminder.endType as any) || 'NEVER',
+      endDate: reminder.endDate ? reminder.endDate.slice(0, 10) : '',
+      endAfterOccurrences: reminder.endAfterOccurrences || 10,
+      weeklyDays: parsedWeeklyDays,
+      monthlyPattern: (reminder.monthlyPattern as any) || 'DAY_OF_MONTH',
+      monthlyDayOfMonth: reminder.monthlyDayOfMonth || 1,
+      monthlyWeekPosition: (reminder.monthlyWeekPosition as any) || 'LAST',
+      monthlyWeekDay: reminder.monthlyWeekDay ?? 1,
     });
     setFormErrors({});
     setShowEditModal(true);
@@ -508,7 +682,7 @@ export function RemindersPage() {
   const calendarTitle = calendarViewMode === 'day'
     ? currentDate.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
     : currentDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
-  const todayKeyStr = getLocalDateKey(new Date());
+  const todayKeyStr = getTodayDateString(user?.timezone);
 
   const dayNames = useMemo(() => {
     const date = new Date(2026, 7, 2); // A Sunday
@@ -529,6 +703,134 @@ export function RemindersPage() {
   const availableAssigneeOptions = useMemo(() => {
     return assigneeOptions.filter((opt) => !form.assigneeIds.includes(opt.value));
   }, [assigneeOptions, form.assigneeIds]);
+
+  // Breakdown of occurrences for the reminder currently opened in View Modal
+  const viewingOccurrencesList = useMemo(() => {
+    if (!viewingReminder || viewingReminder.recurrence === 'ONE_TIME') return [];
+
+    const startDateStr = viewingReminder.reminderDate
+      ? viewingReminder.reminderDate.slice(0, 10)
+      : viewingReminder.createdAt.slice(0, 10);
+    const endDateStr = viewingReminder.endDate ? viewingReminder.endDate.slice(0, 10) : undefined;
+
+    let weeklyDaysList: number[] | undefined;
+    if (viewingReminder.weeklyDays) {
+      try {
+        weeklyDaysList = typeof viewingReminder.weeklyDays === 'string' ? JSON.parse(viewingReminder.weeklyDays) : viewingReminder.weeklyDays;
+      } catch {
+        weeklyDaysList = undefined;
+      }
+    }
+
+    const maxCountToGenerate =
+      viewingReminder.endType === 'AFTER' && viewingReminder.endAfterOccurrences
+        ? viewingReminder.endAfterOccurrences
+        : viewingReminder.endType === 'ON_DATE'
+          ? 50
+          : 15;
+
+    const keys = Array.from(
+      getOccurrenceKeys(
+        {
+          recurrence: viewingReminder.recurrence,
+          startDate: startDateStr,
+          repeatInterval: viewingReminder.repeatInterval || 1,
+          endType: (viewingReminder.endType as 'ON_DATE' | 'AFTER' | 'NEVER') || 'NEVER',
+          endDate: endDateStr,
+          endAfterOccurrences: viewingReminder.endAfterOccurrences ?? undefined,
+          weeklyDays: weeklyDaysList,
+          monthlyPattern: (viewingReminder.monthlyPattern as 'DAY_OF_MONTH' | 'POSITIONAL_WEEKDAY') || undefined,
+          monthlyDayOfMonth: viewingReminder.monthlyDayOfMonth ?? undefined,
+          monthlyWeekPosition: (viewingReminder.monthlyWeekPosition as 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 'LAST') || undefined,
+          monthlyWeekDay: viewingReminder.monthlyWeekDay ?? undefined,
+        },
+        0, // compute full series from start to show complete history
+        maxCountToGenerate,
+      ),
+    );
+
+    const completed = viewingReminder.completedOccurrences || 0;
+
+    return keys.map((key, index) => {
+      let status: 'COMPLETED' | 'CURRENT' | 'UPCOMING' | 'CANCELLED';
+      if (index < completed) {
+        status = 'COMPLETED';
+      } else if (index === completed) {
+        if (viewingReminder.status === 'COMPLETED') {
+          status = 'COMPLETED';
+        } else if (viewingReminder.status === 'CANCELLED') {
+          status = 'CANCELLED';
+        } else {
+          status = 'CURRENT';
+        }
+      } else {
+        status = viewingReminder.status === 'CANCELLED' ? 'CANCELLED' : 'UPCOMING';
+      }
+
+      return {
+        number: index + 1,
+        dateKey: key,
+        status,
+      };
+    });
+  }, [viewingReminder]);
+
+  // Helper to format human-readable recurrence summary
+  const formatRecurrenceSummary = (r: ReminderItem): string => {
+    if (r.recurrence === 'ONE_TIME') {
+      return t('enums.reminderRecurrence.ONE_TIME', { defaultValue: 'One time' });
+    }
+
+    const interval = r.repeatInterval || 1;
+    let patternText = '';
+
+    if (r.recurrence === 'DAILY') {
+      patternText = t('reminders.recurrenceSummary.everyDay', { interval, defaultValue: `Every ${interval} day(s)` });
+    } else if (r.recurrence === 'WEEKLY') {
+      let days: number[] = [];
+      if (r.weeklyDays) {
+        try {
+          days = typeof r.weeklyDays === 'string' ? JSON.parse(r.weeklyDays) : r.weeklyDays;
+        } catch {
+          days = [];
+        }
+      }
+      const weekdayLabels = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      const daysStr = days.map((d) => t(`reminders.recurrencePanel.weekdays.${weekdayLabels[d]}`)).join(', ');
+      patternText = t('reminders.recurrenceSummary.everyWeek', { interval, days: daysStr || '—', defaultValue: `Every ${interval} week(s) on ${daysStr}` });
+    } else if (r.recurrence === 'MONTHLY') {
+      if (r.monthlyPattern === 'POSITIONAL_WEEKDAY') {
+        const pos = r.monthlyWeekPosition ? t(`reminders.recurrencePanel.monthPositions.${r.monthlyWeekPosition}`) : '';
+        const wday = r.monthlyWeekDay != null ? t(`reminders.recurrencePanel.weekdayNames.${r.monthlyWeekDay}`) : '';
+        patternText = t('reminders.recurrenceSummary.everyMonthPosition', { interval, position: pos, weekday: wday, defaultValue: `Every ${interval} month(s) on the ${pos} ${wday}` });
+      } else {
+        const day = r.monthlyDayOfMonth || (r.reminderDate ? new Date(r.reminderDate).getUTCDate() : 1);
+        patternText = t('reminders.recurrenceSummary.everyMonthDay', { interval, day, defaultValue: `Every ${interval} month(s) on day ${day}` });
+      }
+    } else if (r.recurrence === 'YEARLY') {
+      patternText = t('reminders.recurrenceSummary.everyYear', { interval, defaultValue: `Every ${interval} year(s)` });
+    }
+
+    let endText = '';
+    if (r.endType === 'ON_DATE' && r.endDate) {
+      endText = t('reminders.recurrenceSummary.endsOnDate', {
+        date: formatDate(r.endDate, i18n.language, user?.timezone),
+        defaultValue: `Ends on ${r.endDate.slice(0, 10)}`,
+      });
+    } else if (r.endType === 'AFTER' && r.endAfterOccurrences) {
+      const completed = r.completedOccurrences || 0;
+      const total = r.endAfterOccurrences;
+      const remaining = Math.max(0, total - completed);
+      endText = `${t('reminders.recurrenceSummary.endsAfter', {
+        count: total,
+        defaultValue: `Ends after ${total} occurrences`,
+      })} (${completed}/${total} ${t('common.done', { defaultValue: 'done' })} · ${remaining} ${t('reminders.remaining', { defaultValue: 'left' })})`;
+    } else {
+      endText = t('reminders.recurrenceSummary.neverEnds', { defaultValue: 'Never ends' });
+    }
+
+    return `${patternText} · ${endText}`;
+  };
 
   // ─── Render Modal Form Fields ─────────────
   const renderFormFields = (onSubmit: (e: React.FormEvent) => void, isEdit: boolean) => (
@@ -574,22 +876,93 @@ export function RemindersPage() {
           </div>
         </div>
 
-        {/* Row 2: Category + Recurrence */}
+        {/* Row 2: Category */}
+        <div className="form-group" style={{ marginTop: '1rem' }}>
+          <label className="form-label" htmlFor="input-reminder-category">
+            {t('reminders.fields.category', { defaultValue: 'Category' })}
+          </label>
+          <input
+            id="input-reminder-category"
+            className="form-input"
+            type="text"
+            placeholder={t('reminders.fields.categoryPlaceholder', { defaultValue: 'e.g. Cleaning, Inventory' })}
+            value={form.category}
+            onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+            disabled={saving}
+          />
+        </div>
+
+        {/* Row 3: Assigned To + Recurrence (Side by Side matching screenshots) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
           <div className="form-group">
-            <label className="form-label" htmlFor="input-reminder-category">
-              {t('reminders.fields.category', { defaultValue: 'Category' })}
+            <label className="form-label" htmlFor="select-reminder-assignees">
+              {t('reminders.fields.assignedTo', { defaultValue: 'Assigned To' })} *
             </label>
-            <input
-              id="input-reminder-category"
-              className="form-input"
-              type="text"
-              placeholder={t('reminders.fields.categoryPlaceholder', { defaultValue: 'e.g. Cleaning, Inventory' })}
-              value={form.category}
-              onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-              disabled={saving}
+
+            {/* Selected Assignees Badges */}
+            {selectedAssignees.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                {selectedAssignees.map((u) => (
+                  <span
+                    key={u.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 10px',
+                      borderRadius: '20px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      color: 'var(--primary, #3B82F6)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                    }}
+                  >
+                    <User size={13} />
+                    <span>{u.firstName} {u.lastName} ({u.role})</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAssignee(u.id)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: 'inherit',
+                        marginLeft: '2px',
+                      }}
+                      title={t('common.remove', { defaultValue: 'Remove' })}
+                    >
+                      <X size={13} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Searchable Select Input */}
+            <SearchableSelect
+              id="select-reminder-assignees"
+              options={availableAssigneeOptions}
+              value=""
+              onChange={addAssignee}
+              error={!!formErrors.assigneeIds}
+              placeholder={
+                availableAssigneeOptions.length === 0 && selectedAssignees.length > 0
+                  ? t('reminders.fields.allUsersSelected', { defaultValue: 'All users selected' })
+                  : t('reminders.fields.assignedToPlaceholder', { defaultValue: 'Search and select users to assign...' })
+              }
+              disabled={saving || availableAssigneeOptions.length === 0}
             />
+            {formErrors.assigneeIds && (
+              <span className="form-error" style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <AlertCircle size={12} /> {formErrors.assigneeIds}
+              </span>
+            )}
           </div>
+
           <div className="form-group">
             <label className="form-label" htmlFor="select-reminder-recurrence">
               {t('reminders.fields.recurrence', { defaultValue: 'Recurrence' })}
@@ -601,37 +974,43 @@ export function RemindersPage() {
               onChange={(e) => setForm((p) => ({ ...p, recurrence: e.target.value as any }))}
               disabled={saving}
             >
-              <option value="ONE_TIME">{t('enums.reminderRecurrence.ONE_TIME', { defaultValue: 'One time (No recurrence)' })}</option>
+              <option value="ONE_TIME">{t('enums.reminderRecurrence.ONE_TIME', { defaultValue: 'One Time' })}</option>
               <option value="DAILY">{t('enums.reminderRecurrence.DAILY', { defaultValue: 'Daily' })}</option>
               <option value="WEEKLY">{t('enums.reminderRecurrence.WEEKLY', { defaultValue: 'Weekly' })}</option>
               <option value="MONTHLY">{t('enums.reminderRecurrence.MONTHLY', { defaultValue: 'Monthly' })}</option>
+              <option value="YEARLY">{t('enums.reminderRecurrence.YEARLY', { defaultValue: 'Yearly' })}</option>
             </select>
           </div>
         </div>
 
-        {/* Row 3: Date & Time */}
+        {/* Row 4: Date & Time */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-          {form.recurrence === 'ONE_TIME' && (
-            <div className="form-group">
-              <label className="form-label" htmlFor="input-reminder-date">
-                {t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' })} *
-              </label>
-              <input
-                id="input-reminder-date"
-                className={`form-input ${formErrors.reminderDate ? 'form-input--error' : ''}`}
-                type="date"
-                min={getTodayDateString()}
-                value={form.reminderDate}
-                onChange={(e) => setForm((p) => ({ ...p, reminderDate: e.target.value }))}
-                disabled={saving}
-              />
-              {formErrors.reminderDate && (
-                <span className="form-error">
-                  <AlertCircle size={12} /> {formErrors.reminderDate}
-                </span>
-              )}
-            </div>
-          )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="input-reminder-date">
+              {form.recurrence === 'ONE_TIME'
+                ? t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' })
+                : t('reminders.recurrencePanel.startDate', { defaultValue: 'Start Date' })} *
+            </label>
+            <input
+              id="input-reminder-date"
+              className={`form-input ${formErrors.reminderDate ? 'form-input--error' : ''}`}
+              type="date"
+              min={getTodayDateString(user?.timezone)}
+              max={getMaxAllowedDate()}
+              value={form.reminderDate}
+              onChange={(e) => setForm((p) => ({ ...p, reminderDate: e.target.value }))}
+              disabled={saving}
+            />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              {t('reminders.recurrencePanel.startDateHint', { defaultValue: 'Choose a date within the next 3 years.' })}
+            </span>
+            {formErrors.reminderDate && (
+              <span className="form-error">
+                <AlertCircle size={12} /> {formErrors.reminderDate}
+              </span>
+            )}
+          </div>
+
           <div className="form-group">
             <label className="form-label" htmlFor="input-reminder-time">
               {t('reminders.fields.reminderTime', { defaultValue: 'Reminder Time' })} *
@@ -644,6 +1023,9 @@ export function RemindersPage() {
               onChange={(e) => setForm((p) => ({ ...p, reminderTime: e.target.value }))}
               disabled={saving}
             />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              {t('reminders.fields.timeHelperText', { defaultValue: 'You will be notified 2 hours before the scheduled time.' })}
+            </span>
             {formErrors.reminderTime && (
               <span className="form-error">
                 <AlertCircle size={12} /> {formErrors.reminderTime}
@@ -652,77 +1034,33 @@ export function RemindersPage() {
           </div>
         </div>
 
-        {/* Row 4: Assigned To - Mandatory with min 1 */}
-        <div className="form-group" style={{ marginTop: '1rem' }}>
-          <label className="form-label" htmlFor="select-reminder-assignees">
-            {t('reminders.fields.assignedTo', { defaultValue: 'Assigned To' })} *
-          </label>
-
-          {/* Selected Assignees Badges */}
-          {selectedAssignees.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              {selectedAssignees.map((u) => (
-                <span
-                  key={u.id}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 10px',
-                    borderRadius: '20px',
-                    fontSize: '0.8125rem',
-                    fontWeight: 500,
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    color: 'var(--primary, #3B82F6)',
-                    border: '1px solid rgba(59, 130, 246, 0.25)',
-                  }}
-                >
-                  <User size={13} />
-                  <span>{u.firstName} {u.lastName} ({u.role})</span>
-                  <button
-                    type="button"
-                    onClick={() => removeAssignee(u.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: 'inherit',
-                      marginLeft: '2px',
-                    }}
-                    title={t('common.remove', { defaultValue: 'Remove' })}
-                  >
-                    <X size={13} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Searchable Select Input */}
-          <SearchableSelect
-            id="select-reminder-assignees"
-            options={availableAssigneeOptions}
-            value=""
-            onChange={addAssignee}
-            error={!!formErrors.assigneeIds}
-            placeholder={
-              availableAssigneeOptions.length === 0 && selectedAssignees.length > 0
-                ? t('reminders.fields.allUsersSelected', { defaultValue: 'All users selected' })
-                : t('reminders.fields.assignedToPlaceholder', { defaultValue: 'Search and select users to assign...' })
-            }
-            disabled={saving || availableAssigneeOptions.length === 0}
+        {/* Row 5: Recurrence Configuration Panel (Only shown when not ONE_TIME) */}
+        {form.recurrence !== 'ONE_TIME' && (
+          <RecurrencePanel
+            recurrence={form.recurrence}
+            repeatInterval={form.repeatInterval}
+            endType={form.endType}
+            endDate={form.endDate}
+            endAfterOccurrences={form.endAfterOccurrences}
+            weeklyDays={form.weeklyDays}
+            monthlyPattern={form.monthlyPattern}
+            monthlyDayOfMonth={form.monthlyDayOfMonth}
+            monthlyWeekPosition={form.monthlyWeekPosition}
+            monthlyWeekDay={form.monthlyWeekDay}
+            errors={formErrors}
+            disabled={saving}
+            minDate={form.reminderDate || getTodayDateString(user?.timezone)}
+            maxDate={getMaxAllowedDate()}
+            onChange={(field, val) => {
+              setForm((prev) => ({ ...prev, [field]: val }));
+              if (formErrors[field]) {
+                setFormErrors((prev) => ({ ...prev, [field]: '' }));
+              }
+            }}
           />
-          {formErrors.assigneeIds && (
-            <span className="form-error" style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <AlertCircle size={12} /> {formErrors.assigneeIds}
-            </span>
-          )}
-        </div>
+        )}
 
-        {/* Row 5: Description */}
+        {/* Row 6: Description */}
         <div className="form-group" style={{ marginTop: '1rem' }}>
           <label className="form-label" htmlFor="input-reminder-desc">
             {t('reminders.fields.description', { defaultValue: 'Description' })}
@@ -869,7 +1207,7 @@ export function RemindersPage() {
           )}
 
           {canCreate && (
-            <button id="btn-add-reminder" className="btn btn--primary" style={{ height: '38px' }} onClick={openCreateModal}>
+            <button id="btn-add-reminder" className="btn btn--primary" style={{ height: '38px' }} onClick={() => openCreateModal()}>
               <Plus size={18} />
               <span>{t('reminders.createReminder', { defaultValue: 'New Reminder' })}</span>
             </button>
@@ -899,7 +1237,7 @@ export function RemindersPage() {
             </div>
           </div>
           <div className="stat-card">
-            <div className="stat-card__icon stat-card__icon--success">
+            <div className="stat-card__icon" style={{ backgroundColor: '#ECEEF2', color: '#16A34A' }}>
               <CheckCircle2 size={24} />
             </div>
             <div className="stat-card__content">
@@ -996,7 +1334,7 @@ export function RemindersPage() {
                 : t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
             </p>
             {reminders.length === 0 && canCreate && (
-              <button className="btn btn--primary" onClick={openCreateModal}>
+              <button className="btn btn--primary" onClick={() => openCreateModal()}>
                 <Plus size={18} />
                 <span>{t('reminders.createReminder', { defaultValue: 'New Reminder' })}</span>
               </button>
@@ -1116,19 +1454,52 @@ export function RemindersPage() {
                       </td>
 
                       <td>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
-                            fontWeight: 500,
-                          }}
-                        >
-                          <RefreshCw size={12} />
-                          {t(`enums.reminderRecurrence.${r.recurrence}`, { defaultValue: r.recurrence })}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.75rem',
+                              color: 'var(--text-secondary)',
+                              fontWeight: 600,
+                            }}
+                          >
+                            <RefreshCw size={12} />
+                            {t(`enums.reminderRecurrence.${r.recurrence}`, { defaultValue: r.recurrence })}
+                          </span>
+                          {r.recurrence !== 'ONE_TIME' && (
+                            r.endType === 'AFTER' && r.endAfterOccurrences ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 600,
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  backgroundColor: (r.completedOccurrences || 0) >= r.endAfterOccurrences ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
+                                  color: (r.completedOccurrences || 0) >= r.endAfterOccurrences ? '#059669' : 'var(--primary, #3B82F6)',
+                                  border: `1px solid ${(r.completedOccurrences || 0) >= r.endAfterOccurrences ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.2)'}`,
+                                }}
+                                title={`${r.completedOccurrences || 0} of ${r.endAfterOccurrences} occurrences completed`}
+                              >
+                                {r.completedOccurrences || 0}/{r.endAfterOccurrences} {t('common.done', { defaultValue: 'done' })}
+                              </span>
+                            ) : r.endType === 'ON_DATE' && r.endDate ? (
+                              <span
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  color: 'var(--text-muted)',
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {t('reminders.ends', { defaultValue: 'Ends' })} {formatDate(r.endDate, i18n.language, user?.timezone)}
+                              </span>
+                            ) : null
+                          )}
+                        </div>
                       </td>
 
                       {/* ASSIGNED TO: COUNT BADGE WITH SIDEBAR STYLED TOOLTIP SHOWING NAMES */}
@@ -1265,6 +1636,7 @@ export function RemindersPage() {
                 {monthGridDays.map((cell, idx) => {
                   const dateKey = getLocalDateKey(cell.date);
                   const isToday = dateKey === todayKeyStr;
+                  const isPast = dateKey < todayKeyStr;
                   const dayReminders = remindersByDate[dateKey] || [];
                   const displayReminders = dayReminders.slice(0, 3);
                   const extraCount = dayReminders.length - 3;
@@ -1272,18 +1644,39 @@ export function RemindersPage() {
                   return (
                     <div
                       key={idx}
+                      onClick={() => {
+                        if (!isPast && canCreate) {
+                          openCreateModal(cell.date);
+                        }
+                      }}
                       style={{
                         padding: '0.5rem',
                         borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid var(--border)',
                         borderBottom: '1px solid var(--border)',
-                        backgroundColor: isToday ? 'rgba(59, 130, 246, 0.04)' : cell.isCurrentMonth ? 'var(--bg-surface)' : 'var(--bg-secondary)',
-                        opacity: cell.isCurrentMonth ? 1 : 0.45,
+                        backgroundColor: isToday
+                          ? 'rgba(59, 130, 246, 0.04)'
+                          : isPast
+                            ? cell.isCurrentMonth
+                              ? 'rgba(0, 0, 0, 0.02)'
+                              : 'var(--bg-secondary)'
+                            : cell.isCurrentMonth
+                              ? 'var(--bg-surface)'
+                              : 'var(--bg-secondary)',
+                        opacity: isPast ? (cell.isCurrentMonth ? 0.65 : 0.4) : cell.isCurrentMonth ? 1 : 0.5,
                         minHeight: '120px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '0.375rem',
+                        cursor: !isPast && canCreate ? 'pointer' : 'default',
                         transition: 'background-color 0.15s ease',
                       }}
+                      title={
+                        isPast
+                          ? t('reminders.calendar.pastDateTooltip', { defaultValue: 'Past date — reminders cannot be scheduled' })
+                          : canCreate
+                            ? t('reminders.calendar.clickToCreate', { defaultValue: 'Click to create reminder for this date' })
+                            : undefined
+                      }
                     >
                       {/* Cell Day Header */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1305,24 +1698,55 @@ export function RemindersPage() {
                           {cell.date.getDate()}
                         </span>
 
-                        {dayReminders.length > 0 && (
-                          <span
-                            onClick={() => setDayModal({ isOpen: true, date: cell.date, reminders: dayReminders })}
-                            style={{
-                              fontSize: '0.7rem',
-                              fontWeight: 700,
-                              color: 'var(--primary, #3B82F6)',
-                              cursor: 'pointer',
-                              padding: '1px 6px',
-                              borderRadius: '10px',
-                              backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                              border: '1px solid rgba(59, 130, 246, 0.2)',
-                            }}
-                            title={t('reminders.calendar.remindersCount', { count: dayReminders.length })}
-                          >
-                            {dayReminders.length}
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {dayReminders.length > 0 && (
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDayModal({ isOpen: true, date: cell.date, reminders: dayReminders });
+                              }}
+                              style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                color: 'var(--primary, #3B82F6)',
+                                cursor: 'pointer',
+                                padding: '1px 6px',
+                                borderRadius: '10px',
+                                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                                border: '1px solid rgba(59, 130, 246, 0.2)',
+                              }}
+                              title={t('reminders.calendar.remindersCount', { count: dayReminders.length })}
+                            >
+                              {dayReminders.length}
+                            </span>
+                          )}
+                          {!isPast && canCreate && (
+                            <button
+                              type="button"
+                              className="btn-icon"
+                              style={{
+                                width: '22px',
+                                height: '22px',
+                                padding: 0,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                color: 'var(--primary, #3B82F6)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                                border: '1px solid rgba(59, 130, 246, 0.2)',
+                                cursor: 'pointer',
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openCreateModal(cell.date);
+                              }}
+                              title={t('reminders.calendar.addReminderForDate', { defaultValue: 'Add reminder for this date' })}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Reminder Item Chips */}
@@ -1333,7 +1757,10 @@ export function RemindersPage() {
                           return (
                             <div
                               key={rem.id}
-                              onClick={() => openViewModal(rem)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openViewModal(rem);
+                              }}
                               style={{
                                 padding: '4px 6px',
                                 borderRadius: '5px',
@@ -1376,7 +1803,10 @@ export function RemindersPage() {
 
                         {extraCount > 0 && (
                           <button
-                            onClick={() => setDayModal({ isOpen: true, date: cell.date, reminders: dayReminders })}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDayModal({ isOpen: true, date: cell.date, reminders: dayReminders });
+                            }}
                             style={{
                               background: 'none',
                               border: 'none',
@@ -1406,20 +1836,47 @@ export function RemindersPage() {
                 {weekGridDays.map((wDate, idx) => {
                   const dateKey = getLocalDateKey(wDate);
                   const isToday = dateKey === todayKeyStr;
+                  const isPast = dateKey < todayKeyStr;
                   const dayName = wDate.toLocaleDateString(locale, { weekday: 'short' });
 
                   return (
                     <div
                       key={idx}
+                      onClick={() => {
+                        if (!isPast && canCreate) {
+                          openCreateModal(wDate);
+                        }
+                      }}
                       style={{
                         padding: '0.75rem',
                         textAlign: 'center',
                         borderRight: idx === 6 ? 'none' : '1px solid var(--border)',
-                        backgroundColor: isToday ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                        backgroundColor: isToday ? 'rgba(59, 130, 246, 0.08)' : isPast ? 'rgba(0,0,0,0.02)' : 'transparent',
+                        opacity: isPast ? 0.7 : 1,
+                        cursor: !isPast && canCreate ? 'pointer' : 'default',
                       }}
+                      title={!isPast && canCreate ? t('reminders.calendar.clickToCreate', { defaultValue: 'Click to create reminder for this date' }) : undefined}
                     >
                       <div style={{ fontSize: '0.7188rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>{dayName}</div>
                       <div style={{ fontSize: '1.25rem', fontWeight: 700, color: isToday ? 'var(--primary, #3B82F6)' : 'var(--text-primary)', marginTop: '2px' }}>{wDate.getDate()}</div>
+                      {!isPast && canCreate && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            marginTop: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            fontSize: '0.6875rem',
+                            fontWeight: 600,
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            color: 'var(--primary, #3B82F6)',
+                          }}
+                        >
+                          <Plus size={11} /> {t('common.add', { defaultValue: 'Add' })}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -1428,53 +1885,74 @@ export function RemindersPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: '400px' }}>
                 {weekGridDays.map((wDate, idx) => {
                   const dateKey = getLocalDateKey(wDate);
+                  const isPast = dateKey < todayKeyStr;
                   const dayReminders = remindersByDate[dateKey] || [];
 
                   return (
                     <div
                       key={idx}
+                      onClick={() => {
+                        if (!isPast && canCreate) {
+                          openCreateModal(wDate);
+                        }
+                      }}
                       style={{
                         padding: '0.5rem',
                         borderRight: idx === 6 ? 'none' : '1px solid var(--border)',
+                        backgroundColor: isPast ? 'rgba(0, 0, 0, 0.015)' : 'transparent',
+                        opacity: isPast ? 0.7 : 1,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '0.5rem',
+                        cursor: !isPast && canCreate ? 'pointer' : 'default',
                       }}
+                      title={!isPast && canCreate ? t('reminders.calendar.clickToCreate', { defaultValue: 'Click to create reminder for this date' }) : undefined}
                     >
                       {dayReminders.length === 0 ? (
-                        <div style={{ padding: '1.5rem 0.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                          —
+                        <div style={{ padding: '2rem 0.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                          {!isPast && canCreate ? (
+                            <span style={{ color: 'var(--primary, #3B82F6)', fontWeight: 500, fontSize: '0.75rem' }}>
+                              + {t('reminders.calendar.clickToAdd', { defaultValue: 'Click to add' })}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
                         </div>
                       ) : (
-                        dayReminders.map((rem) => {
-                          const pConfig = PRIORITY_CONFIG[rem.priority] || PRIORITY_CONFIG.MEDIUM;
-                          const sConfig = STATUS_CONFIG[rem.status] || STATUS_CONFIG.PENDING;
-                          return (
-                            <div
-                              key={rem.id}
-                              onClick={() => openViewModal(rem)}
-                              style={{
-                                padding: '6px 8px',
-                                borderRadius: '6px',
-                                backgroundColor: pConfig.bg,
-                                borderLeft: `3px solid ${pConfig.color}`,
-                                borderTop: `1px solid ${pConfig.border}`,
-                                borderRight: `1px solid ${pConfig.border}`,
-                                borderBottom: `1px solid ${pConfig.border}`,
-                                cursor: 'pointer',
-                                fontSize: '0.75rem',
-                              }}
-                            >
-                              <div style={{ fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span>{rem.title}</span>
-                                <span style={{ color: sConfig.color }}>{sConfig.icon}</span>
+                        <>
+                          {dayReminders.map((rem) => {
+                            const pConfig = PRIORITY_CONFIG[rem.priority] || PRIORITY_CONFIG.MEDIUM;
+                            const sConfig = STATUS_CONFIG[rem.status] || STATUS_CONFIG.PENDING;
+                            return (
+                              <div
+                                key={rem.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openViewModal(rem);
+                                }}
+                                style={{
+                                  padding: '6px 8px',
+                                  borderRadius: '6px',
+                                  backgroundColor: pConfig.bg,
+                                  borderLeft: `3px solid ${pConfig.color}`,
+                                  borderTop: `1px solid ${pConfig.border}`,
+                                  borderRight: `1px solid ${pConfig.border}`,
+                                  borderBottom: `1px solid ${pConfig.border}`,
+                                  cursor: 'pointer',
+                                  fontSize: '0.75rem',
+                                }}
+                              >
+                                <div style={{ fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span>{rem.title}</span>
+                                  <span style={{ color: sConfig.color }}>{sConfig.icon}</span>
+                                </div>
+                                <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                  ⏰ {rem.reminderTime}
+                                </div>
                               </div>
-                              <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                ⏰ {rem.reminderTime}
-                              </div>
-                            </div>
-                          );
-                        })
+                            );
+                          })}
+                        </>
                       )}
                     </div>
                   );
@@ -1488,89 +1966,134 @@ export function RemindersPage() {
             <div style={{ padding: '1.5rem' }}>
               {(() => {
                 const dateKey = getLocalDateKey(currentDate);
+                const isPast = dateKey < todayKeyStr;
                 const dayReminders = remindersByDate[dateKey] || [];
 
-                if (dayReminders.length === 0) {
-                  return (
-                    <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      <CalendarIcon size={44} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
-                      <p style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 500 }}>
-                        {t('reminders.calendar.noReminders', { defaultValue: 'No reminders on this date' })}
-                      </p>
-                    </div>
-                  );
-                }
-
                 return (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-                    {dayReminders.map((rem) => {
-                      const pConfig = PRIORITY_CONFIG[rem.priority] || PRIORITY_CONFIG.MEDIUM;
-                      const sConfig = STATUS_CONFIG[rem.status] || STATUS_CONFIG.PENDING;
-                      return (
-                        <div
-                          key={rem.id}
-                          onClick={() => openViewModal(rem)}
-                          style={{
-                            padding: '1.125rem',
-                            borderRadius: '10px',
-                            backgroundColor: pConfig.bg,
-                            borderLeft: `5px solid ${pConfig.color}`,
-                            borderTop: `1px solid ${pConfig.border}`,
-                            borderRight: `1px solid ${pConfig.border}`,
-                            borderBottom: `1px solid ${pConfig.border}`,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.625rem',
-                            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{rem.title}</span>
-                            <span
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    {/* Day View Top Header & Action Row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: dateKey === todayKeyStr ? 'var(--primary, #3B82F6)' : 'var(--bg-secondary)', color: dateKey === todayKeyStr ? '#FFFFFF' : 'var(--text-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1rem' }}>
+                          {currentDate.getDate()}
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {currentDate.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                          </h3>
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                            {t('reminders.calendar.remindersCount', { count: dayReminders.length })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        {isPast ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8125rem', fontWeight: 500, backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                            <AlertCircle size={14} />
+                            {t('reminders.calendar.pastDayNotice', { defaultValue: 'Past date — reminders cannot be scheduled for past dates' })}
+                          </span>
+                        ) : canCreate ? (
+                          <button
+                            className="btn btn--primary"
+                            onClick={() => openCreateModal(currentDate)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                          >
+                            <Plus size={16} />
+                            <span>{t('reminders.calendar.addForThisDay', { defaultValue: 'Add Reminder for this Day' })}</span>
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Reminders Cards or Empty State */}
+                    {dayReminders.length === 0 ? (
+                      <div style={{ padding: '3.5rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        <CalendarIcon size={44} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
+                        <p style={{ margin: '0 0 1rem 0', fontSize: '0.9375rem', fontWeight: 500 }}>
+                          {isPast
+                            ? t('reminders.calendar.noRemindersPast', { defaultValue: 'No reminders recorded for this past date.' })
+                            : t('reminders.calendar.noReminders', { defaultValue: 'No reminders scheduled for this date.' })}
+                        </p>
+                        {!isPast && canCreate && (
+                          <button className="btn btn--primary" onClick={() => openCreateModal(currentDate)}>
+                            <Plus size={16} />
+                            <span>{t('reminders.calendar.addForThisDay', { defaultValue: 'Add Reminder for this Day' })}</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+                        {dayReminders.map((rem) => {
+                          const pConfig = PRIORITY_CONFIG[rem.priority] || PRIORITY_CONFIG.MEDIUM;
+                          const sConfig = STATUS_CONFIG[rem.status] || STATUS_CONFIG.PENDING;
+                          return (
+                            <div
+                              key={rem.id}
+                              onClick={() => openViewModal(rem)}
                               style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.375rem',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                color: sConfig.color,
-                                padding: '3px 9px',
-                                borderRadius: '12px',
-                                backgroundColor: 'rgba(255,255,255,0.85)',
+                                padding: '1.125rem',
+                                borderRadius: '10px',
+                                backgroundColor: pConfig.bg,
+                                borderLeft: `5px solid ${pConfig.color}`,
+                                borderTop: `1px solid ${pConfig.border}`,
+                                borderRight: `1px solid ${pConfig.border}`,
+                                borderBottom: `1px solid ${pConfig.border}`,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.625rem',
+                                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = 'none';
                               }}
                             >
-                              {sConfig.icon}
-                              {t(`enums.reminderStatus.${rem.status}`, { defaultValue: rem.status })}
-                            </span>
-                          </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{rem.title}</span>
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    color: sConfig.color,
+                                    padding: '3px 9px',
+                                    borderRadius: '12px',
+                                    backgroundColor: 'rgba(255,255,255,0.85)',
+                                  }}
+                                >
+                                  {sConfig.icon}
+                                  {t(`enums.reminderStatus.${rem.status}`, { defaultValue: rem.status })}
+                                </span>
+                              </div>
 
-                          {rem.category && (
-                            <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                              🏷️ {rem.category}
+                              {rem.category && (
+                                <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                                  🏷️ {rem.category}
+                                </div>
+                              )}
+
+                              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                                ⏰ <strong>{rem.reminderTime}</strong>
+                              </div>
+
+                              {rem.description && (
+                                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0 }}>
+                                  {rem.description}
+                                </p>
+                              )}
                             </div>
-                          )}
-
-                          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                            ⏰ <strong>{rem.reminderTime}</strong>
-                          </div>
-
-                          {rem.description && (
-                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0 }}>
-                              {rem.description}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1582,7 +2105,7 @@ export function RemindersPage() {
       {/* ─── CREATE MODAL ─── */}
       {showCreateModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '640px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+          <div className="modal" style={{ maxWidth: '680px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal__header">
               <h3 className="modal__title">{t('reminders.createReminder', { defaultValue: 'New Reminder' })}</h3>
               <button className="modal__close" onClick={() => setShowCreateModal(false)}>
@@ -1597,7 +2120,7 @@ export function RemindersPage() {
       {/* ─── EDIT MODAL ─── */}
       {showEditModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '640px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+          <div className="modal" style={{ maxWidth: '680px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal__header">
               <h3 className="modal__title">{t('reminders.editReminder', { defaultValue: 'Edit Reminder' })}</h3>
               <button className="modal__close" onClick={() => setShowEditModal(false)}>
@@ -1612,7 +2135,7 @@ export function RemindersPage() {
       {/* ─── VIEW MODAL (ADMIN & OWNER) ─── */}
       {showViewModal && viewingReminder && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '640px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+          <div className="modal" style={{ maxWidth: '680px', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div className="modal__header">
               <h3 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Eye size={20} style={{ color: 'var(--primary, #3B82F6)' }} />
@@ -1654,7 +2177,7 @@ export function RemindersPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
-                    📅 {t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' })}
+                    📅 {viewingReminder.recurrence === 'ONE_TIME' ? t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' }) : t('reminders.recurrencePanel.startDate', { defaultValue: 'Start Date' })}
                   </span>
                   <p style={{ margin: 0, fontWeight: 500 }}>
                     {viewingReminder.reminderDate ? formatDate(viewingReminder.reminderDate, i18n.language, user?.timezone, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
@@ -1670,13 +2193,34 @@ export function RemindersPage() {
                   </strong>
                 </div>
 
-                <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)', gridColumn: viewingReminder.recurrence !== 'ONE_TIME' ? '1 / -1' : undefined }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
                     🔄 {t('reminders.fields.recurrence', { defaultValue: 'Recurrence' })}
                   </span>
-                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                    {t(`enums.reminderRecurrence.${viewingReminder.recurrence}`, { defaultValue: viewingReminder.recurrence })}
+                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)', display: 'block' }}>
+                    {formatRecurrenceSummary(viewingReminder)}
                   </strong>
+                  {viewingReminder.endType === 'AFTER' && viewingReminder.endAfterOccurrences && (
+                    <div style={{ marginTop: '0.625rem', paddingTop: '0.625rem', borderTop: '1px dashed var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 500 }}>
+                        <span>{t('reminders.occurrenceProgress', { defaultValue: 'Occurrence Progress' })}</span>
+                        <strong style={{ color: (viewingReminder.completedOccurrences || 0) >= viewingReminder.endAfterOccurrences ? '#059669' : 'var(--primary, #3B82F6)' }}>
+                          {viewingReminder.completedOccurrences || 0} / {viewingReminder.endAfterOccurrences} {t('common.done', { defaultValue: 'done' })}
+                        </strong>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', borderRadius: '4px', backgroundColor: 'var(--bg-secondary)', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${Math.min(100, Math.round(((viewingReminder.completedOccurrences || 0) / viewingReminder.endAfterOccurrences) * 100))}%`,
+                            height: '100%',
+                            backgroundColor: (viewingReminder.completedOccurrences || 0) >= viewingReminder.endAfterOccurrences ? '#10B981' : 'var(--primary, #3B82F6)',
+                            borderRadius: '4px',
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
@@ -1758,6 +2302,192 @@ export function RemindersPage() {
                   </div>
                 )}
               </div>
+
+              {/* Occurrence Breakdown Report (for recurring reminders) */}
+              {viewingReminder.recurrence !== 'ONE_TIME' && viewingOccurrencesList.length > 0 && (
+                <div className="form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <label className="form-label" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem', margin: 0 }}>
+                      <CalendarIcon size={15} />
+                      {t('reminders.occurrenceBreakdown.title', { defaultValue: 'Occurrence Schedule & Breakdown' })}
+                    </label>
+                    {viewingReminder.endType === 'AFTER' && viewingReminder.endAfterOccurrences && (
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        {t('reminders.occurrenceBreakdown.totalOccurrences', {
+                          completed: viewingReminder.completedOccurrences || 0,
+                          total: viewingReminder.endAfterOccurrences,
+                          defaultValue: `${viewingReminder.completedOccurrences || 0} of ${viewingReminder.endAfterOccurrences} completed`,
+                        })}
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      backgroundColor: 'var(--bg-secondary)',
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      padding: '0.5rem',
+                    }}
+                  >
+                    {viewingOccurrencesList.map((occ) => {
+                      const isDone = occ.status === 'COMPLETED';
+                      const isCurrent = occ.status === 'CURRENT';
+                      const isCancelled = occ.status === 'CANCELLED';
+
+                      return (
+                        <div
+                          key={occ.number}
+                          style={{
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '6px',
+                            backgroundColor: isCurrent
+                              ? 'rgba(59, 130, 246, 0.08)'
+                              : isDone
+                                ? 'rgba(16, 185, 129, 0.06)'
+                                : 'var(--bg-surface)',
+                            border: `1px solid ${
+                              isCurrent
+                                ? 'rgba(59, 130, 246, 0.3)'
+                                : isDone
+                                  ? 'rgba(16, 185, 129, 0.25)'
+                                  : 'var(--border)'
+                            }`,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                            <span
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.6875rem',
+                                fontWeight: 700,
+                                backgroundColor: isDone
+                                  ? '#10B981'
+                                  : isCurrent
+                                    ? 'var(--primary, #3B82F6)'
+                                    : 'var(--bg-secondary)',
+                                color: isDone || isCurrent ? '#FFFFFF' : 'var(--text-secondary)',
+                                border: isDone || isCurrent ? 'none' : '1px solid var(--border)',
+                              }}
+                            >
+                              #{occ.number}
+                            </span>
+                            <div>
+                              <strong style={{ fontSize: '0.8125rem', color: isDone ? 'var(--text-secondary)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}>
+                                {formatDate(occ.dateKey, i18n.language, user?.timezone, {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </strong>
+                              <span style={{ fontSize: '0.7188rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                                ⏰ {viewingReminder.reminderTime}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div>
+                            {isDone ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 600,
+                                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                  color: '#059669',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                }}
+                              >
+                                <CheckCircle2 size={12} />
+                                {t('reminders.occurrenceBreakdown.completed', { defaultValue: 'Completed' })}
+                              </span>
+                            ) : isCurrent ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 600,
+                                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                  color: 'var(--primary, #3B82F6)',
+                                  border: '1px solid rgba(59, 130, 246, 0.35)',
+                                }}
+                              >
+                                <Clock size={12} />
+                                {t('reminders.occurrenceBreakdown.currentDue', { defaultValue: 'Current Due' })}
+                              </span>
+                            ) : isCancelled ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 600,
+                                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                  color: '#DC2626',
+                                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                                }}
+                              >
+                                <XCircle size={12} />
+                                {t('reminders.occurrenceBreakdown.cancelled', { defaultValue: 'Cancelled' })}
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 500,
+                                  backgroundColor: 'var(--bg-surface)',
+                                  color: 'var(--text-muted)',
+                                  border: '1px solid var(--border)',
+                                }}
+                              >
+                                <CalendarIcon size={12} />
+                                {t('reminders.occurrenceBreakdown.upcoming', { defaultValue: 'Upcoming' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {viewingReminder.endType === 'NEVER' && (
+                      <div style={{ padding: '4px 8px', textAlign: 'center', fontSize: '0.6875rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        {t('reminders.occurrenceBreakdown.showingNext', { count: 15, defaultValue: 'Showing next 15 occurrences (series repeats indefinitely)' })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -1825,70 +2555,102 @@ export function RemindersPage() {
       {/* ─── DAY DETAIL MODAL ─── */}
       {dayModal.isOpen && dayModal.date && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '520px', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+          <div className="modal" style={{ maxWidth: '540px', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
             <div className="modal__header">
-              <h3 className="modal__title">
-                {t('reminders.calendar.titleDate', { defaultValue: 'Reminders for' })} {dayModal.date.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
-              </h3>
+              <div>
+                <h3 className="modal__title">
+                  {t('reminders.calendar.titleDate', { defaultValue: 'Reminders for' })}{' '}
+                  {dayModal.date.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+                </h3>
+                {getLocalDateKey(dayModal.date) < todayKeyStr && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
+                    {t('reminders.calendar.pastDate', { defaultValue: 'Past Date' })}
+                  </span>
+                )}
+              </div>
               <button className="modal__close" onClick={() => setDayModal({ isOpen: false, date: null, reminders: [] })}>
                 <X size={18} />
               </button>
             </div>
             <div className="modal__body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {dayModal.reminders.map((rem) => {
-                const pConfig = PRIORITY_CONFIG[rem.priority] || PRIORITY_CONFIG.MEDIUM;
-                const sConfig = STATUS_CONFIG[rem.status] || STATUS_CONFIG.PENDING;
-                return (
-                  <div
-                    key={rem.id}
-                    style={{
-                      padding: '0.75rem',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--bg-secondary)',
-                      borderLeft: `4px solid ${pConfig.color}`,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{rem.title}</div>
-                      {rem.category && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{rem.category} • </span>
-                      )}
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>⏰ {rem.reminderTime}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sConfig.color }}>
-                        {t(`enums.reminderStatus.${rem.status}`, { defaultValue: rem.status })}
-                      </span>
-                      <button
-                        className="btn-icon"
-                        onClick={() => {
-                          setDayModal({ isOpen: false, date: null, reminders: [] });
-                          openViewModal(rem);
-                        }}
-                        title={t('reminders.viewDetails', { defaultValue: 'View Details' })}
-                      >
-                        <Eye size={16} />
-                      </button>
-                      {canEdit && (
+              {dayModal.reminders.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  {t('reminders.calendar.noReminders', { defaultValue: 'No reminders on this date' })}
+                </div>
+              ) : (
+                dayModal.reminders.map((rem) => {
+                  const pConfig = PRIORITY_CONFIG[rem.priority] || PRIORITY_CONFIG.MEDIUM;
+                  const sConfig = STATUS_CONFIG[rem.status] || STATUS_CONFIG.PENDING;
+                  return (
+                    <div
+                      key={rem.id}
+                      style={{
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-secondary)',
+                        borderLeft: `4px solid ${pConfig.color}`,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{rem.title}</div>
+                        {rem.category && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{rem.category} • </span>
+                        )}
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>⏰ {rem.reminderTime}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sConfig.color }}>
+                          {t(`enums.reminderStatus.${rem.status}`, { defaultValue: rem.status })}
+                        </span>
                         <button
                           className="btn-icon"
                           onClick={() => {
                             setDayModal({ isOpen: false, date: null, reminders: [] });
-                            openEditModal(rem);
+                            openViewModal(rem);
                           }}
+                          title={t('reminders.viewDetails', { defaultValue: 'View Details' })}
                         >
-                          <Edit3 size={16} />
+                          <Eye size={16} />
                         </button>
-                      )}
+                        {canEdit && (
+                          <button
+                            className="btn-icon"
+                            onClick={() => {
+                              setDayModal({ isOpen: false, date: null, reminders: [] });
+                              openEditModal(rem);
+                            }}
+                            title={t('common.edit', { defaultValue: 'Edit' })}
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
-            <div className="modal__footer" style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', backgroundColor: 'var(--bg-surface)', marginTop: 0 }}>
+            <div className="modal__footer" style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-surface)', marginTop: 0 }}>
+              <div>
+                {getLocalDateKey(dayModal.date) >= todayKeyStr && canCreate && (
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--sm"
+                    onClick={() => {
+                      const targetDate = dayModal.date;
+                      setDayModal({ isOpen: false, date: null, reminders: [] });
+                      if (targetDate) openCreateModal(targetDate);
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
+                  >
+                    <Plus size={14} />
+                    <span>{t('reminders.createReminder', { defaultValue: 'New Reminder' })}</span>
+                  </button>
+                )}
+              </div>
               <button className="btn btn-outline" onClick={() => setDayModal({ isOpen: false, date: null, reminders: [] })}>
                 {t('common.close', { defaultValue: 'Close' })}
               </button>
