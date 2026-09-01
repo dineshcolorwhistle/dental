@@ -3,6 +3,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { ReminderRecurrence, ReminderStatus } from '@prisma/client';
+import {
+  getHHmmInTz,
+  getDateKeyInTz,
+} from '../../common/utils/timezone.util';
 
 @Injectable()
 export class RemindersSchedulerService {
@@ -16,15 +20,16 @@ export class RemindersSchedulerService {
   /**
    * Runs every 5 minutes to check for reminders that need notification
    * (2 hours before scheduled time).
+   *
+   * Time comparisons now use the tenant's configured timezone so notifications
+   * trigger at the correct local time for the client (e.g., Mexico City time).
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleReminderNotifications() {
     try {
       const now = new Date();
-      const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-      const currentHHmm = `${String(twoHoursFromNow.getHours()).padStart(2, '0')}:${String(twoHoursFromNow.getMinutes()).padStart(2, '0')}`;
 
-      // Get all active (PENDING) reminders
+      // Get all active (PENDING) reminders with their tenant timezone
       const reminders = await this.prisma.reminder.findMany({
         where: {
           status: ReminderStatus.PENDING,
@@ -43,15 +48,34 @@ export class RemindersSchedulerService {
               },
             },
           },
-          tenant: { select: { name: true } },
+          tenant: {
+            select: {
+              name: true,
+              settings: {
+                select: { timezone: true },
+              },
+            },
+          },
         },
       });
 
       for (const reminder of reminders) {
+        // Get the tenant's timezone (fall back to America/Mexico_City)
+        const tz =
+          (reminder.tenant as any)?.settings?.timezone ||
+          'America/Mexico_City';
+
+        // Calculate "2 hours from now" in the tenant's timezone
+        const twoHoursFromNow = new Date(
+          now.getTime() + 2 * 60 * 60 * 1000,
+        );
+        const targetHHmm = getHHmmInTz(twoHoursFromNow, tz);
+
         const shouldNotify = this.shouldSendNotification(
           reminder,
           now,
-          currentHHmm,
+          targetHHmm,
+          tz,
         );
 
         if (shouldNotify) {
@@ -64,7 +88,7 @@ export class RemindersSchedulerService {
           });
 
           this.logger.log(
-            `Sent reminder notification for "${reminder.title}" (ID: ${reminder.id})`,
+            `Sent reminder notification for "${reminder.title}" (ID: ${reminder.id}) [TZ: ${tz}]`,
           );
         }
       }
@@ -75,6 +99,7 @@ export class RemindersSchedulerService {
 
   /**
    * Determine if a reminder should trigger a notification right now.
+   * All date comparisons use the tenant's timezone.
    */
   private shouldSendNotification(
     reminder: {
@@ -85,6 +110,7 @@ export class RemindersSchedulerService {
     },
     now: Date,
     targetHHmm: string,
+    tz: string,
   ): boolean {
     // Only process if the current 5-min window aligns with the reminder time
     const reminderMinutes = this.parseTimeToMinutes(reminder.reminderTime);
@@ -95,42 +121,34 @@ export class RemindersSchedulerService {
       return false;
     }
 
-    const todayStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
+    // Get "today" in the tenant's timezone (YYYY-MM-DD key)
+    const todayKey = getDateKeyInTz(now, tz);
 
     switch (reminder.recurrence) {
       case ReminderRecurrence.ONE_TIME: {
         if (!reminder.reminderDate) return false;
-        const reminderDateStart = new Date(
-          reminder.reminderDate.getFullYear(),
-          reminder.reminderDate.getMonth(),
-          reminder.reminderDate.getDate(),
-        );
-        // Must be today and not already notified
-        if (reminderDateStart.getTime() !== todayStart.getTime()) return false;
+        // Compare reminder date against "today" in tenant's timezone
+        const reminderDateKey = getDateKeyInTz(reminder.reminderDate, tz);
+        if (reminderDateKey !== todayKey) return false;
+        // Check if already notified today
         if (reminder.lastNotifiedAt) {
-          const lastNotifiedDate = new Date(
-            reminder.lastNotifiedAt.getFullYear(),
-            reminder.lastNotifiedAt.getMonth(),
-            reminder.lastNotifiedAt.getDate(),
+          const lastNotifiedKey = getDateKeyInTz(
+            reminder.lastNotifiedAt,
+            tz,
           );
-          if (lastNotifiedDate.getTime() === todayStart.getTime()) return false;
+          if (lastNotifiedKey === todayKey) return false;
         }
         return true;
       }
 
       case ReminderRecurrence.DAILY: {
-        // Send every day if not already notified today
+        // Send every day if not already notified today (in tenant's TZ)
         if (reminder.lastNotifiedAt) {
-          const lastNotifiedDate = new Date(
-            reminder.lastNotifiedAt.getFullYear(),
-            reminder.lastNotifiedAt.getMonth(),
-            reminder.lastNotifiedAt.getDate(),
+          const lastNotifiedKey = getDateKeyInTz(
+            reminder.lastNotifiedAt,
+            tz,
           );
-          if (lastNotifiedDate.getTime() === todayStart.getTime()) return false;
+          if (lastNotifiedKey === todayKey) return false;
         }
         return true;
       }
@@ -148,14 +166,15 @@ export class RemindersSchedulerService {
       }
 
       case ReminderRecurrence.MONTHLY: {
-        // Send on same day-of-month if not already notified this month
+        // Send on same day-of-month if not already notified this month (in tenant's TZ)
         if (reminder.lastNotifiedAt) {
-          if (
-            reminder.lastNotifiedAt.getFullYear() === now.getFullYear() &&
-            reminder.lastNotifiedAt.getMonth() === now.getMonth()
-          ) {
-            return false;
-          }
+          const lastNotifiedKey = getDateKeyInTz(
+            reminder.lastNotifiedAt,
+            tz,
+          );
+          const lastMonth = lastNotifiedKey.slice(0, 7); // YYYY-MM
+          const currentMonth = todayKey.slice(0, 7);
+          if (lastMonth === currentMonth) return false;
         }
         return true;
       }

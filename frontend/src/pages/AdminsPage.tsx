@@ -536,7 +536,7 @@ export function AdminsPage() {
                            )}
                         </span>
                         <span className="cell-primary__meta">
-                          {t('common.created') || 'Created'} {new Date(admin.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+                          {t('common.created') || 'Created'} {new Date(admin.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                             day: 'numeric',
                             month: 'short',
                           })}

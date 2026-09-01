@@ -749,7 +749,7 @@ export function DoctorsPage() {
                             <span className="cell-primary__meta">
                               {t('common.created')}{' '}
                               {new Date(doctor.createdAt).toLocaleDateString(
-                                i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN',
+                                i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
                                 { day: 'numeric', month: 'short' },
                               )}
                             </span>
@@ -1087,7 +1087,7 @@ export function DoctorsPage() {
                         <td>
                           <span className="cell-date">
                             {new Date(list.createdAt).toLocaleDateString(
-                              i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN',
+                              i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
                               { day: 'numeric', month: 'short', year: 'numeric' },
                             )}
                           </span>

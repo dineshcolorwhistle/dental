@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useSocket } from '../context';
+import { useSocket, useAuth } from '../context';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 import {
   Loader2,
   Printer,
@@ -159,6 +160,7 @@ export function WorkOrderDetailPage() {
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
 
   const { socket, isConnected } = useSocket();
+  const { user } = useAuth();
 
   const fetchWorkOrder = useCallback((silent = false) => {
     if (!id) return;
@@ -398,7 +400,7 @@ export function WorkOrderDetailPage() {
               <div>
                 <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}><Calendar size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}</span>
                 <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {new Date(workOrder.deliveryDate).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {formatDate(workOrder.deliveryDate, i18n.language, user?.timezone)}
                 </span>
               </div>
             )}
@@ -413,11 +415,7 @@ export function WorkOrderDetailPage() {
             <div>
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}><Calendar size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />{t('workOrder.createdDate')}</span>
               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                {new Date(workOrder.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })}
+                {formatDate(workOrder.createdAt, i18n.language, user?.timezone)}
               </span>
             </div>
             {(() => {
@@ -741,17 +739,17 @@ export function WorkOrderDetailPage() {
                 {processes.map((proc: any, idx: number) => {
                   const stepStatus = proc.status || 'NOT_STARTED';
 
-                  const formatDate = (dateStr: string | Date) => {
-                    return new Date(dateStr).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+                  const formatStepDate = (dateStr: string | Date) => {
+                    return formatDateTime(dateStr, i18n.language, user?.timezone, {
                       day: 'numeric',
                       month: 'short',
                       hour: '2-digit',
-                      minute: '2-digit'
+                      minute: '2-digit',
                     });
                   };
 
-                  let startTimeStr = proc.startedAt ? formatDate(proc.startedAt) : '—';
-                  let endTimeStr = proc.endedAt ? formatDate(proc.endedAt) : (stepStatus === 'IN_PROGRESS' ? t('workOrder.running') : stepStatus === 'PAUSED' ? t('enums.processStatus.PAUSED') : '—');
+                  let startTimeStr = proc.startedAt ? formatStepDate(proc.startedAt) : '—';
+                  let endTimeStr = proc.endedAt ? formatStepDate(proc.endedAt) : (stepStatus === 'IN_PROGRESS' ? t('workOrder.running') : stepStatus === 'PAUSED' ? t('enums.processStatus.PAUSED') : '—');
 
                   let badgeColor = 'var(--text-muted, #64748B)';
                   let badgeBg = 'var(--bg-overlay, rgba(148, 163, 184, 0.08))';
@@ -969,9 +967,7 @@ export function WorkOrderDetailPage() {
                                             <span style={{ color: getActionColor(log.action) }}>{getActionLabel(log.action)}</span>
                                           </span>
                                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                            {new Date(log.timestamp).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
-                                              day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                                            })}
+                                            {formatDateTime(log.timestamp, i18n.language, user?.timezone)}
                                           </span>
                                         </div>
                                         {log.notes && (

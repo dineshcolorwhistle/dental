@@ -1426,7 +1426,15 @@
     "saveSuccess": "Lab logo updated successfully",
     "saveFailed": "Failed to update lab logo",
     "logoRequired": "Logo is required",
-    "loading": "Loading settings..."
+    "loading": "Loading settings...",
+    "timezone": "Timezone",
+    "timezoneHint": "Business timezone for scheduled reminders, operational dashboards, and date calculations",
+    "currency": "Default Currency",
+    "currencyHint": "Currency used for quotes, invoices, and payments",
+    "saveSettings": "Save Settings",
+    "settingsSaved": "Settings updated successfully",
+    "selectTimezone": "Search or select timezone...",
+    "selectCurrency": "Search or select currency..."
   },
   "connectedClinics": {
     "title": "Connected Clinics",

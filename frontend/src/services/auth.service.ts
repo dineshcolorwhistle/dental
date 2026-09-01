@@ -20,6 +20,8 @@ export interface AuthUser {
   maxAdmins?: number | null;
   maxTechnicians?: number | null;
   preferredLanguage?: 'EN' | 'ES' | null;
+  timezone?: string;
+  currency?: string;
 }
 
 export interface AuthResponse {
@@ -43,6 +45,10 @@ export interface UserProfile extends AuthUser {
     subdomain: string;
     maxAdmins?: number;
     maxTechnicians?: number;
+    settings?: {
+      timezone?: string;
+      currency?: string;
+    } | null;
   } | null;
   branch: {
     id: string;

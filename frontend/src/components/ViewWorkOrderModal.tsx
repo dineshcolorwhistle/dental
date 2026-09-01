@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 import {
   X,
   Loader2,
@@ -737,7 +738,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                               <div>
                                 <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}</span>
                                 <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                  {new Date(selectedWO.deliveryDate).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                  {formatDate(selectedWO.deliveryDate, i18n.language, user?.timezone, { day: 'numeric', month: 'long', year: 'numeric' })}
                                 </span>
                               </div>
                             )}
@@ -758,7 +759,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                             <div>
                               <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.createdAt')}</span>
                               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                {new Date(selectedWO.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                                {formatDate(selectedWO.createdAt, i18n.language, user?.timezone, {
                                   day: 'numeric',
                                   month: 'long',
                                   year: 'numeric',
@@ -1117,8 +1118,8 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                 {processes.map((proc: any, idx: number) => {
                                   const stepStatus = proc.status || 'NOT_STARTED';
 
-                                  const formatDate = (dateStr: string | Date) => {
-                                    return new Date(dateStr).toLocaleDateString('en-IN', {
+                                  const formatStepTime = (dateStr: string | Date) => {
+                                    return formatDateTime(dateStr, i18n.language, user?.timezone, {
                                       day: 'numeric',
                                       month: 'short',
                                       hour: '2-digit',
@@ -1126,8 +1127,8 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                     });
                                   };
 
-                                  let startTimeStr = proc.startedAt ? formatDate(proc.startedAt) : '—';
-                                  let endTimeStr = proc.endedAt ? formatDate(proc.endedAt) : (stepStatus === 'IN_PROGRESS' ? t('common.running') : stepStatus === 'PAUSED' ? t('enums.processStatus.PAUSED') : '—');
+                                  let startTimeStr = proc.startedAt ? formatStepTime(proc.startedAt) : '—';
+                                  let endTimeStr = proc.endedAt ? formatStepTime(proc.endedAt) : (stepStatus === 'IN_PROGRESS' ? t('common.running') : stepStatus === 'PAUSED' ? t('enums.processStatus.PAUSED') : '—');
                                   
                                   let badgeColor = 'var(--text-muted, #64748B)';
                                   let badgeBg = 'var(--bg-overlay, rgba(148, 163, 184, 0.08))';
@@ -1444,13 +1445,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                                             <span style={{ color: getActionColor(log.action) }}>{getActionLabel(log.action)}</span>
                                                           </span>
                                                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                            {new Date(log.timestamp).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
-                                                              day: 'numeric',
-                                                              month: 'short',
-                                                              year: 'numeric',
-                                                              hour: '2-digit',
-                                                              minute: '2-digit'
-                                                            })}
+                                                            {formatDateTime(log.timestamp, i18n.language, user?.timezone)}
                                                           </span>
                                                         </div>
                                                         {log.notes && (
@@ -1689,7 +1684,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                               {/* Initial Payment Creation Row */}
                               <tr style={{ borderBottom: payments.length > 0 ? '1px solid var(--border)' : 'none' }}>
                                 <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                                  {new Date(selectedWO.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                                  {formatDate(selectedWO.createdAt, i18n.language, user?.timezone, {
                                     day: 'numeric',
                                     month: 'short',
                                     year: 'numeric',
@@ -1725,7 +1720,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                   borderBottom: pidx < payments.length - 1 ? '1px solid var(--border)' : 'none'
                                 }}>
                                   <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                                    {new Date(payment.date).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                                    {formatDate(payment.date, i18n.language, user?.timezone, {
                                       day: 'numeric',
                                       month: 'short',
                                       year: 'numeric',

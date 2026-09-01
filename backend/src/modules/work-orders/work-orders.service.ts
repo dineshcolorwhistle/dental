@@ -8,6 +8,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { generateFolioNumber } from '../../common/utils/folio.util';
+import {
+  startOfDayInTz,
+  parseCalendarDate,
+} from '../../common/utils/timezone.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -527,7 +531,7 @@ export class WorkOrdersService implements OnModuleInit {
         specification: finalSpecification || null,
         color,
         notes: notes || null,
-        deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
+        deliveryDate: dto.deliveryDate ? parseCalendarDate(dto.deliveryDate) : null,
         totalQuote: totalQuote ?? 0,
         initialPayment: initialPayment ?? null,
         paymentReferenceNumber: paymentReferenceNumber || null,
@@ -1218,7 +1222,7 @@ export class WorkOrdersService implements OnModuleInit {
           ...(color !== undefined && { color }),
           ...(notes !== undefined && { notes: notes || null }),
           ...(dto.deliveryDate !== undefined && {
-            deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
+            deliveryDate: dto.deliveryDate ? parseCalendarDate(dto.deliveryDate) : null,
           }),
           ...(totalQuote !== undefined && { totalQuote }),
           ...(initialPayment !== undefined && { initialPayment }),
@@ -1496,8 +1500,13 @@ export class WorkOrdersService implements OnModuleInit {
    */
   async getDashboardStats(tenantId: string, branchIdContext: string | null) {
     try {
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
+      // Use tenant timezone for "today" calculation
+      const tenantSettings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: { timezone: true },
+      });
+      const tz = tenantSettings?.timezone || 'America/Mexico_City';
+      const startOfToday = startOfDayInTz(tz);
 
       // 1. Fetch Verification Alerts (active/pending verification steps in the branch)
       const alerts = await this.prisma.workOrderProcess.findMany({

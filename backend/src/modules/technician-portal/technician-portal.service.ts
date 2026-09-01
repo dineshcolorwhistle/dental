@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { generateFolioNumber } from '../../common/utils/folio.util';
+import { startOfDayInTz } from '../../common/utils/timezone.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -163,8 +164,13 @@ export class TechnicianPortalService {
    * Scans and aggregates queue metrics for the logged-in technician.
    */
   async getDashboardStats(tenantId: string, technicianId: string) {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    // Use tenant timezone for "today" calculation
+    const tenantSettings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId },
+      select: { timezone: true },
+    });
+    const tz = tenantSettings?.timezone || 'America/Mexico_City';
+    const startOfToday = startOfDayInTz(tz);
 
     const [pendingCount, activeCount, pausedCount, completedTodayCount] =
       await Promise.all([

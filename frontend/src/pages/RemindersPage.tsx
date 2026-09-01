@@ -32,6 +32,12 @@ import {
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect } from '../components';
 import toast from 'react-hot-toast';
+import {
+  formatDate,
+  formatDateTime,
+  normalizeCalendarDate,
+  getTodayKeyInTz,
+} from '../utils/dateUtils';
 
 type ViewMode = 'list' | 'calendar';
 type CalendarViewMode = 'month' | 'week' | 'day';
@@ -57,12 +63,8 @@ const getLocalDateKey = (d: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const getTodayDateString = (): string => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+const getTodayDateString = (tz?: string): string => {
+  return getTodayKeyInTz(tz || 'America/Mexico_City');
 };
 
 interface ReminderFormState {
@@ -270,7 +272,7 @@ export function RemindersPage() {
     const map: Record<string, ReminderItem[]> = {};
     filteredReminders.forEach((r) => {
       if (r.recurrence === 'ONE_TIME' && r.reminderDate) {
-        const key = getLocalDateKey(new Date(r.reminderDate));
+        const key = getLocalDateKey(normalizeCalendarDate(r.reminderDate));
         if (!map[key]) map[key] = [];
         map[key].push(r);
       } else if (r.recurrence === 'DAILY') {
@@ -355,7 +357,7 @@ export function RemindersPage() {
         assigneeIds: form.assigneeIds,
       };
       if (form.recurrence === 'ONE_TIME' && form.reminderDate) {
-        payload.reminderDate = new Date(form.reminderDate).toISOString();
+        payload.reminderDate = `${form.reminderDate.slice(0, 10)}T12:00:00.000Z`;
       }
       await reminderService.create(payload);
       toast.success(t('reminders.createSuccess', { defaultValue: 'Reminder created successfully!' }));
@@ -387,7 +389,7 @@ export function RemindersPage() {
         assigneeIds: form.assigneeIds,
       };
       if (form.recurrence === 'ONE_TIME' && form.reminderDate) {
-        payload.reminderDate = new Date(form.reminderDate).toISOString();
+        payload.reminderDate = `${form.reminderDate.slice(0, 10)}T12:00:00.000Z`;
       }
       await reminderService.update(editingReminder.id, payload);
       toast.success(t('reminders.updateSuccess', { defaultValue: 'Reminder updated successfully!' }));
@@ -438,7 +440,7 @@ export function RemindersPage() {
   const openCreateModal = () => {
     setForm({
       ...INITIAL_FORM,
-      reminderDate: getTodayDateString(),
+      reminderDate: getTodayDateString(user?.timezone),
     });
     setFormErrors({});
     setShowCreateModal(true);
@@ -452,8 +454,8 @@ export function RemindersPage() {
       category: reminder.category || '',
       priority: reminder.priority,
       reminderDate: reminder.reminderDate
-        ? new Date(reminder.reminderDate).toISOString().split('T')[0]
-        : getTodayDateString(),
+        ? reminder.reminderDate.slice(0, 10)
+        : getTodayDateString(user?.timezone),
       reminderTime: reminder.reminderTime,
       recurrence: reminder.recurrence,
       assigneeIds: reminder.assignees.map((a) => a.user.id),
@@ -1105,7 +1107,7 @@ export function RemindersPage() {
                           <Clock size={14} style={{ color: 'var(--text-muted)' }} />
                           <span>
                             {r.reminderDate
-                              ? new Date(r.reminderDate).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+                              ? formatDate(r.reminderDate, i18n.language, user?.timezone)
                               : '—'}
                             {' '}
                             <strong style={{ fontWeight: 600 }}>{r.reminderTime}</strong>
@@ -1654,9 +1656,9 @@ export function RemindersPage() {
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
                     📅 {t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' })}
                   </span>
-                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                    {viewingReminder.reminderDate ? new Date(viewingReminder.reminderDate).toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                  </strong>
+                  <p style={{ margin: 0, fontWeight: 500 }}>
+                    {viewingReminder.reminderDate ? formatDate(viewingReminder.reminderDate, i18n.language, user?.timezone, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                  </p>
                 </div>
 
                 <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
@@ -1699,9 +1701,9 @@ export function RemindersPage() {
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
                     ⏰ {t('reminders.lastNotified', { defaultValue: 'Last Notified' })}
                   </span>
-                  <strong style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                    {viewingReminder.lastNotifiedAt ? new Date(viewingReminder.lastNotifiedAt).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('reminders.notNotifiedYet', { defaultValue: 'Not notified yet' })}
-                  </strong>
+                  <p style={{ margin: 0, fontWeight: 500 }}>
+                    {viewingReminder.lastNotifiedAt ? formatDateTime(viewingReminder.lastNotifiedAt, i18n.language, user?.timezone) : t('reminders.notNotifiedYet', { defaultValue: 'Not notified yet' })}
+                  </p>
                 </div>
               </div>
 

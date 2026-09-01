@@ -7,6 +7,10 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateReminderDto, UpdateReminderDto } from './dto';
 import { ReminderRecurrence, ReminderStatus, UserRole } from '@prisma/client';
+import {
+  isDateBeforeTodayInTz,
+  parseCalendarDate,
+} from '../../common/utils/timezone.util';
 
 @Injectable()
 export class RemindersService {
@@ -41,10 +45,14 @@ export class RemindersService {
     }
 
     if (dto.reminderDate) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const reminderDate = new Date(dto.reminderDate);
-      if (reminderDate < today) {
+      // Fetch tenant timezone for date comparison
+      const tenantSettings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: { timezone: true },
+      });
+      const tz = tenantSettings?.timezone || 'America/Mexico_City';
+
+      if (isDateBeforeTodayInTz(dto.reminderDate, tz)) {
         throw new BadRequestException('Reminder date cannot be in the past.');
       }
     }
@@ -88,7 +96,7 @@ export class RemindersService {
         description: dto.description || null,
         category: dto.category || null,
         priority: dto.priority || 'MEDIUM',
-        reminderDate: dto.reminderDate ? new Date(dto.reminderDate) : null,
+        reminderDate: dto.reminderDate ? parseCalendarDate(dto.reminderDate) : null,
         reminderTime: dto.reminderTime,
         recurrence: dto.recurrence || 'ONE_TIME',
         createdById: userId,
@@ -295,7 +303,7 @@ export class RemindersService {
     if (dto.priority !== undefined) updateData.priority = dto.priority;
     if (dto.reminderDate !== undefined)
       updateData.reminderDate = dto.reminderDate
-        ? new Date(dto.reminderDate)
+        ? parseCalendarDate(dto.reminderDate)
         : null;
     if (dto.reminderTime !== undefined)
       updateData.reminderTime = dto.reminderTime;

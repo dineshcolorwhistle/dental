@@ -37,10 +37,10 @@ export class TenantsController {
 
   @Patch('my/profile')
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update current tenant logo' })
+  @ApiOperation({ summary: 'Update current tenant profile or settings' })
   async updateMyProfile(
     @CurrentUser('tenantId') tenantId: string,
-    @Body() dto: { logoUrl: string },
+    @Body() dto: { logoUrl?: string; timezone?: string; currency?: string },
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');

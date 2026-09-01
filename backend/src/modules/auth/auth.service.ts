@@ -171,18 +171,29 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    // Fetch tenant name if tenantId exists
+    // Fetch tenant name and settings if tenantId exists
     let tenantName: string | null = null;
     let maxAdmins: number | null = null;
     let maxTechnicians: number | null = null;
+    let timezone = 'America/Mexico_City';
+    let currency = 'MXN';
     if (user.tenantId) {
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: user.tenantId },
-        select: { name: true, maxAdmins: true, maxTechnicians: true },
+        select: {
+          name: true,
+          maxAdmins: true,
+          maxTechnicians: true,
+          settings: {
+            select: { timezone: true, currency: true },
+          },
+        },
       });
       tenantName = tenant?.name || null;
       maxAdmins = tenant?.maxAdmins || null;
       maxTechnicians = tenant?.maxTechnicians || null;
+      timezone = tenant?.settings?.timezone || 'America/Mexico_City';
+      currency = tenant?.settings?.currency || 'MXN';
     }
 
     // Fetch branch name if branchId exists
@@ -214,6 +225,8 @@ export class AuthService {
         maxAdmins,
         maxTechnicians,
         preferredLanguage: user.preferredLanguage,
+        timezone,
+        currency,
       },
       ...tokens,
     };
@@ -475,6 +488,9 @@ export class AuthService {
             subdomain: true,
             maxAdmins: true,
             maxTechnicians: true,
+            settings: {
+              select: { timezone: true, currency: true },
+            },
           },
         },
         branch: {

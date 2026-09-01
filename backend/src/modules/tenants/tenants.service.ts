@@ -373,6 +373,13 @@ export class TenantsService {
         name: true,
         subdomain: true,
         logoUrl: true,
+        settings: {
+          select: {
+            timezone: true,
+            currency: true,
+            dateFormat: true,
+          },
+        },
       },
     });
 
@@ -386,11 +393,15 @@ export class TenantsService {
   }
 
   /**
-   * Update tenant logo url.
+   * Update tenant logo url or settings.
    */
-  async updateMyTenant(tenantId: string, dto: { logoUrl: string }) {
+  async updateMyTenant(
+    tenantId: string,
+    dto: { logoUrl?: string; timezone?: string; currency?: string },
+  ) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
+      include: { settings: true },
     });
 
     if (!tenant) {
@@ -399,22 +410,33 @@ export class TenantsService {
       );
     }
 
-    const updated = await this.prisma.tenant.update({
-      where: { id: tenantId },
-      data: {
-        logoUrl: dto.logoUrl,
-      },
-      select: {
-        id: true,
-        name: true,
-        subdomain: true,
-        logoUrl: true,
-      },
-    });
+    if (dto.logoUrl !== undefined) {
+      await this.prisma.tenant.update({
+        where: { id: tenantId },
+        data: { logoUrl: dto.logoUrl },
+      });
+      this.logger.log(`Tenant logo updated for: ${tenant.name} (${tenant.id})`);
+    }
 
-    this.logger.log(`Tenant logo updated for: ${updated.name} (${updated.id})`);
+    if (dto.timezone || dto.currency) {
+      await this.prisma.tenantSettings.upsert({
+        where: { tenantId },
+        update: {
+          ...(dto.timezone && { timezone: dto.timezone }),
+          ...(dto.currency && { currency: dto.currency }),
+        },
+        create: {
+          tenantId,
+          timezone: dto.timezone || 'America/Mexico_City',
+          currency: dto.currency || 'MXN',
+        },
+      });
+      this.logger.log(
+        `Tenant settings updated for: ${tenant.name} (${tenant.id}) [TZ: ${dto.timezone || 'unchanged'}, Currency: ${dto.currency || 'unchanged'}]`,
+      );
+    }
 
-    return updated;
+    return this.findMyTenant(tenantId);
   }
 
   /**

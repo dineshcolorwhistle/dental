@@ -87,8 +87,8 @@ export function ProsthesisTypesPage() {
 
   const formatCurrency = (val: number | null | undefined) => {
     if (val == null) return '—';
-    const currency = i18n.language?.startsWith('es') ? 'MXN' : 'INR';
-    const locale = i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN';
+    const currency = i18n.language?.startsWith('es') ? 'MXN' : 'MXN';
+    const locale = i18n.language?.startsWith('es') ? 'es-MX' : 'en-US';
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(val);
   };
 
@@ -570,7 +570,7 @@ export function ProsthesisTypesPage() {
                   )}
                   <td>
                     <span className="cell-date">
-                      {new Date(item.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+                      {new Date(item.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric',

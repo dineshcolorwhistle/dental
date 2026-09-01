@@ -488,7 +488,7 @@ export function TechniciansPage() {
                           {tech.firstName} {tech.lastName}
                         </span>
                         <span className="cell-primary__meta">
-                          {t('common.joined', { defaultValue: 'Joined' })} {new Date(tech.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+                          {t('common.joined', { defaultValue: 'Joined' })} {new Date(tech.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                             day: 'numeric',
                             month: 'short',
                           })}

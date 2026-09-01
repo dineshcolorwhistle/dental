@@ -531,7 +531,7 @@ export function TenantsPage() {
                   </td>
                   <td>
                     <span className="cell-date">
-                      {new Date(tenant.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+                      {new Date(tenant.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric',

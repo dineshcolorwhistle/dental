@@ -8,17 +8,57 @@ import {
   Loader2,
   Trash2,
   Lock,
+  Clock,
+  Coins,
+  Save,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tenantService } from '../services';
+import { SearchableSelect } from '../components';
+
+const TIMEZONE_OPTIONS = [
+  { value: 'America/Mexico_City', label: 'Mexico City, Guadalajara, Monterrey, Puebla (UTC-6) - Central' },
+  { value: 'America/Cancun', label: 'Cancún, Chetumal, Quintana Roo (UTC-5) - Southeast' },
+  { value: 'America/Tijuana', label: 'Tijuana, Mexicali, Ensenada (UTC-8) - Pacific' },
+  { value: 'America/Hermosillo', label: 'Hermosillo, Sonora (UTC-7) - Sonora' },
+  { value: 'America/Chihuahua', label: 'Chihuahua, Ciudad Juárez (UTC-6) - Mountain' },
+  { value: 'America/Mazatlan', label: 'Mazatlán, Culiacán, Sinaloa (UTC-7)' },
+  { value: 'America/Merida', label: 'Mérida, Yucatán (UTC-6)' },
+  { value: 'America/Monterrey', label: 'Monterrey, Nuevo León (UTC-6)' },
+  { value: 'America/Bogota', label: 'Bogotá, Medellín, Cali - Colombia (UTC-5)' },
+  { value: 'America/Lima', label: 'Lima, Arequipa - Peru (UTC-5)' },
+  { value: 'America/Santiago', label: 'Santiago, Valparaíso - Chile (UTC-3/-4)' },
+  { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires, Córdoba - Argentina (UTC-3)' },
+  { value: 'America/Guatemala', label: 'Guatemala City - Guatemala (UTC-6)' },
+  { value: 'America/Costa_Rica', label: 'San José - Costa Rica (UTC-6)' },
+  { value: 'America/Panama', label: 'Panama City - Panama (UTC-5)' },
+  { value: 'America/New_York', label: 'New York, Boston, Miami (UTC-5/-4) - US Eastern' },
+  { value: 'America/Chicago', label: 'Chicago, Dallas, Houston (UTC-6/-5) - US Central' },
+  { value: 'America/Denver', label: 'Denver, Salt Lake City (UTC-7/-6) - US Mountain' },
+  { value: 'America/Phoenix', label: 'Phoenix, Arizona (UTC-7)' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles, San Francisco, Seattle (UTC-8/-7) - US Pacific' },
+  { value: 'Europe/Madrid', label: 'Madrid, Barcelona - Spain (UTC+1/+2) - CET' },
+  { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
+];
+
+const CURRENCY_OPTIONS = [
+  { value: 'MXN', label: 'MXN ($) - Peso Mexicano' },
+  { value: 'USD', label: 'USD ($) - US Dollar' },
+  { value: 'EUR', label: 'EUR (€) - Euro' },
+  { value: 'COP', label: 'COP ($) - Peso Colombiano' },
+  { value: 'PEN', label: 'PEN (S/) - Sol Peruano' },
+];
 
 export function GeneralSettingsPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [labName, setLabName] = useState('');
   const [subdomain, setSubdomain] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState('America/Mexico_City');
+  const [currency, setCurrency] = useState('MXN');
 
   useEffect(() => {
     const fetchTenantProfile = async () => {
@@ -28,6 +68,12 @@ export function GeneralSettingsPage() {
         setLabName(data.name);
         setSubdomain(data.subdomain);
         setLogoUrl(data.logoUrl);
+        if (data.settings?.timezone) {
+          setTimezone(data.settings.timezone);
+        }
+        if (data.settings?.currency) {
+          setCurrency(data.settings.currency);
+        }
       } catch (err) {
         toast.error(t('failedLoadReference', { defaultValue: 'Failed to load organization settings' }));
         console.error(err);
@@ -71,7 +117,6 @@ export function GeneralSettingsPage() {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
-          // Wait, is there a logoUrl in the stored user profile? We can add it or let it sync in the background
           parsed.tenantLogoUrl = base64Url;
           localStorage.setItem('user', JSON.stringify(parsed));
         }
@@ -106,6 +151,29 @@ export function GeneralSettingsPage() {
       console.error(err);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingSettings(true);
+      await tenantService.updateMyProfile({ timezone, currency });
+      toast.success(t('generalSettings.settingsSaved', { defaultValue: 'Settings updated successfully' }));
+
+      // Sync updated timezone and currency in local storage session
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.timezone = timezone;
+        parsed.currency = currency;
+        localStorage.setItem('user', JSON.stringify(parsed));
+      }
+    } catch (err: any) {
+      toast.error(t('generalSettings.saveFailed', { defaultValue: 'Failed to update settings' }));
+      console.error(err);
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -192,6 +260,60 @@ export function GeneralSettingsPage() {
               </div>
             </div>
           </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0.5rem 0' }} />
+
+          {/* Timezone & Currency Configuration Form */}
+          <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* Timezone */}
+            <div className="form-group">
+              <label className="form-label" htmlFor="settings-timezone" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                <Clock size={14} style={{ color: 'var(--accent-primary)' }} />
+                {t('generalSettings.timezone')}
+              </label>
+              <SearchableSelect
+                id="settings-timezone"
+                options={TIMEZONE_OPTIONS}
+                value={timezone}
+                onChange={(val) => setTimezone(val)}
+                placeholder={t('generalSettings.selectTimezone', { defaultValue: 'Search or select timezone...' })}
+              />
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {t('generalSettings.timezoneHint')}
+              </p>
+            </div>
+
+            {/* Currency */}
+            <div className="form-group">
+              <label className="form-label" htmlFor="settings-currency" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                <Coins size={14} style={{ color: 'var(--accent-primary)' }} />
+                {t('generalSettings.currency')}
+              </label>
+              <SearchableSelect
+                id="settings-currency"
+                options={CURRENCY_OPTIONS}
+                value={currency}
+                onChange={(val) => setCurrency(val)}
+                placeholder={t('generalSettings.selectCurrency', { defaultValue: 'Select currency...' })}
+              />
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {t('generalSettings.currencyHint')}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={savingSettings}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                {savingSettings ? <Loader2 size={15} className="spinner" /> : <Save size={15} />}
+                <span>{t('generalSettings.saveSettings')}</span>
+              </button>
+            </div>
+          </form>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0.5rem 0' }} />
 

@@ -53,6 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               maxAdmins: profile.tenant?.maxAdmins || null,
               maxTechnicians: profile.tenant?.maxTechnicians || null,
               preferredLanguage: profile.preferredLanguage || 'ES',
+              timezone: profile.tenant?.settings?.timezone || 'America/Mexico_City',
+              currency: profile.tenant?.settings?.currency || 'MXN',
             };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setUser(updatedUser);

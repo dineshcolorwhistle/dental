@@ -139,9 +139,9 @@ model Tenant {
 model TenantSettings {
   id             String @id @default(uuid())
   tenantId       String @unique @map("tenant_id")
-  timezone       String @default("UTC")
+  timezone       String @default("America/Mexico_City")
   dateFormat     String @default("DD/MM/YYYY") @map("date_format")
-  currency       String @default("INR")
+  currency       String @default("MXN")
   workingDays    String @default("Mon,Tue,Wed,Thu,Fri,Sat") @map("working_days")
   workingHoursStart String @default("09:00") @map("working_hours_start")
   workingHoursEnd   String @default("18:00") @map("working_hours_end")

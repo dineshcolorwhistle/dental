@@ -1426,7 +1426,15 @@
     "saveSuccess": "Logotipo del laboratorio actualizado con éxito",
     "saveFailed": "Error al actualizar el logotipo del laboratorio",
     "logoRequired": "El logotipo es obligatorio",
-    "loading": "Cargando configuración..."
+    "loading": "Cargando configuración...",
+    "timezone": "Zona Horaria",
+    "timezoneHint": "Zona horaria del negocio para recordatorios programados, paneles operativos y cálculos de fechas",
+    "currency": "Moneda Predeterminada",
+    "currencyHint": "Moneda utilizada para cotizaciones, facturas y pagos",
+    "saveSettings": "Guardar Configuración",
+    "settingsSaved": "Configuración actualizada con éxito",
+    "selectTimezone": "Buscar o seleccionar zona horaria...",
+    "selectCurrency": "Buscar o seleccionar moneda..."
   },
   "connectedClinics": {
     "title": "Clínicas Conectadas",

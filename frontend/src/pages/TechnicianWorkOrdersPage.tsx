@@ -32,6 +32,7 @@ import {
   type TechnicianWorkOrderListItem,
   type TechnicianProcessItem,
 } from '../services';
+import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { QRLabelModal, WorkOrderChat } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
 import { NoteHistoryThread } from '../components/NoteHistoryThread';
@@ -466,7 +467,7 @@ export function TechnicianWorkOrdersPage() {
   };
 
   const formatActivityTime = (timeStr: string) => {
-    return new Date(timeStr).toLocaleTimeString('en-IN', {
+    return formatTime(timeStr, i18n.language, user?.timezone, {
       hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
     });
   };
@@ -692,7 +693,7 @@ export function TechnicianWorkOrdersPage() {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
                       <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'var(--text-muted)' }}>
-                        {t('workOrder.created')}: {new Date(wo.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', { day: 'numeric', month: 'short' })}
+                        {t('workOrder.created')}: {formatDate(wo.createdAt, i18n.language, user?.timezone, { day: 'numeric', month: 'short' })}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
                         {t('workOrder.viewDetailsStepper')} <ChevronRight size={12} />
@@ -833,7 +834,7 @@ export function TechnicianWorkOrdersPage() {
                         <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.createdOn')}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
                           <Calendar size={14} style={{ color: 'var(--accent-primary)' }} />
-                          <span>{new Date(selectedOrder.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                          <span>{formatDate(selectedOrder.createdAt, i18n.language, user?.timezone, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                         </div>
                       </div>
                       <div>
@@ -1011,7 +1012,7 @@ export function TechnicianWorkOrdersPage() {
                               {t('workOrder.flaggedReworkDesc', {
                                 name: `${activeRework.initiatedBy?.firstName || t('enums.userRole.ADMIN')} ${activeRework.initiatedBy?.lastName || ''}`,
                                 stage: activeRework.verificationStage,
-                                date: new Date(activeRework.initiatedAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                                date: formatDateTime(activeRework.initiatedAt, i18n.language, user?.timezone, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                               })}
                             </div>
                           </div>

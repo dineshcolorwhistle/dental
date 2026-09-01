@@ -184,9 +184,9 @@ export function FinancePage() {
   };
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
       style: 'currency',
-      currency: i18n.language?.startsWith('es') ? 'MXN' : 'INR',
+      currency: i18n.language?.startsWith('es') ? 'MXN' : 'MXN',
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -1543,7 +1543,7 @@ export function FinancePage() {
                           {formatCurrency(wo.outstandingAmount)}
                         </td>
                         <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                          {new Date(wo.dueDate).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+                          {new Date(wo.dueDate).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',

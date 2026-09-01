@@ -48,6 +48,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
 import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal } from '../components';
+import { formatDate } from '../utils/dateUtils';
 
 type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
@@ -124,9 +125,9 @@ export function WorkOrdersPage() {
   const canEdit = isAdmin;
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
       style: 'currency',
-      currency: i18n.language?.startsWith('es') ? 'MXN' : 'INR',
+      currency: i18n.language?.startsWith('es') ? 'MXN' : 'MXN',
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -1231,7 +1232,7 @@ export function WorkOrdersPage() {
                     </td>
                     <td>
                       <span className="cell-date">
-                        {new Date(wo.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-IN', {
+                        {formatDate(wo.createdAt, i18n.language, user?.timezone, {
                           day: 'numeric',
                           month: 'short',
                           year: '2-digit',

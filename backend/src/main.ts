@@ -1,3 +1,7 @@
+// Normalize server timezone to UTC regardless of VPS location (Boston/US Eastern).
+// Must be set BEFORE any imports to ensure all Date operations use UTC.
+process.env.TZ = 'UTC';
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
