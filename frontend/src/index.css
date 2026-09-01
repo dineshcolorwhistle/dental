@@ -4171,6 +4171,14 @@ a:hover { color: var(--accent-primary-hover); }
   z-index: 100;
 }
 
-
-
+/* ─── Multi-line Wrapping for Long Tooltips ──────────────────────── */
+[data-tooltip-top].tooltip-wrap::after,
+[data-tooltip-bottom].tooltip-wrap::after {
+  max-width: 280px;
+  white-space: normal;
+  word-break: break-word;
+  min-width: 140px;
+  text-align: center;
+  line-height: 1.4;
+}
 

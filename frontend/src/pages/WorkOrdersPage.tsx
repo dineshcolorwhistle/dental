@@ -24,6 +24,7 @@ import {
   QrCode,
   MessageCircle,
   Calendar,
+  Layers,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -1125,7 +1126,7 @@ export function WorkOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {paginated.map((wo) => {
+              {paginated.map((wo, idx) => {
                 const sc = STATUS_CONFIG[wo.status] || STATUS_CONFIG.CREATED;
                 return (
                   <tr key={wo.id}>
@@ -1174,9 +1175,44 @@ export function WorkOrdersPage() {
                     </td>
                     <td>
                       {wo.prosthesisType ? (
-                        <span className="cell-subdomain" style={{ textTransform: 'none', fontWeight: 600 }}>
-                          {wo.prosthesisType.name}
-                        </span>
+                        <div
+                          className="tooltip-wrap"
+                          {...(idx === 0
+                            ? { 'data-tooltip-bottom': wo.prosthesisType.name }
+                            : { 'data-tooltip-top': wo.prosthesisType.name })}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '7px',
+                            padding: '4px 10px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                            border: '1px solid rgba(59, 130, 246, 0.16)',
+                            borderRadius: '6px',
+                            maxWidth: '220px',
+                            cursor: 'help',
+                          }}
+                        >
+                          <Layers
+                            size={14}
+                            style={{
+                              color: 'var(--accent-primary, #3B82F6)',
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontWeight: 600,
+                              fontSize: '0.8125rem',
+                              color: 'var(--text-primary, #1E293B)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            {wo.prosthesisType.name}
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-muted">—</span>
                       )}
