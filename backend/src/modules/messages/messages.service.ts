@@ -1031,45 +1031,84 @@ export class MessagesService {
       },
     });
 
-    // 3. If no conversation exists, create one
+    // 3. If no conversation exists, create one safely
     if (!conversation) {
-      conversation = await this.prisma.conversation.create({
-        data: {
-          tenantId: workOrder.tenantId,
-          name: `WO Chat - ${workOrder.folioNumber}`,
-          isGroup: true,
-          createdById: user.id,
-          workOrderId,
-        },
-        include: {
-          participants: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  role: true,
-                  branch: { select: { name: true } },
+      try {
+        conversation = await this.prisma.conversation.create({
+          data: {
+            tenantId: workOrder.tenantId,
+            name: `WO Chat - ${workOrder.folioNumber}`,
+            isGroup: true,
+            createdById: user.id,
+            workOrderId,
+          },
+          include: {
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    role: true,
+                    branch: { select: { name: true } },
+                  },
+                },
+              },
+            },
+            messages: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
+                senderId: true,
+                sender: {
+                  select: { firstName: true, lastName: true },
                 },
               },
             },
           },
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: {
-              id: true,
-              content: true,
-              createdAt: true,
-              senderId: true,
-              sender: {
-                select: { firstName: true, lastName: true },
+        });
+      } catch (createErr: any) {
+        // If concurrent request created the conversation, fetch it
+        conversation = await this.prisma.conversation.findUnique({
+          where: { workOrderId },
+          include: {
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    role: true,
+                    branch: { select: { name: true } },
+                  },
+                },
+              },
+            },
+            messages: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
+                senderId: true,
+                sender: {
+                  select: { firstName: true, lastName: true },
+                },
               },
             },
           },
-        },
-      });
+        });
+
+        if (!conversation) {
+          throw createErr;
+        }
+      }
     }
 
     // 4. Sync participants — gather all associated user IDs
@@ -1218,57 +1257,109 @@ export class MessagesService {
     branchId: string | null,
     doctorId: string,
   ) {
-    const doctor = await this.prisma.doctor.findFirst({
-      where: { id: doctorId, tenantId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        userId: true,
-        user: { select: { id: true } },
-      },
-    });
+    try {
+      const doctor = await this.prisma.doctor.findFirst({
+        where: { id: doctorId, tenantId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          userId: true,
+          user: { select: { id: true } },
+        },
+      });
 
-    if (!doctor) return null;
+      if (!doctor) return null;
 
-    // If doctor already has a linked user, return it
-    if (doctor.userId && doctor.user) {
-      return doctor.user.id;
+      // If doctor already has a linked user, return it
+      if (doctor.userId && doctor.user) {
+        return doctor.user.id;
+      }
+
+      // Check if a User already exists with the doctor's email in this tenant
+      const cleanEmail = doctor.email ? doctor.email.trim() : null;
+      if (cleanEmail) {
+        const existingUser = await this.prisma.user.findFirst({
+          where: {
+            tenantId,
+            email: { equals: cleanEmail, mode: 'insensitive' },
+          },
+          select: { id: true },
+        });
+
+        if (existingUser) {
+          await this.prisma.doctor.update({
+            where: { id: doctor.id },
+            data: { userId: existingUser.id },
+          });
+          return existingUser.id;
+        }
+      }
+
+      // Create a placeholder User with DOCTOR role
+      const dummyHash = await bcrypt.hash(
+        `doctor-${doctor.id}-${Date.now()}`,
+        10,
+      );
+      const nameParts = (doctor.name || 'Doctor').trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Doctor';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const doctorEmail = cleanEmail || `doctor-${doctor.id}@placeholder.local`;
+
+      try {
+        const newUser = await this.prisma.user.create({
+          data: {
+            tenantId,
+            branchId: branchId || null,
+            email: doctorEmail,
+            passwordHash: dummyHash,
+            firstName,
+            lastName,
+            role: 'DOCTOR',
+            status: 'ACTIVE',
+          },
+        });
+
+        // Link doctor to user
+        await this.prisma.doctor.update({
+          where: { id: doctor.id },
+          data: { userId: newUser.id },
+        });
+
+        this.logger.log(
+          `Created placeholder User (${newUser.id}) for doctor ${doctor.name} (${doctor.id})`,
+        );
+
+        return newUser.id;
+      } catch (createErr: any) {
+        // In case of concurrency/unique constraint, try to find existing user or return fallback
+        const fallbackUser = await this.prisma.user.findFirst({
+          where: {
+            tenantId,
+            email: { equals: doctorEmail, mode: 'insensitive' },
+          },
+          select: { id: true },
+        });
+
+        if (fallbackUser) {
+          await this.prisma.doctor.update({
+            where: { id: doctor.id },
+            data: { userId: fallbackUser.id },
+          });
+          return fallbackUser.id;
+        }
+
+        this.logger.error(
+          `Error creating placeholder user for doctor ${doctor.id}: ${createErr.message}`,
+        );
+        return null;
+      }
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to getOrCreateDoctorUser for ${doctorId}: ${err.message}`,
+      );
+      return null;
     }
-
-    // Create a placeholder User with DOCTOR role
-    const dummyHash = await bcrypt.hash(
-      `doctor-${doctor.id}-${Date.now()}`,
-      10,
-    );
-    const nameParts = doctor.name.split(' ');
-    const firstName = nameParts[0] || 'Doctor';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
-    const newUser = await this.prisma.user.create({
-      data: {
-        tenantId,
-        branchId: branchId || null,
-        email: doctor.email || `doctor-${doctor.id}@placeholder.local`,
-        passwordHash: dummyHash,
-        firstName,
-        lastName,
-        role: 'DOCTOR',
-        status: 'ACTIVE',
-      },
-    });
-
-    // Link doctor to user
-    await this.prisma.doctor.update({
-      where: { id: doctor.id },
-      data: { userId: newUser.id },
-    });
-
-    this.logger.log(
-      `Created placeholder User (${newUser.id}) for doctor ${doctor.name} (${doctor.id})`,
-    );
-
-    return newUser.id;
   }
 
   /**

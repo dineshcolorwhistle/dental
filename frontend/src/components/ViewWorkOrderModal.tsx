@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
@@ -250,10 +250,12 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
     };
   }, [socket, workOrderId, isOpen, fetchWorkOrderDetails]);
 
+  const prevConnectedRef = useRef(isConnected);
   useEffect(() => {
-    if (isConnected && isOpen && workOrderId) {
+    if (!prevConnectedRef.current && isConnected && isOpen && workOrderId) {
       fetchWorkOrderDetails();
     }
+    prevConnectedRef.current = isConnected;
   }, [isConnected, isOpen, workOrderId, fetchWorkOrderDetails]);
 
   if (!isOpen || !workOrderId) return null;

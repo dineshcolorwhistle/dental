@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSocket, useAuth } from '../context';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
@@ -200,10 +200,12 @@ export function WorkOrderDetailPage() {
     };
   }, [socket, id, fetchWorkOrder]);
 
+  const prevConnectedRef = useRef(isConnected);
   useEffect(() => {
-    if (isConnected && id) {
+    if (!prevConnectedRef.current && isConnected && id) {
       fetchWorkOrder(true);
     }
+    prevConnectedRef.current = isConnected;
   }, [isConnected, id, fetchWorkOrder]);
 
   if (loading) {

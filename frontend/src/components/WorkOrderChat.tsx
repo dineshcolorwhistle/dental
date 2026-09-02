@@ -126,12 +126,14 @@ export function WorkOrderChat({ workOrderId }: WorkOrderChatProps) {
     }
   }, [isExpanded, conversation?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Refetch on socket reconnect
+  // Refetch only on actual socket reconnect (transition from false -> true)
+  const prevConnectedRef = useRef(isConnected);
   useEffect(() => {
-    if (isConnected && user) {
+    if (!prevConnectedRef.current && isConnected && user) {
       fetchConversation();
     }
-  }, [isConnected]); // eslint-disable-line react-hooks/exhaustive-deps
+    prevConnectedRef.current = isConnected;
+  }, [isConnected, user, fetchConversation]);
 
   // ─── Socket Events ──────────────────────────────────────
 
