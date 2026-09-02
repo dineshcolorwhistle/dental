@@ -1476,7 +1476,18 @@
     "typesSelected": "{{count}} Tipos seleccionados",
     "saveSuccess": "Tipos de prótesis de la clínica actualizados con éxito",
     "saveError": "Error al actualizar los tipos de prótesis de la clínica",
-    "failedLoad": "Error al cargar las clínicas"
+    "failedLoad": "Error al cargar las clínicas",
+    "deleteClinic": "Eliminar Clínica",
+    "deleteModalTitle": "Eliminar Clínica Conectada",
+    "deleteWarningMessage": "Si elimina esta clínica, todas las órdenes de trabajo ({{orderCount}}), doctores ({{doctorCount}}) y precios de prótesis específicos de la clínica ({{prosthesisCount}}) también se eliminarán permanentemente de la aplicación.",
+    "deleteScopeNote": "Solo se eliminarán los doctores, órdenes de trabajo y precios personalizados que pertenecen a esta clínica. Los tipos de prótesis maestros en su catálogo permanecerán intactos.",
+    "deleteSuccess": "Clínica, precios asignados y todos los doctores y órdenes de trabajo asociados eliminados con éxito",
+    "deleteError": "Error al eliminar la clínica conectada",
+    "deleting": "Eliminando...",
+    "affectedDoctors": "{{count}} Doctor(es)",
+    "affectedOrders": "{{count}} Orden(es) de Trabajo",
+    "affectedProsthesis": "{{count}} Precio(s) de Prótesis Asignado(s)",
+    "masterCatalogSafe": "El catálogo maestro de tipos de prótesis permanece seguro e intacto"
   },
   "workOrderChat": {
     "title": "Chat de Orden de Trabajo",
@@ -1641,11 +1652,45 @@
   "reminders": {
     "title": "Recordatorios",
     "subtitle": "Gestiona recordatorios y seguimientos para tu equipo",
+    "calendarView": "Calendario de Recordatorios",
+    "calendarSubtitle": "Resumen de recordatorios programados por fecha",
+    "listView": "Vista de Lista",
     "createReminder": "Crear Recordatorio",
     "editReminder": "Editar Recordatorio",
     "deleteReminder": "Eliminar Recordatorio",
-    "listView": "Vista de Lista",
-    "calendarView": "Vista de Calendario",
+    "viewReminder": "Detalles del Recordatorio",
+    "viewDetails": "Ver Detalles",
+    "assignedTeamMembers": "Miembros del Equipo Asignados",
+    "assignedOne": "Asignado",
+    "assignedMany": "Asignados",
+    "createdBy": "Creado por",
+    "createdAt": "Fecha de Creación",
+    "lastNotified": "Última Notificación",
+    "notNotifiedYet": "Aún no notificado",
+    "loadError": "Error al cargar los recordatorios",
+    "createSuccess": "¡Recordatorio creado exitosamente!",
+    "createError": "Error al crear el recordatorio",
+    "updateSuccess": "¡Recordatorio actualizado exitosamente!",
+    "updateError": "Error al actualizar el recordatorio",
+    "deleteSuccess": "¡Recordatorio eliminado exitosamente!",
+    "deleteError": "Error al eliminar el recordatorio",
+    "statusUpdateSuccess": "¡Estado del recordatorio actualizado!",
+    "statusUpdateError": "¡Error al actualizar el estado del recordatorio!",
+    "recurringCompleted": "¡Instancia de hoy completada! Avanzado al siguiente ciclo.",
+    "occurrenceProgress": "Progreso de Ocurrencias",
+    "remaining": "restantes",
+    "ends": "Termina",
+    "done": "hecho",
+    "empty": {
+      "title": "No se encontraron recordatorios",
+      "description": "Cree su primer recordatorio para hacer seguimiento de tareas y actividades importantes."
+    },
+    "filters": {
+      "searchPlaceholder": "Buscar recordatorios...",
+      "allPriorities": "Todas las Prioridades",
+      "allStatuses": "Todos los Estados",
+      "allRecurrences": "Todas las Recurrencias"
+    },
     "fields": {
       "title": "Título",
       "titlePlaceholder": "Ingrese el título del recordatorio",
@@ -1657,6 +1702,7 @@
       "categoryPlaceholder": "ej. Limpieza, Inventario, Seguimiento",
       "assignedTo": "Asignado a",
       "assignedToPlaceholder": "Seleccionar usuarios para asignar",
+      "allUsersSelected": "Todos los usuarios seleccionados",
       "recurrence": "Recurrencia",
       "description": "Descripción",
       "descriptionPlaceholder": "Detalles opcionales sobre este recordatorio",
@@ -1677,6 +1723,63 @@
       "MONTHLY": "Mensual",
       "YEARLY": "Anual"
     },
+    "status": {
+      "PENDING": "Pendiente",
+      "COMPLETED": "Completado",
+      "CANCELLED": "Cancelado"
+    },
+    "actions": {
+      "markComplete": "Marcar como Completado",
+      "markPending": "Marcar como Pendiente",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "cancel": "Cancelar",
+      "save": "Guardar"
+    },
+    "confirmDelete": {
+      "title": "Eliminar Recordatorio",
+      "message": "¿Está seguro de que desea eliminar este recordatorio? Esta acción no se puede deshacer.",
+      "confirm": "Eliminar",
+      "cancel": "Cancelar"
+    },
+    "calendar": {
+      "today": "Hoy",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "titleDate": "Recordatorios para",
+      "remindersCount": "{{count}} recordatorio(s)",
+      "noReminders": "No hay recordatorios en esta fecha",
+      "noRemindersPast": "No hay recordatorios registrados para esta fecha pasada.",
+      "pastDate": "Fecha Pasada",
+      "pastDateTooltip": "Fecha pasada — no se pueden programar recordatorios",
+      "pastDayNotice": "Fecha pasada — no se pueden programar recordatorios para fechas pasadas",
+      "clickToCreate": "Haga clic para crear un recordatorio para esta fecha",
+      "clickToAdd": "Haga clic para agregar un recordatorio",
+      "addReminder": "Agregar Recordatorio",
+      "addForThisDay": "Agregar Recordatorio para este Día",
+      "addReminderForDate": "Agregar recordatorio para esta fecha"
+    },
+    "validation": {
+      "titleRequired": "El título es obligatorio",
+      "timeRequired": "La hora del recordatorio es obligatoria",
+      "dateRequired": "La fecha del recordatorio es obligatoria para recordatorios de una sola vez",
+      "startDateRequired": "La fecha de inicio es obligatoria para recordatorios recurrentes",
+      "pastDateNotAllowed": "La fecha del recordatorio no puede estar en el pasado",
+      "assigneeRequired": "Se requiere al menos 1 persona asignada",
+      "assigneesRequired": "Se requiere al menos una persona asignada",
+      "repeatIntervalMin": "El intervalo de repetición debe ser al menos 1",
+      "weeklyDaysRequired": "Selecciona al menos un día de la semana",
+      "endDateRequired": "La fecha de finalización es obligatoria cuando termina en una fecha",
+      "endDateBeforeStart": "La fecha de finalización no puede ser anterior a la fecha de inicio",
+      "occurrencesRequired": "El número de ocurrencias es obligatorio",
+      "occurrencesMin": "Las ocurrencias deben ser al menos 1",
+      "occurrencesMax": "Máximo 365 ocurrencias permitidas",
+      "monthlyDayRequired": "El día del mes es obligatorio",
+      "monthlyDayRange": "El día debe estar entre 1 y 31",
+      "monthlyPositionRequired": "La posición de la semana es obligatoria",
+      "monthlyWeekdayRequired": "El día de la semana es obligatorio",
+      "maxDateExceeded": "La fecha no puede ser posterior a 3 años a partir de hoy"
+    },
     "recurrencePanel": {
       "repeatEvery": "Repetir cada",
       "days": "día(s)",
@@ -1684,6 +1787,8 @@
       "months": "mes(es)",
       "years": "año(s)",
       "repeatOn": "Repetir en",
+      "startDate": "Fecha de Inicio",
+      "startDateHint": "Elija una fecha dentro de los próximos 3 años.",
       "weekdays": {
         "sun": "Dom",
         "mon": "Lun",
@@ -1717,69 +1822,7 @@
       "after": "Después de",
       "never": "Nunca",
       "occurrences": "ocurrencias",
-      "helperText": "Elige con qué frecuencia se repite este recordatorio, qué días usa y cuándo debe detenerse la serie. Limitado a 365 próximas ocurrencias y nunca más allá de 3 años desde hoy.",
-      "startDate": "Fecha de inicio",
-      "startDateHint": "Elige una fecha dentro de los próximos 3 años."
-    },
-    "status": {
-      "PENDING": "Pendiente",
-      "COMPLETED": "Completado",
-      "CANCELLED": "Cancelado"
-    },
-    "filters": {
-      "searchPlaceholder": "Buscar recordatorios...",
-      "allPriorities": "Todas las Prioridades",
-      "allStatuses": "Todos los Estados",
-      "allRecurrences": "Todas las Recurrencias"
-    },
-    "actions": {
-      "markComplete": "Marcar como Completado",
-      "markPending": "Marcar como Pendiente",
-      "edit": "Editar",
-      "delete": "Eliminar",
-      "cancel": "Cancelar",
-      "save": "Guardar"
-    },
-    "confirmDelete": {
-      "title": "Eliminar Recordatorio",
-      "message": "¿Está seguro de que desea eliminar este recordatorio? Esta acción no se puede deshacer.",
-      "confirm": "Eliminar",
-      "cancel": "Cancelar"
-    },
-    "empty": {
-      "title": "No se encontraron recordatorios",
-      "description": "Cree su primer recordatorio para hacer seguimiento de tareas y actividades importantes."
-    },
-    "createSuccess": "¡Recordatorio creado exitosamente!",
-    "updateSuccess": "¡Recordatorio actualizado exitosamente!",
-    "deleteSuccess": "¡Recordatorio eliminado exitosamente!",
-    "statusUpdateSuccess": "¡Estado del recordatorio actualizado!",
-    "recurringCompleted": "¡Instancia de hoy completada! Avanzado al siguiente ciclo.",
-    "loadError": "Error al cargar los recordatorios",
-    "createError": "Error al crear el recordatorio",
-    "updateError": "Error al actualizar el recordatorio",
-    "deleteError": "Error al eliminar el recordatorio",
-    "statusUpdateError": "¡Error al actualizar el estado del recordatorio!",
-    "validation": {
-      "titleRequired": "El título es obligatorio",
-      "timeRequired": "La hora del recordatorio es obligatoria",
-      "dateRequired": "La fecha del recordatorio es obligatoria para recordatorios de una sola vez",
-      "startDateRequired": "La fecha de inicio es obligatoria para recordatorios recurrentes",
-      "pastDateNotAllowed": "La fecha del recordatorio no puede estar en el pasado",
-      "assigneeRequired": "Se requiere al menos un asignado",
-      "assigneesRequired": "Se requiere al menos un asignado",
-      "repeatIntervalMin": "El intervalo de repetición debe ser al menos 1",
-      "weeklyDaysRequired": "Selecciona al menos un día de la semana",
-      "endDateRequired": "La fecha de finalización es obligatoria cuando termina en una fecha",
-      "endDateBeforeStart": "La fecha de finalización no puede ser anterior a la fecha de inicio",
-      "occurrencesRequired": "El número de ocurrencias es obligatorio",
-      "occurrencesMin": "Las ocurrencias deben ser al menos 1",
-      "occurrencesMax": "Máximo 365 ocurrencias permitidas",
-      "monthlyDayRequired": "El día del mes es obligatorio",
-      "monthlyDayRange": "El día debe estar entre 1 y 31",
-      "monthlyPositionRequired": "La posición de la semana es obligatoria",
-      "monthlyWeekdayRequired": "El día de la semana es obligatorio",
-      "maxDateExceeded": "La fecha no puede ser posterior a 3 años a partir de hoy"
+      "helperText": "Elige con qué frecuencia se repite este recordatorio, qué días usa y cuándo debe detenerse la serie. Limitado a 365 próximas ocurrencias y nunca más allá de 3 años desde hoy."
     },
     "recurrenceSummary": {
       "everyDay": "Cada {{interval}} día(s)",
@@ -1792,19 +1835,15 @@
       "neverEnds": "Nunca termina",
       "seriesCompleted": "Serie completada ({{completed}}/{{total}} ocurrencias)"
     },
-    "viewReminder": "Detalles del Recordatorio",
-    "viewDetails": "Ver Detalles",
-    "assignedTeamMembers": "Miembros del Equipo Asignados",
-    "lastNotified": "Última Notificación",
-    "notNotifiedYet": "Aún no notificado",
-    "createdBy": "Creado por",
-    "createdAt": "Fecha de Creación",
-    "calendar": {
-      "today": "Hoy",
-      "previous": "Anterior",
-      "next": "Siguiente",
-      "noReminders": "No hay recordatorios en esta fecha",
-      "remindersCount": "{{count}} recordatorio(s)"
+    "occurrenceBreakdown": {
+      "title": "Cronograma y Desglose de Ocurrencias",
+      "occurrence": "Ocurrencia",
+      "currentDue": "Actual Pendiente",
+      "upcoming": "Próxima",
+      "completed": "Completada",
+      "cancelled": "Cancelada",
+      "showingNext": "Mostrando las próximas {{count}} ocurrencias (la serie se repite indefinidamente)",
+      "totalOccurrences": "{{completed}} de {{total}} completadas"
     }
   },
   "tenantOnboarding": {
@@ -1914,169 +1953,6 @@
         "actionUrl": "/finance",
         "actionLabel": "Ir a Finanzas"
       }
-    }
-  },
-  "reminders": {
-    "title": "Recordatorios",
-    "subtitle": "Administre recordatorios y seguimientos para su equipo",
-    "calendarView": "Calendario de Recordatorios",
-    "calendarSubtitle": "Resumen de recordatorios programados por fecha",
-    "listView": "Vista de Lista",
-    "createReminder": "Nuevo Recordatorio",
-    "editReminder": "Editar Recordatorio",
-    "viewReminder": "Detalles del Recordatorio",
-    "viewDetails": "Ver Detalles",
-    "assignedTeamMembers": "Miembros del Equipo Asignados",
-    "assignedOne": "Asignado",
-    "assignedMany": "Asignados",
-    "createdBy": "Creado por",
-    "lastNotified": "Última Notificación",
-    "notNotifiedYet": "Aún no notificado",
-    "loadError": "Error al cargar los recordatorios",
-    "createSuccess": "¡Recordatorio creado exitosamente!",
-    "createError": "Error al crear el recordatorio",
-    "updateSuccess": "¡Recordatorio actualizado exitosamente!",
-    "updateError": "Error al actualizar el recordatorio",
-    "deleteSuccess": "¡Recordatorio eliminado exitosamente!",
-    "deleteError": "Error al eliminar el recordatorio",
-    "statusUpdateSuccess": "¡Estado del recordatorio actualizado!",
-    "statusUpdateError": "Error al actualizar el estado",
-    "recurringCompleted": "¡Instancia de hoy completada! Avanzado al siguiente ciclo.",
-    "empty": {
-      "title": "Aún no hay recordatorios",
-      "description": "Cree su primer recordatorio para dar seguimiento a tareas."
-    },
-    "filters": {
-      "searchPlaceholder": "Buscar por título, categoría...",
-      "allStatuses": "Todos los Estados",
-      "allPriorities": "Todas las Prioridades"
-    },
-    "fields": {
-      "title": "Título",
-      "titlePlaceholder": "Ingrese el título del recordatorio",
-      "priority": "Prioridad",
-      "category": "Categoría",
-      "categoryPlaceholder": "ej. Limpieza, Inventario",
-      "assignedTo": "Asignado a",
-      "assignedToPlaceholder": "Buscar y seleccionar usuarios para asignar...",
-      "allUsersSelected": "Todos los usuarios seleccionados",
-      "recurrence": "Recurrencia",
-      "reminderDate": "Fecha del Recordatorio",
-      "reminderTime": "Hora del Recordatorio",
-      "timeHelperText": "Se le notificará 2 horas antes de la hora programada.",
-      "description": "Descripción",
-      "descriptionPlaceholder": "Detalles opcionales..."
-    },
-    "actions": {
-      "markComplete": "Marcar Completado",
-      "markPending": "Marcar Pendiente"
-    },
-    "confirmDelete": {
-      "title": "Eliminar Recordatorio",
-      "message": "¿Está seguro de que desea eliminar este recordatorio?"
-    },
-    "calendar": {
-      "today": "Hoy",
-      "previous": "Anterior",
-      "next": "Siguiente",
-      "titleDate": "Recordatorios para",
-      "remindersCount": "{{count}} Recordatorios",
-      "noReminders": "No hay recordatorios programados para esta fecha.",
-      "noRemindersPast": "No hay recordatorios registrados para esta fecha pasada.",
-      "pastDate": "Fecha Pasada",
-      "pastDateTooltip": "Fecha pasada — no se pueden programar recordatorios",
-      "pastDayNotice": "Fecha pasada — no se pueden programar recordatorios para fechas pasadas",
-      "clickToCreate": "Haga clic para crear un recordatorio para esta fecha",
-      "clickToAdd": "Haga clic para agregar un recordatorio",
-      "addReminder": "Agregar Recordatorio",
-      "addForThisDay": "Agregar Recordatorio para este Día",
-      "addReminderForDate": "Agregar recordatorio para esta fecha"
-    },
-    "validation": {
-      "titleRequired": "El título es obligatorio",
-      "timeRequired": "La hora es obligatoria",
-      "dateRequired": "La fecha es obligatoria para recordatorios de una sola vez",
-      "pastDateNotAllowed": "La fecha del recordatorio no puede ser en el pasado",
-      "maxDateExceeded": "La fecha no puede ser posterior a 3 años a partir de hoy",
-      "startDateRequired": "La fecha de inicio es obligatoria para recordatorios recurrentes",
-      "repeatIntervalMin": "El intervalo de repetición debe ser al menos 1",
-      "weeklyDaysRequired": "Seleccione al menos un día de la semana",
-      "monthlyDayRange": "El día debe estar entre 1 y 31",
-      "monthlyPositionRequired": "La posición de la semana es obligatoria",
-      "monthlyWeekdayRequired": "El día de la semana es obligatorio",
-      "endDateRequired": "La fecha de finalización es obligatoria cuando termina en una fecha",
-      "endDateBeforeStart": "La fecha de finalización no debe ser anterior a la fecha de inicio",
-      "occurrencesMin": "Las ocurrencias deben ser al menos 1",
-      "occurrencesMax": "Máximo 365 ocurrencias permitidas",
-      "assigneeRequired": "Se requiere al menos 1 persona asignada"
-    },
-    "recurrencePanel": {
-      "repeatEvery": "Repetir cada",
-      "days": "día(s)",
-      "weeks": "semana(s)",
-      "months": "mes(es)",
-      "years": "año(s)",
-      "repeatOn": "Repetir el",
-      "startDate": "Fecha de Inicio",
-      "startDateHint": "Elija una fecha dentro de los próximos 3 años.",
-      "onDay": "El día",
-      "ofTheMonth": "del mes",
-      "onThe": "El",
-      "ends": "Finaliza",
-      "onDate": "En la fecha",
-      "after": "Después de",
-      "occurrences": "ocurrencias",
-      "never": "Nunca",
-      "helperText": "Elija con qué frecuencia se repite este recordatorio, qué días utiliza y cuándo debe detenerse la serie. Limitado a 365 próximas ocurrencias y nunca más allá de 3 años a partir de hoy.",
-      "weekdays": {
-        "sun": "Dom",
-        "mon": "Lun",
-        "tue": "Mar",
-        "wed": "Mié",
-        "thu": "Jue",
-        "fri": "Vie",
-        "sat": "Sáb"
-      },
-      "monthPositions": {
-        "FIRST": "Primer",
-        "SECOND": "Segundo",
-        "THIRD": "Tercer",
-        "FOURTH": "Cuarto",
-        "LAST": "Último"
-      },
-      "weekdayNames": {
-        "0": "Domingo",
-        "1": "Lunes",
-        "2": "Martes",
-        "3": "Miércoles",
-        "4": "Jueves",
-        "5": "Viernes",
-        "6": "Sábado"
-      }
-    },
-    "recurrenceSummary": {
-      "everyDay": "Cada {{interval}} día(s)",
-      "everyWeek": "Cada {{interval}} semana(s) los {{days}}",
-      "everyMonthPosition": "Cada {{interval}} mes(es) el {{position}} {{weekday}}",
-      "everyMonthDay": "Cada {{interval}} mes(es) el día {{day}}",
-      "everyYear": "Cada {{interval}} año(s)",
-      "endsOnDate": "Termina el {{date}}",
-      "endsAfter": "Termina después de {{count}} ocurrencias",
-      "neverEnds": "Nunca termina"
-    },
-    "occurrenceProgress": "Progreso de Ocurrencias",
-    "remaining": "restantes",
-    "ends": "Termina",
-    "done": "hecho",
-    "occurrenceBreakdown": {
-      "title": "Cronograma y Desglose de Ocurrencias",
-      "occurrence": "Ocurrencia",
-      "currentDue": "Actual Pendiente",
-      "upcoming": "Próxima",
-      "completed": "Completada",
-      "cancelled": "Cancelada",
-      "showingNext": "Mostrando las próximas {{count}} ocurrencias (la serie se repite indefinidamente)",
-      "totalOccurrences": "{{completed}} de {{total}} completadas"
     }
   }
 }

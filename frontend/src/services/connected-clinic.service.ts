@@ -53,12 +53,20 @@ export const connectedClinicService = {
     clinicId: string,
     payload: string[] | UpdateClinicProsthesisItem[]
   ): Promise<ConnectedClinicListItem> => {
-    const body = Array.isArray(payload) && payload.length > 0 && typeof payload[0] === 'object'
-      ? { items: payload }
-      : { prosthesisTypeIds: payload as string[] };
+    const body =
+      Array.isArray(payload) && payload.length > 0 && typeof payload[0] === 'object'
+        ? { items: payload }
+        : { prosthesisTypeIds: payload as string[] };
     const response = await api.put<ConnectedClinicListItem>(
       `/connected-clinics/${clinicId}/prosthesis-types`,
       body
+    );
+    return response.data;
+  },
+
+  delete: async (clinicId: string): Promise<{ success: boolean; message?: string }> => {
+    const response = await api.delete<{ success: boolean; message?: string }>(
+      `/connected-clinics/${clinicId}`
     );
     return response.data;
   },

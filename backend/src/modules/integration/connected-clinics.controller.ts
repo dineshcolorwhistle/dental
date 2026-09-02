@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Put,
+  Delete,
   Param,
   Body,
   BadRequestException,
@@ -248,6 +249,72 @@ export class ConnectedClinicsController {
     return {
       ...updatedClinic,
       allowedProsthesisTypes: await this.getClinicProsthesisTypes(clinicId),
+    };
+  }
+
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete a connected clinic and its associated doctors, work orders, and clinic pricing',
+  })
+  async deleteConnectedClinic(
+    @Param('id') clinicId: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+
+    const clinic = await this.prisma.clinic.findFirst({
+      where: {
+        id: clinicId,
+        tenantId,
+        ...(branchIdContext ? { branchId: branchIdContext } : {}),
+      },
+      include: {
+        doctors: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!clinic) {
+      throw new NotFoundException('Clinic not found or access denied.');
+    }
+
+    const doctorIds = clinic.doctors.map((d) => d.id);
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Delete doctors belonging specifically to this clinic.
+      // This cascades in PostgreSQL to their work orders, doctor lists, notes, rework logs, etc.
+      if (doctorIds.length > 0) {
+        await tx.doctor.deleteMany({
+          where: {
+            id: { in: doctorIds },
+            tenantId,
+          },
+        });
+      }
+
+      // 2. Delete clinic-specific prosthesis pricing records (master prosthesis types remain untouched)
+      await tx.clinicProsthesisType.deleteMany({
+        where: { clinicId: clinic.id },
+      });
+
+      // 3. Delete the clinic entity
+      await tx.clinic.delete({
+        where: { id: clinic.id },
+      });
+    });
+
+    this.logger.log(
+      `Connected clinic "${clinic.name}" (${clinic.id}) deleted with ${doctorIds.length} doctors and their work orders by tenant ${tenantId}`,
+    );
+
+    return {
+      success: true,
+      message:
+        'Clinic, assigned clinic pricing, and associated doctors/work orders deleted successfully',
     };
   }
 }

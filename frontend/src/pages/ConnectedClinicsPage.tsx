@@ -16,6 +16,9 @@ import {
   Settings,
   Layers,
   Check,
+  Trash2,
+  AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -46,6 +49,10 @@ export function ConnectedClinicsPage() {
   const [selectedTypePrices, setSelectedTypePrices] = useState<Record<string, number>>({});
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [savingProsthesis, setSavingProsthesis] = useState(false);
+
+  // Modal State for Delete Clinic Confirmation
+  const [clinicToDelete, setClinicToDelete] = useState<ConnectedClinicListItem | null>(null);
+  const [deletingClinic, setDeletingClinic] = useState(false);
 
   const fetchClinics = useCallback(async () => {
     try {
@@ -170,6 +177,36 @@ export function ConnectedClinicsPage() {
       );
     } finally {
       setSavingProsthesis(false);
+    }
+  };
+
+  const handleOpenDeleteModal = (clinic: ConnectedClinicListItem) => {
+    setClinicToDelete(clinic);
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (deletingClinic) return;
+    setClinicToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!clinicToDelete) return;
+
+    try {
+      setDeletingClinic(true);
+      await connectedClinicService.delete(clinicToDelete.id);
+      setClinics((prev) => prev.filter((c) => c.id !== clinicToDelete.id));
+      toast.success(
+        t('connectedClinics.deleteSuccess') ||
+          'Clinic and associated doctors/orders deleted successfully'
+      );
+      setClinicToDelete(null);
+    } catch {
+      toast.error(
+        t('connectedClinics.deleteError') || 'Failed to delete connected clinic'
+      );
+    } finally {
+      setDeletingClinic(false);
     }
   };
 
@@ -477,21 +514,46 @@ export function ConnectedClinicsPage() {
                           </span>
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <button
-                            id={`btn-manage-prosthesis-${clinic.id}`}
-                            className="btn btn--secondary btn--sm"
-                            onClick={() => handleOpenProsthesisModal(clinic)}
+                          <div
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.35rem',
-                              fontSize: '0.8125rem',
-                              padding: '0.35rem 0.75rem',
+                              justifyContent: 'flex-end',
+                              gap: '0.5rem',
                             }}
                           >
-                            <Settings size={14} />
-                            {t('connectedClinics.manageProsthesis')}
-                          </button>
+                            <button
+                              id={`btn-manage-prosthesis-${clinic.id}`}
+                              className="btn btn--secondary btn--sm"
+                              onClick={() => handleOpenProsthesisModal(clinic)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                fontSize: '0.8125rem',
+                                padding: '0.35rem 0.75rem',
+                              }}
+                            >
+                              <Settings size={14} />
+                              {t('connectedClinics.manageProsthesis')}
+                            </button>
+                            <button
+                              id={`btn-delete-clinic-${clinic.id}`}
+                              className="btn btn--danger btn--sm"
+                              onClick={() => handleOpenDeleteModal(clinic)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                fontSize: '0.8125rem',
+                                padding: '0.35rem 0.75rem',
+                              }}
+                              title={t('common.delete')}
+                            >
+                              <Trash2 size={14} />
+                              {t('common.delete')}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                       {isExpanded && (
@@ -1114,6 +1176,350 @@ export function ConnectedClinicsPage() {
                       style={{ display: 'block', margin: 'auto' }}
                     />
                     <span>{t('common.save')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Connected Clinic Confirmation Modal */}
+      {clinicToDelete && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseDeleteModal}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 1050,
+            padding: '1rem',
+          }}
+        >
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              maxWidth: '540px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              className="modal__header"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1.25rem 1.5rem',
+                borderBottom: '1px solid var(--border)',
+                backgroundColor: 'rgba(239, 68, 68, 0.04)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: 'var(--danger)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3
+                    className="modal__title"
+                    style={{
+                      fontSize: '1.125rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      margin: 0,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {t('connectedClinics.deleteModalTitle')}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: '0.8125rem',
+                      color: 'var(--text-muted)',
+                      margin: '0.2rem 0 0 0',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {clinicToDelete.name} • {clinicToDelete.branch.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                className="modal__close"
+                onClick={handleCloseDeleteModal}
+                disabled={deletingClinic}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)',
+                  padding: '4px',
+                  display: 'flex',
+                }}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div
+              className="modal__body"
+              style={{
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1.25rem',
+              }}
+            >
+              {/* Alert Message Box */}
+              <div
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '12px',
+                  padding: '1rem',
+                  display: 'flex',
+                  gap: '0.75rem',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <AlertTriangle
+                  size={18}
+                  style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '2px' }}
+                />
+                <div style={{ fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontWeight: 600,
+                      color: 'var(--danger)',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
+                    {t('connectedClinics.deleteWarningMessage', {
+                      orderCount: clinicToDelete.doctors.reduce(
+                        (sum, doc) => sum + doc.workOrders.length,
+                        0
+                      ),
+                      doctorCount: clinicToDelete.doctors.length,
+                      prosthesisCount: clinicToDelete.allowedProsthesisTypes?.length || 0,
+                    })}
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.8125rem',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    {t('connectedClinics.deleteScopeNote')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Breakdown Cards */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '0.75rem',
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: 'var(--bg-body, rgba(241, 245, 249, 0.6))',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    padding: '0.75rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: 'var(--danger)',
+                    }}
+                  >
+                    {clinicToDelete.doctors.length}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)',
+                      marginTop: '2px',
+                    }}
+                  >
+                    {t('connectedClinics.affectedDoctors', {
+                      count: clinicToDelete.doctors.length,
+                    })}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: 'var(--bg-body, rgba(241, 245, 249, 0.6))',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    padding: '0.75rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: 'var(--danger)',
+                    }}
+                  >
+                    {clinicToDelete.doctors.reduce(
+                      (sum, doc) => sum + doc.workOrders.length,
+                      0
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)',
+                      marginTop: '2px',
+                    }}
+                  >
+                    {t('connectedClinics.affectedOrders', {
+                      count: clinicToDelete.doctors.reduce(
+                        (sum, doc) => sum + doc.workOrders.length,
+                        0
+                      ),
+                    })}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: 'var(--bg-body, rgba(241, 245, 249, 0.6))',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    padding: '0.75rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: 'var(--accent-primary)',
+                    }}
+                  >
+                    {clinicToDelete.allowedProsthesisTypes?.length || 0}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)',
+                      marginTop: '2px',
+                    }}
+                  >
+                    {t('connectedClinics.affectedProsthesis', {
+                      count: clinicToDelete.allowedProsthesisTypes?.length || 0,
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Master Catalog Safe Banner */}
+              <div
+                style={{
+                  backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  borderRadius: '10px',
+                  padding: '0.625rem 0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.8125rem',
+                  color: 'var(--success)',
+                }}
+              >
+                <ShieldCheck size={16} style={{ flexShrink: 0 }} />
+                <span>{t('connectedClinics.masterCatalogSafe')}</span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="modal__footer"
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '1rem 1.5rem',
+                borderTop: '1px solid var(--border)',
+                backgroundColor: 'var(--bg-surface)',
+                marginTop: 0,
+              }}
+            >
+              <button
+                id="btn-cancel-delete-clinic"
+                type="button"
+                className="btn btn--secondary"
+                onClick={handleCloseDeleteModal}
+                disabled={deletingClinic}
+                style={{ minWidth: '90px', height: '38px', borderRadius: '8px' }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                id="btn-confirm-delete-clinic"
+                type="button"
+                className="btn btn--danger"
+                onClick={handleConfirmDelete}
+                disabled={deletingClinic}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  minWidth: '130px',
+                  height: '38px',
+                  borderRadius: '8px',
+                }}
+              >
+                {deletingClinic ? (
+                  <>
+                    <Loader2 size={16} className="spinner" />
+                    <span>{t('connectedClinics.deleting')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    <span>{t('common.delete')}</span>
                   </>
                 )}
               </button>
