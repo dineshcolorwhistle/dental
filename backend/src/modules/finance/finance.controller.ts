@@ -83,4 +83,33 @@ export class FinanceController {
       search || '',
     );
   }
+
+  @Get('doctor-balances')
+  @ApiOperation({ summary: 'Get doctor balances and pending payment accounts receivable' })
+  async getDoctorBalances(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') userRole: UserRole,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @Query('branchIds') branchIds?: string,
+    @Query('search') search?: string,
+    @Query('onlyWithPending') onlyWithPending?: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+
+    let finalBranchIds = branchIds;
+    if (userRole === UserRole.ADMIN) {
+      finalBranchIds = branchIdContext || 'NONE';
+    }
+
+    const isOnlyPending = onlyWithPending === 'true' || onlyWithPending === '1';
+
+    return this.financeService.getDoctorBalances(
+      tenantId,
+      finalBranchIds,
+      search || '',
+      isOnlyPending,
+    );
+  }
 }

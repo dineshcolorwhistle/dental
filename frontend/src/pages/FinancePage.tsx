@@ -10,13 +10,55 @@ import {
   TrendingDown,
   Percent,
   X,
+  Users,
+  Check,
+  CheckCircle2,
+  CreditCard,
+  FileText,
+  Loader2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { financeService, branchService } from '../services';
-import type { FinanceStats, PendingPaymentWorkOrder } from '../services';
+import { financeService, branchService, workOrderService } from '../services';
+import type {
+  FinanceStats,
+  PendingPaymentWorkOrder,
+  DoctorBalanceItem,
+  DoctorBalanceWorkOrder,
+} from '../services';
 import { useAuth } from '../context';
 import { DateRangePicker } from '../components';
+
+interface PaymentHistoryItem {
+  amount: number;
+  notes?: string;
+  date: string;
+}
+
+const parseNotesAndPayments = (notesString: string | null | undefined): { userNotes: string; payments: PaymentHistoryItem[] } => {
+  if (!notesString) return { userNotes: '', payments: [] };
+  const startTag = '<!-- PAYMENTS_START -->';
+  const endTag = '<!-- PAYMENTS_END -->';
+  const startIndex = notesString.indexOf(startTag);
+  const endIndex = notesString.indexOf(endTag);
+  if (startIndex !== -1 && endIndex !== -1) {
+    const userNotes = notesString.substring(0, startIndex).trim();
+    const jsonStr = notesString.substring(startIndex + startTag.length, endIndex).trim();
+    try {
+      const payments = JSON.parse(jsonStr);
+      return { userNotes, payments: Array.isArray(payments) ? payments : [] };
+    } catch {
+      return { userNotes, payments: [] };
+    }
+  }
+  return { userNotes: notesString.trim(), payments: [] };
+};
+
+const stringifyNotesAndPayments = (userNotes: string, payments: PaymentHistoryItem[]): string => {
+  const cleanedNotes = userNotes.trim();
+  if (payments.length === 0) return cleanedNotes;
+  return `${cleanedNotes}\n\n<!-- PAYMENTS_START -->${JSON.stringify(payments)}<!-- PAYMENTS_END -->`;
+};
 
 interface BranchItem {
   id: string;
@@ -27,6 +69,9 @@ interface BranchItem {
 export function FinancePage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  // --- Active Tab: Overview vs Doctor Balances ---
+  const [activeFinanceTab, setActiveFinanceTab] = useState<'OVERVIEW' | 'DOCTOR_BALANCES'>('OVERVIEW');
+
   // --- State Variables ---
   const [branches, setBranches] = useState<BranchItem[]>([]);
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]); // Empty means ALL
@@ -60,6 +105,24 @@ export function FinancePage() {
   const [pendingLimit] = useState(10);
   const [pendingSearch, setPendingSearch] = useState('');
   const [pendingLoading, setPendingLoading] = useState(false);
+
+  // Doctor Balances list & summary
+  const [doctorBalances, setDoctorBalances] = useState<DoctorBalanceItem[]>([]);
+  const [doctorBalancesSummary, setDoctorBalancesSummary] = useState<{
+    totalOutstanding: number;
+    totalQuoted: number;
+    totalPaid: number;
+    totalDoctorsWithPending: number;
+    totalDoctors: number;
+  } | null>(null);
+  const [doctorBalancesLoading, setDoctorBalancesLoading] = useState(false);
+  const [doctorBalancesSearch, setDoctorBalancesSearch] = useState('');
+  const [onlyWithPendingFilter, setOnlyWithPendingFilter] = useState(false);
+
+  // Doctor Statement Modal
+  const [selectedDoctorStatement, setSelectedDoctorStatement] = useState<DoctorBalanceItem | null>(null);
+  const [statementTab, setStatementTab] = useState<'UNPAID' | 'ALL'>('UNPAID');
+  const [statementProcessingId, setStatementProcessingId] = useState<string | null>(null);
 
   // UI state for dropdowns
   const [branchFilterOpen, setBranchFilterOpen] = useState(false);
@@ -169,6 +232,74 @@ export function FinancePage() {
     }
   };
 
+  const fetchDoctorBalances = async () => {
+    setDoctorBalancesLoading(true);
+    try {
+      const branchIdsParam = selectedBranches.length > 0 ? selectedBranches.join(',') : 'ALL';
+      const res = await financeService.getDoctorBalances({
+        branchIds: branchIdsParam,
+        search: doctorBalancesSearch,
+        onlyWithPending: onlyWithPendingFilter,
+      });
+      setDoctorBalances(res.data);
+      setDoctorBalancesSummary(res.summary);
+    } catch (err) {
+      console.error('Failed to load doctor balances', err);
+      toast.error(t('financePage.failedLoad', { defaultValue: 'Failed to load doctor balances' }));
+    } finally {
+      setDoctorBalancesLoading(false);
+    }
+  };
+
+  const handleStatementMarkAsPaid = async (wo: DoctorBalanceWorkOrder) => {
+    try {
+      setStatementProcessingId(wo.id);
+      const { userNotes, payments } = parseNotesAndPayments('');
+      const newPayments = [
+        ...payments,
+        {
+          amount: wo.balance,
+          notes: 'Full payment settlement from doctor statement',
+          date: new Date().toISOString(),
+        },
+      ];
+      const serializedNotes = stringifyNotesAndPayments(userNotes, newPayments);
+
+      await workOrderService.update(wo.id, {
+        initialPayment: wo.totalQuote,
+        notes: serializedNotes,
+      });
+
+      toast.success(t('workOrders.markAsPaidSuccess'));
+      fetchDoctorBalances();
+      fetchData();
+      fetchPendingPayments();
+
+      setSelectedDoctorStatement((prev) => {
+        if (!prev) return null;
+        const updatedAll = prev.allWorkOrders.map((w) =>
+          w.id === wo.id ? { ...w, initialPayment: w.totalQuote, balance: 0, isPaid: true } : w,
+        );
+        const updatedPending = prev.pendingWorkOrders.filter((w) => w.id !== wo.id);
+        const newPaid = prev.totalPaid + wo.balance;
+        const newPending = Math.max(0, prev.totalQuoted - newPaid);
+        return {
+          ...prev,
+          totalPaid: newPaid,
+          pendingBalance: newPending,
+          paidOrdersCount: prev.paidOrdersCount + 1,
+          unpaidOrdersCount: Math.max(0, prev.unpaidOrdersCount - 1),
+          allWorkOrders: updatedAll,
+          pendingWorkOrders: updatedPending,
+        };
+      });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('workOrders.markAsPaidError'));
+    } finally {
+      setStatementProcessingId(null);
+    }
+  };
+
   // Trigger fetch when parameters change
   useEffect(() => {
     fetchData();
@@ -177,6 +308,10 @@ export function FinancePage() {
   useEffect(() => {
     fetchPendingPayments();
   }, [dateRange, selectedBranches, pendingPage, pendingSearch]);
+
+  useEffect(() => {
+    fetchDoctorBalances();
+  }, [selectedBranches, doctorBalancesSearch, onlyWithPendingFilter]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPendingSearch(e.target.value);
@@ -578,7 +713,44 @@ export function FinancePage() {
         </div>
       </div>
 
-      {/* KPI Widgets Grid */}
+      {/* Sub-Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+        <button
+          className={`btn ${activeFinanceTab === 'OVERVIEW' ? 'btn--primary' : 'btn--ghost'}`}
+          onClick={() => setActiveFinanceTab('OVERVIEW')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: '10px' }}
+        >
+          <TrendingUp size={16} />
+          <span>{t('finance.overviewTab', { defaultValue: 'Overview' })}</span>
+        </button>
+        <button
+          className={`btn ${activeFinanceTab === 'DOCTOR_BALANCES' ? 'btn--primary' : 'btn--ghost'}`}
+          onClick={() => {
+            setActiveFinanceTab('DOCTOR_BALANCES');
+            fetchDoctorBalances();
+          }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: '10px', position: 'relative' }}
+        >
+          <Users size={16} />
+          <span>{t('finance.doctorBalancesTab', { defaultValue: 'Doctor & Clinic Balances' })}</span>
+          {doctorBalancesSummary && doctorBalancesSummary.totalDoctorsWithPending > 0 && (
+            <span style={{
+              backgroundColor: activeFinanceTab === 'DOCTOR_BALANCES' ? 'rgba(255, 255, 255, 0.25)' : 'var(--danger)',
+              color: '#FFFFFF',
+              fontSize: '0.6875rem',
+              fontWeight: 800,
+              padding: '1px 6px',
+              borderRadius: '10px',
+            }}>
+              {doctorBalancesSummary.totalDoctorsWithPending}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {activeFinanceTab === 'OVERVIEW' && (
+        <>
+          {/* KPI Widgets Grid */}
       {statsLoading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
           {[...Array(6)].map((_, i) => (
@@ -1641,6 +1813,496 @@ export function FinancePage() {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {/* DOCTOR & CLINIC BALANCES TAB */}
+      {activeFinanceTab === 'DOCTOR_BALANCES' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+          
+          {/* Doctor Balances KPI Summary Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+            {/* Card 1: Total Outstanding */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--danger)',
+              }}>
+                <AlertCircle size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('finance.totalOutstandingBal', { defaultValue: 'Total Outstanding Balance' })}
+                </span>
+                <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--danger)', margin: '2px 0 0 0' }}>
+                  {formatCurrency(doctorBalancesSummary?.totalOutstanding || 0)}
+                </h3>
+              </div>
+            </div>
+
+            {/* Card 2: Doctors with Pending Balance */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#D97706',
+              }}>
+                <Users size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('finance.debtorDoctors', { defaultValue: 'Doctors with Pending Balance' })}
+                </span>
+                <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {doctorBalancesSummary?.totalDoctorsWithPending || 0} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ {doctorBalancesSummary?.totalDoctors || 0}</span>
+                </h3>
+              </div>
+            </div>
+
+            {/* Card 3: Total Quoted */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(111, 174, 217, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--accent-primary)',
+              }}>
+                <TrendingUp size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('finance.quotedRevenue', { defaultValue: 'Quoted (Revenue)' })}
+                </span>
+                <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {formatCurrency(doctorBalancesSummary?.totalQuoted || 0)}
+                </h3>
+              </div>
+            </div>
+
+            {/* Card 4: Total Collected */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--success-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--success)',
+              }}>
+                <Coins size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('finance.totalCollected', { defaultValue: 'Total Collected' })}
+                </span>
+                <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {formatCurrency(doctorBalancesSummary?.totalPaid || 0)}
+                </h3>
+              </div>
+            </div>
+          </div>
+
+          {/* Doctor & Clinic Accounts Receivable Table */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '20px',
+            padding: '1.5rem',
+            boxShadow: 'var(--shadow-md)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-heading)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Users size={20} style={{ color: 'var(--accent-primary)' }} />
+                  <span>{t('finance.doctorBalances', { defaultValue: 'Doctor & Clinic Balances' })}</span>
+                </h3>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '2px', margin: 0 }}>
+                  {t('finance.doctorBalancesSubtitle', { defaultValue: 'Accounts receivable and pending payment balances by doctor & clinic' })}
+                </p>
+              </div>
+
+              {/* Search and Filters */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative', width: '280px' }}>
+                  <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                    <Search size={16} />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder={t('finance.searchDoctorOrClinic', { defaultValue: 'Search doctor or clinic...' })}
+                    value={doctorBalancesSearch}
+                    onChange={(e) => setDoctorBalancesSearch(e.target.value)}
+                    className="form-input"
+                    style={{ paddingLeft: '2.25rem', borderRadius: '8px', fontSize: '0.875rem', width: '100%', height: '38px' }}
+                  />
+                  {doctorBalancesSearch && (
+                    <button
+                      onClick={() => setDoctorBalancesSearch('')}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Only with Pending Toggle */}
+                <button
+                  className={`btn ${onlyWithPendingFilter ? 'btn--primary' : 'btn--secondary'}`}
+                  onClick={() => setOnlyWithPendingFilter(!onlyWithPendingFilter)}
+                  style={{ height: '38px', fontSize: '0.8125rem', fontWeight: 600, borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <Coins size={15} />
+                  <span>{t('finance.onlyWithPending', { defaultValue: 'Only with Pending Balance' })}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            {doctorBalancesLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '220px', gap: '12px' }}>
+                <div className="loading-spinner" />
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('common.loading')}</span>
+              </div>
+            ) : doctorBalances.length === 0 ? (
+              <div style={{ padding: '3rem 1.5rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                <Users size={36} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                <p style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>
+                  {t('finance.noDoctorBalancesFound', { defaultValue: 'No doctor balance records found matching filters.' })}
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.doctor')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('doctors.clinic')}</th>
+                      {user?.role === 'OWNER' && (
+                        <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.branch')}</th>
+                      )}
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('finance.totalOrders', { defaultValue: 'Total Orders' })}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.quoted')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.collected')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 700 }}>{t('finance.outstanding')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('common.status')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'right' }}>{t('common.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doctorBalances.map((doc, idx) => {
+                      const hasBalance = doc.pendingBalance > 0;
+                      return (
+                        <tr key={doc.doctorId} style={{ borderBottom: idx < doctorBalances.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                          <td style={{ padding: '0.875rem 1rem' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{doc.doctorName}</div>
+                            {doc.phone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{doc.phone}</div>}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)' }}>
+                            {doc.clinicName ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <Building2 size={14} style={{ color: 'var(--text-muted)' }} />
+                                <span>{doc.clinicName}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                          {user?.role === 'OWNER' && (
+                            <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)' }}>
+                              {doc.branchName}
+                            </td>
+                          )}
+                          <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}>
+                              {doc.totalOrders}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                            {formatCurrency(doc.totalQuoted)}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', color: 'var(--success)', fontWeight: 600 }}>
+                            {formatCurrency(doc.totalPaid)}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', fontWeight: 800, fontSize: '0.9375rem', color: hasBalance ? 'var(--danger)' : 'var(--success)' }}>
+                            {hasBalance ? formatCurrency(doc.pendingBalance) : formatCurrency(0)}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                            {hasBalance ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: '#D97706',
+                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px solid rgba(245, 158, 11, 0.2)',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                {doc.unpaidOrdersCount} {t('workOrders.pending')}
+                              </span>
+                            ) : (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: 'var(--success)',
+                                backgroundColor: 'var(--success-bg)',
+                                border: '1px solid rgba(16, 185, 129, 0.2)',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                <Check size={12} strokeWidth={2.5} />
+                                {t('financePage.settled', { defaultValue: 'Settled' })}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', textAlign: 'right' }}>
+                            <button
+                              className="btn btn--outline btn--sm"
+                              onClick={() => {
+                                setSelectedDoctorStatement(doc);
+                                setStatementTab(doc.pendingBalance > 0 ? 'UNPAID' : 'ALL');
+                              }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                            >
+                              <FileText size={14} />
+                              <span>{t('finance.viewStatement', { defaultValue: 'View Orders' })}</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* DOCTOR STATEMENT MODAL */}
+      {selectedDoctorStatement && (
+        <div className="modal-overlay" onClick={() => setSelectedDoctorStatement(null)}>
+          <div className="modal" style={{ maxWidth: '840px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 className="modal__title" style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Users size={20} style={{ color: 'var(--accent-primary)' }} />
+                  <span>{selectedDoctorStatement.doctorName}</span>
+                </h3>
+                {selectedDoctorStatement.clinicName && (
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                    {selectedDoctorStatement.clinicName}
+                  </p>
+                )}
+              </div>
+              <button
+                className="btn-close"
+                onClick={() => setSelectedDoctorStatement(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal__body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              
+              {/* Financial Balance Strip */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '1rem',
+                backgroundColor: 'var(--bg-overlay, rgba(148, 163, 184, 0.06))',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                padding: '1rem',
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.quotedRevenue', { defaultValue: 'Total Quoted' })}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(selectedDoctorStatement.totalQuoted)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.totalCollected', { defaultValue: 'Total Collected' })}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--success)' }}>{formatCurrency(selectedDoctorStatement.totalPaid)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>{t('finance.totalOutstandingBal', { defaultValue: 'Outstanding Balance' })}</div>
+                  <div style={{ fontSize: '1.375rem', fontWeight: 900, color: selectedDoctorStatement.pendingBalance > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                    {formatCurrency(selectedDoctorStatement.pendingBalance)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs inside modal */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className={`btn btn--sm ${statementTab === 'UNPAID' ? 'btn--primary' : 'btn--ghost'}`}
+                    onClick={() => setStatementTab('UNPAID')}
+                  >
+                    <span>{t('workOrders.pending')} ({selectedDoctorStatement.unpaidOrdersCount})</span>
+                  </button>
+                  <button
+                    className={`btn btn--sm ${statementTab === 'ALL' ? 'btn--primary' : 'btn--ghost'}`}
+                    onClick={() => setStatementTab('ALL')}
+                  >
+                    <span>{t('common.all')} ({selectedDoctorStatement.totalOrders})</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Work Orders Statement List */}
+              {(() => {
+                const listToDisplay = statementTab === 'UNPAID' ? selectedDoctorStatement.pendingWorkOrders : selectedDoctorStatement.allWorkOrders;
+                if (listToDisplay.length === 0) {
+                  return (
+                    <div style={{ padding: '2.5rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '10px', color: 'var(--text-muted)' }}>
+                      <CheckCircle2 size={32} style={{ color: 'var(--success)', marginBottom: '0.5rem' }} />
+                      <p style={{ fontSize: '0.875rem', fontWeight: 600, margin: 0 }}>
+                        {t('finance.noPendingWOs', { defaultValue: 'No work orders with pending balance.' })}
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ maxHeight: '380px', overflowY: 'auto', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+                      <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-surface)', zIndex: 10 }}>
+                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{t('workOrders.folio')}</th>
+                          <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{t('workOrders.patient')}</th>
+                          <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{t('finance.quoted')}</th>
+                          <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{t('finance.collected')}</th>
+                          <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 700 }}>{t('finance.outstanding')}</th>
+                          <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', textAlign: 'right' }}>{t('common.actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {listToDisplay.map((wo, i) => (
+                          <tr key={wo.id} style={{ borderBottom: i < listToDisplay.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                            <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontWeight: 700 }}>{wo.folioNumber}</td>
+                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)' }}>{wo.patient || '—'}</td>
+                            <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{formatCurrency(wo.totalQuote)}</td>
+                            <td style={{ padding: '0.75rem 1rem', color: 'var(--success)', fontWeight: 600 }}>{formatCurrency(wo.initialPayment)}</td>
+                            <td style={{ padding: '0.75rem 1rem', fontWeight: 800, color: wo.balance > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                              {formatCurrency(wo.balance)}
+                            </td>
+                            <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                              {wo.balance > 0 ? (
+                                <button
+                                  className="btn btn--sm"
+                                  style={{
+                                    backgroundColor: 'var(--success, #10B981)',
+                                    color: '#ffffff',
+                                    fontSize: '0.75rem',
+                                    padding: '3px 10px',
+                                    borderRadius: '6px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                  onClick={() => handleStatementMarkAsPaid(wo)}
+                                  disabled={statementProcessingId === wo.id}
+                                >
+                                  {statementProcessingId === wo.id ? (
+                                    <><Loader2 size={12} className="spinner" /><span>{t('common.saving')}</span></>
+                                  ) : (
+                                    <><CreditCard size={12} /><span>{t('workOrders.markAsPaid')}</span></>
+                                  )}
+                                </button>
+                              ) : (
+                                <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <Check size={12} strokeWidth={2.5} /> {t('financePage.settled', { defaultValue: 'Settled' })}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+
+            </div>
+
+            <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => setSelectedDoctorStatement(null)}
+              >
+                {t('common.close', { defaultValue: 'Close' })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -84,7 +84,15 @@
     "custom": "Custom",
     "startDate": "Start Date",
     "endDate": "End Date",
-    "paid": "Paid"
+    "paid": "Paid",
+    "completed": "Completed",
+    "completedSingular": "completed",
+    "completedPlural": "completed",
+    "hours": "hrs",
+    "mins": "mins",
+    "minutes": "minutes",
+    "hour": "hour",
+    "min": "min"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -519,6 +527,7 @@
   "workOrders": {
     "title": "Work Orders",
     "chatTab": "Chat",
+    "generalTab": "General",
     "internal": "Internal",
     "external": "External",
     "externalDoctor": "External Doctor (from Doctor Portal)",
@@ -644,6 +653,14 @@
     "paymentRecorded": "Payment recorded successfully!",
     "paymentFailed": "Failed to record payment",
     "clearFilters": "Clear Filters",
+    "allPayments": "All Payments",
+    "filterByPayment": "Payment Status",
+    "markAsPaid": "Mark as Paid",
+    "markAsPaidTitle": "Mark Work Order as Paid",
+    "markAsPaidConfirm": "Are you sure you want to mark work order {{folioNumber}} as fully paid? This will register a payment of {{amount}} and settle the balance.",
+    "markAsPaidSuccess": "Work order marked as fully paid successfully!",
+    "markAsPaidError": "Failed to mark work order as paid",
+    "shade": "Shade",
     "noMatchingOrders": "No matching work orders",
     "tryAdjustingFilters": "Try adjusting your search or filter criteria",
     "addVerification": "Add Verification",
@@ -693,7 +710,15 @@
     "workflowStepsLockedTitle": "Workflow Steps Locked",
     "doctorClinic": "Doctor / Clinic",
     "estDueDate": "Est. Due Date",
-    "folio": "Folio"
+    "folio": "Folio",
+    "totalProcesses": "Total processes",
+    "completedCount": "{{count}} completed",
+    "confirmAssignmentTitle": "Confirm Assignment",
+    "confirmAssignmentSubtitle": "Activate workflow and lock structure",
+    "confirmAssignmentBody": "Are you sure you want to assign these processes and activate this Work Order?",
+    "confirmAssignmentWarning": "Activating this Work Order locks the process sequence structure. You will not be able to add, delete, or reorder steps afterwards. The first technician in the sequence will receive an instant notification.",
+    "confirmAndActivate": "Confirm & Activate",
+    "saveAndAssign": "Save & Assign"
   },
   "requestedWorkOrders": {
     "title": "Requested Work Orders",
@@ -757,6 +782,7 @@
     "searchPlaceholder": "Search doctors...",
     "totalDoctors": "Total Doctors",
     "activeClinics": "Active Clinics",
+    "pendingBalance": "Pending Balance",
     "createDoctorSubtitle": "Register an external doctor or dental clinic",
     "selectDoctor": "Select a doctor",
     "selectExternalDoctor": "Select a doctor from Doctor Portal",
@@ -909,6 +935,7 @@
     "noAdminsBranch": "No admins in this branch",
     "estimatedDuration": "Estimated Duration",
     "defaultTechnician": "Default Technician",
+    "selectProcess": "Select process...",
     "noProcesses": "No processes found",
     "createSuccess": "Process created successfully!",
     "updateSuccess": "Process updated successfully!",
@@ -959,7 +986,8 @@
     "amountExceedsBalance": "Amount cannot exceed the remaining balance of ${{balance}}",
     "fundAdded": "Fund added successfully!",
     "addPaymentFailed": "Failed to add payment",
-    "settled": "Settled"
+    "settled": "Settled",
+    "paymentNotesPlaceholder": "e.g. Second installment paid via bank transfer"
   },
   "tenants": {
     "title": "Tenants",
@@ -1076,7 +1104,22 @@
     "loadingPending": "Loading pending work orders...",
     "noPendingWOs": "No pending payment work orders found matching filters.",
     "quoted": "Quoted",
-    "showingPendingRange": "Showing {{start}} to {{end}} of {{total}} pending work orders"
+    "showingPendingRange": "Showing {{start}} to {{end}} of {{total}} pending work orders",
+    "doctorBalances": "Doctor & Clinic Balances",
+    "doctorBalancesSubtitle": "Accounts receivable and pending payment balances by doctor & clinic",
+    "onlyWithPending": "Only with Pending Balance",
+    "allDoctors": "All Doctors",
+    "searchDoctorOrClinic": "Search doctor or clinic...",
+    "debtorDoctors": "Doctors with Pending Balance",
+    "totalOutstandingBal": "Total Outstanding Balance",
+    "viewStatement": "View Orders",
+    "doctorStatementTitle": "Work Orders & Balance Statement",
+    "doctorStatementSubtitle": "All billed and pending work orders for {{name}}",
+    "noDoctorBalancesFound": "No doctor balance records found matching filters.",
+    "doctorBalancesTab": "Doctor Balances",
+    "overviewTab": "Overview",
+    "totalOrders": "Total Orders",
+    "settleBalance": "Settle Balance"
   },
   "workOrder": {
     "details": "Details",

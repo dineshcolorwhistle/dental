@@ -493,6 +493,194 @@ export class FinanceService {
     }
   }
 
+  async getDoctorBalances(
+    tenantId: string,
+    branchIdsFilter?: string,
+    search = '',
+    onlyWithPending = false,
+  ) {
+    try {
+      if (branchIdsFilter === 'NONE') {
+        return {
+          summary: {
+            totalOutstanding: 0,
+            totalQuoted: 0,
+            totalPaid: 0,
+            totalDoctorsWithPending: 0,
+            totalDoctors: 0,
+          },
+          data: [],
+        };
+      }
+
+      let branchIdList: string[] = [];
+      if (branchIdsFilter && branchIdsFilter !== 'ALL') {
+        branchIdList = branchIdsFilter
+          .split(',')
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0);
+      }
+
+      // Fetch all doctors for tenant
+      const doctors = await this.prisma.doctor.findMany({
+        where: {
+          tenantId,
+          ...(branchIdList.length > 0 && {
+            OR: [
+              { branchId: { in: branchIdList } },
+              { branchId: null },
+            ],
+          }),
+        },
+        include: {
+          branch: { select: { id: true, name: true, code: true } },
+          clinic: { select: { id: true, name: true } },
+          workOrders: {
+            where: {
+              tenantId,
+              status: { not: WorkOrderStatus.CANCELLED },
+              ...(branchIdList.length > 0 && { branchId: { in: branchIdList } }),
+            },
+            select: {
+              id: true,
+              folioNumber: true,
+              patient: true,
+              totalQuote: true,
+              initialPayment: true,
+              status: true,
+              createdAt: true,
+              deliveryDate: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      let totalTenantQuoted = 0;
+      let totalTenantPaid = 0;
+      let totalTenantOutstanding = 0;
+      let doctorsWithPendingCount = 0;
+
+      const items = doctors.map((doc) => {
+        let totalQuoted = 0;
+        let totalPaid = 0;
+        let paidCount = 0;
+        let pendingCount = 0;
+
+        const pendingWorkOrders: any[] = [];
+        const allWorkOrdersSummary: any[] = [];
+
+        for (const wo of doc.workOrders) {
+          const q = wo.totalQuote || 0;
+          const p = wo.initialPayment || 0;
+          const bal = Math.max(0, q - p);
+
+          totalQuoted += q;
+          totalPaid += p;
+
+          const woSummary = {
+            id: wo.id,
+            folioNumber: wo.folioNumber,
+            patient: wo.patient,
+            totalQuote: q,
+            initialPayment: p,
+            balance: bal,
+            status: wo.status,
+            createdAt: wo.createdAt,
+            deliveryDate: wo.deliveryDate,
+            isPaid: q > 0 && p >= q,
+          };
+
+          allWorkOrdersSummary.push(woSummary);
+
+          if (q > 0 && p >= q) {
+            paidCount++;
+          } else if (bal > 0) {
+            pendingCount++;
+            pendingWorkOrders.push(woSummary);
+          }
+        }
+
+        const pendingBalance = Math.max(0, totalQuoted - totalPaid);
+
+        totalTenantQuoted += totalQuoted;
+        totalTenantPaid += totalPaid;
+        totalTenantOutstanding += pendingBalance;
+        if (pendingBalance > 0) {
+          doctorsWithPendingCount++;
+        }
+
+        return {
+          doctorId: doc.id,
+          doctorName: doc.name,
+          clinicName: doc.clinicName || doc.clinic?.name || null,
+          clinicId: doc.clinicId || null,
+          email: doc.email,
+          phone: doc.phone,
+          branchName: doc.branch?.name || 'Unassigned',
+          branchCode: doc.branch?.code || null,
+          branchId: doc.branchId,
+          totalOrders: doc.workOrders.length,
+          totalQuoted,
+          totalPaid,
+          pendingBalance,
+          paidOrdersCount: paidCount,
+          unpaidOrdersCount: pendingCount,
+          pendingWorkOrders,
+          allWorkOrders: allWorkOrdersSummary,
+        };
+      });
+
+      let filtered = items;
+      if (search && search.trim()) {
+        const q = search.trim().toLowerCase();
+        filtered = filtered.filter(
+          (d) =>
+            d.doctorName.toLowerCase().includes(q) ||
+            (d.clinicName && d.clinicName.toLowerCase().includes(q)),
+        );
+      }
+
+      if (onlyWithPending) {
+        filtered = filtered.filter((d) => d.pendingBalance > 0);
+      }
+
+      filtered.sort((a, b) => {
+        if (b.pendingBalance !== a.pendingBalance) {
+          return b.pendingBalance - a.pendingBalance;
+        }
+        return a.doctorName.localeCompare(b.doctorName);
+      });
+
+      return {
+        summary: {
+          totalOutstanding: totalTenantOutstanding,
+          totalQuoted: totalTenantQuoted,
+          totalPaid: totalTenantPaid,
+          totalDoctorsWithPending: doctorsWithPendingCount,
+          totalDoctors: doctors.length,
+        },
+        data: filtered,
+      };
+    } catch (error: any) {
+      console.error(
+        `Error in FinanceService.getDoctorBalances: ${error?.message || error}`,
+        error?.stack,
+      );
+      return {
+        summary: {
+          totalOutstanding: 0,
+          totalQuoted: 0,
+          totalPaid: 0,
+          totalDoctorsWithPending: 0,
+          totalDoctors: 0,
+        },
+        data: [],
+      };
+    }
+  }
+
   private emptyFinanceStats() {
     return {
       summary: {

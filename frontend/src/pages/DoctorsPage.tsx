@@ -745,6 +745,24 @@ export function DoctorsPage() {
                               >
                                 {doctor.clinicId ? t('doctors.integrated') : t('doctors.local')}
                               </span>
+                              {(doctor.pendingBalance || 0) > 0 && (
+                                <span
+                                  style={{
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    color: 'var(--danger)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                  }}
+                                  title={`${t('doctors.pendingBalance', { defaultValue: 'Pending Balance' })}: ${new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(doctor.pendingBalance || 0)}`}
+                                >
+                                  -{new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(doctor.pendingBalance || 0)}
+                                </span>
+                              )}
                             </span>
                             <span className="cell-primary__meta">
                               {t('common.created')}{' '}

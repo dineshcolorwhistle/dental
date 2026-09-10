@@ -77,6 +77,56 @@ export interface GetPendingPaymentsParams extends GetFinanceParams {
   search?: string;
 }
 
+export interface DoctorBalanceWorkOrder {
+  id: string;
+  folioNumber: string;
+  patient: string | null;
+  totalQuote: number;
+  initialPayment: number;
+  balance: number;
+  status: string;
+  createdAt: string;
+  deliveryDate: string | null;
+  isPaid: boolean;
+}
+
+export interface DoctorBalanceItem {
+  doctorId: string;
+  doctorName: string;
+  clinicName: string | null;
+  clinicId: string | null;
+  email: string | null;
+  phone: string | null;
+  branchName: string;
+  branchCode: string | null;
+  branchId: string | null;
+  totalOrders: number;
+  totalQuoted: number;
+  totalPaid: number;
+  pendingBalance: number;
+  paidOrdersCount: number;
+  unpaidOrdersCount: number;
+  pendingWorkOrders: DoctorBalanceWorkOrder[];
+  allWorkOrders: DoctorBalanceWorkOrder[];
+}
+
+export interface DoctorBalancesResponse {
+  summary: {
+    totalOutstanding: number;
+    totalQuoted: number;
+    totalPaid: number;
+    totalDoctorsWithPending: number;
+    totalDoctors: number;
+  };
+  data: DoctorBalanceItem[];
+}
+
+export interface GetDoctorBalancesParams {
+  branchIds?: string;
+  search?: string;
+  onlyWithPending?: boolean;
+}
+
 // ─── Service ─────────────────────────────────────────────
 
 export const financeService = {
@@ -87,6 +137,11 @@ export const financeService = {
 
   getPendingPayments: async (params: GetPendingPaymentsParams): Promise<PendingPaymentsResponse> => {
     const { data } = await api.get<PendingPaymentsResponse>('/finance/pending-payments', { params });
+    return data;
+  },
+
+  getDoctorBalances: async (params?: GetDoctorBalancesParams): Promise<DoctorBalancesResponse> => {
+    const { data } = await api.get<DoctorBalancesResponse>('/finance/doctor-balances', { params });
     return data;
   },
 };

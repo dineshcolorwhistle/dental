@@ -399,7 +399,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                     fontSize: '0.875rem'
                   }}
                 >
-                  {t('workOrders.general')}
+                  {t('workOrders.generalTab', { defaultValue: t('workOrders.general', { defaultValue: 'General' }) })}
                 </button>
                 <button
                   type="button"
@@ -1023,8 +1023,8 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                         const hours = Math.floor(totalCompletedSeconds / 3600);
                         const mins = Math.floor((totalCompletedSeconds % 3600) / 60);
                         const timeText = hours > 0
-                          ? `${hours} ${t('common.hours', { defaultValue: 'hrs' })} ${mins} ${t('common.mins', { defaultValue: 'mins' })}`
-                          : `${mins} ${t('common.mins', { defaultValue: 'mins' })}`;
+                          ? `${hours} ${t('common.hours', { defaultValue: 'hrs' })} ${mins} ${t('common.mins', { defaultValue: 'min' })}`
+                          : `${mins} ${t('common.mins', { defaultValue: 'min' })}`;
 
                         return (
                           <div style={{
@@ -1055,7 +1055,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                   {t('workOrders.totalCompletedWorkTime')}
                                 </span>
                                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                  {t('workOrders.completedWorkTimeDesc')} ({completedProcs.length} {t('common.completed', { defaultValue: 'completed' })})
+                                  {t('workOrders.completedWorkTimeDesc')} ({completedProcs.length} {completedProcs.length === 1 ? t('common.completedSingular', { defaultValue: 'completed' }) : t('common.completedPlural', { defaultValue: 'completed' })})
                                 </span>
                               </div>
                             </div>
@@ -1089,7 +1089,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                             color: 'var(--accent-primary)',
                             border: '1px solid var(--border)'
                           }}>
-                            {t('common.total')}: {processes.length}
+                            {t('workOrders.totalProcesses', { defaultValue: 'Total processes' })}: {processes.length}
                           </span>
                         </div>
 
@@ -1619,7 +1619,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                 <input
                                   type="number"
                                   className="form-input"
-                                  placeholder="e.g. 1000"
+                                  placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g. 1000' })}
                                   min="1"
                                   max={balance}
                                   step="0.01"
@@ -1633,7 +1633,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                 <input
                                   type="text"
                                   className="form-input"
-                                  placeholder="e.g. Second installment paid via UPI"
+                                  placeholder={t('financePage.paymentNotesPlaceholder', { defaultValue: 'e.g. Second installment paid via bank transfer' })}
                                   value={addFundNotes}
                                   onChange={e => setAddFundNotes(e.target.value)}
                                   style={{ height: '36px', fontSize: '0.875rem' }}

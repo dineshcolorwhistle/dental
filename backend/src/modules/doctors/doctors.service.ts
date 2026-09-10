@@ -12,6 +12,7 @@ import {
   CreateDoctorListDto,
   UpdateDoctorListDto,
 } from './dto';
+import { WorkOrderStatus } from '@prisma/client';
 
 @Injectable()
 export class DoctorsService {
@@ -79,7 +80,7 @@ export class DoctorsService {
   }
 
   async findAll(tenantId: string, branchIdFilter?: string) {
-    return this.prisma.doctor.findMany({
+    const doctors = await this.prisma.doctor.findMany({
       where: {
         tenantId,
         ...(branchIdFilter &&
@@ -93,8 +94,32 @@ export class DoctorsService {
             code: true,
           },
         },
+        workOrders: {
+          where: { status: { not: WorkOrderStatus.CANCELLED } },
+          select: {
+            totalQuote: true,
+            initialPayment: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
+    });
+
+    return doctors.map((doc) => {
+      let totalQuoted = 0;
+      let totalPaid = 0;
+      for (const wo of doc.workOrders) {
+        totalQuoted += wo.totalQuote || 0;
+        totalPaid += wo.initialPayment || 0;
+      }
+      const pendingBalance = Math.max(0, totalQuoted - totalPaid);
+      const { workOrders, ...rest } = doc;
+      return {
+        ...rest,
+        totalQuoted,
+        totalPaid,
+        pendingBalance,
+      };
     });
   }
 

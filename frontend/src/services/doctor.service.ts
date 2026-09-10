@@ -19,6 +19,9 @@ export interface DoctorListItem {
     name: string;
     code: string;
   };
+  totalQuoted?: number;
+  totalPaid?: number;
+  pendingBalance?: number;
 }
 
 export interface CreateDoctorPayload {

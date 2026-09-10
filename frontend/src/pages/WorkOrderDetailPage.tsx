@@ -641,8 +641,8 @@ export function WorkOrderDetailPage() {
         const hours = Math.floor(totalCompletedSeconds / 3600);
         const mins = Math.floor((totalCompletedSeconds % 3600) / 60);
         const timeText = hours > 0
-          ? `${hours} ${t('common.hours', { defaultValue: 'hrs' })} ${mins} ${t('common.mins', { defaultValue: 'mins' })}`
-          : `${mins} ${t('common.mins', { defaultValue: 'mins' })}`;
+          ? `${hours} ${t('common.hours', { defaultValue: 'hrs' })} ${mins} ${t('common.mins', { defaultValue: 'min' })}`
+          : `${mins} ${t('common.mins', { defaultValue: 'min' })}`;
 
         return (
           <div style={{
@@ -673,7 +673,7 @@ export function WorkOrderDetailPage() {
                   {t('workOrders.totalCompletedWorkTime')}
                 </span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  {t('workOrders.completedWorkTimeDesc')} ({completedProcs.length} {t('common.completed', { defaultValue: 'completed' })})
+                  {t('workOrders.completedWorkTimeDesc')} ({completedProcs.length} {completedProcs.length === 1 ? t('common.completedSingular', { defaultValue: 'completed' }) : t('common.completedPlural', { defaultValue: 'completed' })})
                 </span>
               </div>
             </div>

@@ -25,6 +25,8 @@ import {
   MessageCircle,
   Calendar,
   Layers,
+  Check,
+  CreditCard,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -137,12 +139,16 @@ export function WorkOrdersPage() {
   const [search, setSearch] = useState('');
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter>('ALL');
+  type PaymentStatusFilter = 'ALL' | 'PAID' | 'PARTIAL' | 'UNPAID';
+  const [selectedPaymentFilter, setSelectedPaymentFilter] = useState<PaymentStatusFilter>('ALL');
+  const [quickPayWO, setQuickPayWO] = useState<WorkOrderListItem | null>(null);
+  const [quickPaying, setQuickPaying] = useState(false);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
   const [unreadChatCounts, setUnreadChatCounts] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
 
-  useEffect(() => { setCurrentPage(0); }, [search, selectedBranchFilter, selectedStatusFilter]);
+  useEffect(() => { setCurrentPage(0); }, [search, selectedBranchFilter, selectedStatusFilter, selectedPaymentFilter]);
 
   const [sortField, setSortField] = useState<'folioNumber' | 'patient' | 'createdAt'>('createdAt');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -437,6 +443,17 @@ export function WorkOrdersPage() {
     .filter((wo) => {
       if (!isAdmin && selectedBranchFilter !== 'ALL' && wo.branchId !== selectedBranchFilter) return false;
       if (selectedStatusFilter !== 'ALL' && wo.status !== selectedStatusFilter) return false;
+      if (selectedPaymentFilter !== 'ALL') {
+        const q = wo.totalQuote || 0;
+        const p = wo.initialPayment || 0;
+        if (selectedPaymentFilter === 'PAID') {
+          if (!(q > 0 && p >= q)) return false;
+        } else if (selectedPaymentFilter === 'PARTIAL') {
+          if (!(p > 0 && p < q)) return false;
+        } else if (selectedPaymentFilter === 'UNPAID') {
+          if (!(q > 0 && (!p || p === 0))) return false;
+        }
+      }
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -937,6 +954,50 @@ export function WorkOrdersPage() {
     }
   };
 
+  const handleQuickPayConfirm = async () => {
+    if (!quickPayWO) return;
+    const quote = quickPayWO.totalQuote || 0;
+    const currentPaid = quickPayWO.initialPayment || 0;
+    const balance = Math.max(0, quote - currentPaid);
+    if (balance <= 0) {
+      setQuickPayWO(null);
+      return;
+    }
+
+    try {
+      setQuickPaying(true);
+      const { userNotes, payments } = parseNotesAndPayments(quickPayWO.notes);
+      const newPayments = [
+        ...payments,
+        {
+          amount: balance,
+          notes: 'Full payment settlement',
+          date: new Date().toISOString(),
+        },
+      ];
+      const serializedNotes = stringifyNotesAndPayments(userNotes, newPayments);
+
+      await workOrderService.update(quickPayWO.id, {
+        initialPayment: quote,
+        notes: serializedNotes,
+      });
+
+      setWorkOrders((prev) =>
+        prev.map((w) =>
+          w.id === quickPayWO.id
+            ? { ...w, initialPayment: quote, notes: serializedNotes }
+            : w,
+        ),
+      );
+      toast.success(t('workOrders.markAsPaidSuccess'));
+      setQuickPayWO(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('workOrders.markAsPaidError'));
+    } finally {
+      setQuickPaying(false);
+    }
+  };
+
   const toggleSort = (field: 'folioNumber' | 'patient' | 'createdAt') => {
     if (sortField === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -1054,6 +1115,22 @@ export function WorkOrdersPage() {
             </div>
           )}
 
+          {/* Payment Status Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('workOrders.filterByPayment', { defaultValue: 'Payment' })}:</span>
+            <select
+              className="form-input"
+              style={{ width: '150px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
+              value={selectedPaymentFilter}
+              onChange={(e) => setSelectedPaymentFilter(e.target.value as any)}
+            >
+              <option value="ALL">{t('workOrders.allPayments', { defaultValue: 'All Payments' })}</option>
+              <option value="PAID">{t('financePage.paidInFull', { defaultValue: 'Paid in Full' })}</option>
+              <option value="PARTIAL">{t('financePage.partiallyPaid', { defaultValue: 'Partially Paid' })}</option>
+              <option value="UNPAID">{t('financePage.unpaid', { defaultValue: 'Unpaid' })}</option>
+            </select>
+          </div>
+
           {/* Status Chips */}
           <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
             {(['ALL', 'CREATED', 'ASSIGNED', 'IN_PROGRESS', 'INTERNAL_VERIFICATION', 'EXTERNAL_VERIFICATION', 'COMPLETED', 'FAILED', 'CANCELLED'] as StatusFilter[]).map((s) => (
@@ -1112,9 +1189,9 @@ export function WorkOrdersPage() {
                 </th>
                 <th>{t('workOrders.doctor', { defaultValue: 'Doctor' })}</th>
                 <th>{t('workOrders.prosthesisType')}</th>
-                <th>{t('workOrders.color', { defaultValue: 'Color' })}</th>
                 {isOwner && <th>{t('common.branch')}</th>}
                 <th>{t('finance.quoted')}</th>
+                <th>{t('workOrders.filterByPayment', { defaultValue: 'Payment' })}</th>
                 <th>{t('workOrders.createdBy', { defaultValue: 'Created By' })}</th>
                 <th>{t('common.status')}</th>
                 <th>
@@ -1175,50 +1252,54 @@ export function WorkOrdersPage() {
                     </td>
                     <td>
                       {wo.prosthesisType ? (
-                        <div
-                          className="tooltip-wrap"
-                          {...(idx === 0
-                            ? { 'data-tooltip-bottom': wo.prosthesisType.name }
-                            : { 'data-tooltip-top': wo.prosthesisType.name })}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '7px',
-                            padding: '4px 10px',
-                            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                            border: '1px solid rgba(59, 130, 246, 0.16)',
-                            borderRadius: '6px',
-                            maxWidth: '220px',
-                            cursor: 'help',
-                          }}
-                        >
-                          <Layers
-                            size={14}
+                        <div>
+                          <div
+                            className="tooltip-wrap"
+                            {...(idx === 0
+                              ? { 'data-tooltip-bottom': wo.prosthesisType.name }
+                              : { 'data-tooltip-top': wo.prosthesisType.name })}
                             style={{
-                              color: 'var(--accent-primary, #3B82F6)',
-                              flexShrink: 0,
-                            }}
-                          />
-                          <span
-                            style={{
-                              fontWeight: 600,
-                              fontSize: '0.8125rem',
-                              color: 'var(--text-primary, #1E293B)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              fontFamily: 'inherit',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '3px 8px',
+                              backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                              border: '1px solid rgba(59, 130, 246, 0.16)',
+                              borderRadius: '6px',
+                              maxWidth: '190px',
+                              cursor: 'help',
                             }}
                           >
-                            {wo.prosthesisType.name}
-                          </span>
+                            <Layers
+                              size={13}
+                              style={{
+                                color: 'var(--accent-primary, #3B82F6)',
+                                flexShrink: 0,
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                fontSize: '0.8125rem',
+                                color: 'var(--text-primary, #1E293B)',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {wo.prosthesisType.name}
+                            </span>
+                          </div>
+                          {wo.color && (
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span>{t('workOrders.shade', { defaultValue: 'Shade' })}:</span>
+                              <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{wo.color}</span>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted">—</span>
                       )}
-                    </td>
-                    <td>
-                      <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{wo.color}</span>
                     </td>
                     {isOwner && (
                       <td>
@@ -1239,6 +1320,87 @@ export function WorkOrdersPage() {
                       ) : (
                         <span className="text-muted">—</span>
                       )}
+                    </td>
+                    <td>
+                      {(() => {
+                        const quote = wo.totalQuote || 0;
+                        const paid = wo.initialPayment || 0;
+                        const balance = Math.max(0, quote - paid);
+                        const isPaid = quote > 0 && paid >= quote;
+                        const isPartial = paid > 0 && paid < quote;
+                        const isUnpaid = quote > 0 && (!paid || paid === 0);
+
+                        if (isPaid) {
+                          return (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: 'var(--success, #10B981)',
+                                backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.1))',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={t('financePage.paidInFull')}
+                            >
+                              <Check size={12} strokeWidth={2.5} />
+                              {t('financePage.paidInFull', { defaultValue: 'Paid' })}
+                            </span>
+                          );
+                        }
+                        if (isPartial) {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '2px 7px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  color: '#D97706',
+                                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {t('financePage.partiallyPaid', { defaultValue: 'Partial' })}
+                              </span>
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--danger)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                -{formatCurrency(balance)}
+                              </span>
+                            </div>
+                          );
+                        }
+                        if (isUnpaid) {
+                          return (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                color: 'var(--text-muted, #64748B)',
+                                backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                                border: '1px solid rgba(148, 163, 184, 0.25)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {t('financePage.unpaid', { defaultValue: 'Unpaid' })}
+                            </span>
+                          );
+                        }
+                        return <span className="text-muted">—</span>;
+                      })()}
                     </td>
                     <td>
                       {wo.createdBy ? (
@@ -1322,6 +1484,16 @@ export function WorkOrdersPage() {
                         >
                           <QrCode size={15} />
                         </button>
+                        {canEdit && (wo.totalQuote || 0) > 0 && (wo.initialPayment || 0) < (wo.totalQuote || 0) && (
+                          <button
+                            className="btn-action"
+                            style={{ color: 'var(--success, #10B981)', backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.1))' }}
+                            onClick={() => setQuickPayWO(wo)}
+                            title={t('workOrders.markAsPaid', { defaultValue: 'Mark as Paid' })}
+                          >
+                            <CreditCard size={15} />
+                          </button>
+                        )}
                         {canEdit && (
                           <button
                             className="btn-action"
@@ -1955,7 +2127,7 @@ export function WorkOrdersPage() {
                             value={newProcessId}
                             onChange={handleAvailableProcessChange}
                             disabled={saving}
-                            placeholder={t('processesPage.selectProcess', { defaultValue: 'Select process...' })}
+                            placeholder={t('workOrders.selectProcess', { defaultValue: 'Select process...' })}
                           />
                         </div>
                         <div style={{ flex: 1, minWidth: '180px' }}>
@@ -2040,7 +2212,7 @@ export function WorkOrdersPage() {
                       {saving ? (
                         <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
                       ) : (
-                        <span>Save</span>
+                        <span>{t('common.save')}</span>
                       )}
                     </button>
                     <button
@@ -2054,7 +2226,7 @@ export function WorkOrdersPage() {
                       }}
                       disabled={saving}
                     >
-                      <span>Save &amp; Assign</span>
+                      <span>{t('workOrders.saveAndAssign', { defaultValue: 'Save & Assign' })}</span>
                     </button>
                   </div>
                 </>
@@ -2848,7 +3020,7 @@ export function WorkOrdersPage() {
                             value={newProcessId}
                             onChange={handleAvailableProcessChange}
                             disabled={saving}
-                            placeholder="Select process..."
+                            placeholder={t('workOrders.selectProcess', { defaultValue: 'Select process...' })}
                           />
                         </div>
                         <div style={{ flex: 1, minWidth: '180px' }}>
@@ -2898,10 +3070,10 @@ export function WorkOrdersPage() {
                           })()}
                         </div>
                         <button type="button" className="btn btn--primary btn--sm" onClick={handleAddProcess}>
-                          Add
+                          {t('common.add')}
                         </button>
                         <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowAddProcess(false); setNewProcessId(''); setNewProcessName(''); setNewProcessTechnicianId(''); }}>
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                       </div>
                     </div>
@@ -2923,7 +3095,7 @@ export function WorkOrdersPage() {
                     onClick={() => setShowEditModal(false)}
                     disabled={saving}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
@@ -2934,9 +3106,9 @@ export function WorkOrdersPage() {
                       disabled={saving}
                     >
                       {saving ? (
-                        <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                        <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
                       ) : (
-                        <span>Save</span>
+                        <span>{t('common.save')}</span>
                       )}
                     </button>
                     {editingWO.status === 'CREATED' && (
@@ -2951,7 +3123,7 @@ export function WorkOrdersPage() {
                         }}
                         disabled={saving}
                       >
-                        <span>Save &amp; Assign</span>
+                        <span>{t('workOrders.saveAndAssign', { defaultValue: 'Save & Assign' })}</span>
                       </button>
                     )}
                   </div>
@@ -2964,7 +3136,7 @@ export function WorkOrdersPage() {
                     onClick={() => setModalTab('details')}
                     disabled={saving}
                   >
-                    Back
+                    {t('common.back', { defaultValue: 'Back' })}
                   </button>
                   <button
                     id="btn-wo-edit-confirm"
@@ -2974,9 +3146,9 @@ export function WorkOrdersPage() {
                     disabled={saving}
                   >
                     {saving ? (
-                      <><Loader2 size={16} className="spinner" /><span>Saving...</span></>
+                      <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
                     ) : (
-                      <span>Save</span>
+                      <span>{t('common.save')}</span>
                     )}
                   </button>
                 </>
@@ -2994,21 +3166,21 @@ export function WorkOrdersPage() {
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-primary, #3B82F6)' }}>
                   <ShieldCheck size={20} />
-                  <span>Confirm Assignment</span>
+                  <span>{t('workOrders.confirmAssignmentTitle', { defaultValue: 'Confirm Assignment' })}</span>
                 </h2>
-                <p className="modal__subtitle">Activate workflow and lock structure</p>
+                <p className="modal__subtitle">{t('workOrders.confirmAssignmentSubtitle', { defaultValue: 'Activate workflow and lock structure' })}</p>
               </div>
               <button
                 className="modal__close"
                 onClick={() => setShowConfirmPopup(false)}
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 <X size={20} />
               </button>
             </div>
             <div className="modal__body" style={{ padding: '1.5rem' }}>
               <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', lineHeight: '1.5', color: 'var(--text-primary)' }}>
-                Are you sure you want to assign these processes and activate this Work Order?
+                {t('workOrders.confirmAssignmentBody', { defaultValue: 'Are you sure you want to assign these processes and activate this Work Order?' })}
               </p>
               <div style={{
                 padding: '0.75rem 1rem',
@@ -3019,7 +3191,7 @@ export function WorkOrdersPage() {
                 color: '#D97706',
                 lineHeight: '1.4'
               }}>
-                <strong>Warning:</strong> Activating this Work Order locks the process sequence structure. You will not be able to add, delete, or reorder steps afterwards. The first technician in the sequence will receive an instant notification.
+                <strong>{t('common.warning', { defaultValue: 'Warning' })}:</strong> {t('workOrders.confirmAssignmentWarning', { defaultValue: 'Activating this Work Order locks the process sequence structure. You will not be able to add, delete, or reorder steps afterwards. The first technician in the sequence will receive an instant notification.' })}
               </div>
             </div>
             <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
@@ -3028,7 +3200,7 @@ export function WorkOrdersPage() {
                 className="btn btn--ghost"
                 onClick={() => setShowConfirmPopup(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -3043,7 +3215,103 @@ export function WorkOrdersPage() {
                   setPendingAction(null);
                 }}
               >
-                Confirm &amp; Activate
+                {t('workOrders.confirmAndActivate', { defaultValue: 'Confirm & Activate' })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Pay Confirmation Modal */}
+      {quickPayWO && (
+        <div className="modal-overlay" onClick={() => !quickPaying && setQuickPayWO(null)}>
+          <div className="modal" style={{ maxWidth: '460px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.1))',
+                  color: 'var(--success, #10B981)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <CreditCard size={18} />
+                </div>
+                <h3 className="modal__title" style={{ fontSize: '1.125rem' }}>
+                  {t('workOrders.markAsPaidTitle', { defaultValue: 'Mark Work Order as Paid' })}
+                </h3>
+              </div>
+              <button
+                className="btn-close"
+                onClick={() => !quickPaying && setQuickPayWO(null)}
+                disabled={quickPaying}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {t('workOrders.markAsPaidConfirm', {
+                  folioNumber: quickPayWO.folioNumber,
+                  amount: formatCurrency((quickPayWO.totalQuote || 0) - (quickPayWO.initialPayment || 0)),
+                  defaultValue: `Are you sure you want to mark work order ${quickPayWO.folioNumber} as fully paid? This will register a payment of ${formatCurrency((quickPayWO.totalQuote || 0) - (quickPayWO.initialPayment || 0))} and settle the balance.`,
+                })}
+              </p>
+
+              <div style={{
+                backgroundColor: 'var(--bg-overlay, rgba(148, 163, 184, 0.06))',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                padding: '0.875rem 1rem',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '0.625rem',
+                fontSize: '0.8125rem',
+              }}>
+                <div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('workOrders.patient')}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{quickPayWO.patient || '—'}</div>
+                </div>
+                <div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('workOrders.doctor')}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{quickPayWO.doctor?.name || '—'}</div>
+                </div>
+                <div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('finance.quoted')}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatCurrency(quickPayWO.totalQuote || 0)}</div>
+                </div>
+                <div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('workOrders.pending')}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--danger)' }}>
+                    {formatCurrency((quickPayWO.totalQuote || 0) - (quickPayWO.initialPayment || 0))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal__footer" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setQuickPayWO(null)}
+                disabled={quickPaying}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                style={{ backgroundColor: 'var(--success, #10B981)', borderColor: 'var(--success, #10B981)' }}
+                onClick={handleQuickPayConfirm}
+                disabled={quickPaying}
+              >
+                {quickPaying ? (
+                  <><Loader2 size={16} className="spinner" /><span>{t('common.saving')}</span></>
+                ) : (
+                  <><Check size={16} /><span>{t('workOrders.markAsPaid')}</span></>
+                )}
               </button>
             </div>
           </div>

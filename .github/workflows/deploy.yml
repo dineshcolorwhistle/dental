@@ -48,17 +48,10 @@ jobs:
         run: npm run build
 
   deploy:
-    name: Deploy to ${{ matrix.environment.name }}
+    name: Deploy to sarvadent_staging
     needs: validate
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        environment:
-          - name: Staging
-            app_dir: /home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental
-          - name: sarvadent_staging
-            app_dir: /home/sarvadent-labs/htdocs/labs.sarvadent.com/dental
-    environment: ${{ matrix.environment.name }}
+    environment: sarvadent_staging
 
     steps:
       - name: Deploy Application
@@ -73,7 +66,7 @@ jobs:
 
             echo "🚀 Starting deployment..."
 
-            APP_DIR="${{ matrix.environment.app_dir }}"
+            APP_DIR="/home/sarvadent-labs/htdocs/labs.sarvadent.com/dental"
 
             cd $APP_DIR
 
