@@ -704,6 +704,144 @@ export class IntegrationController {
     };
   }
 
+  @Get('work-orders')
+  @ApiOperation({
+    summary: 'Retrieve all work orders associated with the connected clinic',
+  })
+  async getClinicWorkOrders(
+    @Req() req: any,
+    @Query('clinicUrl') clinicUrl?: string,
+    @Query('status') status?: string,
+    @Query('doctorId') doctorId?: string,
+    @Query('search') search?: string,
+  ) {
+    const tenantId = req.apiKeyTenantId;
+    const branchId = req.apiKeyBranchId;
+
+    const rawClinicUrl =
+      clinicUrl ||
+      (req.headers['origin'] as string) ||
+      (req.headers['referer'] as string) ||
+      '';
+
+    let clinic = null;
+    if (rawClinicUrl) {
+      const targetDomain = this.extractDomain(rawClinicUrl);
+      const clinics = await this.prisma.clinic.findMany({
+        where: {
+          tenantId,
+          ...(branchId ? { branchId } : {}),
+        },
+      });
+
+      clinic =
+        clinics.find((c) => {
+          if (!c.url) return false;
+          if (
+            c.url === rawClinicUrl ||
+            c.url.trim().replace(/\/+$/, '') ===
+              rawClinicUrl.trim().replace(/\/+$/, '')
+          ) {
+            return true;
+          }
+          const dbDomain = this.extractDomain(c.url);
+          return Boolean(targetDomain && dbDomain && targetDomain === dbDomain);
+        }) || null;
+    }
+
+    if (!clinic) {
+      // Fallback: If only 1 clinic is connected to this branch/tenant, use that
+      const clinics = await this.prisma.clinic.findMany({
+        where: {
+          tenantId,
+          ...(branchId ? { branchId } : {}),
+        },
+      });
+      if (clinics.length === 1) {
+        clinic = clinics[0];
+      }
+    }
+
+    if (!clinic) {
+      throw new BadRequestException(
+        'Clinic could not be resolved. Please provide a valid clinicUrl parameter.',
+      );
+    }
+
+    const normalizedStatus = status ? status.toUpperCase().trim() : undefined;
+    const isValidStatus =
+      normalizedStatus &&
+      Object.values(WorkOrderStatus).includes(normalizedStatus as any);
+
+    const workOrders = await this.prisma.workOrder.findMany({
+      where: {
+        tenantId,
+        branchId,
+        doctor: {
+          clinicId: clinic.id,
+          ...(doctorId ? { id: doctorId } : {}),
+        },
+        ...(isValidStatus ? { status: normalizedStatus as any } : {}),
+        ...(search
+          ? {
+              OR: [
+                { folioNumber: { contains: search, mode: 'insensitive' } },
+                { patient: { contains: search, mode: 'insensitive' } },
+                { fileNumber: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        prosthesisType: {
+          select: { id: true, name: true, description: true },
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+            clinicName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        processes: {
+          select: {
+            id: true,
+            processName: true,
+            sequence: true,
+            status: true,
+            isVerification: true,
+            startedAt: true,
+            endedAt: true,
+          },
+          orderBy: { sequence: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return workOrders.map((wo) => ({
+      id: wo.id,
+      folioNumber: wo.folioNumber,
+      fileNumber: wo.fileNumber,
+      patient: wo.patient,
+      boxNumber: wo.boxNumber,
+      color: wo.color,
+      notes: wo.notes,
+      specification: wo.specification,
+      status: wo.status,
+      totalQuote: wo.totalQuote,
+      deliveryDate: wo.deliveryDate,
+      isExternal: wo.isExternal,
+      createdAt: wo.createdAt,
+      updatedAt: wo.updatedAt,
+      doctor: wo.doctor,
+      prosthesisType: wo.prosthesisType,
+      processes: wo.processes,
+    }));
+  }
+
   @Get('work-orders/pending-verifications')
   @ApiOperation({
     summary: 'Retrieve pending external verification steps for the clinic',

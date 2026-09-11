@@ -219,6 +219,72 @@ export class WorkOrdersService implements OnModuleInit {
   }
 
   /**
+   * Notifies an integrated clinic when a new Work Order is created for one of its doctors.
+   */
+  async notifyClinicWorkOrderCreated(
+    workOrder: any,
+    doctor: any,
+    clinic: any,
+    prosthesisTypeName?: string,
+  ) {
+    if (!clinic?.url) return;
+    const notificationUrl = `${clinic.url}/api/integration/notifications`;
+    this.logger.log(
+      `Notifying integrated clinic at ${notificationUrl} for new WO ${workOrder.folioNumber}`,
+    );
+
+    const apiKeyRecord = workOrder.branchId
+      ? await this.prisma.apiKey.findFirst({
+          where: {
+            branchId: workOrder.branchId,
+            isActive: true,
+          },
+        })
+      : null;
+    const apiKey = apiKeyRecord ? apiKeyRecord.key : '';
+
+    try {
+      const response = await (global as any).fetch(notificationUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey && { 'X-API-Key': apiKey }),
+        },
+        body: JSON.stringify({
+          event: 'WORK_ORDER_CREATED',
+          workOrderId: workOrder.id,
+          folioNumber: workOrder.folioNumber,
+          patient: workOrder.patient,
+          prosthesisTypeName: prosthesisTypeName || null,
+          color: workOrder.color,
+          deliveryDate: workOrder.deliveryDate,
+          status: workOrder.status,
+          doctor: {
+            id: doctor.id,
+            name: doctor.name,
+            email: doctor.email,
+          },
+          createdAt: workOrder.createdAt,
+        }),
+      });
+
+      if (!response.ok) {
+        this.logger.error(
+          `Failed to notify clinic about new WO: ${response.status} - ${response.statusText}`,
+        );
+      } else {
+        this.logger.log(
+          `Successfully notified clinic at ${notificationUrl} about new WO ${workOrder.folioNumber}`,
+        );
+      }
+    } catch (err: any) {
+      this.logger.error(
+        `Error notifying clinic about new WO at ${notificationUrl}: ${err.message}`,
+      );
+    }
+  }
+
+  /**
    * Helper to calculate overall Work Order status from underlying processes.
    */
   private calculateWorkOrderStatus(
@@ -459,10 +525,15 @@ export class WorkOrdersService implements OnModuleInit {
     // 2. Verify doctor belongs to tenant
     const doctor = await this.prisma.doctor.findFirst({
       where: { id: doctorId, tenantId },
+      include: { clinic: true },
     });
     if (!doctor) {
       throw new NotFoundException(`Doctor with ID "${doctorId}" not found.`);
     }
+
+    const isIntegrated = Boolean(
+      doctor && doctor.clinicId && doctor.clinic?.url,
+    );
 
     // 3. Verify prosthesis type belongs to tenant
     const prosthesisType = await this.prisma.prosthesisType.findFirst({
@@ -540,6 +611,7 @@ export class WorkOrdersService implements OnModuleInit {
           (paymentReferenceNumber ? [paymentReferenceNumber] : []),
         status,
         createdById: userId,
+        isExternal: isIntegrated,
         processes: {
           create: mappedProcesses,
         },
@@ -695,6 +767,19 @@ export class WorkOrdersService implements OnModuleInit {
         status: workOrder.status,
       },
     );
+
+    if (isIntegrated && doctor && doctor.clinic) {
+      this.notifyClinicWorkOrderCreated(
+        workOrder,
+        doctor,
+        doctor.clinic,
+        prosthesisType.name,
+      ).catch((err) =>
+        this.logger.error(
+          `Failed to notify clinic about new WO: ${err.message}`,
+        ),
+      );
+    }
 
     return this.mapWorkOrder(workOrder);
   }
