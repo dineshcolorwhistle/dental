@@ -1974,7 +1974,7 @@ export class WorkOrdersService implements OnModuleInit {
             },
           },
         },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
       });
 
       // Fetch repetition logs for dashboard

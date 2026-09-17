@@ -20,6 +20,8 @@ import {
   Wrench,
   RotateCcw,
   UserCheck,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -64,6 +66,7 @@ export function DashboardPage() {
       boxNumber?: string | null;
     };
   } | null>(null);
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -154,6 +157,7 @@ export function DashboardPage() {
   }
 
   const alerts = (stats?.verificationAlerts || []).filter((a: any) => a.status === 'NOT_STARTED' || a.status === 'IN_PROGRESS');
+  const displayedAlerts = showAllAlerts ? alerts : alerts.slice(0, 3);
   const statusSummary = stats?.woStatusSummary || {};
   const pendingProcs = stats?.pendingProcesses || [];
   const inProgressWOs = stats?.inProgressWOs || [];
@@ -205,29 +209,62 @@ export function DashboardPage() {
           background: 'linear-gradient(to right, rgba(139, 92, 246, 0.03), rgba(99, 102, 241, 0.03))',
           boxShadow: '0 4px 20px -2px rgba(139, 92, 246, 0.06)'
         }}>
-          <h3 className="dashboard-card__title" style={{
-            fontSize: '1.05rem',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '1rem'
-          }}>
-            <ShieldCheck size={20} style={{ color: '#8B5CF6' }} />
-            {t('dashboard.pendingVerificationAlerts')}
-            <span style={{
-              fontSize: '0.75rem',
-              backgroundColor: '#8B5CF6',
-              color: '#FFFFFF',
-              padding: '2px 8px',
-              borderRadius: '100px',
-              fontWeight: 700
-            }}>{alerts.length}</span>
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
+            <h3 className="dashboard-card__title" style={{
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              margin: 0
+            }}>
+              <ShieldCheck size={20} style={{ color: '#8B5CF6' }} />
+              {t('dashboard.pendingVerificationAlerts')}
+              <span style={{
+                fontSize: '0.75rem',
+                backgroundColor: '#8B5CF6',
+                color: '#FFFFFF',
+                padding: '2px 8px',
+                borderRadius: '100px',
+                fontWeight: 700
+              }}>{alerts.length}</span>
+            </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {alerts.map((alert: any) => {
+            {alerts.length > 3 && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                style={{
+                  fontSize: '0.75rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: '#8B5CF6',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(139, 92, 246, 0.25)',
+                  backgroundColor: 'rgba(139, 92, 246, 0.05)'
+                }}
+                onClick={() => setShowAllAlerts(prev => !prev)}
+              >
+                {showAllAlerts
+                  ? t('dashboard.showTop3')
+                  : t('dashboard.showAllWithCount', { count: alerts.length })}
+                {showAllAlerts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            )}
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+            ...(showAllAlerts && { maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' })
+          }}>
+            {displayedAlerts.map((alert: any) => {
               const isNotStarted = alert.status === 'NOT_STARTED';
               const isInternal = alert.type === 'INTERNAL';
               return (
@@ -235,20 +272,32 @@ export function DashboardPage() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '1rem',
+                  padding: '0.875rem 1rem',
                   backgroundColor: 'var(--bg-surface, #FFFFFF)',
                   borderRadius: '12px',
                   border: '1px solid var(--border)',
                   boxShadow: 'var(--shadow-sm)',
                   flexWrap: 'wrap',
-                  gap: '1rem'
+                  gap: '0.75rem'
                 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
                         {alert.folioNumber}
                       </span>
-                      <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{alert.patient}</span>
+                      <span
+                        title={alert.patient}
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          maxWidth: '220px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {alert.patient}
+                      </span>
                       <span style={{
                         fontSize: '0.7rem',
                         fontWeight: 700,
@@ -464,24 +513,25 @@ export function DashboardPage() {
                     gap: '8px'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
                           {wo.folioNumber}
                         </span>
-                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{wo.patient}</span>
+                        <span
+                          title={wo.patient}
+                          style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {wo.patient}
+                        </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          padding: '2px 8px',
-                          borderRadius: '100px',
-                          backgroundColor: wo.status === 'ASSIGNED' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                          color: wo.status === 'ASSIGNED' ? '#3B82F6' : '#F59E0B'
-                        }}>
-                          {wo.status === 'ASSIGNED' ? t('enums.workOrderStatus.ASSIGNED') : t('enums.workOrderStatus.IN_PROGRESS')}
-                        </span>
                         <button
                           className="btn-action"
                           style={{
@@ -506,13 +556,8 @@ export function DashboardPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      <div>
-                        {t('dashboard.doctor')}: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
-                      </div>
-                      <div>
-                        {t('dashboard.prosthesis')}: <strong style={{ color: 'var(--accent-primary)' }}>{wo.prosthesisType?.name || '—'}</strong>
-                      </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      {t('dashboard.doctor')}: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
                     </div>
 
                     {activeStep && (
@@ -579,24 +624,25 @@ export function DashboardPage() {
                     gap: '8px'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
                           {wo.folioNumber}
                         </span>
-                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{wo.patient}</span>
+                        <span
+                          title={wo.patient}
+                          style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {wo.patient}
+                        </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          padding: '2px 8px',
-                          borderRadius: '100px',
-                          backgroundColor: wo.status === 'INTERNAL_VERIFICATION' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                          color: wo.status === 'INTERNAL_VERIFICATION' ? '#8B5CF6' : '#6366F1'
-                        }}>
-                          {wo.status === 'INTERNAL_VERIFICATION' ? t('enums.verificationType.INTERNAL') : t('enums.verificationType.EXTERNAL')} {t('dashboard.verification')}
-                        </span>
                         {wo.status === 'EXTERNAL_VERIFICATION' && Boolean(wo.doctor?.phone || wo.doctor?.user?.phone) && (
                           <button
                             type="button"
@@ -641,20 +687,15 @@ export function DashboardPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      <div>
-                        {t('dashboard.doctor')}: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
-                      </div>
-                      <div>
-                        {t('dashboard.prosthesis')}: <strong style={{ color: 'var(--accent-primary)' }}>{wo.prosthesisType?.name || '—'}</strong>
-                      </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      {t('dashboard.doctor')}: <strong style={{ color: 'var(--text-primary)' }}>{wo.doctor?.name || '—'}</strong>
                     </div>
 
                     {activeVerification && (
                       <div style={{
                         marginTop: '4px',
-                        padding: '8px 10px',
-                        borderRadius: '8px',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
                         backgroundColor: 'var(--bg-card, #F9FAFB)',
                         border: '1px solid var(--border)',
                         display: 'flex',
@@ -663,14 +704,9 @@ export function DashboardPage() {
                         flexWrap: 'wrap',
                         gap: '8px'
                       }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {t('dashboard.verification')}: <strong>{activeVerification.technicianId ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' }) : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })}</strong>
-                          </span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            {t('dashboard.evaluator')}: <strong>{evaluator}</strong>
-                          </span>
-                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {t('dashboard.evaluator')}: <strong style={{ color: 'var(--text-primary)' }}>{evaluator}</strong>
+                        </span>
                         <div>
                           {(() => {
                             const isExternal = !activeVerification.technicianId;

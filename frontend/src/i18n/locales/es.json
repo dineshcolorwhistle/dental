@@ -355,6 +355,8 @@
     "pendingTechSteps": "Pasos Técnicos Pendientes",
     "completedToday": "Completadas Hoy",
     "pendingVerificationAlerts": "Alertas de Verificación Pendientes",
+    "showAllWithCount": "Ver todos ({{count}})",
+    "showTop3": "Ver los 3 primeros",
     "verification": "Verificación",
     "process": "Proceso",
     "assignedEvaluator": "Evaluador Asignado",
