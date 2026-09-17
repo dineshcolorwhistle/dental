@@ -16,18 +16,20 @@ import {
   CreditCard,
   FileText,
   Loader2,
+  ListFilter,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { financeService, branchService, workOrderService } from '../services';
+import { financeService, branchService, workOrderService, doctorService } from '../services';
 import type {
   FinanceStats,
   PendingPaymentWorkOrder,
   DoctorBalanceItem,
   DoctorBalanceWorkOrder,
+  DoctorGroupListItem,
 } from '../services';
 import { useAuth } from '../context';
-import { DateRangePicker } from '../components';
+import { DateRangePicker, Pagination } from '../components';
 
 interface PaymentHistoryItem {
   amount: number;
@@ -69,8 +71,8 @@ interface BranchItem {
 export function FinancePage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  // --- Active Tab: Overview vs Doctor Balances ---
-  const [activeFinanceTab, setActiveFinanceTab] = useState<'OVERVIEW' | 'DOCTOR_BALANCES'>('OVERVIEW');
+  // --- Active Tab: Overview vs Doctor Balances vs Doctor Lists ---
+  const [activeFinanceTab, setActiveFinanceTab] = useState<'OVERVIEW' | 'DOCTOR_BALANCES' | 'DOCTOR_LISTS'>('OVERVIEW');
 
   // --- State Variables ---
   const [branches, setBranches] = useState<BranchItem[]>([]);
@@ -118,6 +120,18 @@ export function FinancePage() {
   const [doctorBalancesLoading, setDoctorBalancesLoading] = useState(false);
   const [doctorBalancesSearch, setDoctorBalancesSearch] = useState('');
   const [onlyWithPendingFilter, setOnlyWithPendingFilter] = useState(false);
+
+  // Doctor Balances Pagination
+  const [docBalancesPage, setDocBalancesPage] = useState(0);
+  const DOC_BALANCES_PAGE_SIZE = 10;
+
+  // Doctor Lists state
+  const [doctorLists, setDoctorLists] = useState<DoctorGroupListItem[]>([]);
+  const [doctorListsLoading, setDoctorListsLoading] = useState(false);
+  const [doctorListsSearch, setDoctorListsSearch] = useState('');
+  const [doctorListsPage, setDoctorListsPage] = useState(0);
+  const [selectedDoctorListBreakdown, setSelectedDoctorListBreakdown] = useState<any | null>(null);
+  const DOCTOR_LISTS_PAGE_SIZE = 10;
 
   // Doctor Statement Modal
   const [selectedDoctorStatement, setSelectedDoctorStatement] = useState<DoctorBalanceItem | null>(null);
@@ -251,6 +265,157 @@ export function FinancePage() {
     }
   };
 
+  const fetchDoctorLists = async () => {
+    setDoctorListsLoading(true);
+    try {
+      const branchScope = selectedBranches.length === 1 && selectedBranches[0] !== 'ALL' ? selectedBranches[0] : undefined;
+      const lists = await doctorService.getLists(branchScope);
+      setDoctorLists(lists);
+    } catch (err) {
+      console.error('Failed to load doctor lists', err);
+      toast.error(t('doctors.failedLoadLists', { defaultValue: 'Failed to load doctor lists' }));
+    } finally {
+      setDoctorListsLoading(false);
+    }
+  };
+
+  // Reset page when search or filters change
+  useEffect(() => {
+    setDocBalancesPage(0);
+  }, [doctorBalancesSearch, onlyWithPendingFilter]);
+
+  useEffect(() => {
+    setDoctorListsPage(0);
+  }, [doctorListsSearch]);
+
+  // Doctor Balances Subtotal (Calculated dynamically for current search/filters)
+  const doctorBalancesSubtotal = useMemo(() => {
+    return doctorBalances.reduce(
+      (acc, doc) => ({
+        totalOrders: acc.totalOrders + (doc.totalOrders || 0),
+        totalQuoted: acc.totalQuoted + (doc.totalQuoted || 0),
+        totalPaid: acc.totalPaid + (doc.totalPaid || 0),
+        totalOutstanding: acc.totalOutstanding + (doc.pendingBalance || 0),
+      }),
+      { totalOrders: 0, totalQuoted: 0, totalPaid: 0, totalOutstanding: 0 }
+    );
+  }, [doctorBalances]);
+
+  const paginatedDoctorBalances = useMemo(() => {
+    const start = docBalancesPage * DOC_BALANCES_PAGE_SIZE;
+    return doctorBalances.slice(start, start + DOC_BALANCES_PAGE_SIZE);
+  }, [doctorBalances, docBalancesPage]);
+
+  // Doctor Lists Financial Aggregates
+  const doctorListsWithFinances = useMemo(() => {
+    const doctorMap = new Map<string, DoctorBalanceItem>();
+    for (const doc of doctorBalances) {
+      doctorMap.set(doc.doctorId, doc);
+    }
+
+    return doctorLists.map((list) => {
+      let totalOrders = 0;
+      let totalQuoted = 0;
+      let totalPaid = 0;
+      let totalOutstanding = 0;
+      let pendingDoctorsCount = 0;
+
+      const memberDetails = (list.members || []).map((m) => {
+        const docBal = doctorMap.get(m.doctorId);
+        const orders = docBal?.totalOrders || 0;
+        const quoted = docBal?.totalQuoted || 0;
+        const paid = docBal?.totalPaid || 0;
+        const balance = docBal?.pendingBalance || 0;
+
+        totalOrders += orders;
+        totalQuoted += quoted;
+        totalPaid += paid;
+        totalOutstanding += balance;
+        if (balance > 0) pendingDoctorsCount++;
+
+        return {
+          memberId: m.id,
+          doctorId: m.doctorId,
+          doctorName: m.doctor?.name || 'Unknown',
+          clinicName: m.doctor?.clinicName || null,
+          phone: m.doctor?.phone || null,
+          email: m.doctor?.email || null,
+          totalOrders: orders,
+          totalQuoted: quoted,
+          totalPaid: paid,
+          pendingBalance: balance,
+          rawBalanceItem: docBal || null,
+        };
+      });
+
+      return {
+        id: list.id,
+        name: list.name,
+        description: list.description,
+        branchName: list.branch?.name || 'Unassigned',
+        branchCode: list.branch?.code || null,
+        membersCount: list.members?.length || 0,
+        memberDetails,
+        totalOrders,
+        totalQuoted,
+        totalPaid,
+        totalOutstanding,
+        pendingDoctorsCount,
+      };
+    });
+  }, [doctorLists, doctorBalances]);
+
+  const filteredDoctorLists = useMemo(() => {
+    if (!doctorListsSearch.trim()) return doctorListsWithFinances;
+    const q = doctorListsSearch.trim().toLowerCase();
+    return doctorListsWithFinances.filter(
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        (l.description && l.description.toLowerCase().includes(q)) ||
+        l.memberDetails.some((m) => m.doctorName.toLowerCase().includes(q) || (m.clinicName && m.clinicName.toLowerCase().includes(q)))
+    );
+  }, [doctorListsWithFinances, doctorListsSearch]);
+
+  const doctorListsSubtotal = useMemo(() => {
+    return filteredDoctorLists.reduce(
+      (acc, l) => ({
+        totalMembers: acc.totalMembers + l.membersCount,
+        totalOrders: acc.totalOrders + l.totalOrders,
+        totalQuoted: acc.totalQuoted + l.totalQuoted,
+        totalPaid: acc.totalPaid + l.totalPaid,
+        totalOutstanding: acc.totalOutstanding + l.totalOutstanding,
+      }),
+      { totalMembers: 0, totalOrders: 0, totalQuoted: 0, totalPaid: 0, totalOutstanding: 0 }
+    );
+  }, [filteredDoctorLists]);
+
+  const paginatedDoctorLists = useMemo(() => {
+    const start = doctorListsPage * DOCTOR_LISTS_PAGE_SIZE;
+    return filteredDoctorLists.slice(start, start + DOCTOR_LISTS_PAGE_SIZE);
+  }, [filteredDoctorLists, doctorListsPage]);
+
+  const doctorListsSummary = useMemo(() => {
+    let totalOutstanding = 0;
+    let totalQuoted = 0;
+    let totalPaid = 0;
+    let listsWithPending = 0;
+
+    for (const l of doctorListsWithFinances) {
+      totalOutstanding += l.totalOutstanding;
+      totalQuoted += l.totalQuoted;
+      totalPaid += l.totalPaid;
+      if (l.totalOutstanding > 0) listsWithPending++;
+    }
+
+    return {
+      totalOutstanding,
+      totalQuoted,
+      totalPaid,
+      listsWithPending,
+      totalLists: doctorListsWithFinances.length,
+    };
+  }, [doctorListsWithFinances]);
+
   const handleStatementMarkAsPaid = async (wo: DoctorBalanceWorkOrder) => {
     try {
       setStatementProcessingId(wo.id);
@@ -312,6 +477,15 @@ export function FinancePage() {
   useEffect(() => {
     fetchDoctorBalances();
   }, [selectedBranches, doctorBalancesSearch, onlyWithPendingFilter]);
+
+  useEffect(() => {
+    if (activeFinanceTab === 'DOCTOR_LISTS') {
+      fetchDoctorLists();
+      if (doctorBalances.length === 0) {
+        fetchDoctorBalances();
+      }
+    }
+  }, [activeFinanceTab, selectedBranches]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPendingSearch(e.target.value);
@@ -697,24 +871,11 @@ export function FinancePage() {
             </div>
           )}
 
-          {/* Date Range Picker */}
-          <DateRangePicker
-            startDate={startDateFilter}
-            endDate={endDateFilter}
-            presetType={datePreset}
-            allowedPresets={['thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'custom']}
-            onChange={(start, end, preset) => {
-              setStartDateFilter(start);
-              setEndDateFilter(end);
-              setDatePreset(preset);
-            }}
-          />
-
         </div>
       </div>
 
       {/* Sub-Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', flexWrap: 'wrap' }}>
         <button
           className={`btn ${activeFinanceTab === 'OVERVIEW' ? 'btn--primary' : 'btn--ghost'}`}
           onClick={() => setActiveFinanceTab('OVERVIEW')}
@@ -746,10 +907,50 @@ export function FinancePage() {
             </span>
           )}
         </button>
+        <button
+          className={`btn ${activeFinanceTab === 'DOCTOR_LISTS' ? 'btn--primary' : 'btn--ghost'}`}
+          onClick={() => {
+            setActiveFinanceTab('DOCTOR_LISTS');
+            fetchDoctorLists();
+            if (doctorBalances.length === 0) {
+              fetchDoctorBalances();
+            }
+          }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: '10px', position: 'relative' }}
+        >
+          <ListFilter size={16} />
+          <span>{t('finance.doctorListsTab', { defaultValue: 'Doctor Lists' })}</span>
+          {doctorLists.length > 0 && (
+            <span style={{
+              backgroundColor: activeFinanceTab === 'DOCTOR_LISTS' ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-overlay)',
+              color: activeFinanceTab === 'DOCTOR_LISTS' ? '#FFFFFF' : 'var(--text-muted)',
+              fontSize: '0.6875rem',
+              fontWeight: 800,
+              padding: '1px 6px',
+              borderRadius: '10px',
+            }}>
+              {doctorLists.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {activeFinanceTab === 'OVERVIEW' && (
         <>
+          {/* Overview Section Action Bar with Date Range Selector */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <DateRangePicker
+              startDate={startDateFilter}
+              endDate={endDateFilter}
+              presetType={datePreset}
+              allowedPresets={['thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'custom']}
+              onChange={(start, end, preset) => {
+                setStartDateFilter(start);
+                setEndDateFilter(end);
+                setDatePreset(preset);
+              }}
+            />
+          </div>
           {/* KPI Widgets Grid */}
       {statsLoading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
@@ -2042,10 +2243,10 @@ export function FinancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {doctorBalances.map((doc, idx) => {
+                    {paginatedDoctorBalances.map((doc, idx) => {
                       const hasBalance = doc.pendingBalance > 0;
                       return (
-                        <tr key={doc.doctorId} style={{ borderBottom: idx < doctorBalances.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <tr key={doc.doctorId} style={{ borderBottom: idx < paginatedDoctorBalances.length - 1 ? '1px solid var(--border)' : 'none' }}>
                           <td style={{ padding: '0.875rem 1rem' }}>
                             <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{doc.doctorName}</div>
                             {doc.phone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{doc.phone}</div>}
@@ -2139,9 +2340,568 @@ export function FinancePage() {
                       );
                     })}
                   </tbody>
+                  {/* Dynamic Subtotal Row (Recalculates on Search & Filters) */}
+                  <tfoot style={{ borderTop: '2px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)', fontWeight: 700 }}>
+                    <tr>
+                      <td style={{ padding: '0.875rem 1rem', color: 'var(--text-heading)' }}>
+                        {t('finance.subtotal')}{doctorBalancesSearch ? ` (${t('finance.filteredSubtotal', { count: doctorBalances.length })})` : ''}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)' }}>—</td>
+                      {user?.role === 'OWNER' && <td style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)' }}>—</td>}
+                      <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(148, 163, 184, 0.15)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                        }}>
+                          {doctorBalancesSubtotal.totalOrders}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', color: 'var(--text-heading)', fontWeight: 800 }}>
+                        {formatCurrency(doctorBalancesSubtotal.totalQuoted)}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', color: 'var(--success)', fontWeight: 800 }}>
+                        {formatCurrency(doctorBalancesSubtotal.totalPaid)}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', color: doctorBalancesSubtotal.totalOutstanding > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 800, fontSize: '0.9375rem' }}>
+                        {formatCurrency(doctorBalancesSubtotal.totalOutstanding)}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>—</td>
+                      <td style={{ padding: '0.875rem 1rem', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}
+
+            {/* Pagination for Doctor Balances */}
+            <div style={{ marginTop: '1rem' }}>
+              <Pagination
+                currentPage={docBalancesPage}
+                totalItems={doctorBalances.length}
+                pageSize={DOC_BALANCES_PAGE_SIZE}
+                onPageChange={setDocBalancesPage}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DOCTOR LISTS TAB */}
+      {activeFinanceTab === 'DOCTOR_LISTS' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+          
+          {/* Doctor Lists KPI Summary Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+            {/* Card 1: Total Outstanding */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--danger)',
+              }}>
+                <AlertCircle size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('finance.totalOutstandingBal', { defaultValue: 'Total Outstanding Balance' })}
+                </span>
+                <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--danger)', margin: '2px 0 0 0' }}>
+                  {formatCurrency(doctorListsSummary.totalOutstanding)}
+                </h3>
+              </div>
+            </div>
+
+            {/* Card 2: Lists with Pending Balance */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#D97706',
+              }}>
+                <ListFilter size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('finance.debtorDoctors', { defaultValue: 'Lists with Pending Balance' })}
+                </span>
+                <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {doctorListsSummary.listsWithPending} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ {doctorListsSummary.totalLists}</span>
+                </h3>
+              </div>
+            </div>
+
+            {/* Card 3: Total Quoted */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(111, 174, 217, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--accent-primary)',
+              }}>
+                <TrendingUp size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('finance.quotedRevenue', { defaultValue: 'Quoted (Revenue)' })}
+                </span>
+                <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {formatCurrency(doctorListsSummary.totalQuoted)}
+                </h3>
+              </div>
+            </div>
+
+            {/* Card 4: Total Collected */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.25rem',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--success-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--success)',
+              }}>
+                <Coins size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('finance.totalCollected', { defaultValue: 'Total Collected' })}
+                </span>
+                <h3 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-heading)', margin: '2px 0 0 0' }}>
+                  {formatCurrency(doctorListsSummary.totalPaid)}
+                </h3>
+              </div>
+            </div>
+          </div>
+
+          {/* Doctor Lists Accounts Receivable Table */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '20px',
+            padding: '1.5rem',
+            boxShadow: 'var(--shadow-md)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-heading)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ListFilter size={20} style={{ color: 'var(--accent-primary)' }} />
+                  <span>{t('finance.doctorLists', { defaultValue: 'Doctor Lists' })}</span>
+                </h3>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '2px', margin: 0 }}>
+                  {t('finance.doctorListsSubtitle', { defaultValue: 'Financial report and balance summaries grouped by doctor lists' })}
+                </p>
+              </div>
+
+              {/* Search */}
+              <div style={{ position: 'relative', width: '280px' }}>
+                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                  <Search size={16} />
+                </span>
+                <input
+                  type="text"
+                  placeholder={t('finance.searchDoctorLists', { defaultValue: 'Search doctor lists...' })}
+                  value={doctorListsSearch}
+                  onChange={(e) => setDoctorListsSearch(e.target.value)}
+                  className="form-input"
+                  style={{ paddingLeft: '2.25rem', borderRadius: '8px', fontSize: '0.875rem', width: '100%', height: '38px' }}
+                />
+                {doctorListsSearch && (
+                  <button
+                    onClick={() => setDoctorListsSearch('')}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Table */}
+            {doctorListsLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '220px', gap: '12px' }}>
+                <div className="loading-spinner" />
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('common.loading')}</span>
+              </div>
+            ) : filteredDoctorLists.length === 0 ? (
+              <div style={{ padding: '3rem 1.5rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                <ListFilter size={36} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                <p style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>
+                  {t('finance.noDoctorListsFound', { defaultValue: 'No doctor lists found matching filters.' })}
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.listName', { defaultValue: 'List Name' })}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('finance.members', { defaultValue: 'Members' })}</th>
+                      {user?.role === 'OWNER' && (
+                        <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.branch')}</th>
+                      )}
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('finance.totalOrders', { defaultValue: 'Total Orders' })}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.quoted')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.collected')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 700 }}>{t('finance.outstanding')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('common.status')}</th>
+                      <th style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'right' }}>{t('common.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedDoctorLists.map((list, idx) => {
+                      const hasBalance = list.totalOutstanding > 0;
+                      return (
+                        <tr key={list.id} style={{ borderBottom: idx < paginatedDoctorLists.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                          <td style={{ padding: '0.875rem 1rem' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{list.name}</div>
+                            {list.description && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {list.description}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                            <span
+                              title={list.memberDetails.map((m: any) => `• ${m.doctorName} ${m.clinicName ? `(${m.clinicName})` : ''}`).join('\n')}
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                color: '#4F46E5',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'help',
+                              }}
+                            >
+                              {list.membersCount} {t('finance.members', { defaultValue: 'Doctors' })}
+                            </span>
+                          </td>
+                          {user?.role === 'OWNER' && (
+                            <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)' }}>
+                              {list.branchName}
+                            </td>
+                          )}
+                          <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}>
+                              {list.totalOrders}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                            {formatCurrency(list.totalQuoted)}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', color: 'var(--success)', fontWeight: 600 }}>
+                            {formatCurrency(list.totalPaid)}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', fontWeight: 800, fontSize: '0.9375rem', color: hasBalance ? 'var(--danger)' : 'var(--success)' }}>
+                            {hasBalance ? formatCurrency(list.totalOutstanding) : formatCurrency(0)}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                            {hasBalance ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: '#D97706',
+                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px solid rgba(245, 158, 11, 0.2)',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                {list.pendingDoctorsCount} {t('workOrders.pending')}
+                              </span>
+                            ) : (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: 'var(--success)',
+                                backgroundColor: 'var(--success-bg)',
+                                border: '1px solid rgba(16, 185, 129, 0.2)',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                <Check size={12} strokeWidth={2.5} />
+                                {t('financePage.settled', { defaultValue: 'Settled' })}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '0.875rem 1rem', textAlign: 'right' }}>
+                            <button
+                              className="btn btn--outline btn--sm"
+                              onClick={() => setSelectedDoctorListBreakdown(list)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                            >
+                              <FileText size={14} />
+                              <span>{t('finance.viewListBreakdown', { defaultValue: 'View Breakdown' })}</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  {/* Dynamic Subtotal Row for Doctor Lists */}
+                  <tfoot style={{ borderTop: '2px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)', fontWeight: 700 }}>
+                    <tr>
+                      <td style={{ padding: '0.875rem 1rem', color: 'var(--text-heading)' }}>
+                        {t('finance.subtotal')}{doctorListsSearch ? ` (${t('finance.filteredSubtotal', { count: filteredDoctorLists.length })})` : ''}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                          color: '#4F46E5',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                        }}>
+                          {doctorListsSubtotal.totalMembers}
+                        </span>
+                      </td>
+                      {user?.role === 'OWNER' && <td style={{ padding: '0.875rem 1rem', color: 'var(--text-muted)' }}>—</td>}
+                      <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(148, 163, 184, 0.15)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                        }}>
+                          {doctorListsSubtotal.totalOrders}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', color: 'var(--text-heading)', fontWeight: 800 }}>
+                        {formatCurrency(doctorListsSubtotal.totalQuoted)}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', color: 'var(--success)', fontWeight: 800 }}>
+                        {formatCurrency(doctorListsSubtotal.totalPaid)}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', color: doctorListsSubtotal.totalOutstanding > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 800, fontSize: '0.9375rem' }}>
+                        {formatCurrency(doctorListsSubtotal.totalOutstanding)}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>—</td>
+                      <td style={{ padding: '0.875rem 1rem', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination for Doctor Lists */}
+            <div style={{ marginTop: '1rem' }}>
+              <Pagination
+                currentPage={doctorListsPage}
+                totalItems={filteredDoctorLists.length}
+                pageSize={DOCTOR_LISTS_PAGE_SIZE}
+                onPageChange={setDoctorListsPage}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DOCTOR LIST BREAKDOWN MODAL */}
+      {selectedDoctorListBreakdown && (
+        <div className="modal-overlay" onClick={() => setSelectedDoctorListBreakdown(null)}>
+          <div className="modal" style={{ maxWidth: '840px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 className="modal__title" style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ListFilter size={20} style={{ color: 'var(--accent-primary)' }} />
+                  <span>{selectedDoctorListBreakdown.name}</span>
+                </h3>
+                {selectedDoctorListBreakdown.description && (
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                    {selectedDoctorListBreakdown.description}
+                  </p>
+                )}
+              </div>
+              <button
+                className="btn-close"
+                onClick={() => setSelectedDoctorListBreakdown(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal__body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Financial Balance Strip */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '1rem',
+                backgroundColor: 'var(--bg-overlay, rgba(148, 163, 184, 0.06))',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                padding: '1rem',
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.quotedRevenue', { defaultValue: 'Total Quoted' })}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(selectedDoctorListBreakdown.totalQuoted)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.totalCollected', { defaultValue: 'Total Collected' })}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--success)' }}>{formatCurrency(selectedDoctorListBreakdown.totalPaid)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>{t('finance.totalOutstandingBal', { defaultValue: 'Outstanding Balance' })}</div>
+                  <div style={{ fontSize: '1.375rem', fontWeight: 900, color: selectedDoctorListBreakdown.totalOutstanding > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                    {formatCurrency(selectedDoctorListBreakdown.totalOutstanding)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Members Table */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, color: 'var(--text-heading)' }}>
+                  {t('finance.listMembersBreakdown', { name: selectedDoctorListBreakdown.name, defaultValue: 'Member Doctors and Balances' })}
+                </h4>
+
+                {selectedDoctorListBreakdown.memberDetails.length === 0 ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                    {t('doctors.lists.noDoctorsInList', { defaultValue: 'No doctors assigned to this list yet.' })}
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
+                          <th style={{ padding: '0.75rem 0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.doctor')}</th>
+                          <th style={{ padding: '0.75rem 0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('doctors.clinic')}</th>
+                          <th style={{ padding: '0.75rem 0.875rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('finance.totalOrders', { defaultValue: 'Orders' })}</th>
+                          <th style={{ padding: '0.75rem 0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.quoted')}</th>
+                          <th style={{ padding: '0.75rem 0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('finance.collected')}</th>
+                          <th style={{ padding: '0.75rem 0.875rem', color: 'var(--text-muted)', fontWeight: 700 }}>{t('finance.outstanding')}</th>
+                          <th style={{ padding: '0.75rem 0.875rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'right' }}>{t('common.actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedDoctorListBreakdown.memberDetails.map((m: any, mIdx: number) => {
+                          const hasBal = m.pendingBalance > 0;
+                          return (
+                            <tr key={m.memberId || m.doctorId} style={{ borderBottom: mIdx < selectedDoctorListBreakdown.memberDetails.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                              <td style={{ padding: '0.75rem 0.875rem' }}>
+                                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{m.doctorName}</div>
+                                {m.phone && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{m.phone}</div>}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.875rem', color: 'var(--text-secondary)' }}>
+                                {m.clinicName || '—'}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.875rem', textAlign: 'center' }}>
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 600,
+                                }}>
+                                  {m.totalOrders}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.75rem 0.875rem', fontWeight: 600 }}>
+                                {formatCurrency(m.totalQuoted)}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.875rem', color: 'var(--success)', fontWeight: 600 }}>
+                                {formatCurrency(m.totalPaid)}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.875rem', fontWeight: 800, color: hasBal ? 'var(--danger)' : 'var(--success)' }}>
+                                {formatCurrency(m.pendingBalance)}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.875rem', textAlign: 'right' }}>
+                                {m.rawBalanceItem ? (
+                                  <button
+                                    className="btn btn--outline btn--sm"
+                                    onClick={() => {
+                                      setSelectedDoctorStatement(m.rawBalanceItem);
+                                      setStatementTab(m.rawBalanceItem.pendingBalance > 0 ? 'UNPAID' : 'ALL');
+                                    }}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.725rem', padding: '3px 8px' }}
+                                  >
+                                    <FileText size={12} />
+                                    <span>{t('finance.viewStatement', { defaultValue: 'View Orders' })}</span>
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

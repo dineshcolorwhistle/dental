@@ -1121,7 +1121,19 @@
     "doctorBalancesTab": "Doctor Balances",
     "overviewTab": "Overview",
     "totalOrders": "Total Orders",
-    "settleBalance": "Settle Balance"
+    "settleBalance": "Settle Balance",
+    "doctorListsTab": "Doctor Lists",
+    "doctorLists": "Doctor Lists",
+    "doctorListsSubtitle": "Financial report and balance summaries grouped by doctor lists",
+    "searchDoctorLists": "Search doctor lists...",
+    "noDoctorListsFound": "No doctor lists found matching filters.",
+    "listName": "List Name",
+    "members": "Members",
+    "viewListBreakdown": "View Breakdown",
+    "listFinancialDetails": "List Financial Details",
+    "listMembersBreakdown": "Member doctors and balances in {{name}}",
+    "subtotal": "Subtotal",
+    "filteredSubtotal": "Subtotal (Filtered: {{count}})"
   },
   "workOrder": {
     "details": "Details",

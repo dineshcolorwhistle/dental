@@ -1121,7 +1121,19 @@
     "doctorBalancesTab": "Saldos de Doctores",
     "overviewTab": "Resumen General",
     "totalOrders": "Total de Órdenes",
-    "settleBalance": "Liquidar Saldo"
+    "settleBalance": "Liquidar Saldo",
+    "doctorListsTab": "Listas de Doctores",
+    "doctorLists": "Listas de Doctores",
+    "doctorListsSubtitle": "Informe financiero y saldos agrupados por listas de doctores",
+    "searchDoctorLists": "Buscar listas de doctores...",
+    "noDoctorListsFound": "No se encontraron listas de doctores que coincidan con los filtros.",
+    "listName": "Nombre de Lista",
+    "members": "Miembros",
+    "viewListBreakdown": "Ver Desglose",
+    "listFinancialDetails": "Detalles Financieros de la Lista",
+    "listMembersBreakdown": "Médicos miembros y saldos en {{name}}",
+    "subtotal": "Subtotal",
+    "filteredSubtotal": "Subtotal (Filtrado: {{count}})"
   },
   "workOrder": {
     "details": "Detalles",
