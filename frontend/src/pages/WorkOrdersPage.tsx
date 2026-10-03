@@ -24,7 +24,6 @@ import {
   QrCode,
   MessageCircle,
   Calendar,
-  Layers,
   Check,
   CreditCard,
 } from 'lucide-react';
@@ -1202,7 +1201,7 @@ export function WorkOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {paginated.map((wo, idx) => {
+              {paginated.map((wo) => {
                 const sc = STATUS_CONFIG[wo.status] || STATUS_CONFIG.CREATED;
                 return (
                   <tr key={wo.id}>
