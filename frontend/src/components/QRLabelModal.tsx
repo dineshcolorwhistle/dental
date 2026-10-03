@@ -54,7 +54,7 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
     img.onload = () => {
       const hasBox = Boolean(workOrder.boxNumber);
       const canvasWidth = 400;
-      const canvasHeight = hasBox ? 440 : 410;
+      const canvasHeight = hasBox ? 490 : 460;
       const scale = 2;
 
       const canvas = document.createElement('canvas');
@@ -100,13 +100,24 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
       ctx.lineTo(canvasWidth - 30, currentY);
       ctx.stroke();
 
-      // Doctor Info
-      currentY += 26;
+      // Patient Info
+      currentY += 24;
       ctx.fillStyle = '#666666';
       ctx.font = '500 14px system-ui, -apple-system, sans-serif';
-      ctx.fillText(t('doctors.doctorName'), canvasWidth / 2, currentY);
+      ctx.fillText(t('workOrders.patientName', { defaultValue: 'Patient Name' }), canvasWidth / 2, currentY);
 
-      currentY += 22;
+      currentY += 20;
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+      ctx.fillText(workOrder.patient || '—', canvasWidth / 2, currentY);
+
+      // Doctor Info
+      currentY += 24;
+      ctx.fillStyle = '#666666';
+      ctx.font = '500 14px system-ui, -apple-system, sans-serif';
+      ctx.fillText(t('doctors.doctorName', { defaultValue: 'Doctor Name' }), canvasWidth / 2, currentY);
+
+      currentY += 20;
       ctx.fillStyle = '#000000';
       ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
       ctx.fillText(workOrder.doctor?.name || '—', canvasWidth / 2, currentY);
@@ -316,9 +327,21 @@ export function QRLabelModal({ isOpen, onClose, workOrder }: QRLabelModalProps) 
               )}
             </div>
 
-            {/* Doctor Info (Patient Name Removed) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>{t('doctors.doctorName')}</div>
+            {/* Patient Info */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.875rem' }}>
+              <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>
+                {t('workOrders.patientName', { defaultValue: 'Patient Name' })}
+              </div>
+              <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#000000' }}>
+                {workOrder.patient || '—'}
+              </div>
+            </div>
+
+            {/* Doctor Info */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.25rem' }}>
+              <div style={{ fontSize: '0.875rem', color: '#666666', fontWeight: 500 }}>
+                {t('doctors.doctorName', { defaultValue: 'Doctor Name' })}
+              </div>
               <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#000000' }}>
                 {workOrder.doctor?.name || '—'}
               </div>

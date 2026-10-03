@@ -1188,7 +1188,6 @@ export function WorkOrdersPage() {
                   </button>
                 </th>
                 <th>{t('workOrders.doctor', { defaultValue: 'Doctor' })}</th>
-                <th>{t('workOrders.prosthesisType')}</th>
                 {isOwner && <th>{t('common.branch')}</th>}
                 <th>{t('finance.quoted')}</th>
                 <th>{t('workOrders.filterByPayment', { defaultValue: 'Payment' })}</th>
@@ -1244,57 +1243,6 @@ export function WorkOrdersPage() {
                           <span className="cell-primary__name" style={{ fontSize: '0.8125rem' }}>{wo.doctor.name}</span>
                           {wo.doctor.clinicName && (
                             <span className="cell-primary__meta">{wo.doctor.clinicName}</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted">—</span>
-                      )}
-                    </td>
-                    <td>
-                      {wo.prosthesisType ? (
-                        <div>
-                          <div
-                            className="tooltip-wrap"
-                            {...(idx === 0
-                              ? { 'data-tooltip-bottom': wo.prosthesisType.name }
-                              : { 'data-tooltip-top': wo.prosthesisType.name })}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '3px 8px',
-                              backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                              border: '1px solid rgba(59, 130, 246, 0.16)',
-                              borderRadius: '6px',
-                              maxWidth: '190px',
-                              cursor: 'help',
-                            }}
-                          >
-                            <Layers
-                              size={13}
-                              style={{
-                                color: 'var(--accent-primary, #3B82F6)',
-                                flexShrink: 0,
-                              }}
-                            />
-                            <span
-                              style={{
-                                fontWeight: 600,
-                                fontSize: '0.8125rem',
-                                color: 'var(--text-primary, #1E293B)',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
-                              {wo.prosthesisType.name}
-                            </span>
-                          </div>
-                          {wo.color && (
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span>{t('workOrders.shade', { defaultValue: 'Shade' })}:</span>
-                              <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{wo.color}</span>
-                            </div>
                           )}
                         </div>
                       ) : (
