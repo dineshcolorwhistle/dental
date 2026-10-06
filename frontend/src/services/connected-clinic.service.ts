@@ -7,7 +7,17 @@ export interface ConnectedClinicDoctorItem {
   phone: string | null;
   workOrders: Array<{
     id: string;
+    folioNumber?: string;
+    patient?: string | null;
     status: string;
+    totalQuote?: number | null;
+    initialPayment?: number | null;
+    deliveryDate?: string | null;
+    createdAt?: string;
+    prosthesisType?: {
+      id: string;
+      name: string;
+    };
   }>;
 }
 
@@ -36,6 +46,51 @@ export interface ConnectedClinicListItem {
   };
   doctors: ConnectedClinicDoctorItem[];
   allowedProsthesisTypes?: ConnectedClinicProsthesisItem[];
+  totalQuoted?: number;
+  totalCollected?: number;
+  totalPending?: number;
+}
+
+export interface ClinicWorkOrderListItem {
+  id: string;
+  folioNumber: string;
+  patient: string | null;
+  status: string;
+  totalQuote: number | null;
+  initialPayment: number | null;
+  collectedAmount: number;
+  pendingAmount: number;
+  deliveryDate: string | null;
+  createdAt: string;
+  doctor: {
+    id: string;
+    name: string;
+    email?: string | null;
+  };
+  prosthesisType?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ClinicWorkOrdersResponse {
+  clinic: {
+    id: string;
+    name: string;
+    url: string;
+    branch: {
+      id: string;
+      name: string;
+      code: string;
+    };
+  };
+  summary: {
+    totalOrders: number;
+    totalQuote: number;
+    totalCollected: number;
+    totalPending: number;
+  };
+  workOrders: ClinicWorkOrderListItem[];
 }
 
 export interface UpdateClinicProsthesisItem {
@@ -46,6 +101,13 @@ export interface UpdateClinicProsthesisItem {
 export const connectedClinicService = {
   getAll: async (): Promise<ConnectedClinicListItem[]> => {
     const response = await api.get<ConnectedClinicListItem[]>('/connected-clinics');
+    return response.data;
+  },
+
+  getWorkOrders: async (clinicId: string): Promise<ClinicWorkOrdersResponse> => {
+    const response = await api.get<ClinicWorkOrdersResponse>(
+      `/connected-clinics/${clinicId}/work-orders`
+    );
     return response.data;
   },
 

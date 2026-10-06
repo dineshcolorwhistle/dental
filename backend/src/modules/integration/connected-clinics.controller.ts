@@ -11,7 +11,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { UserRole, WorkOrderStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { Roles, CurrentUser } from '../../common/decorators';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -104,8 +104,21 @@ export class ConnectedClinicsController {
             workOrders: {
               select: {
                 id: true,
+                folioNumber: true,
+                patient: true,
                 status: true,
+                totalQuote: true,
+                initialPayment: true,
+                deliveryDate: true,
+                createdAt: true,
+                prosthesisType: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
+              orderBy: { createdAt: 'desc' },
             },
           },
         },
@@ -114,11 +127,135 @@ export class ConnectedClinicsController {
     });
 
     return Promise.all(
-      clinics.map(async (c) => ({
-        ...c,
-        allowedProsthesisTypes: await this.getClinicProsthesisTypes(c.id),
-      })),
+      clinics.map(async (c) => {
+        let totalQuoted = 0;
+        let totalCollected = 0;
+        let totalPending = 0;
+
+        for (const doc of c.doctors) {
+          for (const wo of doc.workOrders) {
+            const quote = wo.totalQuote || 0;
+            const collected = wo.initialPayment || 0;
+            totalQuoted += quote;
+            totalCollected += collected;
+            if (wo.status !== WorkOrderStatus.CANCELLED) {
+              totalPending += Math.max(0, quote - collected);
+            }
+          }
+        }
+
+        return {
+          ...c,
+          totalQuoted,
+          totalCollected,
+          totalPending,
+          allowedProsthesisTypes: await this.getClinicProsthesisTypes(c.id),
+        };
+      }),
     );
+  }
+
+  @Get(':id/work-orders')
+  @ApiOperation({ summary: 'List work orders for a connected clinic' })
+  async getClinicWorkOrders(
+    @Param('id') clinicId: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+
+    const clinic = await this.prisma.clinic.findFirst({
+      where: {
+        id: clinicId,
+        tenantId,
+        ...(branchIdContext ? { branchId: branchIdContext } : {}),
+      },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    });
+
+    if (!clinic) {
+      throw new NotFoundException('Clinic not found or access denied.');
+    }
+
+    const workOrders = await this.prisma.workOrder.findMany({
+      where: {
+        tenantId,
+        doctor: {
+          clinicId,
+        },
+      },
+      include: {
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        prosthesisType: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const enriched = workOrders.map((wo) => {
+      const quote = wo.totalQuote || 0;
+      const collected = wo.initialPayment || 0;
+      const pending =
+        wo.status === WorkOrderStatus.CANCELLED
+          ? 0
+          : Math.max(0, quote - collected);
+      return {
+        id: wo.id,
+        folioNumber: wo.folioNumber,
+        patient: wo.patient,
+        status: wo.status,
+        totalQuote: wo.totalQuote,
+        initialPayment: wo.initialPayment,
+        collectedAmount: collected,
+        pendingAmount: pending,
+        deliveryDate: wo.deliveryDate,
+        createdAt: wo.createdAt,
+        doctor: wo.doctor,
+        prosthesisType: wo.prosthesisType,
+      };
+    });
+
+    const summary = enriched.reduce(
+      (acc, wo) => {
+        acc.totalOrders += 1;
+        acc.totalQuote += wo.totalQuote || 0;
+        acc.totalCollected += wo.collectedAmount;
+        acc.totalPending += wo.pendingAmount;
+        return acc;
+      },
+      { totalOrders: 0, totalQuote: 0, totalCollected: 0, totalPending: 0 },
+    );
+
+    return {
+      clinic: {
+        id: clinic.id,
+        name: clinic.name,
+        url: clinic.url,
+        branch: clinic.branch,
+      },
+      summary,
+      workOrders: enriched,
+    };
   }
 
   @Put(':id/prosthesis-types')

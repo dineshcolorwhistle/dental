@@ -19,6 +19,7 @@ import {
   Trash2,
   AlertTriangle,
   ShieldCheck,
+  Eye,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -29,7 +30,11 @@ import {
   type ProsthesisTypeListItem,
   type UpdateClinicProsthesisItem,
 } from '../services';
-import { Pagination } from '../components';
+import {
+  Pagination,
+  ClinicWorkOrdersModal,
+  ViewWorkOrderModal,
+} from '../components';
 
 export function ConnectedClinicsPage() {
   const { t, i18n } = useTranslation();
@@ -39,6 +44,13 @@ export function ConnectedClinicsPage() {
   const [expandedClinicId, setExpandedClinicId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
+
+  // Modal State for Clinic Work Orders List
+  const [selectedClinicForOrders, setSelectedClinicForOrders] =
+    useState<ConnectedClinicListItem | null>(null);
+  // Modal State for Individual Work Order Detail Drill-down
+  const [selectedWorkOrderIdForDetail, setSelectedWorkOrderIdForDetail] =
+    useState<string | null>(null);
 
   // Modal State for Prosthesis Types Management
   const [selectedClinicForProsthesis, setSelectedClinicForProsthesis] =
@@ -53,6 +65,31 @@ export function ConnectedClinicsPage() {
   // Modal State for Delete Clinic Confirmation
   const [clinicToDelete, setClinicToDelete] = useState<ConnectedClinicListItem | null>(null);
   const [deletingClinic, setDeletingClinic] = useState(false);
+
+  const formatCurrency = useCallback((val: number | null | undefined) => {
+    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+      style: 'currency',
+      currency: 'MXN',
+      maximumFractionDigits: 0,
+    }).format(val || 0);
+  }, [i18n.language]);
+
+  const getClinicPendingPayment = useCallback((clinic: ConnectedClinicListItem) => {
+    if (clinic.totalPending !== undefined && clinic.totalPending !== null) {
+      return clinic.totalPending;
+    }
+    let totalPending = 0;
+    clinic.doctors.forEach((doc) => {
+      doc.workOrders.forEach((wo) => {
+        const quote = wo.totalQuote || 0;
+        const paid = wo.initialPayment || 0;
+        if (wo.status !== 'CANCELLED') {
+          totalPending += Math.max(0, quote - paid);
+        }
+      });
+    });
+    return totalPending;
+  }, []);
 
   const fetchClinics = useCallback(async () => {
     try {
@@ -392,6 +429,7 @@ export function ConnectedClinicsPage() {
                   <th>{t('connectedClinics.prosthesisTypes')}</th>
                   <th>{t('connectedClinics.doctorsCount')}</th>
                   <th>{t('connectedClinics.totalOrders')}</th>
+                  <th>{t('connectedClinics.pendingPayment', { defaultValue: 'Pending Payment' })}</th>
                   <th style={{ textAlign: 'right' }}>{t('connectedClinics.actions')}</th>
                 </tr>
               </thead>
@@ -513,6 +551,31 @@ export function ConnectedClinicsPage() {
                             {totalClinicOrders}
                           </span>
                         </td>
+                        <td>
+                          {(() => {
+                            const pending = getClinicPendingPayment(clinic);
+                            const hasPending = pending > 0;
+                            return (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8125rem',
+                                  fontWeight: 700,
+                                  color: hasPending ? 'var(--danger, #EF4444)' : 'var(--success, #10B981)',
+                                  backgroundColor: hasPending ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)',
+                                  border: hasPending ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(16, 185, 129, 0.2)',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {formatCurrency(pending)}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td style={{ textAlign: 'right' }}>
                           <div
                             style={{
@@ -522,6 +585,22 @@ export function ConnectedClinicsPage() {
                               gap: '0.5rem',
                             }}
                           >
+                            <button
+                              id={`btn-view-orders-${clinic.id}`}
+                              className="btn btn--secondary btn--sm"
+                              onClick={() => setSelectedClinicForOrders(clinic)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                fontSize: '0.8125rem',
+                                padding: '0.35rem 0.75rem',
+                              }}
+                              title={t('connectedClinics.viewOrders', { defaultValue: 'View Orders' })}
+                            >
+                              <Eye size={14} />
+                              {t('connectedClinics.viewOrders', { defaultValue: 'View Orders' })}
+                            </button>
                             <button
                               id={`btn-manage-prosthesis-${clinic.id}`}
                               className="btn btn--secondary btn--sm"
@@ -559,7 +638,7 @@ export function ConnectedClinicsPage() {
                       {isExpanded && (
                         <tr>
                           <td
-                            colSpan={9}
+                            colSpan={10}
                             style={{
                               background: 'rgba(111, 174, 217, 0.02)',
                               padding: '1.25rem 1.5rem',
@@ -743,6 +822,33 @@ export function ConnectedClinicsPage() {
                                               {stats.active}
                                             </strong>
                                           </div>
+                                          {(() => {
+                                            const docPending = doctor.workOrders.reduce((sum, wo) => {
+                                              const q = wo.totalQuote || 0;
+                                              const p = wo.initialPayment || 0;
+                                              return wo.status === 'CANCELLED' ? sum : sum + Math.max(0, q - p);
+                                            }, 0);
+                                            return (
+                                              <div
+                                                style={{
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  gap: '0.25rem',
+                                                }}
+                                              >
+                                                <span style={{ color: 'var(--text-muted)' }}>
+                                                  {t('connectedClinics.pendingAmount', { defaultValue: 'Pending' })}:
+                                                </span>
+                                                <strong
+                                                  style={{
+                                                    color: docPending > 0 ? 'var(--danger, #EF4444)' : 'var(--success, #10B981)',
+                                                  }}
+                                                >
+                                                  {formatCurrency(docPending)}
+                                                </strong>
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                       </div>
                                     );
@@ -1527,6 +1633,24 @@ export function ConnectedClinicsPage() {
           </div>
         </div>
       )}
+
+      {/* Clinic Work Orders List Modal */}
+      <ClinicWorkOrdersModal
+        isOpen={!!selectedClinicForOrders}
+        onClose={() => setSelectedClinicForOrders(null)}
+        clinic={selectedClinicForOrders}
+        onViewWorkOrderDetail={(workOrderId) => setSelectedWorkOrderIdForDetail(workOrderId)}
+      />
+
+      {/* Individual Work Order Detail Drill-down Modal */}
+      <ViewWorkOrderModal
+        isOpen={!!selectedWorkOrderIdForDetail}
+        onClose={() => setSelectedWorkOrderIdForDetail(null)}
+        workOrderId={selectedWorkOrderIdForDetail}
+        onUpdate={() => {
+          fetchClinics();
+        }}
+      />
     </div>
   );
 }
