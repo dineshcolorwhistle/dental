@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ClipboardList,
@@ -144,10 +144,20 @@ export function WorkOrdersPage() {
   const [quickPaying, setQuickPaying] = useState(false);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
   const [unreadChatCounts, setUnreadChatCounts] = useState<Record<string, number>>({});
+  const [onlyUnreadFilter, setOnlyUnreadFilter] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
 
-  useEffect(() => { setCurrentPage(0); }, [search, selectedBranchFilter, selectedStatusFilter, selectedPaymentFilter]);
+  const unreadWOCount = useMemo(() => {
+    return Object.values(unreadChatCounts).filter((count) => count > 0).length;
+  }, [unreadChatCounts]);
+
+  const workOrdersRef = useRef<WorkOrderListItem[]>([]);
+  useEffect(() => {
+    workOrdersRef.current = workOrders;
+  }, [workOrders]);
+
+  useEffect(() => { setCurrentPage(0); }, [search, selectedBranchFilter, selectedStatusFilter, selectedPaymentFilter, onlyUnreadFilter]);
 
   const [sortField, setSortField] = useState<'folioNumber' | 'patient' | 'createdAt'>('createdAt');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -365,10 +375,49 @@ export function WorkOrdersPage() {
 
     const handleMessageReceived = (msg: any) => {
       if (msg.conversation?.workOrderId) {
+        const woId = msg.conversation.workOrderId;
         setUnreadChatCounts((prev) => ({
           ...prev,
-          [msg.conversation.workOrderId]: (prev[msg.conversation.workOrderId] || 0) + 1,
+          [woId]: (prev[woId] || 0) + 1,
         }));
+
+        const targetWO = workOrdersRef.current.find((w) => w.id === woId);
+        const folio = targetWO?.folioNumber || 'Work Order';
+        const patient = targetWO?.patient ? ` (${targetWO.patient})` : '';
+
+        toast(
+          (tToast) => (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <MessageCircle size={18} style={{ color: '#8B5CF6', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-heading, #1E293B)' }}>
+                    {t('workOrderChat.newMessage', { defaultValue: 'New Message' })}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #64748B)' }}>
+                    {folio}{patient}
+                  </div>
+                </div>
+              </div>
+              <button
+                className="btn btn--sm btn--primary"
+                style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                onClick={() => {
+                  toast.dismiss(tToast.id);
+                  if (targetWO) {
+                    setSelectedWO(targetWO);
+                    setViewModalInitialTab('chat');
+                    setShowViewModal(true);
+                    setUnreadChatCounts((prev) => ({ ...prev, [woId]: 0 }));
+                  }
+                }}
+              >
+                {t('common.view', { defaultValue: 'Open' })}
+              </button>
+            </div>
+          ),
+          { duration: 6000, id: `wo-msg-${woId}` }
+        );
       }
     };
 
@@ -381,7 +430,7 @@ export function WorkOrdersPage() {
       socket.off('work_order_updated', handleSocketUpdate);
       socket.off('message_received', handleMessageReceived);
     };
-  }, [socket, fetchData]);
+  }, [socket, fetchData, t]);
 
   useEffect(() => {
     if (isConnected) {
@@ -440,6 +489,7 @@ export function WorkOrdersPage() {
   // ─── Filtering & Sorting ───────────────────────
   const filtered = workOrders
     .filter((wo) => {
+      if (onlyUnreadFilter && !(unreadChatCounts[wo.id] > 0)) return false;
       if (!isAdmin && selectedBranchFilter !== 'ALL' && wo.branchId !== selectedBranchFilter) return false;
       if (selectedStatusFilter !== 'ALL' && wo.status !== selectedStatusFilter) return false;
       if (selectedPaymentFilter !== 'ALL') {
@@ -466,6 +516,11 @@ export function WorkOrdersPage() {
       return true;
     })
     .sort((a, b) => {
+      if (onlyUnreadFilter) {
+        const unreadA = unreadChatCounts[a.id] || 0;
+        const unreadB = unreadChatCounts[b.id] || 0;
+        if (unreadA !== unreadB) return unreadB - unreadA;
+      }
       const mul = sortDir === 'asc' ? 1 : -1;
       if (sortField === 'folioNumber') return mul * (a.folioNumber || '').localeCompare(b.folioNumber || '');
       if (sortField === 'patient') return mul * (a.patient || '').localeCompare(b.patient || '');
@@ -1130,6 +1185,66 @@ export function WorkOrdersPage() {
             </select>
           </div>
 
+          {/* Unread Chats Filter */}
+          <button
+            type="button"
+            className={`filter-chip ${onlyUnreadFilter ? 'filter-chip--active' : ''}`}
+            onClick={() => {
+              setOnlyUnreadFilter((prev) => !prev);
+              setCurrentPage(0);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              fontWeight: 500,
+              padding: '0 0.85rem',
+              height: '36px',
+              borderRadius: '8px',
+              border: onlyUnreadFilter
+                ? '1px solid #7C3AED'
+                : unreadWOCount > 0
+                ? '1px solid #C4B5FD'
+                : '1px solid var(--border-color, #E2E8F0)',
+              backgroundColor: onlyUnreadFilter
+                ? '#7C3AED'
+                : unreadWOCount > 0
+                ? '#F5F3FF'
+                : 'var(--bg-surface, #fff)',
+              color: onlyUnreadFilter
+                ? '#ffffff'
+                : unreadWOCount > 0
+                ? '#6D28D9'
+                : 'var(--text-muted, #64748B)',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+            }}
+            title={t('workOrders.filterUnreadChats', { defaultValue: 'Filter by Work Orders with unread messages' })}
+          >
+            <MessageCircle size={15} style={{ color: onlyUnreadFilter ? '#fff' : unreadWOCount > 0 ? '#7C3AED' : 'inherit' }} />
+            <span>{t('workOrders.unreadChats', { defaultValue: 'Unread Chats' })}</span>
+            {unreadWOCount > 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '18px',
+                  height: '18px',
+                  padding: '0 5px',
+                  borderRadius: '9999px',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  backgroundColor: onlyUnreadFilter ? '#ffffff' : '#EF4444',
+                  color: onlyUnreadFilter ? '#7C3AED' : '#ffffff',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                }}
+              >
+                {unreadWOCount}
+              </span>
+            )}
+          </button>
+
           {/* Status Chips */}
           <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
             {(['ALL', 'CREATED', 'ASSIGNED', 'IN_PROGRESS', 'INTERNAL_VERIFICATION', 'EXTERNAL_VERIFICATION', 'COMPLETED', 'FAILED', 'CANCELLED'] as StatusFilter[]).map((s) => (
@@ -1157,13 +1272,24 @@ export function WorkOrdersPage() {
             <ClipboardList size={48} style={{ color: 'var(--accent-primary)' }} />
           </div>
           <h3 className="empty-state__title">
-            {workOrders.length === 0 ? t('workOrders.noWorkOrders', { defaultValue: 'No work orders yet' }) : t('workOrders.noMatching', { defaultValue: 'No matching work orders' })}
+            {workOrders.length === 0
+              ? t('workOrders.noWorkOrders', { defaultValue: 'No work orders yet' })
+              : onlyUnreadFilter
+              ? t('workOrders.noUnreadChats', { defaultValue: 'No unread messages' })
+              : t('workOrders.noMatching', { defaultValue: 'No matching work orders' })}
           </h3>
           <p className="empty-state__text">
             {workOrders.length === 0
               ? t('workOrders.createDesc', { defaultValue: 'Create your first work order to start managing lab workflows.' })
+              : onlyUnreadFilter
+              ? t('workOrders.noUnreadChatsDesc', { defaultValue: 'All work orders are up to date with no pending unread messages.' })
               : t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })}
           </p>
+          {onlyUnreadFilter && (
+            <button className="btn btn--outline" onClick={() => setOnlyUnreadFilter(false)}>
+              {t('common.viewAll', { defaultValue: 'View All Work Orders' })}
+            </button>
+          )}
           {workOrders.length === 0 && canCreate && (
             <button className="btn btn--primary" onClick={handleCreateOpen}>
               <Plus size={18} />
@@ -1402,6 +1528,10 @@ export function WorkOrdersPage() {
                             setSelectedWO(wo);
                             setViewModalInitialTab('chat');
                             setShowViewModal(true);
+                            setUnreadChatCounts((prev) => ({
+                              ...prev,
+                              [wo.id]: 0,
+                            }));
                           }}
                           title={t('workOrderChat.title')}
                         >
@@ -2267,7 +2397,15 @@ export function WorkOrdersPage() {
       {/* View Modal */}
       <ViewWorkOrderModal
         isOpen={showViewModal}
-        onClose={() => setShowViewModal(false)}
+        onClose={() => {
+          setShowViewModal(false);
+          if (selectedWO?.id) {
+            setUnreadChatCounts((prev) => ({
+              ...prev,
+              [selectedWO.id]: 0,
+            }));
+          }
+        }}
         workOrderId={selectedWO?.id || null}
         initialTab={viewModalInitialTab}
         onUpdate={(updatedWO) => {

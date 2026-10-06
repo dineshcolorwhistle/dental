@@ -528,6 +528,10 @@
   },
   "workOrders": {
     "title": "Work Orders",
+    "unreadChats": "Unread Chats",
+    "filterUnreadChats": "Filter by Work Orders with unread messages",
+    "noUnreadChats": "No unread messages",
+    "noUnreadChatsDesc": "All work orders are up to date with no pending unread messages.",
     "chatTab": "Chat",
     "generalTab": "General",
     "internal": "Internal",
@@ -662,7 +666,6 @@
     "markAsPaidConfirm": "Are you sure you want to mark work order {{folioNumber}} as fully paid? This will register a payment of {{amount}} and settle the balance.",
     "markAsPaidSuccess": "Work order marked as fully paid successfully!",
     "markAsPaidError": "Failed to mark work order as paid",
-    "shade": "Shade",
     "noMatchingOrders": "No matching work orders",
     "tryAdjustingFilters": "Try adjusting your search or filter criteria",
     "addVerification": "Add Verification",

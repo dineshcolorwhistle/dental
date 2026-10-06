@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth, useSocket } from '../context';
 import {
   Search,
@@ -211,6 +211,16 @@ export function TechnicianWorkOrdersPage() {
   const { socket, isConnected } = useSocket();
   const [workOrders, setWorkOrders] = useState<TechnicianWorkOrderListItem[]>([]);
   const [unreadChatCounts, setUnreadChatCounts] = useState<Record<string, number>>({});
+  const [onlyUnreadFilter, setOnlyUnreadFilter] = useState(false);
+
+  const unreadWOCount = useMemo(() => {
+    return Object.values(unreadChatCounts).filter((c) => c > 0).length;
+  }, [unreadChatCounts]);
+
+  const workOrdersRef = useRef<TechnicianWorkOrderListItem[]>([]);
+  useEffect(() => {
+    workOrdersRef.current = workOrders;
+  }, [workOrders]);
   const [selectedOrder, setSelectedOrder] = useState<TechnicianWorkOrderListItem | null>(null);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -220,6 +230,13 @@ export function TechnicianWorkOrdersPage() {
 
   const [detailTab, setDetailTab] = useState<'general' | 'process' | 'chat'>('general');
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
+
+  const handleCloseDetailModal = () => {
+    if (selectedOrder?.id) {
+      setUnreadChatCounts((prev) => ({ ...prev, [selectedOrder.id]: 0 }));
+    }
+    setSelectedOrder(null);
+  };
 
   const handleAddNote = async (content: string) => {
     if (!selectedOrder) return;
@@ -339,10 +356,48 @@ export function TechnicianWorkOrdersPage() {
 
     const handleMessageReceived = (msg: any) => {
       if (msg.conversation?.workOrderId) {
+        const woId = msg.conversation.workOrderId;
         setUnreadChatCounts((prev) => ({
           ...prev,
-          [msg.conversation.workOrderId]: (prev[msg.conversation.workOrderId] || 0) + 1,
+          [woId]: (prev[woId] || 0) + 1,
         }));
+
+        const targetWO = workOrdersRef.current.find((w) => w.id === woId);
+        const folio = targetWO?.folioNumber || 'Work Order';
+        const patient = targetWO?.patient ? ` (${targetWO.patient})` : '';
+
+        toast(
+          (tToast) => (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <MessageCircle size={18} style={{ color: '#8B5CF6', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-heading, #1E293B)' }}>
+                    {t('workOrderChat.newMessage', { defaultValue: 'New Message' })}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #64748B)' }}>
+                    {folio}{patient}
+                  </div>
+                </div>
+              </div>
+              <button
+                className="btn btn--sm btn--primary"
+                style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                onClick={() => {
+                  toast.dismiss(tToast.id);
+                  if (targetWO) {
+                    setSelectedOrder(targetWO);
+                    setDetailTab('chat');
+                    setUnreadChatCounts((prev) => ({ ...prev, [woId]: 0 }));
+                  }
+                }}
+              >
+                {t('common.view', { defaultValue: 'Open' })}
+              </button>
+            </div>
+          ),
+          { duration: 6000, id: `wo-msg-${woId}` }
+        );
       }
     };
 
@@ -355,7 +410,7 @@ export function TechnicianWorkOrdersPage() {
       socket.off('work_order_updated', handleSocketUpdate);
       socket.off('message_received', handleMessageReceived);
     };
-  }, [socket, fetchWorkOrders]);
+  }, [socket, fetchWorkOrders, t]);
 
   useEffect(() => {
     if (isConnected) {
@@ -413,11 +468,23 @@ export function TechnicianWorkOrdersPage() {
       .every((p) => p.status === 'COMPLETED');
   };
 
-  // Filter local items by search query (folio or patient name)
-  const filteredOrders = workOrders.filter((wo) =>
-    wo.folioNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (wo.patient && wo.patient.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Filter local items by search query (folio or patient name) and unread filter
+  const filteredOrders = workOrders
+    .filter((wo) => {
+      if (onlyUnreadFilter && !(unreadChatCounts[wo.id] > 0)) return false;
+      return (
+        wo.folioNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (wo.patient && wo.patient.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    })
+    .sort((a, b) => {
+      if (onlyUnreadFilter) {
+        const unreadA = unreadChatCounts[a.id] || 0;
+        const unreadB = unreadChatCounts[b.id] || 0;
+        if (unreadA !== unreadB) return unreadB - unreadA;
+      }
+      return 0;
+    });
 
   const getMyStep = (wo: TechnicianWorkOrderListItem) => {
     // 1. Try to find an active step (IN_PROGRESS or PAUSED) assigned to the technician
@@ -513,17 +580,61 @@ export function TechnicianWorkOrdersPage() {
       </div>
 
       {/* Tabs Row */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         {(['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'] as const).map((tab) => (
           <button
             key={tab}
-            className={`btn btn--sm ${activeTab === tab ? 'btn--primary' : 'btn--outline'}`}
+            className={`btn btn--sm ${activeTab === tab && !onlyUnreadFilter ? 'btn--primary' : 'btn--outline'}`}
             style={{ padding: '0.35rem 1rem', borderRadius: '100px', fontSize: '0.75rem', textTransform: 'capitalize' }}
-            onClick={() => { setActiveTab(tab); setSelectedOrder(null); }}
+            onClick={() => { setActiveTab(tab); setSelectedOrder(null); setOnlyUnreadFilter(false); }}
           >
             {tab === 'ALL' ? t('workOrder.allAssigned') : tab === 'PENDING' ? t('enums.processStatus.NOT_STARTED') : tab === 'IN_PROGRESS' ? t('workOrder.inProgressPausedTab') : t('enums.processStatus.COMPLETED')}
           </button>
         ))}
+
+        {/* Unread Chats Filter */}
+        <button
+          type="button"
+          className={`btn btn--sm ${onlyUnreadFilter ? 'btn--primary' : 'btn--outline'}`}
+          style={{
+            padding: '0.35rem 1rem',
+            borderRadius: '100px',
+            fontSize: '0.75rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            borderColor: onlyUnreadFilter ? '#7C3AED' : unreadWOCount > 0 ? '#C4B5FD' : undefined,
+            backgroundColor: onlyUnreadFilter ? '#7C3AED' : unreadWOCount > 0 ? '#F5F3FF' : undefined,
+            color: onlyUnreadFilter ? '#ffffff' : unreadWOCount > 0 ? '#6D28D9' : undefined,
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            setOnlyUnreadFilter((prev) => !prev);
+            setSelectedOrder(null);
+          }}
+        >
+          <MessageCircle size={14} />
+          <span>{t('workOrders.unreadChats', { defaultValue: 'Unread Chats' })}</span>
+          {unreadWOCount > 0 && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '16px',
+                height: '16px',
+                padding: '0 4px',
+                borderRadius: '9999px',
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                backgroundColor: onlyUnreadFilter ? '#ffffff' : '#EF4444',
+                color: onlyUnreadFilter ? '#7C3AED' : '#ffffff',
+              }}
+            >
+              {unreadWOCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Main Container: Full width card list since detail drawer is now a premium modal */}
@@ -592,6 +703,10 @@ export function TechnicianWorkOrdersPage() {
                             e.stopPropagation();
                             setSelectedOrder(wo);
                             setDetailTab('chat');
+                            setUnreadChatCounts((prev) => ({
+                              ...prev,
+                              [wo.id]: 0,
+                            }));
                           }}
                           title={t('workOrderChat.title')}
                         >
@@ -709,7 +824,7 @@ export function TechnicianWorkOrdersPage() {
 
       {/* Details Stepper Premium Modal */}
       {selectedOrder && (
-        <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
+        <div className="modal-overlay" onClick={handleCloseDetailModal}>
           <div
             className="modal modal--lg animate-fade-in"
             style={{ maxHeight: '90vh', width: '95%' }}
@@ -760,7 +875,7 @@ export function TechnicianWorkOrdersPage() {
               </div>
               <button
                 className="modal__close"
-                onClick={() => setSelectedOrder(null)}
+                onClick={handleCloseDetailModal}
                 aria-label={t('common.close')}
               >
                 <X size={20} />
