@@ -7,17 +7,11 @@ import {
   ClipboardList,
   CheckCircle2,
   AlertCircle,
-  Clock,
-  PlayCircle,
-  ShieldCheck,
-  CircleDot,
   Eye,
   Loader2,
   Check,
   DollarSign,
   User,
-  Calendar,
-  Layers,
 } from 'lucide-react';
 import {
   connectedClinicService,
@@ -25,7 +19,6 @@ import {
   type ClinicWorkOrderListItem,
 } from '../services';
 import { Pagination } from './Pagination';
-import { formatDate } from '../utils/dateUtils';
 
 interface ClinicWorkOrdersModalProps {
   isOpen: boolean;
@@ -35,20 +28,6 @@ interface ClinicWorkOrdersModalProps {
 }
 
 type PaymentFilter = 'ALL' | 'PENDING' | 'PAID';
-
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; color: string; bg: string; icon: React.ReactNode }
-> = {
-  CREATED: { label: 'Created', color: '#6B7280', bg: '#F3F4F6', icon: <CircleDot size={12} /> },
-  ASSIGNED: { label: 'Assigned', color: '#3B82F6', bg: '#EFF6FF', icon: <Clock size={12} /> },
-  IN_PROGRESS: { label: 'In Progress', color: '#F59E0B', bg: '#FFFBEB', icon: <PlayCircle size={12} /> },
-  INTERNAL_VERIFICATION: { label: 'Internal Verification', color: '#8B5CF6', bg: '#F5F3FF', icon: <ShieldCheck size={12} /> },
-  EXTERNAL_VERIFICATION: { label: 'External Verification', color: '#6366F1', bg: '#EEF2FF', icon: <ShieldCheck size={12} /> },
-  COMPLETED: { label: 'Completed', color: '#10B981', bg: '#ECFDF5', icon: <CheckCircle2 size={12} /> },
-  FAILED: { label: 'Failed', color: '#EF4444', bg: '#FEF2F2', icon: <AlertCircle size={12} /> },
-  CANCELLED: { label: 'Cancelled', color: '#F97316', bg: '#FFF3E0', icon: <X size={12} /> },
-};
 
 export function ClinicWorkOrdersModal({
   isOpen,
@@ -62,7 +41,7 @@ export function ClinicWorkOrdersModal({
   const [search, setSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('ALL');
   const [currentPage, setCurrentPage] = useState(0);
-  const PAGE_SIZE = 8;
+  const PAGE_SIZE = 10;
 
   const formatCurrency = useCallback((val: number | null | undefined) => {
     return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
@@ -227,7 +206,7 @@ export function ClinicWorkOrdersModal({
         className="modal modal--xl"
         onClick={(e) => e.stopPropagation()}
         style={{
-          maxWidth: '1060px',
+          maxWidth: '960px',
           width: '95vw',
           maxHeight: '90vh',
           display: 'flex',
@@ -333,6 +312,8 @@ export function ClinicWorkOrdersModal({
           className="modal__body"
           style={{
             padding: '1.5rem 1.75rem',
+            flex: '1 1 auto',
+            minHeight: 0,
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
@@ -652,7 +633,7 @@ export function ClinicWorkOrdersModal({
             </div>
           )}
 
-          {/* Work Orders Table */}
+          {/* Work Orders Table with Dedicated Vertical Scroll */}
           {!loading && filteredOrders.length > 0 && (
             <div
               className="data-table-wrap"
@@ -660,26 +641,86 @@ export function ClinicWorkOrdersModal({
                 borderRadius: '10px',
                 border: '1px solid var(--border)',
                 background: 'var(--bg-surface)',
+                maxHeight: '420px',
+                overflowY: 'auto',
+                overflowX: 'auto',
+                position: 'relative',
               }}
             >
               <table className="data-table" style={{ fontSize: '0.8125rem' }}>
                 <thead>
                   <tr>
-                    <th>{t('workOrders.folio', { defaultValue: 'Folio' })}</th>
-                    <th>{t('workOrders.doctor', { defaultValue: 'Doctor' })}</th>
-                    <th>{t('workOrders.patient', { defaultValue: 'Patient' })}</th>
-                    <th>{t('workOrders.prosthesisType', { defaultValue: 'Prosthesis' })}</th>
-                    <th>{t('common.status', { defaultValue: 'Status' })}</th>
-                    <th>{t('workOrders.totalQuote', { defaultValue: 'Total Quote' })}</th>
-                    <th>{t('connectedClinics.collectedAmount', { defaultValue: 'Collected Amount' })}</th>
-                    <th>{t('connectedClinics.pendingAmount', { defaultValue: 'Pending Amount' })}</th>
-                    <th>{t('common.created', { defaultValue: 'Created' })}</th>
-                    <th style={{ textAlign: 'right' }}>{t('common.actions', { defaultValue: 'Actions' })}</th>
+                    <th
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 5,
+                        background: 'var(--bg-overlay, #F8FAFC)',
+                        boxShadow: '0 1px 0 var(--border)',
+                      }}
+                    >
+                      {t('workOrders.folio', { defaultValue: 'Folio' })}
+                    </th>
+                    <th
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 5,
+                        background: 'var(--bg-overlay, #F8FAFC)',
+                        boxShadow: '0 1px 0 var(--border)',
+                      }}
+                    >
+                      {t('workOrders.doctor', { defaultValue: 'Doctor' })}
+                    </th>
+                    <th
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 5,
+                        background: 'var(--bg-overlay, #F8FAFC)',
+                        boxShadow: '0 1px 0 var(--border)',
+                      }}
+                    >
+                      {t('workOrders.totalQuote', { defaultValue: 'Total Quote' })}
+                    </th>
+                    <th
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 5,
+                        background: 'var(--bg-overlay, #F8FAFC)',
+                        boxShadow: '0 1px 0 var(--border)',
+                      }}
+                    >
+                      {t('connectedClinics.collectedAmount', { defaultValue: 'Collected Amount' })}
+                    </th>
+                    <th
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 5,
+                        background: 'var(--bg-overlay, #F8FAFC)',
+                        boxShadow: '0 1px 0 var(--border)',
+                      }}
+                    >
+                      {t('connectedClinics.pendingAmount', { defaultValue: 'Pending Amount' })}
+                    </th>
+                    <th
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 5,
+                        background: 'var(--bg-overlay, #F8FAFC)',
+                        boxShadow: '0 1px 0 var(--border)',
+                        textAlign: 'right',
+                      }}
+                    >
+                      {t('common.actions', { defaultValue: 'Actions' })}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedOrders.map((wo) => {
-                    const sc = STATUS_CONFIG[wo.status] || STATUS_CONFIG.CREATED;
                     const isFullyPaid = (wo.totalQuote || 0) > 0 && wo.pendingAmount === 0;
                     const hasPending = wo.pendingAmount > 0;
 
@@ -718,55 +759,6 @@ export function ClinicWorkOrdersModal({
                               {wo.doctor.name}
                             </span>
                           </div>
-                        </td>
-
-                        {/* Patient */}
-                        <td>
-                          <span style={{ color: wo.patient ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                            {wo.patient || '—'}
-                          </span>
-                        </td>
-
-                        {/* Prosthesis Type */}
-                        <td>
-                          {wo.prosthesisType ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                color: 'var(--text-secondary)',
-                                fontSize: '0.775rem',
-                              }}
-                            >
-                              <Layers size={12} style={{ color: 'var(--accent-primary)' }} />
-                              {wo.prosthesisType.name}
-                            </span>
-                          ) : (
-                            <span className="text-muted">—</span>
-                          )}
-                        </td>
-
-                        {/* Status */}
-                        <td>
-                          <span
-                            className="badge"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                              color: sc.color,
-                              backgroundColor: sc.bg,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {sc.icon}
-                            {t(`status.${wo.status.toLowerCase()}`, { defaultValue: sc.label })}
-                          </span>
                         </td>
 
                         {/* Total Quote */}
@@ -837,23 +829,6 @@ export function ClinicWorkOrdersModal({
                           )}
                         </td>
 
-                        {/* Date */}
-                        <td>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              color: 'var(--text-muted)',
-                              fontSize: '0.75rem',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            <Calendar size={12} />
-                            {formatDate(wo.createdAt, i18n.language)}
-                          </div>
-                        </td>
-
                         {/* Actions */}
                         <td style={{ textAlign: 'right' }}>
                           <button
@@ -880,7 +855,7 @@ export function ClinicWorkOrdersModal({
             </div>
           )}
 
-          {/* Pagination */}
+          {/* Pagination (if > PAGE_SIZE) */}
           {!loading && filteredOrders.length > PAGE_SIZE && (
             <div style={{ marginTop: '0.5rem' }}>
               <Pagination
