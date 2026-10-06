@@ -11,7 +11,10 @@
   - Major breaking architecture shifts not requested by the user.
 
 ## Implementation Plans
-When asked to prepare an implementation plan:
-- Always write the detailed plan to a text file (e.g., `implementation-plan.txt`) in the project root.
-- Do not dump the plan directly into the conversation.
-- Output a short summary and clickable link to the created file in the chat.
+- **DO NOT store implementation plan text files in the project folder.** Keep the project repository clean of planning or scratch text files.
+- Do not create `implementation-plan.txt` or any other plan text files inside the project directory.
+- Implementation plans should be stored in the agent artifact directory or presented cleanly as structured summaries.
+
+## Temporary & Dummy Files Cleanup
+- If any testing, temporary, or dummy files/scripts are created for verification or checking, they must be **automatically deleted** once the check/process is completed.
+- Never leave temporary scratch files, dummy data, or test scripts inside the project codebase.

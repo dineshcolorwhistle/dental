@@ -166,6 +166,73 @@ export class IntegrationController {
     }
   }
 
+  private async resolveTargetClinic(
+    req: any,
+    clinicUrl?: string,
+    clinicId?: string,
+  ) {
+    const tenantId = req.apiKeyTenantId;
+    const branchId = req.apiKeyBranchId;
+
+    if (clinicId) {
+      const clinic = await this.prisma.clinic.findFirst({
+        where: {
+          id: clinicId,
+          tenantId,
+          ...(branchId ? { branchId } : {}),
+        },
+      });
+      if (clinic) return clinic;
+    }
+
+    const rawClinicUrl =
+      clinicUrl ||
+      (req.headers['origin'] as string) ||
+      (req.headers['referer'] as string) ||
+      '';
+
+    if (rawClinicUrl) {
+      const targetDomain = this.extractDomain(rawClinicUrl);
+      const clinics = await this.prisma.clinic.findMany({
+        where: {
+          tenantId,
+          ...(branchId ? { branchId } : {}),
+        },
+      });
+
+      const matched = clinics.find((c) => {
+        if (!c.url) return false;
+        if (
+          c.url === rawClinicUrl ||
+          c.url.trim().replace(/\/+$/, '') ===
+            rawClinicUrl.trim().replace(/\/+$/, '')
+        ) {
+          return true;
+        }
+        const dbDomain = this.extractDomain(c.url);
+        return Boolean(targetDomain && dbDomain && targetDomain === dbDomain);
+      });
+
+      if (matched) return matched;
+    }
+
+    // Fallback: If only 1 clinic is connected to this branch/tenant, use that
+    const clinics = await this.prisma.clinic.findMany({
+      where: {
+        tenantId,
+        ...(branchId ? { branchId } : {}),
+      },
+    });
+
+    if (clinics.length === 1) {
+      return clinics[0];
+    }
+
+    throw new BadRequestException(
+      'Clinic could not be resolved. Please provide a valid clinicUrl or clinicId parameter.',
+    );
+  }
+
   @Get('work-orders/setup')
   @ApiOperation({
     summary: 'Retrieve prosthesis types and next folio number for WO setup',
@@ -704,69 +771,93 @@ export class IntegrationController {
     };
   }
 
-  @Get('work-orders')
+  @Get(['clinics/pending-amount', 'pending-amount', 'clinics/pending-payment'])
   @ApiOperation({
-    summary: 'Retrieve all work orders associated with the connected clinic',
+    summary: 'Retrieve pending financial balance and summary for the connected clinic',
   })
-  async getClinicWorkOrders(
+  async getClinicPendingAmount(
     @Req() req: any,
     @Query('clinicUrl') clinicUrl?: string,
+    @Query('clinicId') clinicId?: string,
+  ) {
+    const tenantId = req.apiKeyTenantId;
+    const branchId = req.apiKeyBranchId;
+    const clinic = await this.resolveTargetClinic(req, clinicUrl, clinicId);
+
+    const workOrders = await this.prisma.workOrder.findMany({
+      where: {
+        tenantId,
+        ...(branchId ? { branchId } : {}),
+        doctor: {
+          clinicId: clinic.id,
+        },
+      },
+      select: {
+        id: true,
+        folioNumber: true,
+        status: true,
+        totalQuote: true,
+        initialPayment: true,
+      },
+    });
+
+    let totalQuotedAmount = 0;
+    let totalCollectedAmount = 0;
+    let totalPendingAmount = 0;
+    let pendingWorkOrdersCount = 0;
+    let paidWorkOrdersCount = 0;
+
+    for (const wo of workOrders) {
+      const quote = wo.totalQuote || 0;
+      const collected = wo.initialPayment || 0;
+      totalQuotedAmount += quote;
+      totalCollectedAmount += collected;
+
+      if (wo.status !== WorkOrderStatus.CANCELLED) {
+        const pending = Math.max(0, quote - collected);
+        totalPendingAmount += pending;
+        if (pending > 0) {
+          pendingWorkOrdersCount++;
+        } else {
+          paidWorkOrdersCount++;
+        }
+      }
+    }
+
+    return {
+      success: true,
+      clinic: {
+        id: clinic.id,
+        name: clinic.name,
+        url: clinic.url,
+      },
+      currency: 'MXN',
+      totalPendingAmount: Number(totalPendingAmount.toFixed(2)),
+      totalCollectedAmount: Number(totalCollectedAmount.toFixed(2)),
+      totalQuotedAmount: Number(totalQuotedAmount.toFixed(2)),
+      totalWorkOrders: workOrders.length,
+      pendingWorkOrdersCount,
+      paidWorkOrdersCount,
+    };
+  }
+
+  @Get(['clinics/work-orders', 'clinics/associated-work-orders'])
+  @ApiOperation({
+    summary:
+      'Retrieve detailed list of all work orders associated with the connected clinic',
+  })
+  async getAssociatedWorkOrders(
+    @Req() req: any,
+    @Query('clinicUrl') clinicUrl?: string,
+    @Query('clinicId') clinicId?: string,
     @Query('status') status?: string,
+    @Query('paymentStatus') paymentStatus?: string,
     @Query('doctorId') doctorId?: string,
     @Query('search') search?: string,
   ) {
     const tenantId = req.apiKeyTenantId;
     const branchId = req.apiKeyBranchId;
-
-    const rawClinicUrl =
-      clinicUrl ||
-      (req.headers['origin'] as string) ||
-      (req.headers['referer'] as string) ||
-      '';
-
-    let clinic = null;
-    if (rawClinicUrl) {
-      const targetDomain = this.extractDomain(rawClinicUrl);
-      const clinics = await this.prisma.clinic.findMany({
-        where: {
-          tenantId,
-          ...(branchId ? { branchId } : {}),
-        },
-      });
-
-      clinic =
-        clinics.find((c) => {
-          if (!c.url) return false;
-          if (
-            c.url === rawClinicUrl ||
-            c.url.trim().replace(/\/+$/, '') ===
-              rawClinicUrl.trim().replace(/\/+$/, '')
-          ) {
-            return true;
-          }
-          const dbDomain = this.extractDomain(c.url);
-          return Boolean(targetDomain && dbDomain && targetDomain === dbDomain);
-        }) || null;
-    }
-
-    if (!clinic) {
-      // Fallback: If only 1 clinic is connected to this branch/tenant, use that
-      const clinics = await this.prisma.clinic.findMany({
-        where: {
-          tenantId,
-          ...(branchId ? { branchId } : {}),
-        },
-      });
-      if (clinics.length === 1) {
-        clinic = clinics[0];
-      }
-    }
-
-    if (!clinic) {
-      throw new BadRequestException(
-        'Clinic could not be resolved. Please provide a valid clinicUrl parameter.',
-      );
-    }
+    const clinic = await this.resolveTargetClinic(req, clinicUrl, clinicId);
 
     const normalizedStatus = status ? status.toUpperCase().trim() : undefined;
     const isValidStatus =
@@ -776,7 +867,7 @@ export class IntegrationController {
     const workOrders = await this.prisma.workOrder.findMany({
       where: {
         tenantId,
-        branchId,
+        ...(branchId ? { branchId } : {}),
         doctor: {
           clinicId: clinic.id,
           ...(doctorId ? { id: doctorId } : {}),
@@ -821,25 +912,217 @@ export class IntegrationController {
       orderBy: { createdAt: 'desc' },
     });
 
-    return workOrders.map((wo) => ({
-      id: wo.id,
-      folioNumber: wo.folioNumber,
-      fileNumber: wo.fileNumber,
-      patient: wo.patient,
-      boxNumber: wo.boxNumber,
-      color: wo.color,
-      notes: wo.notes,
-      specification: wo.specification,
-      status: wo.status,
-      totalQuote: wo.totalQuote,
-      deliveryDate: wo.deliveryDate,
-      isExternal: wo.isExternal,
-      createdAt: wo.createdAt,
-      updatedAt: wo.updatedAt,
-      doctor: wo.doctor,
-      prosthesisType: wo.prosthesisType,
-      processes: wo.processes,
-    }));
+    let totalQuote = 0;
+    let totalCollected = 0;
+    let totalPending = 0;
+
+    let enriched = workOrders.map((wo) => {
+      const quote = wo.totalQuote || 0;
+      const collected = wo.initialPayment || 0;
+      const pending =
+        wo.status === WorkOrderStatus.CANCELLED
+          ? 0
+          : Math.max(0, quote - collected);
+
+      totalQuote += quote;
+      totalCollected += collected;
+      totalPending += pending;
+
+      return {
+        id: wo.id,
+        folioNumber: wo.folioNumber,
+        fileNumber: wo.fileNumber,
+        patient: wo.patient,
+        boxNumber: wo.boxNumber,
+        color: wo.color,
+        notes: wo.notes,
+        specification: wo.specification,
+        status: wo.status,
+        totalQuote: quote,
+        initialPayment: collected,
+        collectedAmount: collected,
+        pendingAmount: pending,
+        deliveryDate: wo.deliveryDate,
+        isExternal: wo.isExternal,
+        createdAt: wo.createdAt,
+        updatedAt: wo.updatedAt,
+        doctor: wo.doctor,
+        prosthesisType: wo.prosthesisType,
+        processes: wo.processes,
+      };
+    });
+
+    if (paymentStatus) {
+      const ps = paymentStatus.toUpperCase().trim();
+      if (ps === 'PENDING') {
+        enriched = enriched.filter((wo) => wo.pendingAmount > 0);
+      } else if (ps === 'PAID') {
+        enriched = enriched.filter(
+          (wo) =>
+            wo.pendingAmount === 0 && wo.status !== WorkOrderStatus.CANCELLED,
+        );
+      }
+    }
+
+    return {
+      success: true,
+      clinic: {
+        id: clinic.id,
+        name: clinic.name,
+        url: clinic.url,
+      },
+      summary: {
+        totalOrders: enriched.length,
+        totalQuote: Number(totalQuote.toFixed(2)),
+        totalCollected: Number(totalCollected.toFixed(2)),
+        totalPending: Number(totalPending.toFixed(2)),
+      },
+      workOrders: enriched,
+    };
+  }
+
+  @Get('work-orders')
+  @ApiOperation({
+    summary: 'Retrieve all work orders associated with the connected clinic',
+  })
+  async getClinicWorkOrders(
+    @Req() req: any,
+    @Query('clinicUrl') clinicUrl?: string,
+    @Query('clinicId') clinicId?: string,
+    @Query('status') status?: string,
+    @Query('paymentStatus') paymentStatus?: string,
+    @Query('doctorId') doctorId?: string,
+    @Query('search') search?: string,
+    @Query('format') format?: string,
+  ) {
+    const tenantId = req.apiKeyTenantId;
+    const branchId = req.apiKeyBranchId;
+    const clinic = await this.resolveTargetClinic(req, clinicUrl, clinicId);
+
+    const normalizedStatus = status ? status.toUpperCase().trim() : undefined;
+    const isValidStatus =
+      normalizedStatus &&
+      Object.values(WorkOrderStatus).includes(normalizedStatus as any);
+
+    const workOrders = await this.prisma.workOrder.findMany({
+      where: {
+        tenantId,
+        ...(branchId ? { branchId } : {}),
+        doctor: {
+          clinicId: clinic.id,
+          ...(doctorId ? { id: doctorId } : {}),
+        },
+        ...(isValidStatus ? { status: normalizedStatus as any } : {}),
+        ...(search
+          ? {
+              OR: [
+                { folioNumber: { contains: search, mode: 'insensitive' } },
+                { patient: { contains: search, mode: 'insensitive' } },
+                { fileNumber: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        prosthesisType: {
+          select: { id: true, name: true, description: true },
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+            clinicName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        processes: {
+          select: {
+            id: true,
+            processName: true,
+            sequence: true,
+            status: true,
+            isVerification: true,
+            startedAt: true,
+            endedAt: true,
+          },
+          orderBy: { sequence: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let totalQuote = 0;
+    let totalCollected = 0;
+    let totalPending = 0;
+
+    let enriched = workOrders.map((wo) => {
+      const quote = wo.totalQuote || 0;
+      const collected = wo.initialPayment || 0;
+      const pending =
+        wo.status === WorkOrderStatus.CANCELLED
+          ? 0
+          : Math.max(0, quote - collected);
+
+      totalQuote += quote;
+      totalCollected += collected;
+      totalPending += pending;
+
+      return {
+        id: wo.id,
+        folioNumber: wo.folioNumber,
+        fileNumber: wo.fileNumber,
+        patient: wo.patient,
+        boxNumber: wo.boxNumber,
+        color: wo.color,
+        notes: wo.notes,
+        specification: wo.specification,
+        status: wo.status,
+        totalQuote: quote,
+        initialPayment: collected,
+        collectedAmount: collected,
+        pendingAmount: pending,
+        deliveryDate: wo.deliveryDate,
+        isExternal: wo.isExternal,
+        createdAt: wo.createdAt,
+        updatedAt: wo.updatedAt,
+        doctor: wo.doctor,
+        prosthesisType: wo.prosthesisType,
+        processes: wo.processes,
+      };
+    });
+
+    if (paymentStatus) {
+      const ps = paymentStatus.toUpperCase().trim();
+      if (ps === 'PENDING') {
+        enriched = enriched.filter((wo) => wo.pendingAmount > 0);
+      } else if (ps === 'PAID') {
+        enriched = enriched.filter(
+          (wo) =>
+            wo.pendingAmount === 0 && wo.status !== WorkOrderStatus.CANCELLED,
+        );
+      }
+    }
+
+    if (format === 'summary' || format === 'detailed') {
+      return {
+        success: true,
+        clinic: {
+          id: clinic.id,
+          name: clinic.name,
+          url: clinic.url,
+        },
+        summary: {
+          totalOrders: enriched.length,
+          totalQuote: Number(totalQuote.toFixed(2)),
+          totalCollected: Number(totalCollected.toFixed(2)),
+          totalPending: Number(totalPending.toFixed(2)),
+        },
+        workOrders: enriched,
+      };
+    }
+
+    return enriched;
   }
 
   @Get('work-orders/pending-verifications')
