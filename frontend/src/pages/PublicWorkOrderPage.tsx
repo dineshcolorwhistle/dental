@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { interestRequestService } from '../services';
 import type { PublicWorkOrder } from '../services';
+import { formatDate } from '../utils/dateUtils';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ReactNode }> = {
   CREATED: { labelKey: 'enums.workOrderStatus.CREATED', color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.12)', icon: <CircleDot size={13} /> },
@@ -336,10 +337,7 @@ export function PublicWorkOrderPage() {
             />
             <InfoTile
               label={t('publicWorkOrder.createdDate')}
-              value={new Date(workOrder.createdAt).toLocaleDateString(
-                i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-                { day: 'numeric', month: 'short', year: 'numeric' },
-              )}
+              value={formatDate(workOrder.createdAt, i18n.language, undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
               icon={<Calendar size={11} style={{ marginRight: '4px', verticalAlign: 'middle', color: '#6FAED9' }} />}
             />
           </div>

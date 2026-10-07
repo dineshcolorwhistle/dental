@@ -18,3 +18,9 @@
 ## Temporary & Dummy Files Cleanup
 - If any testing, temporary, or dummy files/scripts are created for verification or checking, they must be **automatically deleted** once the check/process is completed.
 - Never leave temporary scratch files, dummy data, or test scripts inside the project codebase.
+
+## Timezone & Date Standards
+- **Never use raw `new Date().toLocaleDateString()` or `new Date().toLocaleString()` in frontend components.**
+- **Always use `useAppDate()` hook** (`import { useAppDate } from '../hooks'`) for formatting dates and currency according to the tenant's business timezone (`America/Mexico_City` by default) and user locale.
+- **Save pure calendar dates at noon UTC:** Always submit calendar dates using `toNoonUtc(dateStr)` or `${dateStr}T12:00:00.000Z` to prevent backward day shifts in negative-UTC regions.
+- **Date filtering:** Filter calendar dates by comparing `YYYY-MM-DD` strings directly, avoiding client-side `new Date()` midnight comparisons.

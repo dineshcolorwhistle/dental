@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { tenantService, type TenantListItem, type CreateTenantPayload } from '../services';
 import { Pagination, PhoneInput } from '../components';
+import { formatDate } from '../utils/dateUtils';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
@@ -531,7 +532,7 @@ export function TenantsPage() {
                   </td>
                   <td>
                     <span className="cell-date">
-                      {new Date(tenant.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                      {formatDate(tenant.createdAt, i18n.language, undefined, {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric',

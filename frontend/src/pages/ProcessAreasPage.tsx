@@ -21,6 +21,7 @@ import {
 } from '../services';
 import { useAuth } from '../context';
 import { Pagination } from '../components';
+import { formatDate } from '../utils/dateUtils';
 
 export function ProcessAreasPage() {
   const { t, i18n } = useTranslation();
@@ -376,14 +377,11 @@ export function ProcessAreasPage() {
                     </td>
                   )}
                   <td>
-                    {new Date(area.createdAt).toLocaleDateString(
-                      i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-                      {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      }
-                    )}
+                    {formatDate(area.createdAt, i18n.language, user?.timezone, {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
                   </td>
                   {canEdit && (
                     <td>

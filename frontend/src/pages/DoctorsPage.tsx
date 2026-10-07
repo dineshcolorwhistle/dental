@@ -33,6 +33,7 @@ import {
 } from '../services';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect, PhoneInput } from '../components';
+import { formatDate } from '../utils/dateUtils';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type ActiveTab = 'ALL_DOCTORS' | 'DOCTOR_LISTS';
@@ -766,10 +767,10 @@ export function DoctorsPage() {
                             </span>
                             <span className="cell-primary__meta">
                               {t('common.created')}{' '}
-                              {new Date(doctor.createdAt).toLocaleDateString(
-                                i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-                                { day: 'numeric', month: 'short' },
-                              )}
+                              {formatDate(doctor.createdAt, i18n.language, user?.timezone, {
+                                day: 'numeric',
+                                month: 'short',
+                              })}
                             </span>
                           </div>
                         </div>
@@ -1104,10 +1105,11 @@ export function DoctorsPage() {
                         )}
                         <td>
                           <span className="cell-date">
-                            {new Date(list.createdAt).toLocaleDateString(
-                              i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-                              { day: 'numeric', month: 'short', year: 'numeric' },
-                            )}
+                            {formatDate(list.createdAt, i18n.language, user?.timezone, {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                           </span>
                         </td>
                         {canEdit && (

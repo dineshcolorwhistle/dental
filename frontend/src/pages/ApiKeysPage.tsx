@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { apiKeyService, type ApiKeyItem } from '../services';
+import { formatDate } from '../utils/dateUtils';
 
 export function ApiKeysPage() {
   const { t, i18n } = useTranslation();
@@ -263,10 +264,11 @@ export function ApiKeysPage() {
           {/* Created Date */}
           <p style={{ margin: '0.75rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             {t('apiKeys.createdOn')}{' '}
-            {new Date(activeKey.createdAt).toLocaleDateString(
-              i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-              { day: 'numeric', month: 'long', year: 'numeric' },
-            )}
+            {formatDate(activeKey.createdAt, i18n.language, user?.timezone, {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
           </p>
         </div>
       )}
@@ -312,10 +314,11 @@ export function ApiKeysPage() {
                     </span>
                     <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       {t('apiKeys.createdOn')}{' '}
-                      {new Date(k.createdAt).toLocaleDateString(
-                        i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-                        { day: 'numeric', month: 'long', year: 'numeric' },
-                      )}
+                      {formatDate(k.createdAt, i18n.language, user?.timezone, {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
                     </p>
                   </div>
                 </div>

@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { adminService, branchService, authService, type AdminListItem, type BranchListItem, type CreateAdminPayload, type TenantLimitsResponse, type UserProfile } from '../services';
 import { Pagination, SearchableSelect, PhoneInput } from '../components';
+import { formatDate } from '../utils/dateUtils';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
@@ -536,7 +537,8 @@ export function AdminsPage() {
                            )}
                         </span>
                         <span className="cell-primary__meta">
-                          {t('common.created') || 'Created'} {new Date(admin.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                          {t('common.created') || 'Created'}{' '}
+                          {formatDate(admin.createdAt, i18n.language, user?.timezone, {
                             day: 'numeric',
                             month: 'short',
                           })}

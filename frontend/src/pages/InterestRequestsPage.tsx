@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { interestRequestService } from '../services';
 import type { InterestRequestItem } from '../services';
+import { formatDate } from '../utils/dateUtils';
 
 const STATUS_TABS = ['ALL', 'PENDING', 'CONTACTED', 'CONVERTED', 'DISCARDED'] as const;
 
@@ -438,10 +439,7 @@ export function InterestRequestsPage() {
                       <td style={{ padding: '0.875rem 1.25rem' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
                           <Calendar size={13} style={{ flexShrink: 0 }} />
-                          {new Date(req.createdAt).toLocaleDateString(
-                            i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-                            { day: 'numeric', month: 'short', year: 'numeric' },
-                          )}
+                          {formatDate(req.createdAt, i18n.language, undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                       </td>
                       <td style={{ padding: '0.875rem 1.25rem' }}>

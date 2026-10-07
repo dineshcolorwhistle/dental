@@ -22,6 +22,7 @@ import {
   type BranchListItem,
 } from '../services';
 import { Pagination } from '../components';
+import { formatDate as formatDateUtil } from '../utils/dateUtils';
 
 const PAGE_SIZE = 10;
 type ActiveTab = 'ITEMS' | 'CATEGORIES';
@@ -425,10 +426,7 @@ export function InventoryPage() {
   // Format Date
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString(
-      i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-      { day: 'numeric', month: 'short', year: 'numeric' }
-    );
+    return formatDateUtil(dateString, i18n.language, user?.timezone, { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   return (

@@ -31,6 +31,7 @@ import {
 } from '../services';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect } from '../components';
+import { formatDate } from '../utils/dateUtils';
 
 export function ProsthesisTypesPage() {
   const { t, i18n } = useTranslation();
@@ -570,7 +571,7 @@ export function ProsthesisTypesPage() {
                   )}
                   <td>
                     <span className="cell-date">
-                      {new Date(item.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                      {formatDate(item.createdAt, i18n.language, user?.timezone, {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric',

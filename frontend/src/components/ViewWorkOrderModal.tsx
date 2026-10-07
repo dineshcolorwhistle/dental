@@ -1815,11 +1815,11 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                 {logs.map((log: any) => {
                                   const formatDate = (dateStr: string | null) => {
                                     if (!dateStr) return '—';
-                                    return new Date(dateStr).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                                    return formatDateTime(dateStr, i18n.language, user?.timezone, {
                                       day: 'numeric',
                                       month: 'short',
                                       hour: '2-digit',
-                                      minute: '2-digit'
+                                      minute: '2-digit',
                                     });
                                   };
 
@@ -1943,11 +1943,11 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                 {logs.map((log: any) => {
                                   const formatDate = (dateStr: string | null) => {
                                     if (!dateStr) return '—';
-                                    return new Date(dateStr).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                                    return formatDateTime(dateStr, i18n.language, user?.timezone, {
                                       day: 'numeric',
                                       month: 'short',
                                       hour: '2-digit',
-                                      minute: '2-digit'
+                                      minute: '2-digit',
                                     });
                                   };
 

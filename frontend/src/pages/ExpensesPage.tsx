@@ -19,6 +19,7 @@ import {
   type ExpenseCategory,
 } from '../services';
 import { Pagination, DateRangePicker } from '../components';
+import { formatDate as formatDateUtil } from '../utils/dateUtils';
 
 const PAGE_SIZE = 10;
 type ActiveTab = 'EXPENSES' | 'CATEGORIES';
@@ -81,7 +82,7 @@ export function ExpensesPage() {
   const [savingExpense, setSavingExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseForm, setExpenseForm] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: new Intl.DateTimeFormat('en-CA', { timeZone: user?.timezone || 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
     title: '',
     categoryId: '',
     description: '',
@@ -141,20 +142,17 @@ export function ExpensesPage() {
     }).format(price);
   };
 
-  // Format date helper
+  // Format date helper – timezone-aware via dateUtils
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString(
-      i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-      { day: 'numeric', month: 'long', year: 'numeric' }
-    );
+    return formatDateUtil(dateString, i18n.language, user?.timezone, { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   // Open create expense view
   const handleOpenCreateExpense = () => {
     setEditingExpense(null);
     setExpenseForm({
-      date: new Date().toISOString().split('T')[0],
+      date: new Intl.DateTimeFormat('en-CA', { timeZone: user?.timezone || 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
       title: '',
       categoryId: categories[0]?.id || '',
       description: '',
@@ -169,7 +167,7 @@ export function ExpensesPage() {
   const handleOpenEditExpense = (expense: Expense) => {
     setEditingExpense(expense);
     setExpenseForm({
-      date: new Date(expense.date).toISOString().split('T')[0],
+      date: expense.date.slice(0, 10),
       title: expense.title,
       categoryId: expense.categoryId,
       description: expense.description || '',
@@ -204,7 +202,7 @@ export function ExpensesPage() {
         title: expenseForm.title.trim(),
         description: expenseForm.description.trim() || undefined,
         amount: parseFloat(expenseForm.amount),
-        date: new Date(expenseForm.date).toISOString(),
+        date: `${expenseForm.date}T12:00:00.000Z`,
         paymentMethod: expenseForm.paymentMethod,
         categoryId: expenseForm.categoryId,
       };
@@ -335,19 +333,9 @@ export function ExpensesPage() {
       const matchesCategory =
         selectedCategoryFilter === 'ALL' || exp.categoryId === selectedCategoryFilter;
 
-      const expDate = new Date(exp.date);
-      
-      const parseLocalDate = (dateStr: string, isEnd: boolean) => {
-        if (!dateStr) return null;
-        const [year, month, day] = dateStr.split('-').map(Number);
-        return isEnd ? new Date(year, month - 1, day, 23, 59, 59, 999) : new Date(year, month - 1, day, 0, 0, 0, 0);
-      };
-
-      const start = parseLocalDate(startDateFilter, false);
-      const end = parseLocalDate(endDateFilter, true);
-
-      const matchesStartDate = !start || expDate >= start;
-      const matchesEndDate = !end || expDate <= end;
+      const expDateStr = exp.date ? exp.date.slice(0, 10) : '';
+      const matchesStartDate = !startDateFilter || expDateStr >= startDateFilter;
+      const matchesEndDate = !endDateFilter || expDateStr <= endDateFilter;
       const matchesDateRange = matchesStartDate && matchesEndDate;
 
       return matchesSearch && matchesCategory && matchesDateRange;

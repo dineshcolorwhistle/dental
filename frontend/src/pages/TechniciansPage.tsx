@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import { technicianService, branchService, authService, type TechnicianListItem, type BranchListItem, type CreateTechnicianPayload, type UpdateTechnicianPayload, type TenantLimitsResponse } from '../services';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect, PhoneInput } from '../components';
+import { formatDate } from '../utils/dateUtils';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 
@@ -488,7 +489,7 @@ export function TechniciansPage() {
                           {tech.firstName} {tech.lastName}
                         </span>
                         <span className="cell-primary__meta">
-                          {t('common.joined', { defaultValue: 'Joined' })} {new Date(tech.createdAt).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                          {t('common.joined', { defaultValue: 'Joined' })} {formatDate(tech.createdAt, i18n.language, user?.timezone, {
                             day: 'numeric',
                             month: 'short',
                           })}

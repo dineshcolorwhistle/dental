@@ -44,12 +44,13 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { playNotificationSound, isNotificationSoundEnabled, setNotificationSoundEnabled } from '../utils/notificationSound';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { ChatWidget } from '../components/ChatWidget';
+import { formatDateTime } from '../utils/dateUtils';
 import toast from 'react-hot-toast';
 
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -884,7 +885,7 @@ export function DashboardLayout() {
                           <div className="notif-dropdown__item-title">{n.title}</div>
                           <div className="notif-dropdown__item-msg">{n.message}</div>
                           <div className="notif-dropdown__item-time">
-                            {new Date(n.createdAt).toLocaleDateString(undefined, {
+                            {formatDateTime(n.createdAt, i18n.language, user?.timezone, {
                               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                             })}
                           </div>

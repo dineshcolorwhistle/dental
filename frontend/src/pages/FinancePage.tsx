@@ -30,6 +30,7 @@ import type {
 } from '../services';
 import { useAuth } from '../context';
 import { DateRangePicker, Pagination } from '../components';
+import { formatDate } from '../utils/dateUtils';
 
 interface PaymentHistoryItem {
   amount: number;
@@ -1916,7 +1917,7 @@ export function FinancePage() {
                           {formatCurrency(wo.outstandingAmount)}
                         </td>
                         <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                          {new Date(wo.dueDate).toLocaleDateString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
+                          {formatDate(wo.dueDate, i18n.language, user?.timezone, {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',

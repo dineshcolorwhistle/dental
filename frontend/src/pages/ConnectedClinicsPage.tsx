@@ -35,6 +35,7 @@ import {
   ClinicWorkOrdersModal,
   ViewWorkOrderModal,
 } from '../components';
+import { formatDate as formatDateUtil } from '../utils/dateUtils';
 
 export function ConnectedClinicsPage() {
   const { t, i18n } = useTranslation();
@@ -271,10 +272,7 @@ export function ConnectedClinicsPage() {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString(
-      i18n.language?.startsWith('es') ? 'es-MX' : 'en-US',
-      { day: 'numeric', month: 'long', year: 'numeric' }
-    );
+    return formatDateUtil(dateStr, i18n.language, undefined, { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   // Compute stats for all clinics
