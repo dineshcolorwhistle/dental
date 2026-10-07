@@ -4,6 +4,7 @@ import {
   Loader2,
   Search,
   ExternalLink,
+  Globe,
   ChevronDown,
   ChevronUp,
   User,
@@ -421,7 +422,6 @@ export function ConnectedClinicsPage() {
                 <tr>
                   <th style={{ width: '48px' }}></th>
                   <th>{t('connectedClinics.clinicName')}</th>
-                  <th>{t('connectedClinics.clinicUrl')}</th>
                   <th>{t('connectedClinics.branch')}</th>
                   <th>{t('connectedClinics.registeredAt')}</th>
                   <th>{t('connectedClinics.prosthesisTypes')}</th>
@@ -477,23 +477,6 @@ export function ConnectedClinicsPage() {
                             />
                             {clinic.name}
                           </div>
-                        </td>
-                        <td>
-                          <a
-                            href={clinic.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              color: 'var(--accent-primary)',
-                              fontSize: '0.8125rem',
-                            }}
-                          >
-                            {clinic.url}
-                            <ExternalLink size={12} />
-                          </a>
                         </td>
                         <td>
                           <span className="badge badge--neutral">
@@ -636,7 +619,7 @@ export function ConnectedClinicsPage() {
                       {isExpanded && (
                         <tr>
                           <td
-                            colSpan={10}
+                            colSpan={9}
                             style={{
                               background: 'rgba(111, 174, 217, 0.02)',
                               padding: '1.25rem 1.5rem',
@@ -651,6 +634,8 @@ export function ConnectedClinicsPage() {
                                   display: 'flex',
                                   justifyContent: 'space-between',
                                   alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '0.75rem',
                                   marginBottom: '1rem',
                                   borderBottom: '1px solid var(--border)',
                                   paddingBottom: '0.75rem',
@@ -672,6 +657,49 @@ export function ConnectedClinicsPage() {
                                   />
                                   {clinic.name} - {t('connectedClinics.details')}
                                 </h4>
+
+                                {clinic.url && (
+                                  <a
+                                    href={clinic.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.375rem',
+                                      color: 'var(--accent-primary)',
+                                      fontSize: '0.8125rem',
+                                      textDecoration: 'none',
+                                      padding: '0.3125rem 0.625rem',
+                                      borderRadius: '6px',
+                                      background: 'var(--bg-body, rgba(234, 244, 251, 0.5))',
+                                      border: '1px solid var(--border)',
+                                      maxWidth: '100%',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                    title={clinic.url}
+                                  >
+                                    <Globe size={13} style={{ flexShrink: 0 }} />
+                                    <span
+                                      style={{
+                                        color: 'var(--text-secondary)',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      {t('connectedClinics.clinicUrl')}:
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontWeight: 500,
+                                        wordBreak: 'break-all',
+                                      }}
+                                    >
+                                      {clinic.url}
+                                    </span>
+                                    <ExternalLink size={12} style={{ flexShrink: 0 }} />
+                                  </a>
+                                )}
                               </div>
 
                               {clinic.doctors.length === 0 ? (
@@ -690,7 +718,7 @@ export function ConnectedClinicsPage() {
                                   style={{
                                     display: 'grid',
                                     gridTemplateColumns:
-                                      'repeat(auto-fill, minmax(280px, 1fr))',
+                                      'repeat(auto-fill, minmax(300px, 1fr))',
                                     gap: '1rem',
                                   }}
                                 >
@@ -710,6 +738,7 @@ export function ConnectedClinicsPage() {
                                           display: 'flex',
                                           flexDirection: 'column',
                                           gap: '0.75rem',
+                                          minWidth: 0,
                                         }}
                                       >
                                         <div
@@ -745,10 +774,21 @@ export function ConnectedClinicsPage() {
                                               alignItems: 'center',
                                               gap: '0.5rem',
                                               textTransform: 'none',
+                                              overflow: 'hidden',
+                                              textOverflow: 'ellipsis',
+                                              whiteSpace: 'nowrap',
                                             }}
+                                            title={doctor.email || undefined}
                                           >
-                                            <Mail size={12} />
-                                            {doctor.email || 'N/A'}
+                                            <Mail size={12} style={{ flexShrink: 0 }} />
+                                            <span
+                                              style={{
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                              }}
+                                            >
+                                              {doctor.email || 'N/A'}
+                                            </span>
                                           </div>
                                           <div
                                             style={{
@@ -757,68 +797,81 @@ export function ConnectedClinicsPage() {
                                               gap: '0.5rem',
                                             }}
                                           >
-                                            <Phone size={12} />
-                                            {doctor.phone || 'N/A'}
+                                            <Phone size={12} style={{ flexShrink: 0 }} />
+                                            <span>{doctor.phone || 'N/A'}</span>
                                           </div>
                                         </div>
                                         <div
                                           style={{
                                             borderTop: '1px solid var(--border)',
                                             paddingTop: '0.75rem',
+                                            marginTop: 'auto',
                                             display: 'flex',
-                                            justifyContent: 'space-between',
-                                            fontSize: '0.8125rem',
+                                            flexDirection: 'column',
+                                            gap: '0.625rem',
                                           }}
                                         >
                                           <div
                                             style={{
                                               display: 'flex',
                                               alignItems: 'center',
-                                              gap: '0.25rem',
+                                              justifyContent: 'space-between',
+                                              gap: '0.5rem',
+                                              fontSize: '0.8125rem',
                                             }}
                                           >
-                                            <ClipboardList
-                                              size={14}
+                                            <div
                                               style={{
-                                                color: 'var(--accent-primary)',
-                                              }}
-                                            />
-                                            <span>
-                                              {t('connectedClinics.totalOrders')}:
-                                            </span>
-                                            <strong
-                                              style={{
-                                                color: 'var(--text-primary)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.375rem',
                                               }}
                                             >
-                                              {stats.total}
-                                            </strong>
-                                          </div>
-                                          <div
-                                            style={{
-                                              display: 'flex',
-                                              alignItems: 'center',
-                                              gap: '0.25rem',
-                                            }}
-                                          >
-                                            <span
+                                              <ClipboardList
+                                                size={14}
+                                                style={{
+                                                  color: 'var(--accent-primary)',
+                                                  flexShrink: 0,
+                                                }}
+                                              />
+                                              <span style={{ color: 'var(--text-secondary)' }}>
+                                                {t('connectedClinics.totalOrders')}:
+                                              </span>
+                                              <strong
+                                                style={{
+                                                  color: 'var(--text-primary)',
+                                                }}
+                                              >
+                                                {stats.total}
+                                              </strong>
+                                            </div>
+                                            <div
                                               style={{
-                                                width: '8px',
-                                                height: '8px',
-                                                borderRadius: '50%',
-                                                background: 'var(--success)',
-                                              }}
-                                            ></span>
-                                            <span>
-                                              {t('connectedClinics.activeOrders')}:
-                                            </span>
-                                            <strong
-                                              style={{
-                                                color: 'var(--success)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.375rem',
                                               }}
                                             >
-                                              {stats.active}
-                                            </strong>
+                                              <span
+                                                style={{
+                                                  width: '8px',
+                                                  height: '8px',
+                                                  borderRadius: '50%',
+                                                  background: 'var(--success)',
+                                                  flexShrink: 0,
+                                                }}
+                                              ></span>
+                                              <span style={{ color: 'var(--text-secondary)' }}>
+                                                {t('connectedClinics.activeOrders')}:
+                                              </span>
+                                              <strong
+                                                style={{
+                                                  color: 'var(--success)',
+                                                }}
+                                              >
+                                                {stats.active}
+                                              </strong>
+                                            </div>
                                           </div>
                                           {(() => {
                                             const docPending = doctor.workOrders.reduce((sum, wo) => {
@@ -831,15 +884,33 @@ export function ConnectedClinicsPage() {
                                                 style={{
                                                   display: 'flex',
                                                   alignItems: 'center',
-                                                  gap: '0.25rem',
+                                                  justifyContent: 'space-between',
+                                                  gap: '0.5rem',
+                                                  fontSize: '0.8125rem',
+                                                  padding: '0.375rem 0.625rem',
+                                                  borderRadius: '6px',
+                                                  background:
+                                                    docPending > 0
+                                                      ? 'rgba(239, 68, 68, 0.08)'
+                                                      : 'rgba(16, 185, 129, 0.08)',
+                                                  border: `1px solid ${
+                                                    docPending > 0
+                                                      ? 'rgba(239, 68, 68, 0.2)'
+                                                      : 'rgba(16, 185, 129, 0.2)'
+                                                  }`,
                                                 }}
                                               >
-                                                <span style={{ color: 'var(--text-muted)' }}>
-                                                  {t('connectedClinics.pendingAmount', { defaultValue: 'Pending' })}:
+                                                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                                  {t('connectedClinics.pendingAmount', { defaultValue: 'Pending Amount' })}:
                                                 </span>
                                                 <strong
                                                   style={{
-                                                    color: docPending > 0 ? 'var(--danger, #EF4444)' : 'var(--success, #10B981)',
+                                                    color:
+                                                      docPending > 0
+                                                        ? 'var(--danger, #EF4444)'
+                                                        : 'var(--success, #10B981)',
+                                                    fontWeight: 700,
+                                                    whiteSpace: 'nowrap',
                                                   }}
                                                 >
                                                   {formatCurrency(docPending)}
