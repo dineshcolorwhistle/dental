@@ -139,13 +139,21 @@ export function startOfDayInTz(tz: string, date?: Date): Date {
     // DST edge case: try adjusting by ±1 hour
     const adjusted = new Date(result.getTime() - 60 * 60 * 1000);
     const verifyAdj = getDatePartsInTz(adjusted, tz);
-    if (verifyAdj.hour === 0 && verifyAdj.minute === 0 && verifyAdj.day === parts.day) {
+    if (
+      verifyAdj.hour === 0 &&
+      verifyAdj.minute === 0 &&
+      verifyAdj.day === parts.day
+    ) {
       return adjusted;
     }
     // Try +1 hour
     const adjusted2 = new Date(result.getTime() + 60 * 60 * 1000);
     const verifyAdj2 = getDatePartsInTz(adjusted2, tz);
-    if (verifyAdj2.hour === 0 && verifyAdj2.minute === 0 && verifyAdj2.day === parts.day) {
+    if (
+      verifyAdj2.hour === 0 &&
+      verifyAdj2.minute === 0 &&
+      verifyAdj2.day === parts.day
+    ) {
       return adjusted2;
     }
   }
@@ -173,4 +181,3 @@ export function parseCalendarDate(dateStr: string): Date {
   const datePart = dateStr.slice(0, 10);
   return new Date(`${datePart}T12:00:00.000Z`);
 }
-

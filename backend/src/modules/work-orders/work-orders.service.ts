@@ -602,7 +602,9 @@ export class WorkOrdersService implements OnModuleInit {
         specification: finalSpecification || null,
         color,
         notes: notes || null,
-        deliveryDate: dto.deliveryDate ? parseCalendarDate(dto.deliveryDate) : null,
+        deliveryDate: dto.deliveryDate
+          ? parseCalendarDate(dto.deliveryDate)
+          : null,
         totalQuote:
           totalQuote !== undefined && totalQuote !== null
             ? totalQuote
@@ -1314,7 +1316,9 @@ export class WorkOrdersService implements OnModuleInit {
           ...(color !== undefined && { color }),
           ...(notes !== undefined && { notes: notes || null }),
           ...(dto.deliveryDate !== undefined && {
-            deliveryDate: dto.deliveryDate ? parseCalendarDate(dto.deliveryDate) : null,
+            deliveryDate: dto.deliveryDate
+              ? parseCalendarDate(dto.deliveryDate)
+              : null,
           }),
           ...(totalQuote !== undefined && { totalQuote }),
           ...(initialPayment !== undefined && { initialPayment }),

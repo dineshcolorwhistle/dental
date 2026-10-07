@@ -3,10 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { ReminderRecurrence, ReminderStatus } from '@prisma/client';
-import {
-  getHHmmInTz,
-  getDateKeyInTz,
-} from '../../common/utils/timezone.util';
+import { getHHmmInTz, getDateKeyInTz } from '../../common/utils/timezone.util';
 import {
   isOccurrenceDate,
   type RecurrenceConfig,
@@ -66,13 +63,10 @@ export class RemindersSchedulerService {
       for (const reminder of reminders) {
         // Get the tenant's timezone (fall back to America/Mexico_City)
         const tz =
-          (reminder.tenant as any)?.settings?.timezone ||
-          'America/Mexico_City';
+          (reminder.tenant as any)?.settings?.timezone || 'America/Mexico_City';
 
         // Calculate "2 hours from now" in the tenant's timezone
-        const twoHoursFromNow = new Date(
-          now.getTime() + 2 * 60 * 60 * 1000,
-        );
+        const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
         const targetHHmm = getHHmmInTz(twoHoursFromNow, tz);
 
         const shouldNotify = this.shouldSendNotification(
@@ -160,11 +154,7 @@ export class RemindersSchedulerService {
     const [year, month, day] = todayKey.split('-').map(Number);
     const todayNoon = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 
-    return isOccurrenceDate(
-      config,
-      todayNoon,
-      reminder.completedOccurrences,
-    );
+    return isOccurrenceDate(config, todayNoon, reminder.completedOccurrences);
   }
 
   /**
@@ -187,7 +177,7 @@ export class RemindersSchedulerService {
     if (!reminder.reminderDate) return null;
 
     return {
-      recurrence: reminder.recurrence as RecurrenceConfig['recurrence'],
+      recurrence: reminder.recurrence,
       startDate: reminder.reminderDate,
       repeatInterval: reminder.repeatInterval || 1,
       endType: (reminder.endType || 'NEVER') as RecurrenceConfig['endType'],

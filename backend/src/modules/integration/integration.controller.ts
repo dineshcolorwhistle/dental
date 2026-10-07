@@ -773,7 +773,8 @@ export class IntegrationController {
 
   @Get(['clinics/pending-amount', 'pending-amount', 'clinics/pending-payment'])
   @ApiOperation({
-    summary: 'Retrieve pending financial balance and summary for the connected clinic',
+    summary:
+      'Retrieve pending financial balance and summary for the connected clinic',
   })
   async getClinicPendingAmount(
     @Req() req: any,

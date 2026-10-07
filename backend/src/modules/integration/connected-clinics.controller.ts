@@ -391,7 +391,8 @@ export class ConnectedClinicsController {
 
   @Delete(':id')
   @ApiOperation({
-    summary: 'Delete a connected clinic and its associated doctors, work orders, and clinic pricing',
+    summary:
+      'Delete a connected clinic and its associated doctors, work orders, and clinic pricing',
   })
   async deleteConnectedClinic(
     @Param('id') clinicId: string,

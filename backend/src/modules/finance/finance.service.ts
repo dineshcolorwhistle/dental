@@ -526,10 +526,7 @@ export class FinanceService {
         where: {
           tenantId,
           ...(branchIdList.length > 0 && {
-            OR: [
-              { branchId: { in: branchIdList } },
-              { branchId: null },
-            ],
+            OR: [{ branchId: { in: branchIdList } }, { branchId: null }],
           }),
         },
         include: {
@@ -539,7 +536,9 @@ export class FinanceService {
             where: {
               tenantId,
               status: { not: WorkOrderStatus.CANCELLED },
-              ...(branchIdList.length > 0 && { branchId: { in: branchIdList } }),
+              ...(branchIdList.length > 0 && {
+                branchId: { in: branchIdList },
+              }),
             },
             select: {
               id: true,

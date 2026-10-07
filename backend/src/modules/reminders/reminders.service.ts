@@ -45,7 +45,7 @@ const REMINDER_INCLUDE_WITH_BRANCH = {
 
 @Injectable()
 export class RemindersService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Cross-field validation for recurrence configuration.
@@ -86,9 +86,7 @@ export class RemindersService {
         );
       }
       if (dto.endAfterOccurrences < 1 || dto.endAfterOccurrences > 365) {
-        throw new BadRequestException(
-          'Occurrences must be between 1 and 365.',
-        );
+        throw new BadRequestException('Occurrences must be between 1 and 365.');
       }
     }
 
@@ -126,7 +124,9 @@ export class RemindersService {
           );
         }
         if (dto.monthlyDayOfMonth < 1 || dto.monthlyDayOfMonth > 31) {
-          throw new BadRequestException('Day of month must be between 1 and 31.');
+          throw new BadRequestException(
+            'Day of month must be between 1 and 31.',
+          );
         }
       }
 
@@ -136,10 +136,7 @@ export class RemindersService {
             'Week position is required for POSITIONAL_WEEKDAY pattern.',
           );
         }
-        if (
-          dto.monthlyWeekDay === undefined ||
-          dto.monthlyWeekDay === null
-        ) {
+        if (dto.monthlyWeekDay === undefined || dto.monthlyWeekDay === null) {
           throw new BadRequestException(
             'Weekday is required for POSITIONAL_WEEKDAY pattern.',
           );
@@ -151,7 +148,9 @@ export class RemindersService {
   /**
    * Build the recurrence data fields from DTO.
    */
-  private buildRecurrenceData(dto: Partial<CreateReminderDto>): Record<string, unknown> {
+  private buildRecurrenceData(
+    dto: Partial<CreateReminderDto>,
+  ): Record<string, unknown> {
     const data: Record<string, unknown> = {};
 
     if (dto.repeatInterval !== undefined)
@@ -162,9 +161,7 @@ export class RemindersService {
     if (dto.endAfterOccurrences !== undefined)
       data.endAfterOccurrences = dto.endAfterOccurrences;
     if (dto.weeklyDays !== undefined)
-      data.weeklyDays = dto.weeklyDays
-        ? JSON.stringify(dto.weeklyDays)
-        : null;
+      data.weeklyDays = dto.weeklyDays ? JSON.stringify(dto.weeklyDays) : null;
     if (dto.monthlyPattern !== undefined)
       data.monthlyPattern = dto.monthlyPattern;
     if (dto.monthlyDayOfMonth !== undefined)
@@ -197,7 +194,7 @@ export class RemindersService {
     if (!reminder.reminderDate) return null;
 
     return {
-      recurrence: reminder.recurrence as RecurrenceConfig['recurrence'],
+      recurrence: reminder.recurrence,
       startDate: reminder.reminderDate,
       repeatInterval: reminder.repeatInterval || 1,
       endType: (reminder.endType || 'NEVER') as RecurrenceConfig['endType'],
@@ -206,7 +203,8 @@ export class RemindersService {
       weeklyDays: reminder.weeklyDays
         ? JSON.parse(reminder.weeklyDays)
         : undefined,
-      monthlyPattern: reminder.monthlyPattern as RecurrenceConfig['monthlyPattern'],
+      monthlyPattern:
+        reminder.monthlyPattern as RecurrenceConfig['monthlyPattern'],
       monthlyDayOfMonth: reminder.monthlyDayOfMonth ?? undefined,
       monthlyWeekPosition:
         reminder.monthlyWeekPosition as RecurrenceConfig['monthlyWeekPosition'],
@@ -300,7 +298,9 @@ export class RemindersService {
         description: dto.description || null,
         category: dto.category || null,
         priority: dto.priority || 'MEDIUM',
-        reminderDate: dto.reminderDate ? parseCalendarDate(dto.reminderDate) : null,
+        reminderDate: dto.reminderDate
+          ? parseCalendarDate(dto.reminderDate)
+          : null,
         reminderTime: dto.reminderTime,
         recurrence: dto.recurrence || 'ONE_TIME',
         createdById: userId,
@@ -308,10 +308,10 @@ export class RemindersService {
         assignees:
           dto.assigneeIds && dto.assigneeIds.length > 0
             ? {
-              create: dto.assigneeIds.map((uid) => ({
-                userId: uid,
-              })),
-            }
+                create: dto.assigneeIds.map((uid) => ({
+                  userId: uid,
+                })),
+              }
             : undefined,
       },
       include: REMINDER_INCLUDE,
@@ -455,17 +455,28 @@ export class RemindersService {
         title: dto.title ?? existing.title,
         reminderTime: dto.reminderTime ?? existing.reminderTime,
         assigneeIds: dto.assigneeIds ?? [],
-        recurrence: recurrence as ReminderRecurrence,
-        reminderDate: dto.reminderDate ?? (existing.reminderDate?.toISOString() || undefined),
+        recurrence: recurrence,
+        reminderDate:
+          dto.reminderDate ??
+          (existing.reminderDate?.toISOString() || undefined),
         repeatInterval: dto.repeatInterval ?? existing.repeatInterval,
         endType: dto.endType ?? existing.endType,
         endDate: dto.endDate ?? (existing.endDate?.toISOString() || undefined),
-        endAfterOccurrences: dto.endAfterOccurrences ?? (existing.endAfterOccurrences || undefined),
-        weeklyDays: dto.weeklyDays ?? (existing.weeklyDays ? JSON.parse(existing.weeklyDays) : undefined),
-        monthlyPattern: dto.monthlyPattern ?? (existing.monthlyPattern || undefined),
-        monthlyDayOfMonth: dto.monthlyDayOfMonth ?? (existing.monthlyDayOfMonth || undefined),
-        monthlyWeekPosition: dto.monthlyWeekPosition ?? (existing.monthlyWeekPosition || undefined),
-        monthlyWeekDay: dto.monthlyWeekDay ?? (existing.monthlyWeekDay ?? undefined),
+        endAfterOccurrences:
+          dto.endAfterOccurrences ??
+          (existing.endAfterOccurrences || undefined),
+        weeklyDays:
+          dto.weeklyDays ??
+          (existing.weeklyDays ? JSON.parse(existing.weeklyDays) : undefined),
+        monthlyPattern:
+          dto.monthlyPattern ?? (existing.monthlyPattern || undefined),
+        monthlyDayOfMonth:
+          dto.monthlyDayOfMonth ?? (existing.monthlyDayOfMonth || undefined),
+        monthlyWeekPosition:
+          dto.monthlyWeekPosition ??
+          (existing.monthlyWeekPosition || undefined),
+        monthlyWeekDay:
+          dto.monthlyWeekDay ?? existing.monthlyWeekDay ?? undefined,
       };
       this.validateRecurrenceConfig(mergedDto);
     }
@@ -610,11 +621,17 @@ export class RemindersService {
         if (existing.recurrence === ReminderRecurrence.DAILY) {
           nextDate.setDate(nextDate.getDate() + (existing.repeatInterval || 1));
         } else if (existing.recurrence === ReminderRecurrence.WEEKLY) {
-          nextDate.setDate(nextDate.getDate() + 7 * (existing.repeatInterval || 1));
+          nextDate.setDate(
+            nextDate.getDate() + 7 * (existing.repeatInterval || 1),
+          );
         } else if (existing.recurrence === ReminderRecurrence.MONTHLY) {
-          nextDate.setMonth(nextDate.getMonth() + (existing.repeatInterval || 1));
+          nextDate.setMonth(
+            nextDate.getMonth() + (existing.repeatInterval || 1),
+          );
         } else if (existing.recurrence === ReminderRecurrence.YEARLY) {
-          nextDate.setFullYear(nextDate.getFullYear() + (existing.repeatInterval || 1));
+          nextDate.setFullYear(
+            nextDate.getFullYear() + (existing.repeatInterval || 1),
+          );
         }
 
         updateData.status = ReminderStatus.PENDING;

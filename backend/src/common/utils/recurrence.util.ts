@@ -152,7 +152,11 @@ function getNextDaily(
   maxDate: Date,
 ): Date | null {
   const current = dateParts(currentDate);
-  const next = makeDate(current.year, current.month, current.day + config.repeatInterval);
+  const next = makeDate(
+    current.year,
+    current.month,
+    current.day + config.repeatInterval,
+  );
 
   return isWithinBounds(config, next, maxDate) ? next : null;
 }
@@ -182,7 +186,8 @@ function getNextWeekly(
 
   // Move to the first day of the next interval-week
   const daysUntilEndOfWeek = 6 - currentDow;
-  const daysToNextWeekStart = daysUntilEndOfWeek + 1 + (config.repeatInterval - 1) * 7;
+  const daysToNextWeekStart =
+    daysUntilEndOfWeek + 1 + (config.repeatInterval - 1) * 7;
   const nextWeekSunday = makeDate(
     current.year,
     current.month,
@@ -196,7 +201,8 @@ function getNextWeekly(
   const next = makeDate(
     nextWeekSunday.getUTCFullYear(),
     nextWeekSunday.getUTCMonth(),
-    nextWeekSunday.getUTCDate() + (daysFromSunday >= 0 ? daysFromSunday : daysFromSunday + 7),
+    nextWeekSunday.getUTCDate() +
+      (daysFromSunday >= 0 ? daysFromSunday : daysFromSunday + 7),
   );
 
   return isWithinBounds(config, next, maxDate) ? next : null;
@@ -296,9 +302,7 @@ function getNextYearly(
 
     nextYear += config.repeatInterval;
 
-    if (
-      makeDate(nextYear, 0, 1).getTime() > maxDate.getTime()
-    ) {
+    if (makeDate(nextYear, 0, 1).getTime() > maxDate.getTime()) {
       return null;
     }
   }
@@ -341,10 +345,7 @@ export function generateOccurrences(
 
   // For AFTER end type, limit total occurrences
   let remainingAfterCount = Infinity;
-  if (
-    config.endType === 'AFTER' &&
-    config.endAfterOccurrences != null
-  ) {
+  if (config.endType === 'AFTER' && config.endAfterOccurrences != null) {
     remainingAfterCount = config.endAfterOccurrences - completedOccurrences;
     if (remainingAfterCount <= 0) return results;
   }
@@ -415,7 +416,10 @@ export function isOccurrenceDate(
   }
 }
 
-function isDailyOccurrence(config: RecurrenceConfig, dateToCheck: Date): boolean {
+function isDailyOccurrence(
+  config: RecurrenceConfig,
+  dateToCheck: Date,
+): boolean {
   const startMs = config.startDate.getTime();
   const checkMs = dateToCheck.getTime();
   const diffDays = Math.round((checkMs - startMs) / (1000 * 60 * 60 * 24));
@@ -423,7 +427,10 @@ function isDailyOccurrence(config: RecurrenceConfig, dateToCheck: Date): boolean
   return diffDays % config.repeatInterval === 0;
 }
 
-function isWeeklyOccurrence(config: RecurrenceConfig, dateToCheck: Date): boolean {
+function isWeeklyOccurrence(
+  config: RecurrenceConfig,
+  dateToCheck: Date,
+): boolean {
   const days = config.weeklyDays ?? [];
   if (days.length === 0) return false;
 
@@ -458,7 +465,10 @@ function isMonthlyOccurrence(
   return dateKey(candidate) === dateKey(dateToCheck);
 }
 
-function isYearlyOccurrence(config: RecurrenceConfig, dateToCheck: Date): boolean {
+function isYearlyOccurrence(
+  config: RecurrenceConfig,
+  dateToCheck: Date,
+): boolean {
   const check = dateParts(dateToCheck);
   const start = dateParts(config.startDate);
 

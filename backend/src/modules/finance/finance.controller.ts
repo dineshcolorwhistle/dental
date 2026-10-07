@@ -85,7 +85,9 @@ export class FinanceController {
   }
 
   @Get('doctor-balances')
-  @ApiOperation({ summary: 'Get doctor balances and pending payment accounts receivable' })
+  @ApiOperation({
+    summary: 'Get doctor balances and pending payment accounts receivable',
+  })
   async getDoctorBalances(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('role') userRole: UserRole,
