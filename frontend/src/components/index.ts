@@ -9,3 +9,4 @@ export { WorkOrderChat } from './WorkOrderChat';
 export { SendWhatsAppModal, WhatsAppIcon } from './SendWhatsAppModal';
 export { RecurrencePanel } from './RecurrencePanel';
 export { ClinicWorkOrdersModal } from './ClinicWorkOrdersModal';
+export { VersionChecker } from './VersionChecker';

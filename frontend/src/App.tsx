@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, SocketProvider } from './context';
 import { ThemeProvider } from './context/ThemeContext';
-import { ProtectedRoute } from './components';
+import { ProtectedRoute, VersionChecker } from './components';
 import { AuthLayout, DashboardLayout } from './layouts';
 import { LoginPage } from './pages/LoginPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -61,6 +61,7 @@ function App() {
               },
             }}
           />
+          <VersionChecker />
 
         <Routes>
           {/* Auth routes */}

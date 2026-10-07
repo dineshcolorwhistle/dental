@@ -332,11 +332,39 @@ server {
     listen 80;
     server_name staging.yourdomain.com;
 
-    # Frontend Static Site
+    root /home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental/frontend/dist;
+    index index.html;
+
+    # 1. Disable caching for index.html, version.json, and sw.js
+    # Crucial: Ensures clients receive new deployments immediately without requiring a hard refresh
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        expires -1;
+    }
+
+    location ~* (sw\.js|version\.json)$ {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        expires -1;
+    }
+
+    # 2. Immutable caching for hashed assets (Vite produces unique hashes per build)
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+    }
+
+    # 3. Frontend Static Site SPA Routing Fallback
     location / {
-        root /home/agentwhistle-dental/htdocs/dental.agentwhistle.com/dental/frontend/dist;
-        index index.html;
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        expires -1;
     }
 
     # Backend API Proxy
@@ -424,3 +452,10 @@ sudo certbot renew --dry-run
    ```
 5. **CORS issues**: Ensure the backend `.env` variables `CORS_ORIGIN` and `FRONTEND_URL` exactly match the frontend staging domain (including `https://` protocol).
 6. **Socket.IO connection issues (fallback or handshake failure)**: Ensure that Nginx configuration includes the `location /socket.io` proxy block with `Connection "Upgrade"` headers. Without it, WebSocket connections will fail.
+7. **Browser / Client Caching Issues (Changes not visible without hard refresh)**:
+   - Ensure the Nginx configuration includes the zero-cache headers for `index.html`, `version.json`, and `sw.js` (see Step 7.2 or [nginx/dental-lab.conf](file:///d:/Projects/dental/nginx/dental-lab.conf)).
+   - Without `Cache-Control "no-store, no-cache, must-revalidate, max-age=0"` on `index.html`, browsers cache the entrypoint HTML and continue loading old JavaScript bundles after new deployments.
+   - After updating the Nginx configuration, reload Nginx:
+     ```bash
+     sudo nginx -t && sudo systemctl reload nginx
+     ```

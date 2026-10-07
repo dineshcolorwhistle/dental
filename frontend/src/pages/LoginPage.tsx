@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -41,7 +41,6 @@ function getSarvadentRedirectUrl(): string {
 
 export function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
@@ -129,7 +128,7 @@ export function LoginPage() {
       } else {
         toast.success(t('auth.loginSuccess'));
         const targetPath = '/dashboard';
-        navigate(targetPath, { replace: true });
+        window.location.href = targetPath;
       }
     } catch (error: any) {
       toast.error(getErrorMessage(error));
@@ -150,7 +149,7 @@ export function LoginPage() {
       });
       toast.success(t('auth.loginSuccess'));
       const targetPath = '/dashboard';
-      navigate(targetPath, { replace: true });
+      window.location.href = targetPath;
     } catch (error: any) {
       toast.error(getErrorMessage(error));
     } finally {
