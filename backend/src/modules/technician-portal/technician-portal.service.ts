@@ -424,7 +424,7 @@ export class TechnicianPortalService {
         color,
         notes: notes || null,
         deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
-        totalQuote: 0,
+        totalQuote: prosthesisType.price ?? 0,
         initialPayment: 0,
         status: WorkOrderStatus.CREATED,
         createdById: userId,

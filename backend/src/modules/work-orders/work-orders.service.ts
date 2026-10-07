@@ -603,7 +603,10 @@ export class WorkOrdersService implements OnModuleInit {
         color,
         notes: notes || null,
         deliveryDate: dto.deliveryDate ? parseCalendarDate(dto.deliveryDate) : null,
-        totalQuote: totalQuote ?? 0,
+        totalQuote:
+          totalQuote !== undefined && totalQuote !== null
+            ? totalQuote
+            : (prosthesisType.price ?? 0),
         initialPayment: initialPayment ?? null,
         paymentReferenceNumber: paymentReferenceNumber || null,
         paymentReferenceNumbers:
@@ -1188,7 +1191,11 @@ export class WorkOrdersService implements OnModuleInit {
         });
       }
     } else if (processes && mappedProcesses) {
-      finalStatus = this.calculateWorkOrderStatus(mappedProcesses);
+      if (dto.status === WorkOrderStatus.CREATED) {
+        finalStatus = WorkOrderStatus.CREATED;
+      } else {
+        finalStatus = this.calculateWorkOrderStatus(mappedProcesses);
+      }
     }
 
     // Transition from CREATED to ASSIGNED triggers assignment logic

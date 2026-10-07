@@ -661,14 +661,16 @@ export function WorkOrdersPage() {
 
   const handleProsthesisTypeChange = async (ptId: string) => {
     const selectedPt = prosthesisTypes.find((p) => p.id === ptId);
+    const ptPrice = selectedPt?.price != null 
+      ? selectedPt.price.toString() 
+      : ((selectedPt as any)?.basePrice != null ? (selectedPt as any).basePrice.toString() : '0');
     setForm((prev) => ({
       ...prev,
       prosthesisTypeId: ptId,
-      totalQuote: prev.totalQuote && prev.totalQuote !== '0' 
-        ? prev.totalQuote 
-        : (selectedPt?.price != null ? selectedPt.price.toString() : ((selectedPt as any)?.basePrice != null ? (selectedPt as any).basePrice.toString() : prev.totalQuote)),
+      totalQuote: ptPrice,
     }));
     if (formErrors.prosthesisTypeId) setFormErrors((prev) => ({ ...prev, prosthesisTypeId: '' }));
+    if (formErrors.totalQuote) setFormErrors((prev) => ({ ...prev, totalQuote: '' }));
 
     try {
       // Load processes for this prosthesis type in sequence order
@@ -959,7 +961,7 @@ export function WorkOrdersPage() {
         status: isAssign && editingWO.status === 'CREATED' ? 'ASSIGNED' : formStatus,
       };
 
-      if (isAssign) {
+      if (isAssign || editingWO.status === 'CREATED') {
         payload.processes = processList.map((p) => {
           const isExternal = p.processType === 'EXTERNAL_VERIFICATION' || (p.isVerification && (!p.technicianId || p.technicianId === form.doctorId));
           return {
@@ -2266,72 +2268,44 @@ export function WorkOrdersPage() {
               )}
             </div>
 
-            {/* Footer Buttons depending on Active Tab */}
+            {/* Footer Buttons available in all tabs */}
             <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              {modalTab === 'details' ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={() => setShowCreateModal(false)}
-                    disabled={saving}
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      id="btn-wo-create"
-                      type="button"
-                      className="btn btn--outline"
-                      onClick={() => handleSubmit('create')}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
-                      ) : (
-                        <span>{t('common.save')}</span>
-                      )}
-                    </button>
-                    <button
-                      id="btn-wo-create-assign"
-                      type="button"
-                      className="btn btn--primary"
-                      onClick={() => {
-                        if (validateTab1Details()) {
-                          setModalTab('processes');
-                        }
-                      }}
-                      disabled={saving}
-                    >
-                      <span>{t('workOrders.saveAndAssign', { defaultValue: 'Save & Assign' })}</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={() => setModalTab('details')}
-                    disabled={saving}
-                  >
-                    {t('common.back', { defaultValue: 'Back' })}
-                  </button>
-                  <button
-                    id="btn-wo-confirm"
-                    type="button"
-                    className="btn btn--primary"
-                    onClick={() => handleSubmit('createAndAssign')}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
-                    ) : (
-                      <span>{t('common.confirm', { defaultValue: 'Confirm' })}</span>
-                    )}
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setShowCreateModal(false)}
+                disabled={saving}
+              >
+                {t('common.cancel')}
+              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  id="btn-wo-create"
+                  type="button"
+                  className="btn btn--outline"
+                  onClick={() => handleSubmit('create')}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
+                  ) : (
+                    <span>{t('common.save')}</span>
+                  )}
+                </button>
+                <button
+                  id="btn-wo-create-assign"
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => handleSubmit('createAndAssign')}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
+                  ) : (
+                    <span>{t('workOrders.saveAndAssign', { defaultValue: 'Save & Assign' })}</span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3170,61 +3144,33 @@ export function WorkOrdersPage() {
               )}
             </div>
 
-            {/* Footer Buttons depending on Active Tab */}
+            {/* Footer Buttons available in all tabs */}
             <div className="modal__footer" style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              {modalTab === 'details' ? (
-                <>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setShowEditModal(false)}
+                disabled={saving}
+              >
+                {t('common.cancel')}
+              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  id="btn-wo-edit-save"
+                  type="button"
+                  className={editingWO.status === 'CREATED' ? 'btn btn--outline' : 'btn btn--primary'}
+                  onClick={() => handleEditSubmit(false)}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
+                  ) : (
+                    <span>{t('common.save')}</span>
+                  )}
+                </button>
+                {editingWO.status === 'CREATED' && (
                   <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={() => setShowEditModal(false)}
-                    disabled={saving}
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      id="btn-wo-edit-save"
-                      type="button"
-                      className="btn btn--outline"
-                      onClick={() => handleEditSubmit(false)}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
-                      ) : (
-                        <span>{t('common.save')}</span>
-                      )}
-                    </button>
-                    {editingWO.status === 'CREATED' && (
-                      <button
-                        id="btn-wo-edit-save-assign"
-                        type="button"
-                        className="btn btn--primary"
-                        onClick={() => {
-                          if (validateForm(false)) {
-                            setModalTab('processes');
-                          }
-                        }}
-                        disabled={saving}
-                      >
-                        <span>{t('workOrders.saveAndAssign', { defaultValue: 'Save & Assign' })}</span>
-                      </button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={() => setModalTab('details')}
-                    disabled={saving}
-                  >
-                    {t('common.back', { defaultValue: 'Back' })}
-                  </button>
-                  <button
-                    id="btn-wo-edit-confirm"
+                    id="btn-wo-edit-save-assign"
                     type="button"
                     className="btn btn--primary"
                     onClick={() => handleEditSubmit(true)}
@@ -3233,11 +3179,11 @@ export function WorkOrdersPage() {
                     {saving ? (
                       <><Loader2 size={16} className="spinner" /><span>{t('common.saving', { defaultValue: 'Saving...' })}</span></>
                     ) : (
-                      <span>{t('common.save')}</span>
+                      <span>{t('workOrders.saveAndAssign', { defaultValue: 'Save & Assign' })}</span>
                     )}
                   </button>
-                </>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
