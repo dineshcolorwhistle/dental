@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
+import { useAppDate } from '../hooks';
 import { TechnicianDashboardPage } from './TechnicianDashboardPage';
 import { OwnerDashboardPage } from './OwnerDashboardPage';
 import { SuperAdminDashboardPage } from './SuperAdminDashboardPage';
@@ -30,7 +32,8 @@ import { workOrderService } from '../services';
 import { ViewWorkOrderModal, SendWhatsAppModal, WhatsAppIcon } from '../components';
 
 export function DashboardPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { formatDateTime } = useAppDate();
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
@@ -54,8 +57,11 @@ export function DashboardPage() {
   const [outcomeSaving, setOutcomeSaving] = useState(false);
   const [selectedWOId, setSelectedWOId] = useState<string | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [hoveredTechId, setHoveredTechId] = useState<string | null>(null);
-  const [hoveredType, setHoveredType] = useState<'rework' | 'repetition' | null>(null);
+  const [hoverTooltip, setHoverTooltip] = useState<{
+    type: 'rework' | 'repetition';
+    tech: any;
+    rect: DOMRect;
+  } | null>(null);
   const [activeModalTech, setActiveModalTech] = useState<any | null>(null);
   const [activeModalType, setActiveModalType] = useState<'rework' | 'repetition' | null>(null);
   const [whatsAppModalData, setWhatsAppModalData] = useState<{
@@ -83,6 +89,16 @@ export function DashboardPage() {
   }, []);
 
   const { socket, isConnected } = useSocket();
+
+  useEffect(() => {
+    const handleDismissTooltip = () => setHoverTooltip(null);
+    window.addEventListener('scroll', handleDismissTooltip, true);
+    window.addEventListener('resize', handleDismissTooltip);
+    return () => {
+      window.removeEventListener('scroll', handleDismissTooltip, true);
+      window.removeEventListener('resize', handleDismissTooltip);
+    };
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -972,17 +988,22 @@ export function DashboardPage() {
                         <div style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             type="button"
+                            disabled={tech.reworkCount === 0}
                             onClick={() => {
-                              setActiveModalTech(tech);
-                              setActiveModalType('rework');
+                              if (tech.reworkCount > 0) {
+                                setActiveModalTech(tech);
+                                setActiveModalType('rework');
+                                setHoverTooltip(null);
+                              }
                             }}
-                            onMouseEnter={() => {
-                              setHoveredTechId(tech.id);
-                              setHoveredType('rework');
+                            onMouseEnter={(e) => {
+                              if (tech.reworkCount > 0) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setHoverTooltip({ type: 'rework', tech, rect });
+                              }
                             }}
                             onMouseLeave={() => {
-                              setHoveredTechId(null);
-                              setHoveredType(null);
+                              setHoverTooltip(null);
                             }}
                             style={{
                               padding: '2px 10px',
@@ -992,69 +1013,40 @@ export function DashboardPage() {
                               border: tech.reworkCount > 0 ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid transparent',
                               fontSize: '0.75rem',
                               fontWeight: 700,
-                              cursor: 'pointer',
+                              cursor: tech.reworkCount > 0 ? 'pointer' : 'default',
                               outline: 'none',
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              minWidth: '28px'
+                              minWidth: '28px',
+                              transition: 'all 0.15s ease'
                             }}
+                            title={tech.reworkCount > 0 ? t('dashboard.clickToViewWO') : undefined}
                           >
                             {tech.reworkCount}
                           </button>
-                          {hoveredTechId === tech.id && hoveredType === 'rework' && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              marginTop: '8px',
-                              zIndex: 100,
-                              width: '280px',
-                              backgroundColor: 'var(--bg-surface)',
-                              border: '1px solid var(--border)',
-                              borderRadius: '8px',
-                              boxShadow: 'var(--shadow-lg)',
-                              padding: '0.75rem',
-                              fontSize: '0.75rem',
-                              textAlign: 'left',
-                              pointerEvents: 'none'
-                            }}>
-                              <h4 style={{ fontWeight: 700, marginBottom: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '4px', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <AlertCircle size={12} style={{ color: '#EF4444' }} />
-                                {t('dashboard.reworkProcesses', { count: tech.reworkCount })}
-                              </h4>
-                              {tech.reworkDetails.length === 0 ? (
-                                <div style={{ color: 'var(--text-muted)' }}>{t('dashboard.noReworks')}</div>
-                              ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
-                                  {tech.reworkDetails.map((detail: any, idx: number) => (
-                                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', borderBottom: idx < tech.reworkDetails.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: idx < tech.reworkDetails.length - 1 ? '4px' : 0 }}>
-                                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{detail.processName} ({detail.folioNumber})</span>
-                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>{t('dashboard.reworkCount', { count: detail.reworkCount })} • {detail.status}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </td>
                       <td style={{ padding: '12px 12px', textAlign: 'center', position: 'relative' }}>
                         <div style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             type="button"
+                            disabled={tech.repetitionCount === 0}
                             onClick={() => {
-                              setActiveModalTech(tech);
-                              setActiveModalType('repetition');
+                              if (tech.repetitionCount > 0) {
+                                setActiveModalTech(tech);
+                                setActiveModalType('repetition');
+                                setHoverTooltip(null);
+                              }
                             }}
-                            onMouseEnter={() => {
-                              setHoveredTechId(tech.id);
-                              setHoveredType('repetition');
+                            onMouseEnter={(e) => {
+                              if (tech.repetitionCount > 0) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setHoverTooltip({ type: 'repetition', tech, rect });
+                              }
                             }}
                             onMouseLeave={() => {
-                              setHoveredTechId(null);
-                              setHoveredType(null);
+                              setHoverTooltip(null);
                             }}
                             style={{
                               padding: '2px 10px',
@@ -1064,52 +1056,18 @@ export function DashboardPage() {
                               border: tech.repetitionCount > 0 ? '1px solid rgba(217, 70, 239, 0.2)' : '1px solid transparent',
                               fontSize: '0.75rem',
                               fontWeight: 700,
-                              cursor: 'pointer',
+                              cursor: tech.repetitionCount > 0 ? 'pointer' : 'default',
                               outline: 'none',
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              minWidth: '28px'
+                              minWidth: '28px',
+                              transition: 'all 0.15s ease'
                             }}
+                            title={tech.repetitionCount > 0 ? t('dashboard.clickToViewWO') : undefined}
                           >
                             {tech.repetitionCount}
                           </button>
-                          {hoveredTechId === tech.id && hoveredType === 'repetition' && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              marginTop: '8px',
-                              zIndex: 100,
-                              width: '280px',
-                              backgroundColor: 'var(--bg-surface)',
-                              border: '1px solid var(--border)',
-                              borderRadius: '8px',
-                              boxShadow: 'var(--shadow-lg)',
-                              padding: '0.75rem',
-                              fontSize: '0.75rem',
-                              textAlign: 'left',
-                              pointerEvents: 'none'
-                            }}>
-                              <h4 style={{ fontWeight: 700, marginBottom: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '4px', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <RotateCcw size={12} style={{ color: '#D946EF' }} />
-                                {t('dashboard.repetitionWorkOrders', { count: tech.repetitionCount })}
-                              </h4>
-                              {tech.repetitionDetails.length === 0 ? (
-                                <div style={{ color: 'var(--text-muted)' }}>{t('dashboard.noRepetitions')}</div>
-                              ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
-                                  {tech.repetitionDetails.map((detail: any, idx: number) => (
-                                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', borderBottom: idx < tech.repetitionDetails.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: idx < tech.repetitionDetails.length - 1 ? '4px' : 0 }}>
-                                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{detail.folioNumber} ({detail.patient})</span>
-                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>{t('dashboard.totalRepetitions', { count: detail.repetitionCount })}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -1197,7 +1155,7 @@ export function DashboardPage() {
                       {t('dashboard.triggeredBy')}: <strong style={{ color: 'var(--text-primary)' }}>{log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : t('dashboard.system')}</strong>
                     </div>
                     <div>
-                      {t('dashboard.triggeredAt')}: <strong style={{ color: 'var(--text-primary)' }}>{new Date(log.initiatedAt).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US')}</strong>
+                      {t('dashboard.triggeredAt')}: <strong style={{ color: 'var(--text-primary)' }}>{formatDateTime(log.initiatedAt)}</strong>
                     </div>
                   </div>
                   
@@ -1481,10 +1439,10 @@ export function DashboardPage() {
                           {t('dashboard.process')}: <strong>{rework.processName}</strong> • {t('dashboard.reworkCountLabel')}: <strong>{rework.reworkCount}</strong>
                         </span>
                         <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-                          {t('dashboard.flaggedIn')}: <strong>{rework.verificationStage}</strong> • {new Date(rework.initiatedAt).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US')}
+                          {t('dashboard.flaggedIn')}: <strong>{rework.verificationStage}</strong> • {formatDateTime(rework.initiatedAt)}
                         </span>
                       </div>
-                      <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{
                           fontSize: '0.75rem',
                           fontWeight: 700,
@@ -1495,6 +1453,29 @@ export function DashboardPage() {
                         }}>
                           {rework.status === 'Approved' ? t('enums.processAction.REWORK_APPROVED') : rework.status === 'In Progress' ? t('enums.processStatus.IN_PROGRESS') : rework.status === 'Completed' ? t('enums.processStatus.COMPLETED') : rework.status}
                         </span>
+                        <button
+                          type="button"
+                          className="btn-action"
+                          style={{
+                            color: 'var(--accent-primary, #3B82F6)',
+                            backgroundColor: 'var(--accent-primary-light, #EFF6FF)',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            setSelectedWOId(rework.workOrderId);
+                            setShowViewModal(true);
+                            setActiveModalTech(null);
+                          }}
+                          title={t('dashboard.viewWorkOrder')}
+                        >
+                          <Eye size={15} />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1558,16 +1539,41 @@ export function DashboardPage() {
                           </span>
                           <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{wo.patient}</span>
                         </div>
-                        <span style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          backgroundColor: 'rgba(217, 70, 239, 0.1)',
-                          color: '#D946EF',
-                          padding: '2px 8px',
-                          borderRadius: '100px'
-                        }}>
-                          {t('dashboard.xRepetitions', { count: wo.repetitionCount })}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(217, 70, 239, 0.1)',
+                            color: '#D946EF',
+                            padding: '2px 8px',
+                            borderRadius: '100px'
+                          }}>
+                            {t('dashboard.xRepetitions', { count: wo.repetitionCount })}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-action"
+                            style={{
+                              color: 'var(--accent-primary, #3B82F6)',
+                              backgroundColor: 'var(--accent-primary-light, #EFF6FF)',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => {
+                              setSelectedWOId(wo.id);
+                              setShowViewModal(true);
+                              setActiveModalTech(null);
+                            }}
+                            title={t('dashboard.viewWorkOrder')}
+                          >
+                            <Eye size={15} />
+                          </button>
+                        </div>
                       </div>
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', borderTop: '1px dashed var(--border)', paddingTop: '6px' }}>
@@ -1587,7 +1593,7 @@ export function DashboardPage() {
                             gap: '4px'
                           }}>
                             <span>{t('dashboard.stage')}: <strong>{log.verificationStage}</strong> ({t('dashboard.triggeredBy')}: {log.initiatedBy})</span>
-                            <span>{new Date(log.initiatedAt).toLocaleString(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US')}</span>
+                            <span>{formatDateTime(log.initiatedAt)}</span>
                           </div>
                         ))}
                       </div>
@@ -1612,6 +1618,75 @@ export function DashboardPage() {
         recipientPhone={whatsAppModalData?.recipientPhone || ''}
         workOrderData={whatsAppModalData?.workOrderData}
       />
+
+      {/* Floating portal tooltip for rework / repetition hover without layout shift or blinking */}
+      {hoverTooltip && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: `${hoverTooltip.rect.bottom + 6}px`,
+            left: `${Math.max(16, Math.min(window.innerWidth - 300, hoverTooltip.rect.left + hoverTooltip.rect.width / 2 - 140))}px`,
+            zIndex: 99999,
+            width: '280px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            boxShadow: 'var(--shadow-lg)',
+            padding: '0.75rem',
+            fontSize: '0.75rem',
+            textAlign: 'left',
+            pointerEvents: 'none'
+          }}
+        >
+          {hoverTooltip.type === 'rework' ? (
+            <>
+              <h4 style={{ fontWeight: 700, marginBottom: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '4px', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <AlertCircle size={12} style={{ color: '#EF4444' }} />
+                {t('dashboard.reworkProcesses', { count: hoverTooltip.tech.reworkCount })}
+              </h4>
+              {hoverTooltip.tech.reworkDetails.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)' }}>{t('dashboard.noReworks')}</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                  {hoverTooltip.tech.reworkDetails.map((detail: any, idx: number) => (
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', borderBottom: idx < hoverTooltip.tech.reworkDetails.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: idx < hoverTooltip.tech.reworkDetails.length - 1 ? '4px' : 0 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {detail.folioNumber ? `${detail.folioNumber} • ` : ''}{detail.patient ? `${detail.patient} (${detail.processName})` : detail.processName}
+                      </span>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
+                        {t('dashboard.reworkCount', { count: detail.reworkCount })} • {detail.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <h4 style={{ fontWeight: 700, marginBottom: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '4px', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <RotateCcw size={12} style={{ color: '#D946EF' }} />
+                {t('dashboard.repetitionWorkOrders', { count: hoverTooltip.tech.repetitionCount })}
+              </h4>
+              {hoverTooltip.tech.repetitionDetails.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)' }}>{t('dashboard.noRepetitions')}</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                  {hoverTooltip.tech.repetitionDetails.map((detail: any, idx: number) => (
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', borderBottom: idx < hoverTooltip.tech.repetitionDetails.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: idx < hoverTooltip.tech.repetitionDetails.length - 1 ? '4px' : 0 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{detail.folioNumber} ({detail.patient})</span>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>{t('dashboard.totalRepetitions', { count: detail.repetitionCount })}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed var(--border)', fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+            {t('dashboard.clickToViewWO')}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
