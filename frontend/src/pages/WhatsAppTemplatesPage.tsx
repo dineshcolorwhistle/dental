@@ -21,7 +21,9 @@ export function WhatsAppTemplatesPage() {
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<WhatsAppTemplate | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Form & View State
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null); // null = New Template Mode
@@ -131,28 +133,35 @@ export function WhatsAppTemplatesPage() {
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm(t('common.confirmDelete', { defaultValue: 'Are you sure you want to delete this template?' }))) {
-      return;
-    }
+  const confirmDelete = (tpl: WhatsAppTemplate, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setTemplateToDelete(tpl);
+    setDeleteModalOpen(true);
+  };
 
-    setDeletingId(id);
+  const handleDelete = async () => {
+    if (!templateToDelete) return;
+
+    setDeleting(true);
     try {
-      await whatsappTemplateService.delete(id);
-      toast.success(t('common.deleteSuccess', { defaultValue: 'Deleted successfully' }));
-      const remaining = templates.filter((t) => t.id !== id);
+      await whatsappTemplateService.delete(templateToDelete.id);
+      toast.success(t('whatsappTemplates.deleteSuccess', { defaultValue: 'WhatsApp template deleted successfully' }));
+      const remaining = templates.filter((t) => t.id !== templateToDelete.id);
       setTemplates(remaining);
-      if (remaining.length > 0) {
-        selectForEdit(remaining[0]);
-      } else {
-        startCreateNew();
+      if (selectedTemplateId === templateToDelete.id) {
+        if (remaining.length > 0) {
+          selectForEdit(remaining[0]);
+        } else {
+          startCreateNew();
+        }
       }
+      setDeleteModalOpen(false);
+      setTemplateToDelete(null);
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || t('common.error', { defaultValue: 'Action failed' }));
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
@@ -261,8 +270,8 @@ export function WhatsAppTemplatesPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={(e) => handleDelete(tpl.id, e)}
-                      disabled={deletingId === tpl.id}
+                      onClick={(e) => confirmDelete(tpl, e)}
+                      disabled={deleting && templateToDelete?.id === tpl.id}
                       title={t('common.delete')}
                       style={{
                         background: 'none',
@@ -272,7 +281,7 @@ export function WhatsAppTemplatesPage() {
                         padding: '2px',
                         display: 'flex',
                         alignItems: 'center',
-                        opacity: deletingId === tpl.id ? 0.5 : 0.8,
+                        opacity: deleting && templateToDelete?.id === tpl.id ? 0.5 : 0.8,
                       }}
                     >
                       <Trash2 size={14} />
@@ -499,6 +508,84 @@ export function WhatsAppTemplatesPage() {
           </form>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && templateToDelete && (
+        <div
+          className="modal-overlay"
+          onClick={() => !deleting && setDeleteModalOpen(false)}
+        >
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '420px' }}
+          >
+            <div className="modal__header">
+              <div>
+                <h2 className="modal__title">
+                  {t('whatsappTemplates.deleteConfirm', {
+                    defaultValue: 'Delete Template',
+                  })}
+                </h2>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => !deleting && setDeleteModalOpen(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-body)' }}>
+                {t('whatsappTemplates.deleteConfirmText', {
+                  name: templateToDelete.name,
+                  defaultValue: `Are you sure you want to delete template "${templateToDelete.name}"? This action cannot be undone.`,
+                })}
+              </p>
+            </div>
+
+            <div
+              className="modal__footer"
+              style={{
+                padding: '1rem 1.75rem',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleting}
+              >
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <RefreshCw size={16} className="spin-icon" />
+                    <span>{t('common.deleting', { defaultValue: 'Deleting...' })}</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    <span>{t('common.delete', { defaultValue: 'Delete' })}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

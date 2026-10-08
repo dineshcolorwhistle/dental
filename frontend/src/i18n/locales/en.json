@@ -1711,7 +1711,10 @@
     "loadError": "Failed to load WhatsApp templates",
     "saveSuccess": "WhatsApp template updated successfully!",
     "saveError": "Failed to save WhatsApp template",
-    "createSuccess": "WhatsApp template created successfully!"
+    "createSuccess": "WhatsApp template created successfully!",
+    "deleteConfirm": "Delete Template",
+    "deleteConfirmText": "Are you sure you want to delete template \"{{name}}\"? This action cannot be undone.",
+    "deleteSuccess": "WhatsApp template deleted successfully"
   },
   "whatsappModal": {
     "title": "Send WhatsApp Message",

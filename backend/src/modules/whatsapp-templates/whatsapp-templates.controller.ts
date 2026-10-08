@@ -27,17 +27,21 @@ export class WhatsAppTemplatesController {
 
   @Get()
   @ApiOperation({ summary: 'List all WhatsApp templates for the organization' })
-  async findAll(@CurrentUser('tenantId') tenantId: string) {
-    return this.whatsappTemplatesService.findAll(tenantId || '');
+  async findAll(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
+  ) {
+    return this.whatsappTemplatesService.findAll(tenantId, role);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a WhatsApp template by ID' })
   async findOne(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
     @Param('id') id: string,
   ) {
-    return this.whatsappTemplatesService.findOne(tenantId || '', id);
+    return this.whatsappTemplatesService.findOne(tenantId, id, role);
   }
 
   @Post()
@@ -45,27 +49,30 @@ export class WhatsAppTemplatesController {
   @ApiOperation({ summary: 'Create a new WhatsApp template' })
   async create(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
     @Body() dto: CreateWhatsAppTemplateDto,
   ) {
-    return this.whatsappTemplatesService.create(tenantId || '', dto);
+    return this.whatsappTemplatesService.create(tenantId, dto, role);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update an existing WhatsApp template' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
     @Param('id') id: string,
     @Body() dto: UpdateWhatsAppTemplateDto,
   ) {
-    return this.whatsappTemplatesService.update(tenantId || '', id, dto);
+    return this.whatsappTemplatesService.update(tenantId, id, dto, role);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a WhatsApp template' })
   async remove(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
     @Param('id') id: string,
   ) {
-    return this.whatsappTemplatesService.remove(tenantId || '', id);
+    return this.whatsappTemplatesService.remove(tenantId, id, role);
   }
 }

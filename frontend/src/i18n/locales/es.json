@@ -1711,7 +1711,10 @@
     "loadError": "Error al cargar las plantillas de WhatsApp",
     "saveSuccess": "¡Plantilla de WhatsApp actualizada exitosamente!",
     "saveError": "Error al guardar la plantilla de WhatsApp",
-    "createSuccess": "¡Plantilla de WhatsApp creada exitosamente!"
+    "createSuccess": "¡Plantilla de WhatsApp creada exitosamente!",
+    "deleteConfirm": "Eliminar plantilla",
+    "deleteConfirmText": "¿Está seguro de que desea eliminar la plantilla \"{{name}}\"? Esta acción no se puede deshacer.",
+    "deleteSuccess": "Plantilla de WhatsApp eliminada exitosamente"
   },
   "whatsappModal": {
     "title": "Enviar mensaje de WhatsApp",

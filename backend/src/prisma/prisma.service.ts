@@ -43,6 +43,20 @@ export class PrismaService
         );
       `);
       await this.$executeRawUnsafe(`
+        DO $$ BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'whatsapp_templates' AND column_name = 'trigger_event'
+          ) THEN
+            ALTER TABLE "whatsapp_templates" ALTER COLUMN "trigger_event" DROP NOT NULL;
+            ALTER TABLE "whatsapp_templates" ALTER COLUMN "trigger_event" TYPE TEXT USING "trigger_event"::TEXT;
+          END IF;
+        END $$;
+      `);
+      await this.$executeRawUnsafe(`
+        DROP INDEX IF EXISTS "whatsapp_templates_tenant_id_trigger_event_key";
+      `);
+      await this.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "clinic_prosthesis_types" (
           "id" TEXT NOT NULL,
           "clinic_id" TEXT NOT NULL,

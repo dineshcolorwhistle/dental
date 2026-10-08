@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateWhatsAppTemplateDto,
@@ -49,9 +49,24 @@ export class WhatsAppTemplatesService {
     return (this.prisma as any).whatsAppTemplate;
   }
 
+  private async resolveTenantId(tenantId?: string, role?: string): Promise<string> {
+    if (tenantId && tenantId.trim() !== '') {
+      return tenantId;
+    }
+    // If user is SUPER_ADMIN or tenantId is missing, fallback to the first active tenant
+    const firstTenant = await this.prisma.tenant.findFirst({
+      where: { status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (firstTenant?.id) {
+      return firstTenant.id;
+    }
+    throw new BadRequestException('Organization context is required.');
+  }
+
   async seedDefaults(tenantId: string) {
     try {
-      if (!this.templateModel) return;
+      if (!this.templateModel || !tenantId) return;
       const count = await this.templateModel.count({
         where: { tenantId },
       });
@@ -75,20 +90,22 @@ export class WhatsAppTemplatesService {
     }
   }
 
-  async findAll(tenantId: string) {
-    await this.seedDefaults(tenantId);
+  async findAll(tenantId: string, role?: string) {
+    const effectiveTenantId = await this.resolveTenantId(tenantId, role);
+    await this.seedDefaults(effectiveTenantId);
 
     if (!this.templateModel) return [];
     return this.templateModel.findMany({
-      where: { tenantId },
+      where: { tenantId: effectiveTenantId },
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  async findOne(tenantId: string, id: string) {
+  async findOne(tenantId: string, id: string, role?: string) {
+    const effectiveTenantId = await this.resolveTenantId(tenantId, role);
     if (!this.templateModel) throw new NotFoundException('Service unavailable');
     const template = await this.templateModel.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId: effectiveTenantId },
     });
 
     if (!template) {
@@ -100,42 +117,61 @@ export class WhatsAppTemplatesService {
     return template;
   }
 
-  async create(tenantId: string, dto: CreateWhatsAppTemplateDto) {
+  async create(tenantId: string, dto: CreateWhatsAppTemplateDto, role?: string) {
+    const effectiveTenantId = await this.resolveTenantId(tenantId, role);
     if (!this.templateModel) throw new NotFoundException('Service unavailable');
-    return this.templateModel.create({
-      data: {
-        tenantId,
-        name: dto.name,
-        triggerEvent: dto.triggerEvent ?? null,
-        message: dto.message,
-        status: dto.status ?? WhatsAppTemplateStatus.ACTIVE,
-        placeholders: dto.placeholders ?? DEFAULT_PLACEHOLDERS,
-      },
-    });
+
+    try {
+      return await this.templateModel.create({
+        data: {
+          tenantId: effectiveTenantId,
+          name: dto.name,
+          triggerEvent: dto.triggerEvent ? dto.triggerEvent : null,
+          message: dto.message,
+          status: dto.status ?? WhatsAppTemplateStatus.ACTIVE,
+          placeholders: dto.placeholders ?? DEFAULT_PLACEHOLDERS,
+        },
+      });
+    } catch (error: any) {
+      console.error('[WhatsAppTemplatesService] Create error:', error);
+      throw error;
+    }
   }
 
-  async update(tenantId: string, id: string, dto: UpdateWhatsAppTemplateDto) {
-    await this.findOne(tenantId, id);
+  async update(tenantId: string, id: string, dto: UpdateWhatsAppTemplateDto, role?: string) {
+    const effectiveTenantId = await this.resolveTenantId(tenantId, role);
+    await this.findOne(effectiveTenantId, id, role);
 
-    return this.templateModel.update({
-      where: { id },
-      data: {
-        ...(dto.name && { name: dto.name }),
-        ...(dto.triggerEvent !== undefined && {
-          triggerEvent: dto.triggerEvent,
-        }),
-        ...(dto.message && { message: dto.message }),
-        ...(dto.status && { status: dto.status }),
-        ...(dto.placeholders && { placeholders: dto.placeholders }),
-      },
-    });
+    try {
+      return await this.templateModel.update({
+        where: { id },
+        data: {
+          ...(dto.name && { name: dto.name }),
+          ...(dto.triggerEvent !== undefined && {
+            triggerEvent: dto.triggerEvent ? dto.triggerEvent : null,
+          }),
+          ...(dto.message && { message: dto.message }),
+          ...(dto.status && { status: dto.status }),
+          ...(dto.placeholders && { placeholders: dto.placeholders }),
+        },
+      });
+    } catch (error: any) {
+      console.error('[WhatsAppTemplatesService] Update error:', error);
+      throw error;
+    }
   }
 
-  async remove(tenantId: string, id: string) {
-    await this.findOne(tenantId, id);
+  async remove(tenantId: string, id: string, role?: string) {
+    const effectiveTenantId = await this.resolveTenantId(tenantId, role);
+    await this.findOne(effectiveTenantId, id, role);
 
-    return this.templateModel.delete({
-      where: { id },
-    });
+    try {
+      return await this.templateModel.delete({
+        where: { id },
+      });
+    } catch (error: any) {
+      console.error('[WhatsAppTemplatesService] Delete error:', error);
+      throw error;
+    }
   }
 }
