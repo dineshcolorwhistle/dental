@@ -275,7 +275,15 @@ function App() {
             />
           </Route>
 
-          {/* Public QR Work Order tracking — no auth required */}
+          {/* Public Work Order tracking & External Verification — no auth required */}
+          <Route
+            path="/public/work-orders/:token"
+            element={<PublicWorkOrderPage />}
+          />
+          <Route
+            path="/public/work-orders/qr/:token"
+            element={<PublicWorkOrderPage />}
+          />
           <Route
             path="/qr/:token"
             element={<PublicWorkOrderPage />}

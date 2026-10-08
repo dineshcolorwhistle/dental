@@ -49,7 +49,8 @@ const PROCESS_STATUS_CONFIG: Record<string, { labelKey: string; color: string; b
 
 export function PublicWorkOrderPage() {
   const { t, i18n } = useTranslation();
-  const { token } = useParams<{ token: string }>();
+  const { token, id } = useParams<{ token?: string; id?: string }>();
+  const identifier = token || id;
 
   const [workOrder, setWorkOrder] = useState<PublicWorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,14 +64,14 @@ export function PublicWorkOrderPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!token) {
+    if (!identifier) {
       setError(t('publicWorkOrder.notFound'));
       setLoading(false);
       return;
     }
 
     interestRequestService
-      .getPublicWorkOrder(token)
+      .getPublicWorkOrder(identifier)
       .then((data) => {
         setWorkOrder(data);
         setLoading(false);
@@ -79,7 +80,7 @@ export function PublicWorkOrderPage() {
         setError(t('publicWorkOrder.notFound'));
         setLoading(false);
       });
-  }, [token, t]);
+  }, [identifier, t]);
 
   const validateForm = () => {
     const errors: Record<string, string> = {};

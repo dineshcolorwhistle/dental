@@ -14,11 +14,13 @@ export class InterestRequestsService {
   ) {}
 
   /**
-   * Get public work order details by QR token (sanitized, non-sensitive).
+   * Get public work order details by ID or QR token (sanitized, non-sensitive).
    */
-  async getPublicWorkOrderByQrToken(token: string) {
-    const workOrder = await this.prisma.workOrder.findUnique({
-      where: { qrToken: token },
+  async getPublicWorkOrderByTokenOrId(tokenOrId: string) {
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: {
+        OR: [{ qrToken: tokenOrId }, { id: tokenOrId }],
+      },
       select: {
         id: true,
         folioNumber: true,
@@ -61,6 +63,13 @@ export class InterestRequestsService {
     });
 
     return workOrder;
+  }
+
+  /**
+   * Get public work order details by QR token (backward compatibility).
+   */
+  async getPublicWorkOrderByQrToken(token: string) {
+    return this.getPublicWorkOrderByTokenOrId(token);
   }
 
   /**

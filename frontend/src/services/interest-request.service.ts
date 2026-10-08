@@ -76,11 +76,21 @@ export interface InterestRequestItem {
 
 export const interestRequestService = {
   // Public endpoints (no auth required — uses raw axios to skip interceptors)
-  getPublicWorkOrder: async (token: string): Promise<PublicWorkOrder> => {
-    const response = await axios.get<PublicWorkOrder>(
-      `${API_URL}/public/work-orders/qr/${token}`,
-    );
-    return response.data;
+  getPublicWorkOrder: async (tokenOrId: string): Promise<PublicWorkOrder> => {
+    try {
+      const response = await axios.get<PublicWorkOrder>(
+        `${API_URL}/public/work-orders/${tokenOrId}`,
+      );
+      return response.data;
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        const fallback = await axios.get<PublicWorkOrder>(
+          `${API_URL}/public/work-orders/qr/${tokenOrId}`,
+        );
+        return fallback.data;
+      }
+      throw err;
+    }
   },
 
   submitInterestRequest: async (

@@ -34,12 +34,28 @@ export class InterestRequestsController {
   @ApiOperation({
     summary: 'Get public work order details by QR token (no auth required)',
   })
-  async getPublicWorkOrder(@Param('token') token: string) {
+  async getPublicWorkOrderByQrToken(@Param('token') token: string) {
     const workOrder =
-      await this.interestRequestsService.getPublicWorkOrderByQrToken(token);
+      await this.interestRequestsService.getPublicWorkOrderByTokenOrId(token);
 
     if (!workOrder) {
       throw new NotFoundException('Work order not found or invalid QR token.');
+    }
+
+    return workOrder;
+  }
+
+  @Get('public/work-orders/:token')
+  @Public()
+  @ApiOperation({
+    summary: 'Get public work order details by ID or QR token (no auth required)',
+  })
+  async getPublicWorkOrder(@Param('token') token: string) {
+    const workOrder =
+      await this.interestRequestsService.getPublicWorkOrderByTokenOrId(token);
+
+    if (!workOrder) {
+      throw new NotFoundException('Work order not found or invalid token.');
     }
 
     return workOrder;
