@@ -22,6 +22,7 @@ import {
   UserCheck,
   ChevronDown,
   ChevronUp,
+  Search,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -67,6 +68,8 @@ export function DashboardPage() {
     };
   } | null>(null);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const [inProgressSearch, setInProgressSearch] = useState('');
+  const [verificationSearch, setVerificationSearch] = useState('');
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -162,6 +165,58 @@ export function DashboardPage() {
   const pendingProcs = stats?.pendingProcesses || [];
   const inProgressWOs = stats?.inProgressWOs || [];
   const verificationWOs = stats?.verificationWOs || [];
+
+  const filteredInProgressWOs = inProgressWOs.filter((wo: any) => {
+    if (!inProgressSearch.trim()) return true;
+    const term = inProgressSearch.trim().toLowerCase();
+    const folio = (wo.folioNumber || '').toLowerCase();
+    const patient = (wo.patient || '').toLowerCase();
+    const doctor = (wo.doctor?.name || '').toLowerCase();
+    const boxNumber = wo.boxNumber ? String(wo.boxNumber).toLowerCase() : '';
+
+    const hasMatchingProcess = (wo.processes || []).some((p: any) => {
+      const pName = (p.processName || '').toLowerCase();
+      const techFirst = (p.technician?.firstName || '').toLowerCase();
+      const techLast = (p.technician?.lastName || '').toLowerCase();
+      const techFull = `${techFirst} ${techLast}`.trim();
+      return pName.includes(term) || techFull.includes(term);
+    });
+
+    return (
+      folio.includes(term) ||
+      patient.includes(term) ||
+      doctor.includes(term) ||
+      boxNumber.includes(term) ||
+      hasMatchingProcess
+    );
+  });
+
+  const filteredVerificationWOs = verificationWOs.filter((wo: any) => {
+    if (!verificationSearch.trim()) return true;
+    const term = verificationSearch.trim().toLowerCase();
+    const folio = (wo.folioNumber || '').toLowerCase();
+    const patient = (wo.patient || '').toLowerCase();
+    const doctor = (wo.doctor?.name || '').toLowerCase();
+    const clinic = (wo.doctor?.clinicName || '').toLowerCase();
+    const boxNumber = wo.boxNumber ? String(wo.boxNumber).toLowerCase() : '';
+
+    const hasMatchingProcess = (wo.processes || []).some((p: any) => {
+      const pName = (p.processName || '').toLowerCase();
+      const techFirst = (p.technician?.firstName || '').toLowerCase();
+      const techLast = (p.technician?.lastName || '').toLowerCase();
+      const techFull = `${techFirst} ${techLast}`.trim();
+      return pName.includes(term) || techFull.includes(term);
+    });
+
+    return (
+      folio.includes(term) ||
+      patient.includes(term) ||
+      doctor.includes(term) ||
+      clinic.includes(term) ||
+      boxNumber.includes(term) ||
+      hasMatchingProcess
+    );
+  });
   const repetitionLogs = stats?.repetitionLogs || [];
   const technicianActivityOverview = stats?.technicianActivityOverview || [];
 
@@ -476,11 +531,38 @@ export function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem', marginBottom: '2.5rem' }}>
         {/* In-Progress Work Orders */}
         <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-          <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
-            <Activity size={18} style={{ color: 'var(--accent-primary, #3B82F6)' }} />
-            {t('dashboard.inProgressWorkOrders')}
-            <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--accent-primary, #3B82F6)', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>{inProgressWOs.length}</span>
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <Activity size={18} style={{ color: 'var(--accent-primary, #3B82F6)' }} />
+              {t('dashboard.inProgressWorkOrders')}
+              <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--accent-primary, #3B82F6)', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>
+                {inProgressSearch.trim() ? `${filteredInProgressWOs.length} / ${inProgressWOs.length}` : inProgressWOs.length}
+              </span>
+            </h3>
+
+            <div className="search-input-wrap" style={{ minWidth: '180px', maxWidth: '240px', flex: '1 1 180px' }}>
+              <Search size={14} className="search-input__icon" />
+              <input
+                type="text"
+                className="form-input search-input"
+                style={{ height: '32px', fontSize: '0.8rem', paddingLeft: '2.1rem', paddingRight: '1.75rem' }}
+                placeholder={t('dashboard.searchWorkOrders', { defaultValue: 'Search work orders...' })}
+                value={inProgressSearch}
+                onChange={(e) => setInProgressSearch(e.target.value)}
+              />
+              {inProgressSearch && (
+                <button
+                  type="button"
+                  className="search-input__clear"
+                  onClick={() => setInProgressSearch('')}
+                  title={t('dashboard.clearSearch', { defaultValue: 'Clear search' })}
+                  style={{ padding: '2px' }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
 
           {inProgressWOs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
@@ -490,9 +572,25 @@ export function DashboardPage() {
                 {t('dashboard.createOrAssign')}
               </p>
             </div>
+          ) : filteredInProgressWOs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' }}>
+              <Search size={28} style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>{t('dashboard.noMatchingWorkOrders', { defaultValue: 'No matching work orders found' })}</h4>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                {t('dashboard.adjustSearchCriteria', { defaultValue: 'Try adjusting your search terms.' })}
+              </p>
+              <button
+                type="button"
+                className="btn btn--outline btn--sm"
+                style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}
+                onClick={() => setInProgressSearch('')}
+              >
+                {t('dashboard.clearSearch', { defaultValue: 'Clear search' })}
+              </button>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
-              {inProgressWOs.map((wo: any) => {
+              {filteredInProgressWOs.map((wo: any) => {
                 const activeStep = wo.processes.find((p: any) => p.status === 'IN_PROGRESS' || p.status === 'PAUSED')
                   || wo.processes.find((p: any) => p.status === 'NOT_STARTED')
                   || wo.processes[wo.processes.length - 1];
@@ -585,11 +683,38 @@ export function DashboardPage() {
 
         {/* Work Orders in Verification */}
         <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-          <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
-            <ShieldCheck size={18} style={{ color: '#8B5CF6' }} />
-            {t('dashboard.workOrdersInVerification')}
-            <span style={{ fontSize: '0.75rem', backgroundColor: '#8B5CF6', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>{verificationWOs.length}</span>
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <h3 className="dashboard-card__title" style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <ShieldCheck size={18} style={{ color: '#8B5CF6' }} />
+              {t('dashboard.workOrdersInVerification')}
+              <span style={{ fontSize: '0.75rem', backgroundColor: '#8B5CF6', color: '#FFFFFF', padding: '2px 8px', borderRadius: '100px', fontWeight: 700, marginLeft: '6px' }}>
+                {verificationSearch.trim() ? `${filteredVerificationWOs.length} / ${verificationWOs.length}` : verificationWOs.length}
+              </span>
+            </h3>
+
+            <div className="search-input-wrap" style={{ minWidth: '180px', maxWidth: '240px', flex: '1 1 180px' }}>
+              <Search size={14} className="search-input__icon" />
+              <input
+                type="text"
+                className="form-input search-input"
+                style={{ height: '32px', fontSize: '0.8rem', paddingLeft: '2.1rem', paddingRight: '1.75rem' }}
+                placeholder={t('dashboard.searchWorkOrders', { defaultValue: 'Search work orders...' })}
+                value={verificationSearch}
+                onChange={(e) => setVerificationSearch(e.target.value)}
+              />
+              {verificationSearch && (
+                <button
+                  type="button"
+                  className="search-input__clear"
+                  onClick={() => setVerificationSearch('')}
+                  title={t('dashboard.clearSearch', { defaultValue: 'Clear search' })}
+                  style={{ padding: '2px' }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
 
           {verificationWOs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
@@ -599,9 +724,25 @@ export function DashboardPage() {
                 {t('dashboard.verificationAudit')}
               </p>
             </div>
+          ) : filteredVerificationWOs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' }}>
+              <Search size={28} style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
+              <h4 style={{ fontWeight: 500, fontSize: '0.875rem', margin: 0 }}>{t('dashboard.noMatchingWorkOrders', { defaultValue: 'No matching work orders found' })}</h4>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                {t('dashboard.adjustSearchCriteria', { defaultValue: 'Try adjusting your search terms.' })}
+              </p>
+              <button
+                type="button"
+                className="btn btn--outline btn--sm"
+                style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}
+                onClick={() => setVerificationSearch('')}
+              >
+                {t('dashboard.clearSearch', { defaultValue: 'Clear search' })}
+              </button>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
-              {verificationWOs.map((wo: any) => {
+              {filteredVerificationWOs.map((wo: any) => {
                 const activeVerification = wo.processes.find((p: any) => p.isVerification && (p.status === 'NOT_STARTED' || p.status === 'IN_PROGRESS' || p.status === 'PAUSED'));
                 const isNotStarted = activeVerification?.status === 'NOT_STARTED';
                 const evaluator = activeVerification?.technicianId && activeVerification.technician
