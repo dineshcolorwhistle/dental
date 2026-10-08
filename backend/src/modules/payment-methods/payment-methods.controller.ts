@@ -28,55 +28,51 @@ export class PaymentMethodsController {
   @ApiOperation({ summary: 'List all payment methods for the current tenant' })
   async findAll(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
     @Query('onlyActive') onlyActive?: string,
   ) {
-    if (!tenantId) {
-      throw new BadRequestException('Organization context is required.');
-    }
+    const resolvedTenantId = await this.paymentMethodsService.resolveTenantId(tenantId, role);
     return this.paymentMethodsService.findAll(
-      tenantId,
+      resolvedTenantId,
       onlyActive === 'true' || onlyActive === '1',
     );
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new payment method' })
   async create(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
     @Body() dto: CreatePaymentMethodDto,
   ) {
-    if (!tenantId) {
-      throw new BadRequestException('Organization context is required.');
-    }
-    return this.paymentMethodsService.create(tenantId, dto);
+    const resolvedTenantId = await this.paymentMethodsService.resolveTenantId(tenantId, role);
+    return this.paymentMethodsService.create(resolvedTenantId, dto);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update a payment method' })
   async update(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
     @Param('id') id: string,
     @Body() dto: UpdatePaymentMethodDto,
   ) {
-    if (!tenantId) {
-      throw new BadRequestException('Organization context is required.');
-    }
-    return this.paymentMethodsService.update(tenantId, id, dto);
+    const resolvedTenantId = await this.paymentMethodsService.resolveTenantId(tenantId, role);
+    return this.paymentMethodsService.update(resolvedTenantId, id, dto);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete a payment method' })
   async remove(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: string,
     @Param('id') id: string,
   ) {
-    if (!tenantId) {
-      throw new BadRequestException('Organization context is required.');
-    }
-    return this.paymentMethodsService.remove(tenantId, id);
+    const resolvedTenantId = await this.paymentMethodsService.resolveTenantId(tenantId, role);
+    return this.paymentMethodsService.remove(resolvedTenantId, id);
   }
 }

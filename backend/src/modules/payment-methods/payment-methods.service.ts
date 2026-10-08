@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -22,26 +23,46 @@ export class PaymentMethodsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Resolve effective tenant ID for SUPER_ADMIN or standard users.
+   */
+  async resolveTenantId(tenantId?: string, role?: string): Promise<string> {
+    if (tenantId && tenantId.trim() !== '') {
+      return tenantId;
+    }
+    const firstTenant = await this.prisma.tenant.findFirst({
+      where: { status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (firstTenant?.id) {
+      return firstTenant.id;
+    }
+    throw new BadRequestException('Organization context is required.');
+  }
+
+  /**
    * Seed default payment methods for a tenant if none exist.
    */
   async seedDefaultsIfEmpty(tenantId: string): Promise<void> {
-    const count = await this.prisma.paymentMethod.count({
-      where: { tenantId },
-    });
+    try {
+      const count = await this.prisma.paymentMethod.count({
+        where: { tenantId },
+      });
 
-    if (count === 0) {
-      this.logger.log(`Seeding default payment methods for tenant: ${tenantId}`);
-      await this.prisma.$transaction(
-        DEFAULT_PAYMENT_METHODS.map((m) =>
-          this.prisma.paymentMethod.create({
-            data: {
-              tenantId,
-              name: m.name,
-              description: m.description,
-              isActive: true,
-            },
-          }),
-        ),
+      if (count === 0) {
+        this.logger.log(`Seeding default payment methods for tenant: ${tenantId}`);
+        await this.prisma.paymentMethod.createMany({
+          data: DEFAULT_PAYMENT_METHODS.map((m) => ({
+            tenantId,
+            name: m.name,
+            description: m.description,
+            isActive: true,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to seed default payment methods for tenant "${tenantId}": ${err?.message}`,
       );
     }
   }
