@@ -24,3 +24,10 @@
 - **Always use `useAppDate()` hook** (`import { useAppDate } from '../hooks'`) for formatting dates and currency according to the tenant's business timezone (`America/Mexico_City` by default) and user locale.
 - **Save pure calendar dates at noon UTC:** Always submit calendar dates using `toNoonUtc(dateStr)` or `${dateStr}T12:00:00.000Z` to prevent backward day shifts in negative-UTC regions.
 - **Date filtering:** Filter calendar dates by comparing `YYYY-MM-DD` strings directly, avoiding client-side `new Date()` midnight comparisons.
+
+## Prisma Schema & Database Migrations
+- **Always create migration SQL files for any Prisma schema changes:**
+  - Whenever `backend/prisma/schema.prisma` is modified or new models/fields/enums/indexes are created, **never rely solely on `prisma db push`**.
+  - A corresponding migration folder with `migration.sql` must always be created under `backend/prisma/migrations/<timestamp>_<description>/` (e.g. `YYYYMMDDHHMMSS_<change_description>/migration.sql`).
+  - Server and production deployments strictly execute `npx prisma migrate deploy`, which requires migration SQL files to apply changes to the server database.
+

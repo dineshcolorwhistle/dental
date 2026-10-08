@@ -1068,20 +1068,16 @@ export class WorkOrdersService implements OnModuleInit {
           const currentStatus = p.status || ProcessStatus.NOT_STARTED;
           const oldStatus = ep ? ep.status : ProcessStatus.NOT_STARTED;
 
-          // Rule: If process is COMPLETED, status cannot be changed unless marked for rework or in repetition
+          // Rule: If process is COMPLETED, status cannot be changed unless marked for rework
           if (
             oldStatus === ProcessStatus.COMPLETED &&
             currentStatus !== ProcessStatus.COMPLETED
           ) {
-            const isReworkOrRepetition =
-              p.rework === true ||
-              (ep as any)?.reworkActive === true ||
-              (existing.repetitionCount && existing.repetitionCount > 0) ||
-              (existing.status as any) === 'REPETITION' ||
-              (status as any) === 'REPETITION';
-            if (!isReworkOrRepetition) {
+            const isRework =
+              p.rework === true || (ep as any)?.reworkActive === true;
+            if (!isRework) {
               throw new BadRequestException(
-                `Completed process step "${p.processName}" cannot be modified unless marked for rework or repetition.`,
+                `Completed process step "${p.processName}" cannot be modified unless marked for rework.`,
               );
             }
           }

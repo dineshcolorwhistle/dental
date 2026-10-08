@@ -3665,7 +3665,7 @@ export function WorkOrdersPage() {
                               })()}
                             </div>
 
-                            {/* Process Status selection (Conditions 1, 2, 4 + Completed lock & Rework/Repetition unlock) */}
+                            {/* Process Status selection (Conditions 1, 2, 4 + Completed lock) */}
                             <div
                               className="wo-process-item__status"
                               style={{ width: '150px' }}
@@ -3673,12 +3673,11 @@ export function WorkOrdersPage() {
                                 const isFirstStep = idx === 0;
                                 const prevStep = idx > 0 ? processList[idx - 1] : null;
                                 const isPrevFinished = prevStep?.status === 'COMPLETED' || prevStep?.status === 'FAILED';
-                                const isReworkOrRepetition = !!proc.rework || !!proc.reworkActive || (editingWO?.repetitionCount && editingWO.repetitionCount > 0);
                                 if (formStatus === 'CREATED') {
                                   return t('workOrders.statusLockedCreated', { defaultValue: 'Process status cannot be changed when Work Order is in Created status' });
                                 }
-                                if (proc.status === 'COMPLETED' && !isReworkOrRepetition) {
-                                  return t('workOrders.statusLockedCompleted', { defaultValue: 'Completed process step cannot be modified unless marked for Rework' });
+                                if (proc.status === 'COMPLETED') {
+                                  return t('workOrders.statusLockedCompleted', { defaultValue: 'Completed process step cannot be modified' });
                                 }
                                 if (!isFirstStep && !isPrevFinished) {
                                   return t('workOrders.statusLockedSequential', { defaultValue: 'Previous process step must be Completed or Failed before changing status' });
@@ -3690,9 +3689,8 @@ export function WorkOrdersPage() {
                                 const isFirstStep = idx === 0;
                                 const prevStep = idx > 0 ? processList[idx - 1] : null;
                                 const isPrevFinished = prevStep?.status === 'COMPLETED' || prevStep?.status === 'FAILED';
-                                const isReworkOrRepetition = !!proc.rework || !!proc.reworkActive || (editingWO?.repetitionCount && editingWO.repetitionCount > 0);
-                                let canChangeStatus = formStatus !== 'CREATED' && (isFirstStep || isPrevFinished);
-                                if (proc.status === 'COMPLETED' && !isReworkOrRepetition) {
+                                let canChangeStatus = formStatus !== 'CREATED' && formStatus !== 'COMPLETED' && (isFirstStep || isPrevFinished);
+                                if (proc.status === 'COMPLETED') {
                                   canChangeStatus = false;
                                 }
 
