@@ -22,8 +22,7 @@ import { PushNotificationQueueProcessor } from './push-notification-queue.proces
           maxRetriesPerRequest: null,
           enableOfflineQueue: true,
           retryStrategy: (times: number) => {
-            if (times > 5) return null;
-            return 1000;
+            return Math.min(times * 500, 3000);
           },
         },
       }),
