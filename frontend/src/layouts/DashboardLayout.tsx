@@ -37,6 +37,7 @@ import {
   Volume2,
   VolumeX,
   Rocket,
+  CreditCard,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, tenantService, type NotificationItem } from '../services';
@@ -103,7 +104,8 @@ export function DashboardLayout() {
     '/process-areas',
     '/settings/general',
     '/settings/delivery',
-    '/settings/whatsapp-templates'
+    '/settings/whatsapp-templates',
+    '/settings/payment-methods'
   ].some(path => location.pathname.startsWith(path));
 
   const isUsersRoute = [
@@ -646,6 +648,21 @@ export function DashboardLayout() {
                       >
                         <MessageSquare size={16} />
                         <span>{t('navigation.whatsappTemplates')}</span>
+                      </NavLink>
+                    )}
+
+                    {/* Payment Methods — Lab Admin only */}
+                    {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                      <NavLink
+                        to="/settings/payment-methods"
+                        className={({ isActive }) =>
+                          `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                        }
+                        onClick={() => setSidebarOpen(false)}
+                        data-tooltip={t('navigation.paymentMethods', { defaultValue: 'Payment Methods' })}
+                      >
+                        <CreditCard size={16} />
+                        <span>{t('navigation.paymentMethods', { defaultValue: 'Payment Methods' })}</span>
                       </NavLink>
                     )}
                   </div>

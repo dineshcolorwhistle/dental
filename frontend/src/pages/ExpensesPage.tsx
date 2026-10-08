@@ -9,14 +9,17 @@ import {
   DollarSign,
   Layers,
   TrendingDown,
+  Eye,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
   expenseService,
+  paymentMethodService,
   type Expense,
   type ExpenseCategory,
+  type PaymentMethodItem,
 } from '../services';
 import { Pagination, DateRangePicker } from '../components';
 import { formatDate as formatDateUtil } from '../utils/dateUtils';
@@ -33,8 +36,11 @@ export function ExpensesPage() {
   // State
   const [activeTab, setActiveTab] = useState<ActiveTab>('EXPENSES');
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [showViewExpenseModal, setShowViewExpenseModal] = useState(false);
+  const [viewingExpense, setViewingExpense] = useState<Expense | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -87,7 +93,7 @@ export function ExpensesPage() {
     categoryId: '',
     description: '',
     amount: '',
-    paymentMethod: 'BBVA Crédito',
+    paymentMethod: '',
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -107,12 +113,14 @@ export function ExpensesPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [expensesData, categoriesData] = await Promise.all([
+      const [expensesData, categoriesData, paymentMethodsData] = await Promise.all([
         expenseService.getAllExpenses(),
         expenseService.getCategories(),
+        paymentMethodService.getAll(true).catch(() => []),
       ]);
       setExpenses(expensesData);
       setCategories(categoriesData);
+      setPaymentMethods(paymentMethodsData);
     } catch (err) {
       toast.error(t('common.failedLoadReference'));
       console.error(err);
@@ -157,10 +165,16 @@ export function ExpensesPage() {
       categoryId: categories[0]?.id || '',
       description: '',
       amount: '',
-      paymentMethod: 'BBVA Crédito',
+      paymentMethod: paymentMethods[0]?.name || '',
     });
     setFormErrors({});
     setShowExpenseModal(true);
+  };
+
+  // Open view expense modal
+  const handleOpenViewExpense = (expense: Expense) => {
+    setViewingExpense(expense);
+    setShowViewExpenseModal(true);
   };
 
   // Open edit expense view
@@ -627,6 +641,13 @@ export function ExpensesPage() {
                           <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
                             <button
                               className="btn btn--icon btn--ghost"
+                              onClick={() => handleOpenViewExpense(exp)}
+                              title={t('common.view')}
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              className="btn btn--icon btn--ghost"
                               onClick={() => handleOpenEditExpense(exp)}
                               title={t('common.edit')}
                             >
@@ -881,11 +902,20 @@ export function ExpensesPage() {
                     required
                     style={{ width: '100%' }}
                   >
-                    <option value="BBVA Crédito">BBVA Crédito</option>
-                    <option value="Efectivo">{i18n.language?.startsWith('es') ? 'Efectivo' : 'Cash'}</option>
-                    <option value="Transferencia">{i18n.language?.startsWith('es') ? 'Transferencia' : 'Wire Transfer'}</option>
-                    <option value="Tarjeta de Débito">{i18n.language?.startsWith('es') ? 'Tarjeta de Débito' : 'Debit Card'}</option>
-                    <option value="Tarjeta de Crédito">{i18n.language?.startsWith('es') ? 'Tarjeta de Crédito' : 'Credit Card'}</option>
+                    {paymentMethods.length === 0 ? (
+                      <option value="">{t('common.noData', { defaultValue: 'No payment methods available' })}</option>
+                    ) : (
+                      <>
+                        {expenseForm.paymentMethod && !paymentMethods.some((pm) => pm.name === expenseForm.paymentMethod) && (
+                          <option value={expenseForm.paymentMethod}>{expenseForm.paymentMethod}</option>
+                        )}
+                        {paymentMethods.map((pm) => (
+                          <option key={pm.id} value={pm.name}>
+                            {pm.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                   {formErrors.paymentMethod && <span className="form-error">{formErrors.paymentMethod}</span>}
                 </div>
@@ -902,6 +932,172 @@ export function ExpensesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW EXPENSE MODAL */}
+      {showViewExpenseModal && viewingExpense && (
+        <div className="modal-overlay" onClick={() => setShowViewExpenseModal(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, padding: '1rem' }}>
+          <div className="modal" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '600px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--danger)',
+                }}>
+                  <DollarSign size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    {t('expenses.viewExpense', { defaultValue: 'Expense Details' })}
+                  </h3>
+                </div>
+              </div>
+              <button className="btn btn--icon btn--ghost" onClick={() => setShowViewExpenseModal(false)} style={{ padding: 0 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Header banner with Title & Amount */}
+              <div style={{
+                padding: '1.25rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-light)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '1rem',
+                flexWrap: 'wrap',
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('expenses.fields.title')}
+                  </span>
+                  <h4 style={{ margin: '0.25rem 0 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {viewingExpense.title}
+                  </h4>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('expenses.fields.amount')}
+                  </span>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--danger)', marginTop: '0.15rem' }}>
+                    {formatPrice(viewingExpense.amount)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Details Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '1.25rem',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {t('expenses.fields.date')}
+                  </span>
+                  <p style={{ margin: '0.25rem 0 0', fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                    {formatDate(viewingExpense.date)}
+                  </p>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {t('expenses.fields.category')}
+                  </span>
+                  <div style={{ marginTop: '0.25rem' }}>
+                    <span className="badge badge--neutral" style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
+                      {viewingExpense.category?.name || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {t('expenses.fields.paymentMethod')}
+                  </span>
+                  <div style={{ marginTop: '0.25rem' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '3px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--bg-light)',
+                      border: '1px solid var(--border)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                    }}>
+                      💳 {viewingExpense.paymentMethod}
+                    </span>
+                  </div>
+                </div>
+
+                {viewingExpense.branch && (
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {t('expenses.fields.branch')}
+                    </span>
+                    <p style={{ margin: '0.25rem 0 0', fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                      {viewingExpense.branch.name}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              {viewingExpense.description && (
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                    {t('expenses.fields.description')}
+                  </span>
+                  <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                    {viewingExpense.description}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => setShowViewExpenseModal(false)}
+              >
+                {t('common.close', { defaultValue: 'Close' })}
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => {
+                  setShowViewExpenseModal(false);
+                  handleOpenEditExpense(viewingExpense);
+                }}
+              >
+                <Edit2 size={16} />
+                <span>{t('common.edit')}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -130,7 +130,7 @@ export function DashboardPage() {
       setSelectedAlert(null);
       fetchDashboardData();
       if (outcome === 'REWORK') {
-        navigate('/work-orders', { state: { editWorkOrderId: workOrderId, activeTab: 'processes' } });
+        navigate('/work-orders', { state: { editWorkOrderId: workOrderId, activeTab: 'processes', isReworkFlow: true } });
       }
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || t('dashboard.verificationCompleteFailed');

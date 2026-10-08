@@ -124,7 +124,8 @@
     "interestRequests": "Solicitudes de Interés",
     "onboardingTenants": "Incorporación de Laboratorios",
     "calendar": "Calendario",
-    "reminders": "Recordatorios"
+    "reminders": "Recordatorios",
+    "paymentMethods": "Métodos de Pago"
   },
   "enums": {
     "workOrderStatus": {
@@ -577,6 +578,7 @@
     "patientName": "Nombre del Paciente",
     "doctor": "Médico",
     "prosthesisType": "Tipo de Prótesis",
+    "cannotChangeProsthesisTypeStarted": "El tipo de prótesis solo se puede cambiar cuando la orden de trabajo está en estado Creada.",
     "createdAt": "Fecha de Creación",
     "totalPrice": "Precio Total",
     "receivedAmount": "Monto Recibido",
@@ -604,6 +606,7 @@
     "hasNotUndergoneRepetition": "Esta orden de trabajo no ha pasado por ninguna repetición.",
     "paymentTransactions": "Transacciones de Pago",
     "recordNewPayment": "Registrar Nuevo Pago",
+    "initialDeposit": "Depósito Inicial",
     "initialPaymentRegistered": "Pago inicial registrado en la creación de la orden",
     "upperTeeth": "Dientes Superiores",
     "lowerTeeth": "Dientes Inferiores",
@@ -1283,6 +1286,7 @@
       "categoryDescription": "Ingrese descripción de la categoría (opcional)",
       "selectProductType": "Seleccione Tipo de Producto"
     },
+    "viewItem": "Detalles del Artículo",
     "buttons": {
       "addItem": "Agregar Artículo",
       "editItem": "Editar Artículo",
@@ -1312,6 +1316,7 @@
   "expenses": {
     "title": "Gestión de Gastos",
     "subtitle": "Seguimiento y gestión de los gastos operativos de su sucursal",
+    "viewExpense": "Detalles del Gasto",
     "addExpense": "Agregar Gasto",
     "editExpense": "Editar Gasto",
     "deleteExpense": "Eliminar Gasto",
@@ -1496,6 +1501,37 @@
     "settingsSaved": "Configuración actualizada con éxito",
     "selectTimezone": "Buscar o seleccionar zona horaria...",
     "selectCurrency": "Buscar o seleccionar moneda..."
+  },
+  "paymentMethods": {
+    "title": "Métodos de Pago",
+    "subtitle": "Gestione los métodos de pago disponibles para pagos y facturas de órdenes de trabajo.",
+    "addMethod": "Agregar Método de Pago",
+    "methodName": "Método de Pago",
+    "name": "Nombre del Método de Pago",
+    "namePlaceholder": "p. ej., Tarjeta de Crédito, Transferencia, Efectivo",
+    "descPlaceholder": "Notas opcionales o datos de cuenta para este método...",
+    "isActiveLabel": "Activo (disponible para selección)",
+    "addTitle": "Agregar Método de Pago",
+    "addSubtitle": "Cree una opción de método de pago para las órdenes de trabajo.",
+    "editTitle": "Editar Método de Pago",
+    "editSubtitle": "Actualizar {{name}}",
+    "deleteTitle": "Eliminar Método de Pago",
+    "deleteConfirm": "¿Está seguro de que desea eliminar el método de pago \"{{name}}\"? Esta acción no se puede deshacer.",
+    "noMethodsFound": "No se encontraron métodos de pago",
+    "emptyHint": "Comience creando su primer método de pago.",
+    "searchPlaceholder": "Buscar por nombre o descripción del método...",
+    "clickToToggle": "Haga clic para alternar estado",
+    "selectPaymentMethod": "Seleccione método de pago",
+    "failedLoad": "Error al cargar los métodos de pago",
+    "createSuccess": "Método de pago creado con éxito",
+    "failedCreate": "Error al crear el método de pago",
+    "updateSuccess": "Método de pago actualizado con éxito",
+    "failedUpdate": "Error al actualizar el método de pago",
+    "deleteSuccess": "Método de pago eliminado con éxito",
+    "failedDelete": "Error al eliminar el método de pago",
+    "activated": "Método de pago activado",
+    "deactivated": "Método de pago desactivado",
+    "failedStatusUpdate": "Error al actualizar el estado"
   },
   "connectedClinics": {
     "title": "Clínicas Conectadas",

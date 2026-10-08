@@ -17,15 +17,19 @@ import {
   FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { workOrderService } from '../services';
+import { workOrderService, paymentMethodService, type PaymentMethodItem } from '../services';
+import { useAppDate } from '../hooks';
 import { NoteHistoryThread } from './NoteHistoryThread';
 import { WorkOrderChat } from './WorkOrderChat';
 import { formatAuditNote } from '../utils/audit-formatter';
 
 interface PaymentHistoryItem {
+  id?: string;
   amount: number;
+  paymentMethod?: string;
   notes: string;
   date: string;
+  registeredBy?: string;
 }
 
 interface ViewWorkOrderModalProps {
@@ -132,6 +136,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { formatDateTime: appFormatDateTime } = useAppDate();
   const { socket, isConnected } = useSocket();
   const isAdmin = user?.role === 'ADMIN';
   const isLabAdminOrOwner = user?.role === 'ADMIN' || user?.role === 'OWNER';
@@ -148,6 +153,8 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
   const [showAddFundForm, setShowAddFundForm] = useState(false);
   const [addFundAmount, setAddFundAmount] = useState('');
   const [addFundNotes, setAddFundNotes] = useState('');
+  const [addFundPaymentMethod, setAddFundPaymentMethod] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodItem[]>([]);
   const [expandedAuditRow, setExpandedAuditRow] = useState<string | null>(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
@@ -215,9 +222,18 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
       setAddFundNotes('');
       setExpandedAuditRow(null);
 
-      workOrderService.getById(workOrderId)
-        .then((data) => {
+      Promise.all([
+        workOrderService.getById(workOrderId),
+        paymentMethodService.getAll(true).catch(() => []),
+      ])
+        .then(([data, methods]) => {
           setSelectedWO(data);
+          setPaymentMethods(methods);
+          if (methods.length > 0) {
+            setAddFundPaymentMethod(methods[0].name);
+          } else {
+            setAddFundPaymentMethod('Cash');
+          }
         })
         .catch((err) => {
           console.error('Failed to load work order details', err);
@@ -281,7 +297,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
       toast.success(t('dashboard.verificationCompleted', { outcome: t('enums.verificationOutcome.' + outcome) }), { id: loadingToast });
       if (outcome === 'REWORK') {
         onClose();
-        navigate('/work-orders', { state: { editWorkOrderId: woId, activeTab: 'processes' } });
+        navigate('/work-orders', { state: { editWorkOrderId: woId, activeTab: 'processes', isReworkFlow: true } });
       } else {
         const detailedWo = await workOrderService.getById(woId);
         setSelectedWO(detailedWo);
@@ -315,9 +331,12 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
       const newPayments: PaymentHistoryItem[] = [
         ...payments,
         {
+          id: `pay-${Date.now()}`,
           amount,
+          paymentMethod: addFundPaymentMethod || (paymentMethods[0]?.name || 'Cash'),
           notes: addFundNotes.trim(),
-          date: new Date().toISOString()
+          date: new Date().toISOString(),
+          registeredBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || undefined,
         }
       ];
 
@@ -334,6 +353,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
       
       setAddFundAmount('');
       setAddFundNotes('');
+      setAddFundPaymentMethod(paymentMethods[0]?.name || 'Cash');
       setShowAddFundForm(false);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || t('financePage.addPaymentFailed'));
@@ -1613,20 +1633,43 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                             gap: '1rem'
                           }}>
                             <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-heading)' }}>{t('workOrders.recordNewPayment')}</h4>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '1rem', alignItems: 'flex-start' }}>
                               <div className="form-group" style={{ margin: 0 }}>
                                 <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('financePage.paymentAmount')} *</label>
                                 <input
                                   type="number"
                                   className="form-input"
                                   placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g. 1000' })}
-                                  min="1"
+                                  min="0.01"
                                   max={balance}
                                   step="0.01"
                                   value={addFundAmount}
                                   onChange={e => setAddFundAmount(e.target.value)}
                                   style={{ height: '36px', fontSize: '0.875rem' }}
                                 />
+                              </div>
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('paymentMethods.method', { defaultValue: 'Payment Method' })} *</label>
+                                <select
+                                  className="form-input"
+                                  value={addFundPaymentMethod || (paymentMethods[0]?.name || 'Cash')}
+                                  onChange={e => setAddFundPaymentMethod(e.target.value)}
+                                  style={{ height: '36px', fontSize: '0.875rem', fontWeight: 600 }}
+                                >
+                                  {paymentMethods.length > 0 ? (
+                                    paymentMethods.map((pm) => (
+                                      <option key={pm.id} value={pm.name}>{pm.name}</option>
+                                    ))
+                                  ) : (
+                                    <>
+                                      <option value="Cash">{t('paymentMethods.defaultCash', { defaultValue: 'Cash' })}</option>
+                                      <option value="Credit Card">{t('paymentMethods.defaultCreditCard', { defaultValue: 'Credit Card' })}</option>
+                                      <option value="Debit Card">{t('paymentMethods.defaultDebitCard', { defaultValue: 'Debit Card' })}</option>
+                                      <option value="Bank Transfer">{t('paymentMethods.defaultBankTransfer', { defaultValue: 'Bank Transfer' })}</option>
+                                      <option value="Check">{t('paymentMethods.defaultCheck', { defaultValue: 'Check' })}</option>
+                                    </>
+                                  )}
+                                </select>
                               </div>
                               <div className="form-group" style={{ margin: 0 }}>
                                 <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('financePage.paymentNotes')}</label>
@@ -1678,6 +1721,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                               <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
                                 <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('financePage.paymentDate')}</th>
                                 <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.receivedAmount')}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('paymentMethods.method', { defaultValue: 'Method' })}</th>
                                 <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.notes')}</th>
                                 <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
                               </tr>
@@ -1686,16 +1730,24 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                               {/* Initial Payment Creation Row */}
                               <tr style={{ borderBottom: payments.length > 0 ? '1px solid var(--border)' : 'none' }}>
                                 <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                                  {formatDate(selectedWO.createdAt, i18n.language, user?.timezone, {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
+                                  {appFormatDateTime(selectedWO.createdAt)}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                   ${((selectedWO.initialPayment || 0) - payments.reduce((acc: number, curr: any) => acc + curr.amount, 0)).toLocaleString('es-MX')}
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                                    color: 'var(--text-secondary)',
+                                  }}>
+                                    {t('workOrders.initialDeposit', { defaultValue: 'Initial Deposit' })}
+                                  </span>
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontWeight: 500, fontStyle: 'italic' }}>
                                   {t('workOrders.initialPaymentRegistered')}
@@ -1722,16 +1774,24 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                   borderBottom: pidx < payments.length - 1 ? '1px solid var(--border)' : 'none'
                                 }}>
                                   <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                                    {formatDate(payment.date, i18n.language, user?.timezone, {
-                                      day: 'numeric',
-                                      month: 'short',
-                                      year: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
+                                    {appFormatDateTime(payment.date)}
                                   </td>
                                   <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                     ${payment.amount.toLocaleString('es-MX')}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                                      color: 'var(--accent-primary, #3B82F6)',
+                                    }}>
+                                      {payment.paymentMethod || t('paymentMethods.defaultCash', { defaultValue: 'Cash' })}
+                                    </span>
                                   </td>
                                   <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                                     {payment.notes || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('workOrders.noSpecifications')}</span>}

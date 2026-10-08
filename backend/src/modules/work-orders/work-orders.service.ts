@@ -1023,12 +1023,11 @@ export class WorkOrdersService implements OnModuleInit {
       status,
     } = dto;
 
-    // Strict sequential and locking validation
+    // Sequential and status validation (Conditions 1, 2, 4)
     if (processes) {
+      // 1. Ensure no already started process is deleted
       for (const ep of existing.processes) {
         if (ep.status !== ProcessStatus.NOT_STARTED) {
-          // This process has started. It must be present in the new processes list.
-          // Match by processName + isVerification since we can't pass id through the DTO.
           const p = processes.find(
             (item) =>
               item.processName === ep.processName &&
@@ -1036,25 +1035,69 @@ export class WorkOrdersService implements OnModuleInit {
           );
           if (!p) {
             throw new BadRequestException(
-              `Cannot delete or reorder already started process step "${ep.processName}".`,
+              `Cannot delete already started process step "${ep.processName}".`,
             );
           }
-          if ((p.technicianId || null) !== (ep.technicianId || null)) {
+        }
+      }
+
+      // Condition 1: If WO status is CREATED, admin cannot change process status, but CAN change technician
+      if (
+        existing.status === WorkOrderStatus.CREATED &&
+        status !== WorkOrderStatus.ASSIGNED
+      ) {
+        for (const p of processes) {
+          if (p.status && p.status !== ProcessStatus.NOT_STARTED) {
             throw new BadRequestException(
-              `Cannot change assigned technician for already started process step "${ep.processName}".`,
+              'Cannot change process status when work order is in Created status.',
             );
           }
-          const isReworkingThisStep =
-            p.rework === true &&
-            ep.status === ProcessStatus.COMPLETED &&
-            (p.status === ProcessStatus.NOT_STARTED || !p.status);
+        }
+      } else {
+        // Condition 2 & 4: Subsequent process status cannot be changed until previous process is COMPLETED or FAILED
+        const sortedProcesses = [...processes].sort(
+          (a, b) => a.sequence - b.sequence,
+        );
+        for (let i = 0; i < sortedProcesses.length; i++) {
+          const p = sortedProcesses[i];
+          const ep = existing.processes.find(
+            (item: any) =>
+              item.processName === p.processName &&
+              (item.isVerification || false) === (p.isVerification || false),
+          );
+          const currentStatus = p.status || ProcessStatus.NOT_STARTED;
+          const oldStatus = ep ? ep.status : ProcessStatus.NOT_STARTED;
+
+          // Rule: If process is COMPLETED, status cannot be changed unless marked for rework or in repetition
           if (
-            (p.status || ProcessStatus.NOT_STARTED) !== ep.status &&
-            !isReworkingThisStep
+            oldStatus === ProcessStatus.COMPLETED &&
+            currentStatus !== ProcessStatus.COMPLETED
           ) {
-            throw new BadRequestException(
-              `Cannot modify status of already started process step "${ep.processName}".`,
-            );
+            const isReworkOrRepetition =
+              p.rework === true ||
+              (ep as any)?.reworkActive === true ||
+              (existing.repetitionCount && existing.repetitionCount > 0) ||
+              (existing.status as any) === 'REPETITION' ||
+              (status as any) === 'REPETITION';
+            if (!isReworkOrRepetition) {
+              throw new BadRequestException(
+                `Completed process step "${p.processName}" cannot be modified unless marked for rework or repetition.`,
+              );
+            }
+          }
+
+          // If status has changed on step i > 0
+          if (currentStatus !== oldStatus && i > 0) {
+            const prevProcess = sortedProcesses[i - 1];
+            const prevStatus = prevProcess.status || ProcessStatus.NOT_STARTED;
+            if (
+              prevStatus !== ProcessStatus.COMPLETED &&
+              prevStatus !== ProcessStatus.FAILED
+            ) {
+              throw new BadRequestException(
+                `Cannot change status of step "${p.processName}" because the previous process "${prevProcess.processName}" is not Completed or Failed.`,
+              );
+            }
           }
         }
       }
@@ -1072,6 +1115,14 @@ export class WorkOrdersService implements OnModuleInit {
 
     // Verify prosthesis type if updated
     if (prosthesisTypeId) {
+      if (
+        prosthesisTypeId !== existing.prosthesisTypeId &&
+        existing.status !== WorkOrderStatus.CREATED
+      ) {
+        throw new BadRequestException(
+          'Prosthesis type can only be changed when work order is in Created status.',
+        );
+      }
       const pt = await this.prisma.prosthesisType.findFirst({
         where: { id: prosthesisTypeId, tenantId },
       });
@@ -1149,6 +1200,20 @@ export class WorkOrdersService implements OnModuleInit {
           reworkActive = false;
         } else if (p.rework === false && ep && ep.reworkActive === true) {
           reworkActive = false;
+        }
+
+        if (statusVal === ProcessStatus.IN_PROGRESS && !startedAt) {
+          startedAt = new Date();
+        } else if (
+          (statusVal === ProcessStatus.COMPLETED ||
+            statusVal === ProcessStatus.FAILED) &&
+          !endedAt
+        ) {
+          endedAt = new Date();
+          if (!startedAt) startedAt = new Date();
+        } else if (statusVal === ProcessStatus.NOT_STARTED && !isReworked) {
+          startedAt = null;
+          endedAt = null;
         }
 
         return {
@@ -1396,6 +1461,69 @@ export class WorkOrdersService implements OnModuleInit {
         updatedFields: Object.keys(dto),
       },
     });
+
+    // Condition 3: When a process step is completed, notify the next step technician
+    if (mappedProcesses && !isTransitioningToAssigned) {
+      const sortedExisting = [...existing.processes].sort(
+        (a: any, b: any) => a.sequence - b.sequence,
+      );
+      const sortedUpdated = [...(mappedProcesses as any[])].sort(
+        (a: any, b: any) => a.sequence - b.sequence,
+      );
+
+      for (let i = 0; i < sortedUpdated.length; i++) {
+        const curr = sortedUpdated[i];
+        const old = sortedExisting.find(
+          (ep: any) =>
+            ep.id === curr.id ||
+            (ep.processName === curr.processName &&
+              ep.sequence === curr.sequence),
+        );
+        const wasCompleted = old && old.status === ProcessStatus.COMPLETED;
+
+        if (curr.status === ProcessStatus.COMPLETED && !wasCompleted) {
+          // Process at step i just completed! Notify next process technician if exists
+          if (i + 1 < sortedUpdated.length) {
+            const nextStep = sortedUpdated[i + 1];
+            if (nextStep && nextStep.technicianId) {
+              await this.notificationsService.create({
+                tenantId,
+                userId: nextStep.technicianId,
+                title: 'WO Step Ready',
+                message: `WO "${updated.folioNumber}"${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''} is ready. Previous step "${curr.processName}" completed.`,
+                type: 'WORK_ORDER',
+                referenceId: updated.id,
+              });
+
+              await this.auditLogsService.log({
+                tenantId,
+                userId,
+                action: 'NOTIFICATION_TRIGGERED',
+                entityName: 'NOTIFICATION',
+                entityId: updated.id,
+                details: {
+                  userId: nextStep.technicianId,
+                  title: 'New Active Work Order Step',
+                  stepName: nextStep.processName,
+                  completedStep: curr.processName,
+                },
+              });
+            } else if (
+              nextStep &&
+              nextStep.isVerification &&
+              !nextStep.technicianId
+            ) {
+              await this.triggerExternalVerification(
+                tenantId,
+                updated.id,
+                nextStep.id || '',
+                nextStep.processName,
+              );
+            }
+          }
+        }
+      }
+    }
 
     // If transitioned to ASSIGNED, notify the first process technician
     if (isTransitioningToAssigned) {

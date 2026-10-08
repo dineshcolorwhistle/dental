@@ -37,6 +37,7 @@ import {
   branchService,
   processService,
   adminService,
+  paymentMethodService,
   type WorkOrderListItem,
   type CreateWorkOrderPayload,
   type CreateWorkOrderProcessPayload,
@@ -46,9 +47,11 @@ import {
   type BranchListItem,
   type ProcessListItem,
   type AdminListItem,
+  type PaymentMethodItem,
 } from '../services';
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
+import { useAppDate } from '../hooks';
 import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal } from '../components';
 import { formatDate } from '../utils/dateUtils';
 
@@ -66,9 +69,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 };
 
 interface PaymentHistoryItem {
+  id?: string;
   amount: number;
-  notes: string;
+  paymentMethod?: string;
+  notes?: string;
   date: string;
+  registeredBy?: string;
 }
 
 const parseNotesAndPayments = (notesString: string | null): { userNotes: string; payments: PaymentHistoryItem[] } => {
@@ -116,6 +122,7 @@ import { NoteHistoryThread } from '../components/NoteHistoryThread';
 export function WorkOrdersPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { formatDateTime: appFormatDateTime } = useAppDate();
   const { socket, isConnected } = useSocket();
   const location = useLocation();
   const navigate = useNavigate();
@@ -218,6 +225,7 @@ export function WorkOrdersPage() {
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingWO, setEditingWO] = useState<WorkOrderListItem | null>(null);
+  const [isReworkFlow, setIsReworkFlow] = useState<boolean>(false);
 
   // QR modal
   const [showQrModal, setShowQrModal] = useState(false);
@@ -229,6 +237,20 @@ export function WorkOrdersPage() {
   const [technicians, setTechnicians] = useState<TechnicianListItem[]>([]);
   const [availableProcesses, setAvailableProcesses] = useState<ProcessListItem[]>([]);
   const [admins, setAdmins] = useState<AdminListItem[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodItem[]>([]);
+
+  // Edit modal payment history state
+  const [editPayments, setEditPayments] = useState<PaymentHistoryItem[]>([]);
+  const [initialBasePayment, setInitialBasePayment] = useState<number>(0);
+  const [addPayAmount, setAddPayAmount] = useState<string>('');
+  const [addPayMethod, setAddPayMethod] = useState<string>('');
+  const [addPayNotes, setAddPayNotes] = useState<string>('');
+
+  // Create modal payment history state
+  const [createPayments, setCreatePayments] = useState<PaymentHistoryItem[]>([]);
+  const [createAddPayAmount, setCreateAddPayAmount] = useState<string>('');
+  const [createAddPayMethod, setCreateAddPayMethod] = useState<string>('');
+  const [createAddPayNotes, setCreateAddPayNotes] = useState<string>('');
 
   // Form state
   const [form, setForm] = useState({
@@ -442,12 +464,16 @@ export function WorkOrdersPage() {
     if (location.state?.editWorkOrderId) {
       const targetWoId = location.state.editWorkOrderId;
       const targetTab = location.state.activeTab || 'details';
+      const isRework = !!location.state.isReworkFlow || targetTab === 'processes';
       
       const openEditFromState = async () => {
         try {
           const wo = await workOrderService.getById(targetWoId);
           if (wo) {
             await handleEditOpen(wo);
+            if (isRework) {
+              setIsReworkFlow(true);
+            }
             if (targetTab === 'processes') {
               setModalTab('processes');
             }
@@ -468,18 +494,20 @@ export function WorkOrdersPage() {
   const loadReferenceData = useCallback(async () => {
     try {
       const branchScope = isAdmin ? user?.branchId || undefined : undefined;
-      const [doctorData, ptData, techData, processData, adminData] = await Promise.all([
+      const [doctorData, ptData, techData, processData, adminData, pmData] = await Promise.all([
         doctorService.getAll(branchScope),
         prosthesisTypeService.getAll(),
         technicianService.getAll(branchScope, true),
         processService.getAll(branchScope),
         adminService.getAll(branchScope),
+        paymentMethodService.getAll(true).catch(() => []),
       ]);
       setDoctors(doctorData.filter((d) => d.isActive));
       setProsthesisTypes(ptData);
       setTechnicians(techData.filter((t) => t.status === 'ACTIVE'));
       setAvailableProcesses(processData);
       setAdmins(adminData.filter((a) => a.status === 'ACTIVE'));
+      setPaymentMethods(pmData);
     } catch (err) {
       toast.error(t('common.failedLoadReference', { defaultValue: 'Failed to load reference data' }));
       console.error(err);
@@ -637,6 +665,10 @@ export function WorkOrdersPage() {
     });
     setRefInput('');
     setProcessList([]);
+    setCreatePayments([]);
+    setCreateAddPayAmount('');
+    setCreateAddPayMethod(paymentMethods[0]?.name || 'Cash');
+    setCreateAddPayNotes('');
     setFormErrors({});
     setShowAddProcess(false);
     setNewProcessId('');
@@ -660,6 +692,7 @@ export function WorkOrdersPage() {
   };
 
   const handleProsthesisTypeChange = async (ptId: string) => {
+    if (showEditModal && editingWO && editingWO.status !== 'CREATED') return;
     const selectedPt = prosthesisTypes.find((p) => p.id === ptId);
     const ptPrice = selectedPt?.price != null 
       ? selectedPt.price.toString() 
@@ -772,9 +805,19 @@ export function WorkOrdersPage() {
   };
 
   const updateProcessStatus = (index: number, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED') => {
-    setProcessList((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, status } : p)),
-    );
+    setProcessList((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], status };
+      // Condition 2 & 4: If step index is not COMPLETED or FAILED, subsequent steps cannot remain active/completed
+      if (status !== 'COMPLETED' && status !== 'FAILED') {
+        for (let j = index + 1; j < next.length; j++) {
+          if (next[j].status && next[j].status !== 'NOT_STARTED') {
+            next[j] = { ...next[j], status: 'NOT_STARTED' };
+          }
+        }
+      }
+      return next;
+    });
   };
 
   const handleAddProcess = () => {
@@ -833,6 +876,26 @@ export function WorkOrdersPage() {
         };
       });
 
+      let finalCreatePayments = [...createPayments];
+      const pendingCreateAmt = parseFloat(createAddPayAmount);
+      const quoteVal = form.totalQuote !== '' ? parseFloat(form.totalQuote) : 0;
+      const alreadyPaid = finalCreatePayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+      const balance = Math.max(0, quoteVal - alreadyPaid);
+
+      if (!isNaN(pendingCreateAmt) && pendingCreateAmt > 0 && pendingCreateAmt <= balance) {
+        finalCreatePayments.push({
+          id: `pay-${Date.now()}`,
+          amount: pendingCreateAmt,
+          paymentMethod: createAddPayMethod || (paymentMethods[0]?.name || 'Cash'),
+          notes: createAddPayNotes.trim(),
+          date: new Date().toISOString(),
+          registeredBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || undefined,
+        });
+      }
+
+      const totalPaid = finalCreatePayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+      const serializedNotes = stringifyNotesAndPayments(form.notes, finalCreatePayments);
+
       const payload: CreateWorkOrderPayload = {
         doctorId: form.doctorId,
         patient: form.patient || undefined,
@@ -841,10 +904,10 @@ export function WorkOrdersPage() {
         prosthesisTypeId: form.prosthesisTypeId,
         specification: isAdmin ? form.specification || undefined : undefined,
         color: form.color,
-        notes: form.notes || undefined,
+        notes: serializedNotes || undefined,
         deliveryDate: form.deliveryDate || undefined,
-        totalQuote: form.totalQuote !== '' ? parseFloat(form.totalQuote) : 0,
-        initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
+        totalQuote: quoteVal,
+        initialPayment: totalPaid > 0 ? totalPaid : undefined,
         paymentReferenceNumber: form.paymentReferenceNumbers[0] || undefined,
         paymentReferenceNumbers: form.paymentReferenceNumbers,
         branchId: form.branchId || undefined,
@@ -880,7 +943,7 @@ export function WorkOrdersPage() {
     if (!canEdit) return;
     await loadReferenceData();
     setEditingWO(wo);
-    const { userNotes } = parseNotesAndPayments(wo.notes);
+    const { userNotes, payments } = parseNotesAndPayments(wo.notes);
     const existingRefs = wo.paymentReferenceNumbers && wo.paymentReferenceNumbers.length > 0
       ? wo.paymentReferenceNumbers
       : (wo.paymentReferenceNumber ? [wo.paymentReferenceNumber] : []);
@@ -904,7 +967,18 @@ export function WorkOrdersPage() {
     
     setModalTab('details');
     setFormStatus(wo.status);
+    setIsReworkFlow(false);
     setNewProcessId('');
+
+    // Setup payments state
+    setEditPayments(payments);
+    const legacyInitial = wo.initialPayment || 0;
+    const sumHistory = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const basePaid = Math.max(0, legacyInitial - sumHistory);
+    setInitialBasePayment(basePaid);
+    setAddPayAmount('');
+    setAddPayMethod(paymentMethods[0]?.name || 'Cash');
+    setAddPayNotes('');
 
     // Populate existing process steps and verification steps
     const items: ProcessFormItem[] = (wo.processes || []).map((p, idx) => {
@@ -930,6 +1004,82 @@ export function WorkOrdersPage() {
     setShowEditModal(true);
   };
 
+  const handleCloseEditModal = () => {
+    if (saving) return;
+    setShowEditModal(false);
+    setIsReworkFlow(false);
+  };
+
+  const handleAddEditPayment = () => {
+    const amt = parseFloat(addPayAmount);
+    const quote = parseFloat(form.totalQuote) || 0;
+    const currentTotalPaid = initialBasePayment + editPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const balance = Math.max(0, quote - currentTotalPaid);
+
+    if (isNaN(amt) || amt <= 0) {
+      toast.error(t('financePage.invalidAmount', { defaultValue: 'Please enter a valid payment amount' }));
+      return;
+    }
+    if (amt > balance) {
+      toast.error(t('financePage.amountExceedsBalance', { balance: balance.toLocaleString('es-MX'), defaultValue: `Amount cannot exceed balance of $${balance}` }));
+      return;
+    }
+
+    const newPayment: PaymentHistoryItem = {
+      id: `pay-${Date.now()}`,
+      amount: amt,
+      paymentMethod: addPayMethod || (paymentMethods[0]?.name || 'Cash'),
+      notes: addPayNotes.trim(),
+      date: new Date().toISOString(),
+      registeredBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || undefined,
+    };
+
+    setEditPayments((prev) => [...prev, newPayment]);
+    setAddPayAmount('');
+    setAddPayNotes('');
+    toast.success(t('financePage.fundAdded', { defaultValue: 'Payment recorded' }));
+  };
+
+  const handleRemoveEditPayment = (idx: number) => {
+    setEditPayments((prev) => prev.filter((_, i) => i !== idx));
+    toast.success(t('common.deleted', { defaultValue: 'Payment entry removed' }));
+  };
+
+  const handleAddCreatePayment = () => {
+    const amt = parseFloat(createAddPayAmount);
+    const quote = parseFloat(form.totalQuote) || 0;
+    const currentTotalPaid = createPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const balance = Math.max(0, quote - currentTotalPaid);
+
+    if (isNaN(amt) || amt <= 0) {
+      toast.error(t('financePage.invalidAmount', { defaultValue: 'Please enter a valid payment amount' }));
+      return;
+    }
+    if (amt > balance) {
+      toast.error(t('financePage.amountExceedsBalance', { balance: balance.toLocaleString('es-MX'), defaultValue: `Amount cannot exceed balance of $${balance}` }));
+      return;
+    }
+
+    const newPayment: PaymentHistoryItem = {
+      id: `pay-${Date.now()}`,
+      amount: amt,
+      paymentMethod: createAddPayMethod || (paymentMethods[0]?.name || 'Cash'),
+      notes: createAddPayNotes.trim(),
+      date: new Date().toISOString(),
+      registeredBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || undefined,
+    };
+
+    setCreatePayments((prev) => [...prev, newPayment]);
+    setCreateAddPayAmount('');
+    setCreateAddPayNotes('');
+    toast.success(t('financePage.fundAdded', { defaultValue: 'Payment recorded' }));
+  };
+
+  const handleRemoveCreatePayment = (idx: number) => {
+    setCreatePayments((prev) => prev.filter((_, i) => i !== idx));
+    toast.success(t('common.deleted', { defaultValue: 'Payment entry removed' }));
+  };
+
   const handleEditSubmit = async (isAssign = true, skipConfirm = false) => {
     if (!canEdit || !editingWO) return;
     if (!validateForm(isAssign)) return;
@@ -942,8 +1092,26 @@ export function WorkOrdersPage() {
 
     try {
       setSaving(true);
-      const { payments } = parseNotesAndPayments(editingWO.notes);
-      const updatedNotes = stringifyNotesAndPayments(form.notes, payments);
+      let currentPayments = [...editPayments];
+      const pendingAmt = parseFloat(addPayAmount);
+      const currentQuote = form.totalQuote !== '' ? parseFloat(form.totalQuote) : 0;
+      const currentTotalPaid = initialBasePayment + currentPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+      const currentBalance = Math.max(0, currentQuote - currentTotalPaid);
+
+      if (!isNaN(pendingAmt) && pendingAmt > 0 && pendingAmt <= currentBalance) {
+        currentPayments.push({
+          id: `pay-${Date.now()}`,
+          amount: pendingAmt,
+          paymentMethod: addPayMethod || (paymentMethods[0]?.name || 'Cash'),
+          notes: addPayNotes.trim(),
+          date: new Date().toISOString(),
+          registeredBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || undefined,
+        });
+      }
+
+      const finalTotalPaid = initialBasePayment + currentPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+      const updatedNotes = stringifyNotesAndPayments(form.notes, currentPayments);
+
       const payload: any = {
         doctorId: form.doctorId,
         patient: form.patient || undefined,
@@ -954,30 +1122,29 @@ export function WorkOrdersPage() {
         color: form.color || undefined,
         notes: updatedNotes || undefined,
         deliveryDate: form.deliveryDate || undefined,
-        totalQuote: form.totalQuote !== '' ? parseFloat(form.totalQuote) : 0,
-        initialPayment: form.initialPayment ? parseFloat(form.initialPayment) : undefined,
+        totalQuote: currentQuote,
+        initialPayment: finalTotalPaid,
         paymentReferenceNumber: form.paymentReferenceNumbers[0] || undefined,
         paymentReferenceNumbers: form.paymentReferenceNumbers,
         status: isAssign && editingWO.status === 'CREATED' ? 'ASSIGNED' : formStatus,
       };
 
-      if (isAssign || editingWO.status === 'CREATED') {
-        payload.processes = processList.map((p) => {
-          const isExternal = p.processType === 'EXTERNAL_VERIFICATION' || (p.isVerification && (!p.technicianId || p.technicianId === form.doctorId));
-          return {
-            processName: p.processName,
-            technicianId: isExternal ? undefined : (p.technicianId || undefined),
-            sequence: p.sequence,
-            isVerification: p.isVerification,
-            status: p.status || 'NOT_STARTED',
-            rework: p.rework || false,
-          };
-        });
-      }
+      // ALWAYS attach processes so updates in Processes tab persist across all tabs!
+      payload.processes = processList.map((p) => {
+        const isExternal = p.processType === 'EXTERNAL_VERIFICATION' || (p.isVerification && (!p.technicianId || p.technicianId === form.doctorId));
+        return {
+          processName: p.processName,
+          technicianId: isExternal ? undefined : (p.technicianId || undefined),
+          sequence: p.sequence,
+          isVerification: p.isVerification,
+          status: p.status || 'NOT_STARTED',
+          rework: p.rework || false,
+        };
+      });
 
       await workOrderService.update(editingWO.id, payload);
       toast.success(isAssign ? t('workOrders.assignSuccess', { defaultValue: 'Work order processes assigned successfully!' }) : t('workOrders.updateSuccess', { defaultValue: 'Work order updated successfully!' }));
-      setShowEditModal(false);
+      handleCloseEditModal();
       await fetchData();
     } catch (err: any) {
       const message = err?.response?.data?.message || t('workOrders.failedUpdate', { defaultValue: 'Failed to update work order' });
@@ -1890,106 +2057,313 @@ export function WorkOrdersPage() {
                   )}
                 </>
               ) : modalTab === 'payments' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  {/* Row: Total Quote + Initial Payment */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-quote">{t('workOrders.totalQuote', { defaultValue: 'Total Quote' })} ({i18n.language?.startsWith('es') ? '$' : '₹'}) *</label>
-                      <input
-                        id="input-wo-quote"
-                        className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g., 5000' })}
-                        value={form.totalQuote}
-                        onChange={(e) => handleInputChange('totalQuote', e.target.value)}
-                        disabled={saving}
-                      />
-                      {formErrors.totalQuote && (
-                        <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
-                      )}
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="input-wo-payment">{t('workOrders.initialPayment', { defaultValue: 'Initial Payment' })} ({i18n.language?.startsWith('es') ? '$' : '₹'})</label>
-                      <input
-                        id="input-wo-payment"
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder={t('workOrders.paymentPlaceholder', { defaultValue: 'e.g., 2000' })}
-                        value={form.initialPayment}
-                        onChange={(e) => handleInputChange('initialPayment', e.target.value)}
-                        disabled={saving}
-                      />
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {(() => {
+                    const quote = parseFloat(form.totalQuote) || 0;
+                    const totalReceived = createPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+                    const balance = Math.max(0, quote - totalReceived);
+                    const isPaidComplete = quote > 0 && totalReceived >= quote;
 
-                  {/* Multiple Payment Reference Numbers */}
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="input-wo-pay-ref">{t('workOrders.paymentReferenceNumbers', { defaultValue: 'Payment Reference Numbers' })}</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                      <input
-                        id="input-wo-pay-ref"
-                        className="form-input"
-                        type="text"
-                        placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'Type reference number and click Add (e.g., REF-98765)' })}
-                        value={refInput}
-                        onChange={(e) => setRefInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddPaymentRef();
-                          }
-                        }}
-                        disabled={saving}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn--secondary"
-                        onClick={handleAddPaymentRef}
-                        disabled={saving || !refInput.trim()}
-                        style={{ whiteSpace: 'nowrap' }}
-                      >
-                        <Plus size={16} />
-                        <span>{t('workOrders.addPaymentRef', { defaultValue: 'Add Reference' })}</span>
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {form.paymentReferenceNumbers.map((ref, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.375rem',
-                            backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                    return (
+                      <>
+                        {/* 1. Total Quote Configuration & Payment Reference Numbers */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 2fr',
+                          gap: '1rem',
+                          padding: '1rem 1.25rem',
+                          backgroundColor: 'var(--bg-surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '12px',
+                        }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" htmlFor="input-wo-quote">
+                              {t('workOrders.totalQuote', { defaultValue: 'Total Quote' })} ({i18n.language?.startsWith('es') ? '$' : '₹'}) *
+                            </label>
+                            <input
+                              id="input-wo-quote"
+                              className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g., 5000' })}
+                              value={form.totalQuote}
+                              onChange={(e) => handleInputChange('totalQuote', e.target.value)}
+                              disabled={saving}
+                            />
+                            {formErrors.totalQuote && (
+                              <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
+                            )}
+                          </div>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" htmlFor="input-wo-pay-ref">
+                              {t('workOrders.paymentReferenceNumbers', { defaultValue: 'Payment Reference Numbers' })}
+                            </label>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                              <input
+                                id="input-wo-pay-ref"
+                                className="form-input"
+                                type="text"
+                                placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'Type reference number and click Add (e.g., REF-98765)' })}
+                                value={refInput}
+                                onChange={(e) => setRefInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddPaymentRef();
+                                  }
+                                }}
+                                disabled={saving}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn--secondary"
+                                onClick={handleAddPaymentRef}
+                                disabled={saving || !refInput.trim()}
+                                style={{ whiteSpace: 'nowrap' }}
+                              >
+                                <Plus size={16} />
+                                <span>{t('workOrders.addPaymentRef', { defaultValue: 'Add Reference' })}</span>
+                              </button>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                              {form.paymentReferenceNumbers.map((ref, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem',
+                                    backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                                    border: '1px solid var(--border)',
+                                    padding: '0.25rem 0.625rem',
+                                    borderRadius: '9999px',
+                                    fontSize: '0.8125rem',
+                                    fontWeight: 600,
+                                    color: 'var(--text-primary)',
+                                  }}
+                                >
+                                  {ref}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemovePaymentRef(idx)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </span>
+                              ))}
+                              {form.paymentReferenceNumbers.length === 0 && (
+                                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                  {t('workOrders.noPaymentRefs', { defaultValue: 'No reference numbers added' })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. Add Payment Section */}
+                        {isAdmin && (
+                          <div style={{
+                            backgroundColor: 'var(--bg-overlay, #F8FAFC)',
                             border: '1px solid var(--border)',
-                            padding: '0.25rem 0.625rem',
-                            borderRadius: '9999px',
-                            fontSize: '0.8125rem',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                          }}
-                        >
-                          {ref}
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePaymentRef(idx)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
-                          >
-                            <X size={14} />
-                          </button>
-                        </span>
-                      ))}
-                      {form.paymentReferenceNumbers.length === 0 && (
-                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                          {t('workOrders.noPaymentRefs', { defaultValue: 'No reference numbers added' })}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                            borderRadius: '12px',
+                            padding: '1.25rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1rem',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <CreditCard size={16} style={{ color: 'var(--accent-primary)' }} />
+                                <span>{t('workOrders.recordNewPayment', { defaultValue: 'Record New Payment' })}</span>
+                              </h4>
+                              {isPaidComplete && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
+                                  {t('financePage.fullyPaidNotice', { defaultValue: 'Fully Paid' })}
+                                </span>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr auto', gap: '0.875rem', alignItems: 'flex-end' }}>
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {t('financePage.paymentAmount', { defaultValue: 'Payment Amount' })} ({i18n.language?.startsWith('es') ? '$' : '₹'}) *
+                                </label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g. 1000' })}
+                                  min="0.01"
+                                  max={balance}
+                                  step="0.01"
+                                  value={createAddPayAmount}
+                                  onChange={(e) => setCreateAddPayAmount(e.target.value)}
+                                  disabled={saving || isPaidComplete}
+                                  style={{ height: '38px', fontSize: '0.875rem' }}
+                                />
+                              </div>
+
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {t('paymentMethods.method', { defaultValue: 'Payment Method' })} *
+                                </label>
+                                <select
+                                  className="form-input"
+                                  value={createAddPayMethod || (paymentMethods[0]?.name || 'Cash')}
+                                  onChange={(e) => setCreateAddPayMethod(e.target.value)}
+                                  disabled={saving || isPaidComplete}
+                                  style={{ height: '38px', fontSize: '0.875rem', fontWeight: 600 }}
+                                >
+                                  {paymentMethods.length > 0 ? (
+                                    paymentMethods.map((pm) => (
+                                      <option key={pm.id} value={pm.name}>{pm.name}</option>
+                                    ))
+                                  ) : (
+                                    <>
+                                      <option value="Cash">{t('paymentMethods.defaultCash', { defaultValue: 'Cash' })}</option>
+                                      <option value="Credit Card">{t('paymentMethods.defaultCreditCard', { defaultValue: 'Credit Card' })}</option>
+                                      <option value="Debit Card">{t('paymentMethods.defaultDebitCard', { defaultValue: 'Debit Card' })}</option>
+                                      <option value="Bank Transfer">{t('paymentMethods.defaultBankTransfer', { defaultValue: 'Bank Transfer' })}</option>
+                                      <option value="Check">{t('paymentMethods.defaultCheck', { defaultValue: 'Check' })}</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {t('financePage.paymentNotes', { defaultValue: 'Notes' })}
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder={t('financePage.paymentNotesPlaceholder', { defaultValue: 'e.g. Initial deposit receipt...' })}
+                                  value={createAddPayNotes}
+                                  onChange={(e) => setCreateAddPayNotes(e.target.value)}
+                                  disabled={saving || isPaidComplete}
+                                  style={{ height: '38px', fontSize: '0.875rem' }}
+                                />
+                              </div>
+
+                              <button
+                                type="button"
+                                className="btn btn--primary"
+                                style={{ height: '38px', backgroundColor: 'var(--success, #10B981)', borderColor: 'var(--success, #10B981)', whiteSpace: 'nowrap' }}
+                                onClick={handleAddCreatePayment}
+                                disabled={saving || isPaidComplete || !createAddPayAmount || parseFloat(createAddPayAmount) <= 0}
+                              >
+                                <PlusCircle size={16} />
+                                <span>{t('financePage.recordPayment', { defaultValue: 'Record Payment' })}</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. Payment Transactions History Table */}
+                        <div style={{
+                          border: '1px solid var(--border)',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          backgroundColor: 'var(--bg-surface)',
+                        }}>
+                          <div style={{
+                            padding: '0.875rem 1.25rem',
+                            borderBottom: '1px solid var(--border)',
+                            backgroundColor: 'rgba(111, 174, 217, 0.04)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              {t('workOrders.paymentTransactions', { defaultValue: 'Payment Transactions' })}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                              {createPayments.length} {t('common.entries', { defaultValue: 'entries' })}
+                            </span>
+                          </div>
+
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-overlay, #f8fafc)' }}>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('financePage.paymentDate', { defaultValue: 'Date' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.receivedAmount', { defaultValue: 'Amount' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('paymentMethods.method', { defaultValue: 'Method' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.notes', { defaultValue: 'Notes' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status', { defaultValue: 'Status' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('common.actions', { defaultValue: 'Action' })}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {createPayments.map((payment, pidx) => (
+                                <tr key={payment.id || pidx} style={{
+                                  borderBottom: pidx < createPayments.length - 1 ? '1px solid var(--border)' : 'none',
+                                }}>
+                                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                    {appFormatDateTime(payment.date)}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                    {formatCurrency(payment.amount)}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                                      color: 'var(--accent-primary, #3B82F6)',
+                                    }}>
+                                      {payment.paymentMethod || t('paymentMethods.defaultCash', { defaultValue: 'Cash' })}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                    {payment.notes || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('workOrders.noSpecifications', { defaultValue: 'None' })}</span>}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '2px 8px',
+                                      borderRadius: '100px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 700,
+                                      color: 'var(--success, #10B981)',
+                                      backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.08))',
+                                    }}>
+                                      {t('financePage.settled', { defaultValue: 'Settled' })}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn--ghost btn--sm"
+                                      style={{ color: '#EF4444', padding: '4px' }}
+                                      onClick={() => handleRemoveCreatePayment(pidx)}
+                                      title={t('common.delete', { defaultValue: 'Delete' })}
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+
+                              {createPayments.length === 0 && (
+                                <tr>
+                                  <td colSpan={6} style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    {t('financePage.noPaymentsYet', { defaultValue: 'No payments have been recorded yet.' })}
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : (
                 /* Tab 2: Process assignment only */
@@ -2129,8 +2503,12 @@ export function WorkOrdersPage() {
                             })()}
                           </div>
 
-                          {/* Process Status selection */}
-                          <div className="wo-process-item__status" style={{ width: '150px' }}>
+                          {/* Process Status selection (Disabled in Create WO because WO is in CREATED status) */}
+                          <div
+                            className="wo-process-item__status"
+                            style={{ width: '150px' }}
+                            title={t('workOrders.statusLockedCreated', { defaultValue: 'Process status cannot be changed when Work Order is in Created status' })}
+                          >
                             <SearchableSelect
                               id={`select-proc-status-${proc.tempId}`}
                               options={[
@@ -2143,7 +2521,7 @@ export function WorkOrdersPage() {
                               ]}
                               value={proc.status || 'NOT_STARTED'}
                               onChange={(val) => updateProcessStatus(idx, val as any)}
-                              disabled={saving}
+                              disabled={true}
                               placeholder={t('common.selectStatus', { defaultValue: 'Select status' })}
                             />
                           </div>
@@ -2403,7 +2781,7 @@ export function WorkOrdersPage() {
 
       {/* Edit Modal */}
       {showEditModal && editingWO && (
-        <div className="modal-overlay" onClick={() => !saving && setShowEditModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseEditModal}>
           <div className="modal modal--xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
@@ -2412,7 +2790,7 @@ export function WorkOrdersPage() {
               </div>
               <button
                 className="modal__close"
-                onClick={() => !saving && setShowEditModal(false)}
+                onClick={handleCloseEditModal}
                 aria-label="Close"
               >
                 <X size={20} />
@@ -2623,12 +3001,20 @@ export function WorkOrdersPage() {
                       }))}
                       value={form.prosthesisTypeId}
                       onChange={handleProsthesisTypeChange}
-                      disabled={saving}
+                      disabled={saving || (editingWO !== null && editingWO.status !== 'CREATED')}
                       placeholder={t('workOrders.selectProsthesisType', { defaultValue: 'Select prosthesis type' })}
                       error={!!formErrors.prosthesisTypeId}
                     />
                     {formErrors.prosthesisTypeId && (
                       <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
+                    )}
+                    {editingWO && editingWO.status !== 'CREATED' && (
+                      <span className="form-hint" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <AlertCircle size={12} />
+                        {t('workOrders.cannotChangeProsthesisTypeStarted', {
+                          defaultValue: 'Prosthesis type can only be changed when work order is in Created status.',
+                        })}
+                      </span>
                     )}
                   </div>
 
@@ -2701,106 +3087,360 @@ export function WorkOrdersPage() {
                   )}
                 </>
               ) : modalTab === 'payments' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  {/* Row: Total Quote + Initial Payment */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-quote">{t('workOrders.totalQuote', { defaultValue: 'Total Quote' })} ({i18n.language?.startsWith('es') ? '$' : '₹'}) *</label>
-                      <input
-                        id="edit-wo-quote"
-                        className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g., 5000' })}
-                        value={form.totalQuote}
-                        onChange={(e) => handleInputChange('totalQuote', e.target.value)}
-                        disabled={saving}
-                      />
-                      {formErrors.totalQuote && (
-                        <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
-                      )}
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-payment">{t('workOrders.initialPayment', { defaultValue: 'Initial Payment' })} ({i18n.language?.startsWith('es') ? '$' : '₹'})</label>
-                      <input
-                        id="edit-wo-payment"
-                        className="form-input"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder={t('workOrders.paymentPlaceholder', { defaultValue: 'e.g., 2000' })}
-                        value={form.initialPayment}
-                        onChange={(e) => handleInputChange('initialPayment', e.target.value)}
-                        disabled={saving}
-                      />
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {(() => {
+                    const quote = parseFloat(form.totalQuote) || 0;
+                    const totalReceived = initialBasePayment + editPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+                    const balance = Math.max(0, quote - totalReceived);
+                    const isPaidComplete = quote > 0 && totalReceived >= quote;
 
-                  {/* Multiple Payment Reference Numbers */}
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-pay-ref">{t('workOrders.paymentReferenceNumbers', { defaultValue: 'Payment Reference Numbers' })}</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                      <input
-                        id="edit-wo-pay-ref"
-                        className="form-input"
-                        type="text"
-                        placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'Type reference number and click Add (e.g., REF-98765)' })}
-                        value={refInput}
-                        onChange={(e) => setRefInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddPaymentRef();
-                          }
-                        }}
-                        disabled={saving}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn--secondary"
-                        onClick={handleAddPaymentRef}
-                        disabled={saving || !refInput.trim()}
-                        style={{ whiteSpace: 'nowrap' }}
-                      >
-                        <Plus size={16} />
-                        <span>{t('workOrders.addPaymentRef', { defaultValue: 'Add Reference' })}</span>
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {form.paymentReferenceNumbers.map((ref, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.375rem',
-                            backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                    return (
+                      <>
+                        {/* 1. Total Quote Configuration & Payment Reference Numbers */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 2fr',
+                          gap: '1rem',
+                          padding: '1rem 1.25rem',
+                          backgroundColor: 'var(--bg-surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '12px',
+                        }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" htmlFor="edit-wo-quote">
+                              {t('workOrders.totalQuote', { defaultValue: 'Total Quote' })} ({i18n.language?.startsWith('es') ? '$' : '₹'}) *
+                            </label>
+                            <input
+                              id="edit-wo-quote"
+                              className={`form-input ${formErrors.totalQuote ? 'form-input--error' : ''}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g., 5000' })}
+                              value={form.totalQuote}
+                              onChange={(e) => handleInputChange('totalQuote', e.target.value)}
+                              disabled={saving}
+                            />
+                            {formErrors.totalQuote && (
+                              <span className="form-error"><AlertCircle size={12} /> {formErrors.totalQuote}</span>
+                            )}
+                          </div>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" htmlFor="edit-wo-pay-ref">
+                              {t('workOrders.paymentReferenceNumbers', { defaultValue: 'Payment Reference Numbers' })}
+                            </label>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                              <input
+                                id="edit-wo-pay-ref"
+                                className="form-input"
+                                type="text"
+                                placeholder={t('workOrders.paymentReferenceNumberPlaceholder', { defaultValue: 'Type reference number and click Add (e.g., REF-98765)' })}
+                                value={refInput}
+                                onChange={(e) => setRefInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddPaymentRef();
+                                  }
+                                }}
+                                disabled={saving}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn--secondary"
+                                onClick={handleAddPaymentRef}
+                                disabled={saving || !refInput.trim()}
+                                style={{ whiteSpace: 'nowrap' }}
+                              >
+                                <Plus size={16} />
+                                <span>{t('workOrders.addPaymentRef', { defaultValue: 'Add Reference' })}</span>
+                              </button>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                              {form.paymentReferenceNumbers.map((ref, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem',
+                                    backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                                    border: '1px solid var(--border)',
+                                    padding: '0.25rem 0.625rem',
+                                    borderRadius: '9999px',
+                                    fontSize: '0.8125rem',
+                                    fontWeight: 600,
+                                    color: 'var(--text-primary)',
+                                  }}
+                                >
+                                  {ref}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemovePaymentRef(idx)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </span>
+                              ))}
+                              {form.paymentReferenceNumbers.length === 0 && (
+                                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                  {t('workOrders.noPaymentRefs', { defaultValue: 'No reference numbers added' })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3. Add Payment Section */}
+                        {isAdmin && (
+                          <div style={{
+                            backgroundColor: 'var(--bg-overlay, #F8FAFC)',
                             border: '1px solid var(--border)',
-                            padding: '0.25rem 0.625rem',
-                            borderRadius: '9999px',
-                            fontSize: '0.8125rem',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                          }}
-                        >
-                          {ref}
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePaymentRef(idx)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
-                          >
-                            <X size={14} />
-                          </button>
-                        </span>
-                      ))}
-                      {form.paymentReferenceNumbers.length === 0 && (
-                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                          {t('workOrders.noPaymentRefs', { defaultValue: 'No reference numbers added' })}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                            borderRadius: '12px',
+                            padding: '1.25rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1rem',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <CreditCard size={16} style={{ color: 'var(--accent-primary)' }} />
+                                <span>{t('workOrders.recordNewPayment', { defaultValue: 'Record New Payment' })}</span>
+                              </h4>
+                              {isPaidComplete && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
+                                  {t('financePage.fullyPaidNotice', { defaultValue: 'Fully Paid' })}
+                                </span>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr auto', gap: '0.875rem', alignItems: 'flex-end' }}>
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {t('financePage.paymentAmount', { defaultValue: 'Payment Amount' })} ({i18n.language?.startsWith('es') ? '$' : '₹'}) *
+                                </label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  placeholder={t('workOrders.quotePlaceholder', { defaultValue: 'e.g. 1000' })}
+                                  min="0.01"
+                                  max={balance}
+                                  step="0.01"
+                                  value={addPayAmount}
+                                  onChange={(e) => setAddPayAmount(e.target.value)}
+                                  disabled={saving || isPaidComplete}
+                                  style={{ height: '38px', fontSize: '0.875rem' }}
+                                />
+                              </div>
+
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {t('paymentMethods.method', { defaultValue: 'Payment Method' })} *
+                                </label>
+                                <select
+                                  className="form-input"
+                                  value={addPayMethod || (paymentMethods[0]?.name || 'Cash')}
+                                  onChange={(e) => setAddPayMethod(e.target.value)}
+                                  disabled={saving || isPaidComplete}
+                                  style={{ height: '38px', fontSize: '0.875rem', fontWeight: 600 }}
+                                >
+                                  {paymentMethods.length > 0 ? (
+                                    paymentMethods.map((pm) => (
+                                      <option key={pm.id} value={pm.name}>{pm.name}</option>
+                                    ))
+                                  ) : (
+                                    <>
+                                      <option value="Cash">{t('paymentMethods.defaultCash', { defaultValue: 'Cash' })}</option>
+                                      <option value="Credit Card">{t('paymentMethods.defaultCreditCard', { defaultValue: 'Credit Card' })}</option>
+                                      <option value="Debit Card">{t('paymentMethods.defaultDebitCard', { defaultValue: 'Debit Card' })}</option>
+                                      <option value="Bank Transfer">{t('paymentMethods.defaultBankTransfer', { defaultValue: 'Bank Transfer' })}</option>
+                                      <option value="Check">{t('paymentMethods.defaultCheck', { defaultValue: 'Check' })}</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+
+                              <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {t('financePage.paymentNotes', { defaultValue: 'Notes' })}
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder={t('financePage.paymentNotesPlaceholder', { defaultValue: 'e.g. Installment notes, receipt no...' })}
+                                  value={addPayNotes}
+                                  onChange={(e) => setAddPayNotes(e.target.value)}
+                                  disabled={saving || isPaidComplete}
+                                  style={{ height: '38px', fontSize: '0.875rem' }}
+                                />
+                              </div>
+
+                              <button
+                                type="button"
+                                className="btn btn--primary"
+                                style={{ height: '38px', backgroundColor: 'var(--success, #10B981)', borderColor: 'var(--success, #10B981)', whiteSpace: 'nowrap' }}
+                                onClick={handleAddEditPayment}
+                                disabled={saving || isPaidComplete || !addPayAmount || parseFloat(addPayAmount) <= 0}
+                              >
+                                <PlusCircle size={16} />
+                                <span>{t('financePage.recordPayment', { defaultValue: 'Record Payment' })}</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 4. Payment Transactions History Table */}
+                        <div style={{
+                          border: '1px solid var(--border)',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          backgroundColor: 'var(--bg-surface)',
+                        }}>
+                          <div style={{
+                            padding: '0.875rem 1.25rem',
+                            borderBottom: '1px solid var(--border)',
+                            backgroundColor: 'rgba(111, 174, 217, 0.04)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              {t('workOrders.paymentTransactions', { defaultValue: 'Payment Transactions' })}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                              {(initialBasePayment > 0 ? 1 : 0) + editPayments.length} {t('common.entries', { defaultValue: 'entries' })}
+                            </span>
+                          </div>
+
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-overlay, #f8fafc)' }}>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('financePage.paymentDate', { defaultValue: 'Date' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.receivedAmount', { defaultValue: 'Amount' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('paymentMethods.method', { defaultValue: 'Method' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.notes', { defaultValue: 'Notes' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status', { defaultValue: 'Status' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'center' }}>{t('common.actions', { defaultValue: 'Action' })}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {/* Initial Payment Row (if any base paid existed) */}
+                              {initialBasePayment > 0 && (
+                                <tr style={{ borderBottom: editPayments.length > 0 ? '1px solid var(--border)' : 'none' }}>
+                                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                    {appFormatDateTime(editingWO.createdAt)}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                    {formatCurrency(initialBasePayment)}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      backgroundColor: 'var(--bg-overlay, #f1f5f9)',
+                                      color: 'var(--text-secondary)',
+                                    }}>
+                                      {t('workOrders.initialDeposit', { defaultValue: 'Initial Deposit' })}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                    {t('workOrders.initialPaymentRegistered', { defaultValue: 'Initial payment registered' })}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '2px 8px',
+                                      borderRadius: '100px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 700,
+                                      color: 'var(--success, #10B981)',
+                                      backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.08))',
+                                    }}>
+                                      {t('financePage.settled', { defaultValue: 'Settled' })}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    -
+                                  </td>
+                                </tr>
+                              )}
+
+                              {/* Dynamic installments rows */}
+                              {editPayments.map((payment, pidx) => (
+                                <tr key={payment.id || pidx} style={{
+                                  borderBottom: pidx < editPayments.length - 1 ? '1px solid var(--border)' : 'none',
+                                }}>
+                                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                    {appFormatDateTime(payment.date)}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                    {formatCurrency(payment.amount)}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                                      color: 'var(--accent-primary, #3B82F6)',
+                                    }}>
+                                      {payment.paymentMethod || t('paymentMethods.defaultCash', { defaultValue: 'Cash' })}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                    {payment.notes || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('workOrders.noSpecifications', { defaultValue: 'None' })}</span>}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '2px 8px',
+                                      borderRadius: '100px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 700,
+                                      color: 'var(--success, #10B981)',
+                                      backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.08))',
+                                    }}>
+                                      {t('financePage.settled', { defaultValue: 'Settled' })}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn--ghost btn--sm"
+                                      style={{ color: '#EF4444', padding: '4px' }}
+                                      onClick={() => handleRemoveEditPayment(pidx)}
+                                      title={t('common.delete', { defaultValue: 'Delete' })}
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+
+                              {initialBasePayment === 0 && editPayments.length === 0 && (
+                                <tr>
+                                  <td colSpan={6} style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    {t('financePage.noPaymentsYet', { defaultValue: 'No payments have been recorded yet.' })}
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : (
                 /* Tab 2: Process Steps Assignment */
@@ -2850,6 +3490,26 @@ export function WorkOrdersPage() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Rework Flow Guidance Banner (Shown only when opened from verification rework outcome) */}
+                        {isReworkFlow && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.625rem 0.875rem',
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            borderRadius: '8px',
+                            color: '#DC2626',
+                            fontSize: '0.8125rem',
+                            fontWeight: 600,
+                            marginBottom: '1rem',
+                          }}>
+                            <AlertCircle size={16} />
+                            <span>{t('workOrders.reworkFlowBanner', { defaultValue: 'Verification ended in Rework. Select the completed process steps to mark for rework.' })}</span>
+                          </div>
+                        )}
                       </>
                     );
                   })()}
@@ -2911,7 +3571,7 @@ export function WorkOrdersPage() {
                                 }
                                 return null;
                               })()}
-                              {formStatus !== 'COMPLETED' && (proc.status === 'COMPLETED' || proc.reworkActive) && !proc.isVerification && (
+                              {isReworkFlow && formStatus !== 'COMPLETED' && (proc.status === 'COMPLETED' || proc.reworkActive || proc.rework) && !proc.isVerification && (
                                 <label style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
@@ -2932,7 +3592,11 @@ export function WorkOrdersPage() {
                                     onChange={(e) => {
                                       const checked = e.target.checked;
                                       setProcessList((prev) =>
-                                        prev.map((p, i) => (i === idx ? { ...p, rework: checked } : p))
+                                        prev.map((p, i) => (i === idx ? {
+                                          ...p,
+                                          rework: checked,
+                                          status: checked ? 'NOT_STARTED' : ((p as any).id ? 'COMPLETED' : p.status),
+                                        } : p))
                                       );
                                     }}
                                     style={{
@@ -2994,30 +3658,62 @@ export function WorkOrdersPage() {
                                     })()}
                                     value={proc.technicianId}
                                     onChange={(val) => updateProcessTechnician(idx, val)}
-                                    disabled={saving || isStepStarted}
+                                    disabled={saving || (formStatus !== 'CREATED' && isStepStarted && !proc.rework && !isAdmin)}
                                     placeholder={isInternal ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
                                   />
                                 );
                               })()}
                             </div>
 
-                            {/* Process Status selection */}
-                            <div className="wo-process-item__status" style={{ width: '150px' }}>
-                              <SearchableSelect
-                                id={`select-edit-proc-status-${proc.tempId}`}
-                                options={[
-                                  { value: 'NOT_STARTED', label: t('enums.processStatus.NOT_STARTED', { defaultValue: 'Not Started' }) },
-                                  { value: 'IN_PROGRESS', label: t('enums.processStatus.IN_PROGRESS', { defaultValue: 'In Progress' }) },
-                                  { value: 'PAUSED', label: t('enums.processStatus.PAUSED', { defaultValue: 'Paused' }) },
-                                  { value: 'COMPLETED', label: t('enums.processStatus.COMPLETED', { defaultValue: 'Completed' }) },
-                                  { value: 'FAILED', label: t('enums.processStatus.FAILED', { defaultValue: 'Failed' }) },
-                                  { value: 'CANCELLED', label: t('enums.processStatus.CANCELLED', { defaultValue: 'Cancelled' }) },
-                                ]}
-                                value={proc.status || 'NOT_STARTED'}
-                                onChange={(val) => updateProcessStatus(idx, val as any)}
-                                disabled={saving || isStepStarted}
-                                placeholder={t('common.selectStatus', { defaultValue: 'Select status' })}
-                              />
+                            {/* Process Status selection (Conditions 1, 2, 4 + Completed lock & Rework/Repetition unlock) */}
+                            <div
+                              className="wo-process-item__status"
+                              style={{ width: '150px' }}
+                              title={(() => {
+                                const isFirstStep = idx === 0;
+                                const prevStep = idx > 0 ? processList[idx - 1] : null;
+                                const isPrevFinished = prevStep?.status === 'COMPLETED' || prevStep?.status === 'FAILED';
+                                const isReworkOrRepetition = !!proc.rework || !!proc.reworkActive || (editingWO?.repetitionCount && editingWO.repetitionCount > 0);
+                                if (formStatus === 'CREATED') {
+                                  return t('workOrders.statusLockedCreated', { defaultValue: 'Process status cannot be changed when Work Order is in Created status' });
+                                }
+                                if (proc.status === 'COMPLETED' && !isReworkOrRepetition) {
+                                  return t('workOrders.statusLockedCompleted', { defaultValue: 'Completed process step cannot be modified unless marked for Rework' });
+                                }
+                                if (!isFirstStep && !isPrevFinished) {
+                                  return t('workOrders.statusLockedSequential', { defaultValue: 'Previous process step must be Completed or Failed before changing status' });
+                                }
+                                return undefined;
+                              })()}
+                            >
+                              {(() => {
+                                const isFirstStep = idx === 0;
+                                const prevStep = idx > 0 ? processList[idx - 1] : null;
+                                const isPrevFinished = prevStep?.status === 'COMPLETED' || prevStep?.status === 'FAILED';
+                                const isReworkOrRepetition = !!proc.rework || !!proc.reworkActive || (editingWO?.repetitionCount && editingWO.repetitionCount > 0);
+                                let canChangeStatus = formStatus !== 'CREATED' && (isFirstStep || isPrevFinished);
+                                if (proc.status === 'COMPLETED' && !isReworkOrRepetition) {
+                                  canChangeStatus = false;
+                                }
+
+                                return (
+                                  <SearchableSelect
+                                    id={`select-edit-proc-status-${proc.tempId}`}
+                                    options={[
+                                      { value: 'NOT_STARTED', label: t('enums.processStatus.NOT_STARTED', { defaultValue: 'Not Started' }) },
+                                      { value: 'IN_PROGRESS', label: t('enums.processStatus.IN_PROGRESS', { defaultValue: 'In Progress' }) },
+                                      { value: 'PAUSED', label: t('enums.processStatus.PAUSED', { defaultValue: 'Paused' }) },
+                                      { value: 'COMPLETED', label: t('enums.processStatus.COMPLETED', { defaultValue: 'Completed' }) },
+                                      { value: 'FAILED', label: t('enums.processStatus.FAILED', { defaultValue: 'Failed' }) },
+                                      { value: 'CANCELLED', label: t('enums.processStatus.CANCELLED', { defaultValue: 'Cancelled' }) },
+                                    ]}
+                                    value={proc.status || 'NOT_STARTED'}
+                                    onChange={(val) => updateProcessStatus(idx, val as any)}
+                                    disabled={saving || !canChangeStatus}
+                                    placeholder={t('common.selectStatus', { defaultValue: 'Select status' })}
+                                  />
+                                );
+                              })()}
                             </div>
 
                             <div className="wo-process-item__actions">
@@ -3149,7 +3845,7 @@ export function WorkOrdersPage() {
               <button
                 type="button"
                 className="btn btn--ghost"
-                onClick={() => setShowEditModal(false)}
+                onClick={handleCloseEditModal}
                 disabled={saving}
               >
                 {t('common.cancel')}

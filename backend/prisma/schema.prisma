@@ -133,6 +133,7 @@ model Tenant {
   whatsAppTemplates WhatsAppTemplate[]
   doctorLists       DoctorList[]
   reminders         Reminder[]
+  paymentMethods    PaymentMethod[]
 
   @@map("tenants")
 }
@@ -919,4 +920,22 @@ model ReminderAssignee {
 
   @@unique([reminderId, userId])
   @@map("reminder_assignees")
+}
+
+// ─── Payment Method ──────────────────────────────────────
+
+model PaymentMethod {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@map("payment_methods")
 }

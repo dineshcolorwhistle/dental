@@ -76,5 +76,7 @@ export { interestRequestService } from './interest-request.service';
 export type { PublicWorkOrder, PublicProcessItem, CreateInterestRequestPayload, InterestRequestItem } from './interest-request.service';
 export { reminderService } from './reminder.service';
 export type { ReminderItem, ReminderAssignee, ReminderAssigneeUser, AssignableUser, CreateReminderPayload, UpdateReminderPayload } from './reminder.service';
+export { paymentMethodService } from './payment-method.service';
+export type { PaymentMethodItem, CreatePaymentMethodPayload, UpdatePaymentMethodPayload } from './payment-method.service';
 
 

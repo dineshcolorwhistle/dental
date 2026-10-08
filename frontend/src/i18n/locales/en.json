@@ -124,7 +124,8 @@
     "interestRequests": "Interest Requests",
     "onboardingTenants": "Onboarding Tenants",
     "calendar": "Calendar",
-    "reminders": "Reminders"
+    "reminders": "Reminders",
+    "paymentMethods": "Payment Methods"
   },
   "enums": {
     "workOrderStatus": {
@@ -577,6 +578,7 @@
     "patientName": "Patient Name",
     "doctor": "Doctor",
     "prosthesisType": "Prosthesis Type",
+    "cannotChangeProsthesisTypeStarted": "Prosthesis type can only be changed when work order is in Created status.",
     "createdAt": "Created At",
     "totalPrice": "Total Price",
     "receivedAmount": "Received Amount",
@@ -604,6 +606,7 @@
     "hasNotUndergoneRepetition": "This work order has not undergone any repetition.",
     "paymentTransactions": "Payment Transactions",
     "recordNewPayment": "Record New Payment Fund",
+    "initialDeposit": "Initial Deposit",
     "initialPaymentRegistered": "Initial payment registered at order creation",
     "upperTeeth": "Upper Teeth",
     "lowerTeeth": "Lower Teeth",
@@ -1283,6 +1286,7 @@
       "categoryDescription": "Enter category description (optional)",
       "selectProductType": "Select Product Type"
     },
+    "viewItem": "Item Details",
     "buttons": {
       "addItem": "Add Item",
       "editItem": "Edit Item",
@@ -1312,6 +1316,7 @@
   "expenses": {
     "title": "Expenses Management",
     "subtitle": "Track and manage your branch's operational expenditures",
+    "viewExpense": "Expense Details",
     "addExpense": "Add Expense",
     "editExpense": "Edit Expense",
     "deleteExpense": "Delete Expense",
@@ -1496,6 +1501,37 @@
     "settingsSaved": "Settings updated successfully",
     "selectTimezone": "Search or select timezone...",
     "selectCurrency": "Search or select currency..."
+  },
+  "paymentMethods": {
+    "title": "Payment Methods",
+    "subtitle": "Manage payment methods available for work order payments and invoices.",
+    "addMethod": "Add Payment Method",
+    "methodName": "Payment Method",
+    "name": "Payment Method Name",
+    "namePlaceholder": "e.g., Credit Card, Wire Transfer, Cash",
+    "descPlaceholder": "Optional notes or account details for this method...",
+    "isActiveLabel": "Active (available for selection)",
+    "addTitle": "Add Payment Method",
+    "addSubtitle": "Create a payment method option for work order invoices.",
+    "editTitle": "Edit Payment Method",
+    "editSubtitle": "Update {{name}}",
+    "deleteTitle": "Delete Payment Method",
+    "deleteConfirm": "Are you sure you want to delete payment method \"{{name}}\"? This action cannot be undone.",
+    "noMethodsFound": "No payment methods found",
+    "emptyHint": "Get started by creating your first payment method.",
+    "searchPlaceholder": "Search by method name or description...",
+    "clickToToggle": "Click to toggle status",
+    "selectPaymentMethod": "Select payment method",
+    "failedLoad": "Failed to load payment methods",
+    "createSuccess": "Payment method created successfully",
+    "failedCreate": "Failed to create payment method",
+    "updateSuccess": "Payment method updated successfully",
+    "failedUpdate": "Failed to update payment method",
+    "deleteSuccess": "Payment method deleted successfully",
+    "failedDelete": "Failed to delete payment method",
+    "activated": "Payment method activated",
+    "deactivated": "Payment method deactivated",
+    "failedStatusUpdate": "Failed to update status"
   },
   "connectedClinics": {
     "title": "Connected Clinics",

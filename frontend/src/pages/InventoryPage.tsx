@@ -10,6 +10,7 @@ import {
   Package,
   Layers,
   XCircle,
+  Eye,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -63,6 +64,8 @@ export function InventoryPage() {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
+  const [showViewItemModal, setShowViewItemModal] = useState(false);
+  const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
 
   // Category Form
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -429,6 +432,11 @@ export function InventoryPage() {
     return formatDateUtil(dateString, i18n.language, user?.timezone, { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  const handleOpenViewModal = (item: InventoryItem) => {
+    setViewingItem(item);
+    setShowViewItemModal(true);
+  };
+
   return (
     <div className="admins-page">
       {/* Page Header */}
@@ -604,15 +612,14 @@ export function InventoryPage() {
                   <thead>
                     <tr>
                       <th>{t('inventory.fields.name')}</th>
-                      <th>{t('inventory.fields.sku')}</th>
                       <th>{t('inventory.fields.category')}</th>
                       <th>{t('inventory.fields.currentQuantity')}</th>
                       <th>{t('inventory.fields.minQuantity')}</th>
                       <th>{t('inventory.fields.unitPrice')}</th>
-                      <th>{t('inventory.fields.brand')}</th>
+                      <th>{t('inventory.fields.supplier')}</th>
                       <th>{t('inventory.fields.expiryDate')}</th>
                       <th>{t('inventory.fields.status')}</th>
-                      {canEdit && <th>{t('common.actions')}</th>}
+                      <th>{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -631,52 +638,61 @@ export function InventoryPage() {
                             <div className="cell-primary" style={{ fontWeight: 600 }}>
                               {item.name}
                             </div>
+                            {item.sku && (
+                              <div style={{ marginTop: '2px' }}>
+                                <code style={{ backgroundColor: 'var(--bg-light)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  {item.sku}
+                                </code>
+                              </div>
+                            )}
+                          </td>
+                          <td>{item.category?.name || '-'}</td>
+                          <td style={{ fontWeight: 600, color: isOut ? 'var(--danger)' : isLow ? 'var(--warning)' : 'inherit' }}>
+                            {item.currentQuantity}
+                          </td>
+                          <td>{item.minQuantity}</td>
+                          <td>{formatPrice(item.unitPrice)}</td>
+                          <td>{item.supplier || '-'}</td>
+                          <td>{formatDate(item.expiryDate)}</td>
+                          <td>
+                            <span className={`badge ${statusClass}`}>
+                              {t(`enums.inventoryStatus.${item.status}`)}
+                            </span>
                           </td>
                           <td>
-                            <code style={{ backgroundColor: 'var(--bg-light)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '0.8125rem' }}>
-                              {item.sku}
-                            </code>
+                            <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
+                              <button
+                                className="btn btn--icon btn--ghost"
+                                onClick={() => handleOpenViewModal(item)}
+                                title={t('common.view')}
+                              >
+                                <Eye size={16} />
+                              </button>
+                              {canEdit && (
+                                <button
+                                  className="btn btn--icon btn--ghost"
+                                  onClick={() => handleOpenEditModal(item)}
+                                  title={t('common.edit')}
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  className="btn btn--icon btn--ghost btn--icon-danger"
+                                  onClick={() => handleOpenDeleteModal(item)}
+                                  title={t('common.delete')}
+                                >
+                                  <Trash2 size={16} style={{ color: 'var(--danger)' }} />
+                                </button>
+                              )}
+                            </div>
                           </td>
-                            <td>{item.category?.name || '-'}</td>
-                            <td style={{ fontWeight: 600, color: isOut ? 'var(--danger)' : isLow ? 'var(--warning)' : 'inherit' }}>
-                              {item.currentQuantity}
-                            </td>
-                            <td>{item.minQuantity}</td>
-                            <td>{formatPrice(item.unitPrice)}</td>
-                            <td>{item.brand || '-'}</td>
-                            <td>{formatDate(item.expiryDate)}</td>
-                            <td>
-                              <span className={`badge ${statusClass}`}>
-                                {t(`enums.inventoryStatus.${item.status}`)}
-                              </span>
-                            </td>
-                            {canEdit && (
-                              <td>
-                                <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
-                                  <button
-                                    className="btn btn--icon btn--ghost"
-                                    onClick={() => handleOpenEditModal(item)}
-                                    title={t('common.edit')}
-                                  >
-                                    <Edit2 size={16} />
-                                  </button>
-                                  {canDelete && (
-                                    <button
-                                      className="btn btn--icon btn--ghost btn--icon-danger"
-                                      onClick={() => handleOpenDeleteModal(item)}
-                                      title={t('common.delete')}
-                                    >
-                                      <Trash2 size={16} style={{ color: 'var(--danger)' }} />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
                   <Pagination
                     currentPage={currentPage}
                     totalItems={filteredItems.length}
@@ -1065,6 +1081,281 @@ export function InventoryPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Item Modal */}
+      {showViewItemModal && viewingItem && (
+        <div className="modal-overlay" onClick={() => setShowViewItemModal(false)}>
+          <div
+            className="modal"
+            style={{
+              maxWidth: '640px',
+              width: '90%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal__header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--accent-primary)',
+                }}>
+                  <Package size={20} />
+                </div>
+                <div>
+                  <h2 className="modal__title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
+                    {t('inventory.viewItem', { defaultValue: 'Item Details' })}
+                  </h2>
+                </div>
+              </div>
+              <button className="modal__close" onClick={() => setShowViewItemModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div
+              className="modal__body"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1.25rem',
+                padding: '1.25rem 1.75rem',
+                overflowY: 'auto',
+                flex: 1,
+              }}
+            >
+              {/* Top Banner with Name, SKU, Status */}
+              <div style={{
+                padding: '1.25rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-light)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '1rem',
+                flexWrap: 'wrap',
+              }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {viewingItem.name}
+                  </h3>
+                  {viewingItem.sku && (
+                    <div style={{ marginTop: '0.35rem' }}>
+                      <code style={{
+                        backgroundColor: 'var(--bg-surface)',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        border: '1px solid var(--border)',
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 600,
+                      }}>
+                        {viewingItem.sku}
+                      </code>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {(() => {
+                    const isLow = viewingItem.currentQuantity <= viewingItem.minQuantity && viewingItem.status !== 'OUT_OF_STOCK' && viewingItem.status !== 'DISCONTINUED';
+                    const isOut = viewingItem.currentQuantity === 0 || viewingItem.status === 'OUT_OF_STOCK';
+                    let statusClass = 'badge--success';
+                    if (viewingItem.status === 'LOW_STOCK' || isLow) statusClass = 'badge--warning';
+                    if (viewingItem.status === 'OUT_OF_STOCK' || isOut) statusClass = 'badge--danger';
+                    if (viewingItem.status === 'DISCONTINUED') statusClass = 'badge--neutral';
+
+                    return (
+                      <span className={`badge ${statusClass}`} style={{ fontSize: '0.8125rem', padding: '4px 10px' }}>
+                        {t(`enums.inventoryStatus.${viewingItem.status}`, { defaultValue: viewingItem.status })}
+                      </span>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Quick Metrics Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '0.875rem 1rem',
+                  textAlign: 'center',
+                }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('inventory.fields.currentQuantity')}
+                  </span>
+                  <div style={{
+                    fontSize: '1.35rem',
+                    fontWeight: 800,
+                    marginTop: '0.25rem',
+                    color: viewingItem.currentQuantity === 0 ? 'var(--danger)' : viewingItem.currentQuantity <= viewingItem.minQuantity ? 'var(--warning)' : 'var(--text-primary)',
+                  }}>
+                    {viewingItem.currentQuantity}
+                  </div>
+                </div>
+
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '0.875rem 1rem',
+                  textAlign: 'center',
+                }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('inventory.fields.minQuantity')}
+                  </span>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: '0.25rem', color: 'var(--text-primary)' }}>
+                    {viewingItem.minQuantity}
+                  </div>
+                </div>
+
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '0.875rem 1rem',
+                  textAlign: 'center',
+                }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('inventory.fields.unitPrice')}
+                  </span>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: '0.25rem', color: 'var(--accent-primary)' }}>
+                    {formatPrice(viewingItem.unitPrice)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Info Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '1rem',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {t('inventory.fields.category')}
+                  </span>
+                  <p style={{ margin: '0.25rem 0 0', fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                    {viewingItem.category?.name || '-'}
+                    {viewingItem.category?.productType && (
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                        ({t(`enums.productType.${viewingItem.category.productType}`, { defaultValue: viewingItem.category.productType })})
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {t('inventory.fields.supplier')}
+                  </span>
+                  <p style={{ margin: '0.25rem 0 0', fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                    {viewingItem.supplier || '-'}
+                  </p>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {t('inventory.fields.brand')}
+                  </span>
+                  <p style={{ margin: '0.25rem 0 0', fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                    {viewingItem.brand || '-'}
+                  </p>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {t('inventory.fields.expiryDate')}
+                  </span>
+                  <p style={{ margin: '0.25rem 0 0', fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                    {formatDate(viewingItem.expiryDate)}
+                  </p>
+                </div>
+
+                {!isAdmin && viewingItem.branch && (
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {t('inventory.fields.branch')}
+                    </span>
+                    <p style={{ margin: '0.25rem 0 0', fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                      {viewingItem.branch?.name || '-'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              {viewingItem.description && (
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                    {t('inventory.fields.description')}
+                  </span>
+                  <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                    {viewingItem.description}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="modal__footer"
+              style={{
+                padding: '1rem 1.75rem',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                backgroundColor: 'var(--bg-surface)',
+                margin: 0,
+                flexShrink: 0,
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => setShowViewItemModal(false)}
+              >
+                {t('common.close', { defaultValue: 'Close' })}
+              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => {
+                    setShowViewItemModal(false);
+                    handleOpenEditModal(viewingItem);
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <Edit2 size={16} />
+                  <span>{t('common.edit')}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
