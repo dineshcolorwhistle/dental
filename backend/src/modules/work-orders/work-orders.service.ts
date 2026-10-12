@@ -1135,7 +1135,6 @@ export class WorkOrdersService implements OnModuleInit {
       }
     }
 
-    let finalStatus = status;
     let minReworkSeq = Infinity;
     let mappedProcesses = undefined;
 
@@ -1261,6 +1260,24 @@ export class WorkOrdersService implements OnModuleInit {
       });
     }
 
+    let finalStatus: WorkOrderStatus;
+    if (existing.status === WorkOrderStatus.CREATED) {
+      if (status === WorkOrderStatus.ASSIGNED) {
+        finalStatus = mappedProcesses
+          ? this.calculateWorkOrderStatus(mappedProcesses)
+          : this.calculateWorkOrderStatus(existing.processes);
+        if (finalStatus === WorkOrderStatus.CREATED) {
+          finalStatus = WorkOrderStatus.ASSIGNED;
+        }
+      } else {
+        finalStatus = WorkOrderStatus.CREATED;
+      }
+    } else {
+      finalStatus = mappedProcesses
+        ? this.calculateWorkOrderStatus(mappedProcesses)
+        : this.calculateWorkOrderStatus(existing.processes);
+    }
+
     if (
       finalStatus === WorkOrderStatus.FAILED ||
       finalStatus === WorkOrderStatus.CANCELLED
@@ -1280,26 +1297,16 @@ export class WorkOrdersService implements OnModuleInit {
           data: { status: targetStatus },
         });
       }
-    } else if (processes && mappedProcesses) {
-      if (dto.status === WorkOrderStatus.CREATED) {
-        finalStatus = WorkOrderStatus.CREATED;
-      } else {
-        finalStatus = this.calculateWorkOrderStatus(mappedProcesses);
-      }
     }
 
     // Transition from CREATED to ASSIGNED triggers assignment logic
     const isTransitioningToAssigned =
       existing.status === WorkOrderStatus.CREATED &&
-      (finalStatus === WorkOrderStatus.ASSIGNED ||
-        (mappedProcesses &&
-          finalStatus === undefined &&
-          this.calculateWorkOrderStatus(mappedProcesses) ===
-            WorkOrderStatus.ASSIGNED));
+      finalStatus !== WorkOrderStatus.CREATED;
 
     const actualFinalStatus = isTransitioningToAssigned
       ? WorkOrderStatus.ASSIGNED
-      : finalStatus || existing.status;
+      : finalStatus;
 
     const updated = await this.prisma.$transaction(async (tx) => {
       // 1. Delete processes that are not in incoming mappedProcesses list (only if NOT_STARTED)

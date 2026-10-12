@@ -118,6 +118,63 @@ interface ProcessFormItem {
   reworkActive?: boolean;
 }
 
+const calculateWorkOrderStatus = (
+  processes: ProcessFormItem[]
+): 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED' => {
+  if (!processes || processes.length === 0) {
+    return 'CREATED';
+  }
+
+  const sorted = [...processes].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+
+  if (sorted.some((p) => p.status === 'FAILED')) {
+    return 'FAILED';
+  }
+
+  if (sorted.some((p) => p.status === 'CANCELLED')) {
+    return 'CANCELLED';
+  }
+
+  if (sorted.every((p) => p.status === 'COMPLETED')) {
+    return 'COMPLETED';
+  }
+
+  const inProgressProc = sorted.find(
+    (p) => p.status === 'IN_PROGRESS' || p.status === 'PAUSED'
+  );
+  if (inProgressProc) {
+    if (inProgressProc.isVerification) {
+      const isExternal =
+        inProgressProc.processType === 'EXTERNAL_VERIFICATION' ||
+        (!inProgressProc.technicianId && inProgressProc.processType !== 'INTERNAL_VERIFICATION');
+      return isExternal ? 'EXTERNAL_VERIFICATION' : 'INTERNAL_VERIFICATION';
+    }
+    return 'IN_PROGRESS';
+  }
+
+  const nextStep = sorted.find(
+    (p) =>
+      p.status !== 'COMPLETED' &&
+      p.status !== 'FAILED' &&
+      p.status !== 'CANCELLED'
+  );
+
+  if (nextStep && nextStep.isVerification) {
+    const isExternal =
+      nextStep.processType === 'EXTERNAL_VERIFICATION' ||
+      (!nextStep.technicianId && nextStep.processType !== 'INTERNAL_VERIFICATION');
+    return isExternal ? 'EXTERNAL_VERIFICATION' : 'INTERNAL_VERIFICATION';
+  }
+
+  const allNotStarted = sorted.every((p) => !p.status || p.status === 'NOT_STARTED');
+  if (allNotStarted) {
+    const hasAnyTechnician = sorted.some((p) => !!p.technicianId);
+    return hasAnyTechnician ? 'ASSIGNED' : 'CREATED';
+  }
+
+  return 'IN_PROGRESS';
+};
+
 import { NoteHistoryThread } from '../components/NoteHistoryThread';
 
 export function WorkOrdersPage() {
@@ -278,7 +335,11 @@ export function WorkOrdersPage() {
 
   // Tab Wizard States
   const [modalTab, setModalTab] = useState<'details' | 'processes' | 'payments'>('details');
-  const [formStatus, setFormStatus] = useState<string>('CREATED');
+  const currentWOStatus = useMemo(() => {
+    if (!editingWO) return 'CREATED';
+    if (editingWO.status === 'CREATED') return 'CREATED';
+    return calculateWorkOrderStatus(processList);
+  }, [editingWO, processList]);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [pendingAction, setPendingAction] = useState<'CREATE_ASSIGN' | 'EDIT_ASSIGN' | null>(null);
 
@@ -678,7 +739,6 @@ export function WorkOrdersPage() {
     setNewProcessTechnicianId('');
     setGeneratedFolio('');
     setModalTab('details');
-    setFormStatus('CREATED');
 
     // Fetch the next folio number!
     if (branchId) {
@@ -980,7 +1040,6 @@ export function WorkOrdersPage() {
     setRefInput('');
     
     setModalTab('details');
-    setFormStatus(freshWO.status);
     setIsReworkFlow(false);
     setNewProcessId('');
     setProcessesModified(false);
@@ -1138,7 +1197,7 @@ export function WorkOrdersPage() {
         initialPayment: finalTotalPaid,
         paymentReferenceNumber: form.paymentReferenceNumbers[0] || undefined,
         paymentReferenceNumbers: form.paymentReferenceNumbers,
-        status: isAssign && editingWO.status === 'CREATED' ? 'ASSIGNED' : formStatus,
+        ...(isAssign && editingWO.status === 'CREATED' ? { status: 'ASSIGNED' } : {}),
       };
 
       // Only attach processes if they were explicitly modified, in rework flow, or assigning a CREATED work order
@@ -2988,26 +3047,53 @@ export function WorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Row 3: Status Dropdown Selection */}
+                  {/* Row 3: Status (Calculated Field) */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-status">{t('workOrders.status', { defaultValue: 'Work Order Status' })}</label>
-                    <select
+                    <label className="form-label" htmlFor="edit-wo-status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>{t('workOrders.status', { defaultValue: 'Work Order Status' })}</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Lock size={12} />
+                        {t('workOrders.calculatedField', { defaultValue: 'Calculated Field' })}
+                      </span>
+                    </label>
+                    <div
                       id="edit-wo-status"
                       className="form-input"
-                      value={formStatus}
-                      onChange={(e) => setFormStatus(e.target.value)}
-                      disabled={saving}
-                      style={{ fontWeight: 600 }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        backgroundColor: 'var(--bg-muted, #F8FAFC)',
+                        borderColor: 'var(--border, #E2E8F0)',
+                        cursor: 'not-allowed',
+                        padding: '0.5rem 0.875rem',
+                        minHeight: '42px',
+                        userSelect: 'none',
+                      }}
+                      title={t('workOrders.statusCalculatedTooltip', { defaultValue: 'Status is calculated automatically based on the process steps workflow and cannot be manually modified.' })}
                     >
-                      <option value="CREATED">{t('enums.workOrderStatus.CREATED')}</option>
-                      <option value="ASSIGNED">{t('enums.workOrderStatus.ASSIGNED')}</option>
-                      <option value="IN_PROGRESS">{t('enums.workOrderStatus.IN_PROGRESS')}</option>
-                      <option value="INTERNAL_VERIFICATION">{t('enums.workOrderStatus.INTERNAL_VERIFICATION')}</option>
-                      <option value="EXTERNAL_VERIFICATION">{t('enums.workOrderStatus.EXTERNAL_VERIFICATION')}</option>
-                      <option value="COMPLETED">{t('enums.workOrderStatus.COMPLETED')}</option>
-                      <option value="FAILED">{t('enums.workOrderStatus.FAILED')}</option>
-                      <option value="CANCELLED">{t('enums.workOrderStatus.CANCELLED')}</option>
-                    </select>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            padding: '3px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.8125rem',
+                            fontWeight: 700,
+                            color: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).color,
+                            backgroundColor: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).bg,
+                          }}
+                        >
+                          {(STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).icon}
+                          <span>{t(`enums.workOrderStatus.${currentWOStatus}`, { defaultValue: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).label })}</span>
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {t('workOrders.autoCalculatedFromSteps', { defaultValue: 'Derived from process steps' })}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Row 4: Prosthesis Type */}
@@ -3591,7 +3677,7 @@ export function WorkOrdersPage() {
                                 }
                                 return null;
                               })()}
-                              {isReworkFlow && formStatus !== 'COMPLETED' && (proc.status === 'COMPLETED' || proc.reworkActive || proc.rework) && !proc.isVerification && (
+                              {isReworkFlow && currentWOStatus !== 'COMPLETED' && (proc.status === 'COMPLETED' || proc.reworkActive || proc.rework) && !proc.isVerification && (
                                 <label style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
@@ -3679,7 +3765,7 @@ export function WorkOrdersPage() {
                                     })()}
                                     value={proc.technicianId}
                                     onChange={(val) => updateProcessTechnician(idx, val)}
-                                    disabled={saving || (formStatus !== 'CREATED' && isStepStarted && !proc.rework && !isAdmin)}
+                                    disabled={saving || (currentWOStatus !== 'CREATED' && isStepStarted && !proc.rework && !isAdmin)}
                                     placeholder={isInternal ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
                                   />
                                 );
@@ -3694,7 +3780,7 @@ export function WorkOrdersPage() {
                                 const isFirstStep = idx === 0;
                                 const prevStep = idx > 0 ? processList[idx - 1] : null;
                                 const isPrevFinished = prevStep?.status === 'COMPLETED' || prevStep?.status === 'FAILED';
-                                if (formStatus === 'CREATED') {
+                                if (currentWOStatus === 'CREATED') {
                                   return t('workOrders.statusLockedCreated', { defaultValue: 'Process status cannot be changed when Work Order is in Created status' });
                                 }
                                 if (proc.status === 'COMPLETED') {
@@ -3710,7 +3796,7 @@ export function WorkOrdersPage() {
                                 const isFirstStep = idx === 0;
                                 const prevStep = idx > 0 ? processList[idx - 1] : null;
                                 const isPrevFinished = prevStep?.status === 'COMPLETED' || prevStep?.status === 'FAILED';
-                                let canChangeStatus = formStatus !== 'CREATED' && formStatus !== 'COMPLETED' && (isFirstStep || isPrevFinished);
+                                let canChangeStatus = currentWOStatus !== 'CREATED' && currentWOStatus !== 'COMPLETED' && (isFirstStep || isPrevFinished);
                                 if (proc.status === 'COMPLETED') {
                                   canChangeStatus = false;
                                 }
