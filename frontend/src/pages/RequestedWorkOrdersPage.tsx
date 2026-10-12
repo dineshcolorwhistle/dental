@@ -12,10 +12,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   PlusCircle,
+  Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
+import { useAppDate } from '../hooks';
 import {
   technicianPortalService,
   doctorService,
@@ -26,7 +28,6 @@ import {
   type ProsthesisTypeListItem,
 } from '../services';
 import { Pagination, SearchableSelect, ViewWorkOrderModal } from '../components';
-import { formatDate } from '../utils/dateUtils';
 
 const PAGE_SIZE = 10;
 
@@ -43,8 +44,9 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.Rea
 };
 
 export function RequestedWorkOrdersPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
+  const { formatDate: appFormatDate } = useAppDate();
   const { socket, isConnected } = useSocket();
 
   // State lists
@@ -300,6 +302,7 @@ export function RequestedWorkOrdersPage() {
                 <th>{t('workOrders.prosthesisType', { defaultValue: 'Prosthesis Type' })}</th>
                 <th>{t('workOrders.color', { defaultValue: 'Color' })}</th>
                 <th>{t('workOrders.status', { defaultValue: 'Status' })}</th>
+                <th>{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}</th>
                 <th>{t('workOrders.createdAt', { defaultValue: 'Created At' })}</th>
                 <th style={{ textAlign: 'right' }}>{t('common.actions', { defaultValue: 'Actions' })}</th>
               </tr>
@@ -329,8 +332,18 @@ export function RequestedWorkOrdersPage() {
                         <span>{t(`enums.workOrderStatus.${wo.status}`)}</span>
                       </span>
                     </td>
+                    <td style={{ fontSize: '0.8125rem' }}>
+                      {wo.deliveryDate ? (
+                        <span style={{ color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Calendar size={13} style={{ color: '#D97706' }} />
+                          {appFormatDate(wo.deliveryDate)}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                      {formatDate(wo.createdAt, i18n.language, user?.timezone, { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {appFormatDate(wo.createdAt, { day: 'numeric', month: 'short', year: 'numeric' })}
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <button

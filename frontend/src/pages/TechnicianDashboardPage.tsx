@@ -12,9 +12,11 @@ import {
   AlertCircle,
   AlertTriangle,
   Eye,
+  Calendar,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
+import { useAppDate } from '../hooks';
 import {
   technicianPortalService,
   type TechnicianDashboardStats,
@@ -28,6 +30,7 @@ const SHOW_QUICK_QR_SCAN = false;
 export function TechnicianDashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { formatDate: appFormatDate } = useAppDate();
   const [stats, setStats] = useState<TechnicianDashboardStats | null>(null);
   const [assignedJobs, setAssignedJobs] = useState<TechnicianWorkOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -284,8 +287,14 @@ export function TechnicianDashboardPage() {
                             </span>
                             <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{wo.patient}</span>
                           </div>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                            {wo.prosthesisType?.name} • {t('workOrder.boxNo')}: {wo.boxNumber || t('common.na')}
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <span>{wo.prosthesisType?.name} • {t('workOrder.boxNo')}: {wo.boxNumber || t('common.na')}</span>
+                            {wo.deliveryDate && (
+                              <span style={{ color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <Calendar size={12} style={{ color: '#D97706' }} />
+                                {t('workOrders.deliveryDate', { defaultValue: 'Delivery' })}: {appFormatDate(wo.deliveryDate)}
+                              </span>
+                            )}
                           </p>
                         </div>
 

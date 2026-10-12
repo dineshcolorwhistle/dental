@@ -33,6 +33,7 @@ import {
   type TechnicianProcessItem,
 } from '../services';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
+import { useAppDate } from '../hooks';
 import { QRLabelModal, WorkOrderChat } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
 import { NoteHistoryThread } from '../components/NoteHistoryThread';
@@ -208,6 +209,7 @@ export function TechnicianWorkOrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { formatDate: appFormatDate } = useAppDate();
   const { socket, isConnected } = useSocket();
   const [workOrders, setWorkOrders] = useState<TechnicianWorkOrderListItem[]>([]);
   const [unreadChatCounts, setUnreadChatCounts] = useState<Record<string, number>>({});
@@ -751,6 +753,12 @@ export function TechnicianWorkOrdersPage() {
                       <div>{t('dashboard.prosthesis')}: <strong>{wo.prosthesisType?.name}</strong></div>
                       <div>{t('dashboard.doctor')}: <strong>{wo.doctor?.name}{wo.doctor?.clinicName ? ` (${wo.doctor.clinicName})` : ''}</strong></div>
                       <div>{t('workOrder.boxNo')}: <strong>{wo.boxNumber || t('common.na')}</strong></div>
+                      {wo.deliveryDate && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#D97706', fontWeight: 600 }}>
+                          <Calendar size={13} style={{ color: '#D97706', flexShrink: 0 }} />
+                          <span>{t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}: <strong>{appFormatDate(wo.deliveryDate)}</strong></span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -949,9 +957,20 @@ export function TechnicianWorkOrdersPage() {
                         <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.createdOn')}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
                           <Calendar size={14} style={{ color: 'var(--accent-primary)' }} />
-                          <span>{formatDate(selectedOrder.createdAt, i18n.language, user?.timezone, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                          <span>{appFormatDate(selectedOrder.createdAt, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                         </div>
                       </div>
+                      {selectedOrder.deliveryDate && (
+                        <div>
+                          <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>
+                            {t('workOrders.deliveryDate', { defaultValue: 'Delivery Date' })}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#D97706' }}>
+                            <Calendar size={14} style={{ color: '#D97706' }} />
+                            <span>{appFormatDate(selectedOrder.deliveryDate, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.doctor')}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
