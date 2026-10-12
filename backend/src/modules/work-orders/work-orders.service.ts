@@ -1030,8 +1030,11 @@ export class WorkOrdersService implements OnModuleInit {
         if (ep.status !== ProcessStatus.NOT_STARTED) {
           const p = processes.find(
             (item) =>
-              item.processName === ep.processName &&
-              (item.isVerification || false) === ep.isVerification,
+              (item.id && item.id === ep.id) ||
+              ((item.isVerification || false) === ep.isVerification &&
+                (item.sequence === ep.sequence ||
+                  item.processName.trim().toLowerCase() ===
+                    ep.processName.trim().toLowerCase())),
           );
           if (!p) {
             throw new BadRequestException(
@@ -1062,8 +1065,11 @@ export class WorkOrdersService implements OnModuleInit {
           const p = sortedProcesses[i];
           const ep = existing.processes.find(
             (item: any) =>
-              item.processName === p.processName &&
-              (item.isVerification || false) === (p.isVerification || false),
+              (p.id && item.id === p.id) ||
+              ((item.isVerification || false) === (p.isVerification || false) &&
+                (item.sequence === p.sequence ||
+                  item.processName.trim().toLowerCase() ===
+                    p.processName.trim().toLowerCase())),
           );
           const currentStatus = p.status || ProcessStatus.NOT_STARTED;
           const oldStatus = ep ? ep.status : ProcessStatus.NOT_STARTED;
@@ -1158,13 +1164,33 @@ export class WorkOrdersService implements OnModuleInit {
       const matchedIds = new Set<string>();
 
       mappedProcesses = processes.map((p) => {
-        const ep = existing.processes.find((item: any) => {
-          if (matchedIds.has(item.id)) return false;
-          if (p.isVerification) {
-            return item.isVerification;
-          }
-          return item.processName === p.processName && !item.isVerification;
-        });
+        const ep =
+          existing.processes.find((item: any) => {
+            if (matchedIds.has(item.id)) return false;
+            if (p.id && item.id === p.id) return true;
+            if (p.isVerification) {
+              return (
+                item.isVerification &&
+                (item.sequence === p.sequence ||
+                  item.processName.trim().toLowerCase() ===
+                    p.processName.trim().toLowerCase())
+              );
+            }
+            return (
+              (item.processName.trim().toLowerCase() ===
+                p.processName.trim().toLowerCase() ||
+                item.sequence === p.sequence) &&
+              !item.isVerification
+            );
+          }) ||
+          existing.processes.find((item: any) => {
+            if (matchedIds.has(item.id)) return false;
+            if (p.isVerification) return item.isVerification;
+            return (
+              item.processName.trim().toLowerCase() ===
+                p.processName.trim().toLowerCase() && !item.isVerification
+            );
+          });
         if (ep) {
           matchedIds.add(ep.id);
         }
@@ -1216,9 +1242,10 @@ export class WorkOrdersService implements OnModuleInit {
           id: ep?.id || null, // Preserve ID if it exists
           processName:
             p.isVerification || false
-              ? p.technicianId
-                ? 'Verification (Internal)'
-                : 'Verification (External)'
+              ? p.processName ||
+                (p.technicianId
+                  ? 'Verification (Internal)'
+                  : 'Verification (External)')
               : p.processName,
           technicianId: p.technicianId || null,
           sequence: p.sequence,
@@ -1279,7 +1306,9 @@ export class WorkOrdersService implements OnModuleInit {
       if (mappedProcesses) {
         const incomingIds = mappedProcesses.map((p) => p.id).filter(Boolean);
         const toDelete = existing.processes.filter(
-          (ep: any) => !incomingIds.includes(ep.id),
+          (ep: any) =>
+            !incomingIds.includes(ep.id) &&
+            ep.status === ProcessStatus.NOT_STARTED,
         );
         for (const ep of toDelete) {
           await tx.workOrderProcess.delete({

@@ -105,6 +105,7 @@ const stringifyNotesAndPayments = (userNotes: string, payments: PaymentHistoryIt
 };
 
 interface ProcessFormItem {
+  id?: string;
   tempId: string;
   processName: string;
   technicianId: string;
@@ -272,6 +273,7 @@ export function WorkOrdersPage() {
   const [refInput, setRefInput] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [processList, setProcessList] = useState<ProcessFormItem[]>([]);
+  const [processesModified, setProcessesModified] = useState(false);
   const [generatedFolio, setGeneratedFolio] = useState('');
 
   // Tab Wizard States
@@ -734,6 +736,7 @@ export function WorkOrdersPage() {
         };
       });
 
+      setProcessesModified(true);
       setProcessList(items);
     } catch (err) {
       toast.error(t('workOrders.failedLoadProcesses', { defaultValue: 'Failed to load processes for the selected prosthesis type' }));
@@ -760,6 +763,7 @@ export function WorkOrdersPage() {
 
   // ─── Process List Manipulation ──────────────────
   const moveProcess = (index: number, direction: 'up' | 'down') => {
+    setProcessesModified(true);
     const newList = [...processList];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= newList.length) return;
@@ -768,11 +772,13 @@ export function WorkOrdersPage() {
   };
 
   const removeProcess = (index: number) => {
+    setProcessesModified(true);
     const newList = processList.filter((_, i) => i !== index);
     setProcessList(newList.map((p, i) => ({ ...p, sequence: i })));
   };
 
   const updateProcessTechnician = (index: number, techId: string) => {
+    setProcessesModified(true);
     setProcessList((prev) =>
       prev.map((p, i) => {
         if (i === index) {
@@ -805,6 +811,7 @@ export function WorkOrdersPage() {
   };
 
   const updateProcessStatus = (index: number, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED') => {
+    setProcessesModified(true);
     setProcessList((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], status };
@@ -845,6 +852,7 @@ export function WorkOrdersPage() {
       processType,
       status: 'NOT_STARTED',
     };
+    setProcessesModified(true);
     setProcessList((prev) => [...prev, newItem]);
     setNewProcessId('');
     setNewProcessName('');
@@ -942,37 +950,44 @@ export function WorkOrdersPage() {
   const handleEditOpen = async (wo: WorkOrderListItem) => {
     if (!canEdit) return;
     await loadReferenceData();
-    setEditingWO(wo);
-    const { userNotes, payments } = parseNotesAndPayments(wo.notes);
-    const existingRefs = wo.paymentReferenceNumbers && wo.paymentReferenceNumbers.length > 0
-      ? wo.paymentReferenceNumbers
-      : (wo.paymentReferenceNumber ? [wo.paymentReferenceNumber] : []);
+    let freshWO = wo;
+    try {
+      freshWO = await workOrderService.getById(wo.id);
+    } catch (e) {
+      console.warn('Could not fetch fresh work order, using table item', e);
+    }
+    setEditingWO(freshWO);
+    const { userNotes, payments } = parseNotesAndPayments(freshWO.notes);
+    const existingRefs = freshWO.paymentReferenceNumbers && freshWO.paymentReferenceNumbers.length > 0
+      ? freshWO.paymentReferenceNumbers
+      : (freshWO.paymentReferenceNumber ? [freshWO.paymentReferenceNumber] : []);
     setForm({
-      doctorId: wo.doctorId,
-      patient: wo.patient || '',
-      boxNumber: wo.boxNumber || '',
-      fileNumber: wo.fileNumber || '',
-      prosthesisTypeId: wo.prosthesisTypeId,
-      specification: wo.specification || '',
-      color: wo.color || '',
+      doctorId: freshWO.doctorId,
+      patient: freshWO.patient || '',
+      boxNumber: freshWO.boxNumber || '',
+      fileNumber: freshWO.fileNumber || '',
+      prosthesisTypeId: freshWO.prosthesisTypeId,
+      specification: freshWO.specification || '',
+      color: freshWO.color || '',
       notes: userNotes,
-      deliveryDate: wo.deliveryDate ? new Date(wo.deliveryDate).toISOString().split('T')[0] : '',
-      totalQuote: wo.totalQuote != null ? wo.totalQuote.toString() : '0',
-      initialPayment: wo.initialPayment != null ? wo.initialPayment.toString() : '',
-      paymentReferenceNumber: wo.paymentReferenceNumber || '',
+      deliveryDate: freshWO.deliveryDate ? new Date(freshWO.deliveryDate).toISOString().split('T')[0] : '',
+      totalQuote: freshWO.totalQuote != null ? freshWO.totalQuote.toString() : '0',
+      initialPayment: freshWO.initialPayment != null ? freshWO.initialPayment.toString() : '',
+      paymentReferenceNumber: freshWO.paymentReferenceNumber || '',
       paymentReferenceNumbers: existingRefs,
-      branchId: wo.branchId || '',
+      branchId: freshWO.branchId || '',
     });
     setRefInput('');
     
     setModalTab('details');
-    setFormStatus(wo.status);
+    setFormStatus(freshWO.status);
     setIsReworkFlow(false);
     setNewProcessId('');
+    setProcessesModified(false);
 
     // Setup payments state
     setEditPayments(payments);
-    const legacyInitial = wo.initialPayment || 0;
+    const legacyInitial = freshWO.initialPayment || 0;
     const sumHistory = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
     const basePaid = Math.max(0, legacyInitial - sumHistory);
     setInitialBasePayment(basePaid);
@@ -981,14 +996,11 @@ export function WorkOrdersPage() {
     setAddPayNotes('');
 
     // Populate existing process steps and verification steps
-    const items: ProcessFormItem[] = (wo.processes || []).map((p, idx) => {
-      let processName = p.processName;
-      if (p.isVerification) {
-        processName = p.technicianId ? 'Verification (Internal)' : 'Verification (External)';
-      }
+    const items: ProcessFormItem[] = (freshWO.processes || []).map((p, idx) => {
       return {
+        id: p.id,
         tempId: p.id || `proc-edit-${Date.now()}-${idx}`,
-        processName,
+        processName: p.processName,
         technicianId: p.technicianId || '',
         sequence: p.sequence,
         isVerification: p.isVerification,
@@ -1129,18 +1141,26 @@ export function WorkOrdersPage() {
         status: isAssign && editingWO.status === 'CREATED' ? 'ASSIGNED' : formStatus,
       };
 
-      // ALWAYS attach processes so updates in Processes tab persist across all tabs!
-      payload.processes = processList.map((p) => {
-        const isExternal = p.processType === 'EXTERNAL_VERIFICATION' || (p.isVerification && (!p.technicianId || p.technicianId === form.doctorId));
-        return {
-          processName: p.processName,
-          technicianId: isExternal ? undefined : (p.technicianId || undefined),
-          sequence: p.sequence,
-          isVerification: p.isVerification,
-          status: p.status || 'NOT_STARTED',
-          rework: p.rework || false,
-        };
-      });
+      // Only attach processes if they were explicitly modified, in rework flow, or assigning a CREATED work order
+      const isAssigningCreated = isAssign && editingWO.status === 'CREATED';
+      const shouldIncludeProcesses = processesModified || isReworkFlow || isAssigningCreated;
+
+      if (shouldIncludeProcesses) {
+        payload.processes = processList.map((p) => {
+          const isExternal =
+            p.processType === 'EXTERNAL_VERIFICATION' ||
+            (p.isVerification && (!p.technicianId || p.technicianId === form.doctorId));
+          return {
+            id: p.id || undefined,
+            processName: p.processName,
+            technicianId: isExternal ? undefined : (p.technicianId || undefined),
+            sequence: p.sequence,
+            isVerification: p.isVerification,
+            status: p.status || 'NOT_STARTED',
+            rework: p.rework || false,
+          };
+        });
+      }
 
       await workOrderService.update(editingWO.id, payload);
       toast.success(isAssign ? t('workOrders.assignSuccess', { defaultValue: 'Work order processes assigned successfully!' }) : t('workOrders.updateSuccess', { defaultValue: 'Work order updated successfully!' }));
@@ -3591,6 +3611,7 @@ export function WorkOrdersPage() {
                                     checked={!!proc.rework}
                                     onChange={(e) => {
                                       const checked = e.target.checked;
+                                      setProcessesModified(true);
                                       setProcessList((prev) =>
                                         prev.map((p, i) => (i === idx ? {
                                           ...p,

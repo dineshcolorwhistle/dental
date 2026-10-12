@@ -150,6 +150,7 @@ export interface WorkOrderListItem {
 }
 
 export interface CreateWorkOrderProcessPayload {
+  id?: string;
   processName: string;
   technicianId?: string;
   sequence: number;

@@ -16,6 +16,15 @@ import { Type } from 'class-transformer';
 
 export class WorkOrderProcessItemDto {
   @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID of the existing process step if updating',
+    required: false,
+  })
+  @IsUUID()
+  @IsOptional()
+  id?: string;
+
+  @ApiProperty({
     example: 'CAD Design',
     description: 'Name of the process step',
   })
