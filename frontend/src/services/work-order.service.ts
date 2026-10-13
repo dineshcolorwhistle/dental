@@ -242,8 +242,8 @@ export const workOrderService = {
     return response.data;
   },
 
-  endVerification: async (workOrderId: string, processId: string, status: 'SUCCESS' | 'REWORK' | 'REPETITION'): Promise<any> => {
-    const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/end-verification`, { status });
+  endVerification: async (workOrderId: string, processId: string, status: 'SUCCESS' | 'REWORK' | 'REPETITION', reworkProcessNames?: string[]): Promise<any> => {
+    const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/end-verification`, { status, reworkProcessNames });
     return response.data;
   },
 

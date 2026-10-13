@@ -140,6 +140,20 @@ export function DashboardPage() {
   };
 
   const handleEndVerification = async (workOrderId: string, processId: string, outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
+    if (outcome === 'REWORK') {
+      setShowOutcomeModal(false);
+      setSelectedAlert(null);
+      navigate('/work-orders', {
+        state: {
+          editWorkOrderId: workOrderId,
+          activeTab: 'processes',
+          isReworkFlow: true,
+          reworkVerificationProcessId: processId,
+        },
+      });
+      return;
+    }
+
     setOutcomeSaving(true);
     const loadingToast = toast.loading(t('dashboard.completingVerification', { outcome }));
     try {
@@ -148,9 +162,6 @@ export function DashboardPage() {
       setShowOutcomeModal(false);
       setSelectedAlert(null);
       fetchDashboardData();
-      if (outcome === 'REWORK') {
-        navigate('/work-orders', { state: { editWorkOrderId: workOrderId, activeTab: 'processes', isReworkFlow: true } });
-      }
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || t('dashboard.verificationCompleteFailed');
       toast.error(errMsg, { id: loadingToast });

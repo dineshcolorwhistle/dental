@@ -279,7 +279,11 @@ export class WorkOrdersController {
     @CurrentUser('role') userRole: string,
     @Param('id') id: string,
     @Param('processId') processId: string,
-    @Body() body: { status: 'SUCCESS' | 'REWORK' | 'REPETITION' },
+    @Body()
+    body: {
+      status: 'SUCCESS' | 'REWORK' | 'REPETITION';
+      reworkProcessNames?: string[];
+    },
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
@@ -311,6 +315,7 @@ export class WorkOrdersController {
       processId,
       body.status,
       userId,
+      body.reworkProcessNames,
     );
   }
 

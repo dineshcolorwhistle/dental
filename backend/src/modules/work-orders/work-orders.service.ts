@@ -2442,6 +2442,56 @@ export class WorkOrdersService implements OnModuleInit {
           (p) => targetNames.includes(p.processName) && !p.isVerification,
         );
 
+        if (processesToRework.length > 0) {
+          // Find the minimum sequence of reworked processes
+          const minReworkSeq = Math.min(
+            ...processesToRework.map((p) => p.sequence),
+          );
+
+          // Reset intermediate verification steps that come after any reworked process
+          // but before the triggering verification step
+          const intermediateVerifications = allProcs.filter(
+            (p) =>
+              p.isVerification &&
+              p.id !== processId &&
+              p.sequence > minReworkSeq &&
+              p.sequence < process.sequence &&
+              p.status !== ProcessStatus.NOT_STARTED,
+          );
+
+          for (const v of intermediateVerifications) {
+            await this.prisma.workOrderProcess.update({
+              where: { id: v.id },
+              data: {
+                status: ProcessStatus.NOT_STARTED,
+                startedAt: null,
+                endedAt: null,
+                verificationStatus: null,
+                lastPausedAt: null,
+                pauseCount: 0,
+                totalPauseDuration: 0,
+                totalActiveDuration: 0,
+                reworkActive: false,
+              },
+            });
+
+            await this.auditLogsService.log({
+              tenantId,
+              userId,
+              action: 'VERIFICATION_REWORK_RESET',
+              entityName: 'PROCESS',
+              entityId: v.id,
+              details: {
+                processName: v.processName,
+                reason:
+                  'Dependent verification reset due to rework of preceding process',
+                reworkedProcesses: targetNames,
+                triggerVerificationStage: process.processName,
+              },
+            });
+          }
+        }
+
         for (const p of processesToRework) {
           await this.prisma.workOrderProcess.update({
             where: { id: p.id },

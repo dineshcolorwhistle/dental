@@ -284,6 +284,7 @@ export function WorkOrdersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingWO, setEditingWO] = useState<WorkOrderListItem | null>(null);
   const [isReworkFlow, setIsReworkFlow] = useState<boolean>(false);
+  const [reworkVerificationProcessId, setReworkVerificationProcessId] = useState<string | null>(null);
 
   // QR modal
   const [showQrModal, setShowQrModal] = useState(false);
@@ -528,6 +529,7 @@ export function WorkOrdersPage() {
       const targetWoId = location.state.editWorkOrderId;
       const targetTab = location.state.activeTab || 'details';
       const isRework = !!location.state.isReworkFlow || targetTab === 'processes';
+      const reworkVerificationId = location.state.reworkVerificationProcessId || null;
       
       const openEditFromState = async () => {
         try {
@@ -536,6 +538,9 @@ export function WorkOrdersPage() {
             await handleEditOpen(wo);
             if (isRework) {
               setIsReworkFlow(true);
+            }
+            if (reworkVerificationId) {
+              setReworkVerificationProcessId(reworkVerificationId);
             }
             if (targetTab === 'processes') {
               setModalTab('processes');
@@ -1041,6 +1046,7 @@ export function WorkOrdersPage() {
     
     setModalTab('details');
     setIsReworkFlow(false);
+    setReworkVerificationProcessId(null);
     setNewProcessId('');
     setProcessesModified(false);
 
@@ -1079,6 +1085,7 @@ export function WorkOrdersPage() {
     if (saving) return;
     setShowEditModal(false);
     setIsReworkFlow(false);
+    setReworkVerificationProcessId(null);
   };
 
   const handleAddEditPayment = () => {
@@ -1163,6 +1170,27 @@ export function WorkOrdersPage() {
 
     try {
       setSaving(true);
+
+      // If this is a rework flow from verification, finalize verification with rework first
+      if (isReworkFlow && reworkVerificationProcessId) {
+        const reworkProcessNames = processList
+          .filter((p) => p.rework && !p.isVerification)
+          .map((p) => p.processName);
+
+        if (reworkProcessNames.length === 0) {
+          toast.error(t('workOrders.selectReworkProcessError', { defaultValue: 'Please select at least one process step to mark for rework.' }));
+          setSaving(false);
+          return;
+        }
+
+        await workOrderService.endVerification(
+          editingWO.id,
+          reworkVerificationProcessId,
+          'REWORK',
+          reworkProcessNames,
+        );
+      }
+
       let currentPayments = [...editPayments];
       const pendingAmt = parseFloat(addPayAmount);
       const currentQuote = form.totalQuote !== '' ? parseFloat(form.totalQuote) : 0;
@@ -1200,9 +1228,11 @@ export function WorkOrdersPage() {
         ...(isAssign && editingWO.status === 'CREATED' ? { status: 'ASSIGNED' } : {}),
       };
 
-      // Only attach processes if they were explicitly modified, in rework flow, or assigning a CREATED work order
+      // Only attach processes if they were explicitly modified, in rework flow (without verification id), or assigning a CREATED work order
       const isAssigningCreated = isAssign && editingWO.status === 'CREATED';
-      const shouldIncludeProcesses = processesModified || isReworkFlow || isAssigningCreated;
+      const shouldIncludeProcesses = reworkVerificationProcessId
+        ? false
+        : (processesModified || isReworkFlow || isAssigningCreated);
 
       if (shouldIncludeProcesses) {
         payload.processes = processList.map((p) => {

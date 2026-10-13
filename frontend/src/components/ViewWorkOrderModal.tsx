@@ -291,18 +291,26 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
   };
 
   const handleInlineEndVerification = async (woId: string, processId: string, outcome: 'SUCCESS' | 'REWORK' | 'REPETITION') => {
+    if (outcome === 'REWORK') {
+      onClose();
+      navigate('/work-orders', {
+        state: {
+          editWorkOrderId: woId,
+          activeTab: 'processes',
+          isReworkFlow: true,
+          reworkVerificationProcessId: processId,
+        },
+      });
+      return;
+    }
+
     const loadingToast = toast.loading(t('dashboard.completingVerification', { outcome: t('enums.verificationOutcome.' + outcome) }));
     try {
       await workOrderService.endVerification(woId, processId, outcome);
       toast.success(t('dashboard.verificationCompleted', { outcome: t('enums.verificationOutcome.' + outcome) }), { id: loadingToast });
-      if (outcome === 'REWORK') {
-        onClose();
-        navigate('/work-orders', { state: { editWorkOrderId: woId, activeTab: 'processes', isReworkFlow: true } });
-      } else {
-        const detailedWo = await workOrderService.getById(woId);
-        setSelectedWO(detailedWo);
-        if (onUpdate) onUpdate(detailedWo);
-      }
+      const detailedWo = await workOrderService.getById(woId);
+      setSelectedWO(detailedWo);
+      if (onUpdate) onUpdate(detailedWo);
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || t('dashboard.verificationCompleteFailed');
       toast.error(errMsg, { id: loadingToast });
