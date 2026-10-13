@@ -631,7 +631,7 @@ export function ProsthesisTypesPage() {
       {/* Create Modal */}
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => !saving && setShowCreateModal(false)}>
-          <div className="modal" style={{ maxWidth: '750px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal" style={{ maxWidth: '880px', width: '92%' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
                 <h2 className="modal__title">{t('prosthesisTypes.createProsthesis')}</h2>
@@ -750,16 +750,21 @@ export function ProsthesisTypesPage() {
                     </span>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: '1.25rem', minHeight: '220px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1.25rem', minHeight: '260px' }}>
                     {/* Left Column: Available Processes */}
-                    <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-overlay, #F8FAFC)', display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })} ({filteredBranchProcesses.length})
-                      </span>
+                    <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.875rem', backgroundColor: 'var(--bg-overlay, #F8FAFC)', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })}
+                        </span>
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-card)', padding: '2px 8px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                          {filteredBranchProcesses.length}
+                        </span>
+                      </div>
                       
                       {/* Search Bar */}
-                      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
-                        <div className="search-input-wrap" style={{ flexGrow: 1, height: '32px' }}>
+                      <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.75rem', minWidth: 0 }}>
+                        <div className="search-input-wrap" style={{ flexGrow: 1, height: '32px', minWidth: 0 }}>
                           <Search size={14} className="search-input__icon" style={{ left: '8px' }} />
                           <input
                             type="text"
@@ -783,7 +788,7 @@ export function ProsthesisTypesPage() {
                         <button
                           type="button"
                           className="btn btn--primary"
-                          style={{ height: '32px', padding: '0 0.5rem', fontSize: '0.75rem', minWidth: 'auto', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          style={{ height: '32px', padding: '0 0.625rem', fontSize: '0.75rem', minWidth: 'auto', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
                         >
                           <Search size={12} />
                           <span>{t('prosthesisTypes.searchProcesses', { defaultValue: 'Search' })}</span>
@@ -795,7 +800,7 @@ export function ProsthesisTypesPage() {
                           {processSearch ? t('common.noResults') : t('prosthesisTypes.noProcessesBranch', { defaultValue: 'No processes found for this branch. Create them in the Processes Page first.' })}
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px', minWidth: 0 }}>
                           {filteredBranchProcesses.map((p) => {
                             const isSelected = (form.processIds || []).includes(p.id);
                             return (
@@ -817,10 +822,28 @@ export function ProsthesisTypesPage() {
                                   cursor: isSelected ? 'default' : 'pointer',
                                   transition: 'all 0.2s',
                                   opacity: isSelected ? 0.5 : 1,
+                                  minWidth: 0,
+                                  boxSizing: 'border-box',
+                                  gap: '0.5rem',
                                 }}
                               >
-                                <div style={{ flexGrow: 1, minWidth: 0 }}>
-                                  <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                <div style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+                                  <span
+                                    title={p.name}
+                                    style={{
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      fontSize: '0.8125rem',
+                                      fontWeight: 600,
+                                      color: 'var(--text-primary)',
+                                      lineHeight: 1.3,
+                                      wordBreak: 'break-word',
+                                    }}
+                                  >
+                                    {p.name}
+                                  </span>
                                   {renderProcessSubtitle(p)}
                                 </div>
                                 {!isSelected && (
@@ -831,7 +854,8 @@ export function ProsthesisTypesPage() {
                                     backgroundColor: 'var(--accent-primary-glow)',
                                     padding: '2px 8px',
                                     borderRadius: '4px',
-                                    flexShrink: 0
+                                    flexShrink: 0,
+                                    alignSelf: 'center',
                                   }}>+ {t('common.add', { defaultValue: 'Add' })}</span>
                                 )}
                               </button>
@@ -842,16 +866,21 @@ export function ProsthesisTypesPage() {
                     </div>
 
                     {/* Right Column: Sequence Order */}
-                    <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        {t('prosthesisTypes.selectedSequence', { defaultValue: 'Selected Workflow Sequence' })} ({(form.processIds || []).length})
-                      </span>
+                    <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.875rem', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {t('prosthesisTypes.selectedSequence', { defaultValue: 'Selected Workflow Sequence' })}
+                        </span>
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-glow)', padding: '2px 8px', borderRadius: '10px' }}>
+                          {(form.processIds || []).length}
+                        </span>
+                      </div>
                       {(form.processIds || []).length === 0 ? (
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', border: '1px dashed var(--border)', borderRadius: '6px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {t('prosthesisTypes.noProcessesAddedDesc', { defaultValue: 'No processes added yet. Click available processes on the left to build the sequence.' })}
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px', minWidth: 0 }}>
                           {(form.processIds || []).map((id, index) => {
                             const p = branchProcesses.find((bp) => bp.id === id);
                             if (!p) return null;
@@ -861,15 +890,18 @@ export function ProsthesisTypesPage() {
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  padding: '0.4rem 0.5rem',
+                                  padding: '0.45rem 0.6rem',
                                   borderRadius: '6px',
                                   border: '1px solid var(--border)',
                                   backgroundColor: '#FFFFFF',
+                                  minWidth: 0,
+                                  boxSizing: 'border-box',
+                                  gap: '0.5rem',
                                 }}
                               >
                                 <span style={{
-                                  width: '18px',
-                                  height: '18px',
+                                  width: '20px',
+                                  height: '20px',
                                   borderRadius: '50%',
                                   backgroundColor: 'var(--accent-primary)',
                                   color: '#FFFFFF',
@@ -878,42 +910,81 @@ export function ProsthesisTypesPage() {
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   fontWeight: 700,
-                                  marginRight: '0.5rem',
-                                  flexShrink: 0
+                                  flexShrink: 0,
                                 }}>
                                   {index + 1}
                                 </span>
-                                <div style={{ flexGrow: 1, minWidth: 0 }}>
-                                  <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                <div style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+                                  <span
+                                    title={p.name}
+                                    style={{
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      fontSize: '0.8125rem',
+                                      fontWeight: 600,
+                                      color: 'var(--text-primary)',
+                                      lineHeight: 1.3,
+                                      wordBreak: 'break-word',
+                                    }}
+                                  >
+                                    {p.name}
+                                  </span>
                                   {renderProcessSubtitle(p)}
                                 </div>
-                                <div style={{ display: 'flex', gap: '4px', marginLeft: '0.25rem', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0 }}>
                                   <button
                                     type="button"
                                     disabled={index === 0 || saving}
                                     onClick={() => moveProcessInForm(index, 'up')}
-                                    style={{ padding: '4px', border: 'none', background: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1, display: 'inline-flex' }}
+                                    style={{
+                                      padding: '4px',
+                                      border: 'none',
+                                      background: 'none',
+                                      cursor: index === 0 ? 'default' : 'pointer',
+                                      opacity: index === 0 ? 0.3 : 1,
+                                      display: 'inline-flex',
+                                      borderRadius: '4px',
+                                    }}
                                     title={t('common.moveUp', { defaultValue: 'Move Up' })}
                                   >
-                                    <ArrowUp size={12} />
+                                    <ArrowUp size={13} />
                                   </button>
                                   <button
                                     type="button"
                                     disabled={index === (form.processIds || []).length - 1 || saving}
                                     onClick={() => moveProcessInForm(index, 'down')}
-                                    style={{ padding: '4px', border: 'none', background: 'none', cursor: index === (form.processIds || []).length - 1 ? 'default' : 'pointer', opacity: index === (form.processIds || []).length - 1 ? 0.3 : 1, display: 'inline-flex' }}
+                                    style={{
+                                      padding: '4px',
+                                      border: 'none',
+                                      background: 'none',
+                                      cursor: index === (form.processIds || []).length - 1 ? 'default' : 'pointer',
+                                      opacity: index === (form.processIds || []).length - 1 ? 0.3 : 1,
+                                      display: 'inline-flex',
+                                      borderRadius: '4px',
+                                    }}
                                     title={t('common.moveDown', { defaultValue: 'Move Down' })}
                                   >
-                                    <ArrowDown size={12} />
+                                    <ArrowDown size={13} />
                                   </button>
                                   <button
                                     type="button"
                                     disabled={saving}
                                     onClick={() => removeProcessFromForm(index)}
-                                    style={{ padding: '4px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'inline-flex', marginLeft: '4px' }}
+                                    style={{
+                                      padding: '4px',
+                                      border: 'none',
+                                      background: 'none',
+                                      cursor: 'pointer',
+                                      color: 'var(--danger)',
+                                      display: 'inline-flex',
+                                      borderRadius: '4px',
+                                      marginLeft: '2px',
+                                    }}
                                     title={t('common.remove')}
                                   >
-                                    <X size={13} />
+                                    <X size={14} />
                                   </button>
                                 </div>
                               </div>
@@ -959,7 +1030,7 @@ export function ProsthesisTypesPage() {
       {/* Edit Modal */}
       {showEditModal && selectedType && (
         <div className="modal-overlay" onClick={() => !saving && setShowEditModal(false)}>
-          <div className="modal" style={{ maxWidth: '750px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal" style={{ maxWidth: '880px', width: '92%' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <div>
                 <h2 className="modal__title">{t('prosthesisTypes.editProsthesis', { defaultValue: 'Edit Prosthesis Type' })}</h2>
@@ -1076,16 +1147,21 @@ export function ProsthesisTypesPage() {
                     </span>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: '1.25rem', minHeight: '220px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1.25rem', minHeight: '260px' }}>
                     {/* Left Column: Available Processes */}
-                    <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-overlay, #F8FAFC)', display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })} ({filteredBranchProcesses.length})
-                      </span>
+                    <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.875rem', backgroundColor: 'var(--bg-overlay, #F8FAFC)', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {t('prosthesisTypes.availableProcesses', { defaultValue: 'Available Processes' })}
+                        </span>
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-card)', padding: '2px 8px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                          {filteredBranchProcesses.length}
+                        </span>
+                      </div>
                       
                       {/* Search Bar */}
-                      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
-                        <div className="search-input-wrap" style={{ flexGrow: 1, height: '32px' }}>
+                      <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.75rem', minWidth: 0 }}>
+                        <div className="search-input-wrap" style={{ flexGrow: 1, height: '32px', minWidth: 0 }}>
                           <Search size={14} className="search-input__icon" style={{ left: '8px' }} />
                           <input
                             type="text"
@@ -1109,7 +1185,7 @@ export function ProsthesisTypesPage() {
                         <button
                           type="button"
                           className="btn btn--primary"
-                          style={{ height: '32px', padding: '0 0.5rem', fontSize: '0.75rem', minWidth: 'auto', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          style={{ height: '32px', padding: '0 0.625rem', fontSize: '0.75rem', minWidth: 'auto', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
                         >
                           <Search size={12} />
                           <span>{t('prosthesisTypes.searchProcesses', { defaultValue: 'Search' })}</span>
@@ -1121,7 +1197,7 @@ export function ProsthesisTypesPage() {
                           {processSearch ? t('common.noResults') : t('prosthesisTypes.noProcessesBranch', { defaultValue: 'No processes found for this branch. Create them in the Processes Page first.' })}
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px', minWidth: 0 }}>
                           {filteredBranchProcesses.map((p) => {
                             const isSelected = (form.processIds || []).includes(p.id);
                             return (
@@ -1143,10 +1219,28 @@ export function ProsthesisTypesPage() {
                                   cursor: isSelected ? 'default' : 'pointer',
                                   transition: 'all 0.2s',
                                   opacity: isSelected ? 0.5 : 1,
+                                  minWidth: 0,
+                                  boxSizing: 'border-box',
+                                  gap: '0.5rem',
                                 }}
                               >
-                                <div style={{ flexGrow: 1, minWidth: 0 }}>
-                                  <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                <div style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+                                  <span
+                                    title={p.name}
+                                    style={{
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      fontSize: '0.8125rem',
+                                      fontWeight: 600,
+                                      color: 'var(--text-primary)',
+                                      lineHeight: 1.3,
+                                      wordBreak: 'break-word',
+                                    }}
+                                  >
+                                    {p.name}
+                                  </span>
                                   {renderProcessSubtitle(p)}
                                 </div>
                                 {!isSelected && (
@@ -1157,7 +1251,8 @@ export function ProsthesisTypesPage() {
                                     backgroundColor: 'var(--accent-primary-glow)',
                                     padding: '2px 8px',
                                     borderRadius: '4px',
-                                    flexShrink: 0
+                                    flexShrink: 0,
+                                    alignSelf: 'center',
                                   }}>+ {t('common.add', { defaultValue: 'Add' })}</span>
                                 )}
                               </button>
@@ -1168,16 +1263,21 @@ export function ProsthesisTypesPage() {
                     </div>
 
                     {/* Right Column: Sequence Order */}
-                    <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-                        {t('prosthesisTypes.selectedSequence', { defaultValue: 'Selected Workflow Sequence' })} ({(form.processIds || []).length})
-                      </span>
+                    <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.875rem', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {t('prosthesisTypes.selectedSequence', { defaultValue: 'Selected Workflow Sequence' })}
+                        </span>
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-glow)', padding: '2px 8px', borderRadius: '10px' }}>
+                          {(form.processIds || []).length}
+                        </span>
+                      </div>
                       {(form.processIds || []).length === 0 ? (
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', border: '1px dashed var(--border)', borderRadius: '6px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {t('prosthesisTypes.noProcessesAddedDesc', { defaultValue: 'No processes added yet. Click available processes on the left to build the sequence.' })}
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px', minWidth: 0 }}>
                           {(form.processIds || []).map((id, index) => {
                             const p = branchProcesses.find((bp) => bp.id === id);
                             if (!p) return null;
@@ -1187,15 +1287,18 @@ export function ProsthesisTypesPage() {
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  padding: '0.4rem 0.5rem',
+                                  padding: '0.45rem 0.6rem',
                                   borderRadius: '6px',
                                   border: '1px solid var(--border)',
                                   backgroundColor: '#FFFFFF',
+                                  minWidth: 0,
+                                  boxSizing: 'border-box',
+                                  gap: '0.5rem',
                                 }}
                               >
                                 <span style={{
-                                  width: '18px',
-                                  height: '18px',
+                                  width: '20px',
+                                  height: '20px',
                                   borderRadius: '50%',
                                   backgroundColor: 'var(--accent-primary)',
                                   color: '#FFFFFF',
@@ -1204,42 +1307,81 @@ export function ProsthesisTypesPage() {
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   fontWeight: 700,
-                                  marginRight: '0.5rem',
-                                  flexShrink: 0
+                                  flexShrink: 0,
                                 }}>
                                   {index + 1}
                                 </span>
-                                <div style={{ flexGrow: 1, minWidth: 0 }}>
-                                  <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                <div style={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+                                  <span
+                                    title={p.name}
+                                    style={{
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      fontSize: '0.8125rem',
+                                      fontWeight: 600,
+                                      color: 'var(--text-primary)',
+                                      lineHeight: 1.3,
+                                      wordBreak: 'break-word',
+                                    }}
+                                  >
+                                    {p.name}
+                                  </span>
                                   {renderProcessSubtitle(p)}
                                 </div>
-                                <div style={{ display: 'flex', gap: '4px', marginLeft: '0.25rem', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0 }}>
                                   <button
                                     type="button"
                                     disabled={index === 0 || saving}
                                     onClick={() => moveProcessInForm(index, 'up')}
-                                    style={{ padding: '4px', border: 'none', background: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1, display: 'inline-flex' }}
+                                    style={{
+                                      padding: '4px',
+                                      border: 'none',
+                                      background: 'none',
+                                      cursor: index === 0 ? 'default' : 'pointer',
+                                      opacity: index === 0 ? 0.3 : 1,
+                                      display: 'inline-flex',
+                                      borderRadius: '4px',
+                                    }}
                                     title={t('common.moveUp', { defaultValue: 'Move Up' })}
                                   >
-                                    <ArrowUp size={12} />
+                                    <ArrowUp size={13} />
                                   </button>
                                   <button
                                     type="button"
                                     disabled={index === (form.processIds || []).length - 1 || saving}
                                     onClick={() => moveProcessInForm(index, 'down')}
-                                    style={{ padding: '4px', border: 'none', background: 'none', cursor: index === (form.processIds || []).length - 1 ? 'default' : 'pointer', opacity: index === (form.processIds || []).length - 1 ? 0.3 : 1, display: 'inline-flex' }}
+                                    style={{
+                                      padding: '4px',
+                                      border: 'none',
+                                      background: 'none',
+                                      cursor: index === (form.processIds || []).length - 1 ? 'default' : 'pointer',
+                                      opacity: index === (form.processIds || []).length - 1 ? 0.3 : 1,
+                                      display: 'inline-flex',
+                                      borderRadius: '4px',
+                                    }}
                                     title={t('common.moveDown', { defaultValue: 'Move Down' })}
                                   >
-                                    <ArrowDown size={12} />
+                                    <ArrowDown size={13} />
                                   </button>
                                   <button
                                     type="button"
                                     disabled={saving}
                                     onClick={() => removeProcessFromForm(index)}
-                                    style={{ padding: '4px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'inline-flex', marginLeft: '4px' }}
+                                    style={{
+                                      padding: '4px',
+                                      border: 'none',
+                                      background: 'none',
+                                      cursor: 'pointer',
+                                      color: 'var(--danger)',
+                                      display: 'inline-flex',
+                                      borderRadius: '4px',
+                                      marginLeft: '2px',
+                                    }}
                                     title={t('common.remove')}
                                   >
-                                    <X size={13} />
+                                    <X size={14} />
                                   </button>
                                 </div>
                               </div>

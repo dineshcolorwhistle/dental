@@ -2090,6 +2090,7 @@ a:hover { color: var(--accent-primary-hover); }
   flex-direction: column;
   gap: 1.125rem;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .modal__footer {
