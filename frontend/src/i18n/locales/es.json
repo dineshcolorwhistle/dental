@@ -690,6 +690,7 @@
     "deleteWarningText": "Esta acción no se puede deshacer. Todos los pasos del proceso y los datos asociados con esta orden de trabajo se eliminarán de forma permanente.",
     "editSubtitle": "Editar los detalles de la orden de trabajo de laboratorio dental existente",
     "editTitle": "Editar Orden de Trabajo",
+    "editTitleWithFolio": "#{{folio}} – Editar",
     "failedLoadProcesses": "Error al cargar los procesos para el tipo de prótesis seleccionado",
     "generating": "Generando...",
     "initialPayment": "Pago Inicial",

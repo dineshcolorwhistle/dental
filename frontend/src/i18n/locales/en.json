@@ -690,6 +690,7 @@
     "deleteWarningText": "This action cannot be undone. All process steps and data associated with this work order will be permanently removed.",
     "editSubtitle": "Edit existing dental lab work order details",
     "editTitle": "Edit Work Order",
+    "editTitleWithFolio": "#{{folio}} – Edit",
     "failedLoadProcesses": "Failed to load processes for the selected prosthesis type",
     "generating": "Generating...",
     "initialPayment": "Initial Payment",

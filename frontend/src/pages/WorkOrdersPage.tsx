@@ -640,7 +640,7 @@ export function WorkOrdersPage() {
   const validateTab1Details = (): boolean => {
     const errors: Record<string, string> = {};
     if (!form.doctorId) errors.doctorId = t('validation.fieldRequired', { defaultValue: 'Doctor is required' });
-    if (!form.patient.trim()) errors.patient = t('validation.fieldRequired', { defaultValue: 'Patient name is required' });
+    if (!showEditModal && !form.patient.trim()) errors.patient = t('validation.fieldRequired', { defaultValue: 'Patient name is required' });
     if (!form.prosthesisTypeId) errors.prosthesisTypeId = t('validation.fieldRequired', { defaultValue: 'Prosthesis type is required' });
     if (!isAdmin && branches.length > 0 && !form.branchId) errors.branchId = t('validation.fieldRequired', { defaultValue: 'Branch is required' });
     if (isAdmin && !form.specification.trim()) errors.specification = t('validation.fieldRequired', { defaultValue: 'Specification is required' });
@@ -2892,18 +2892,40 @@ export function WorkOrdersPage() {
       {showEditModal && editingWO && (
         <div className="modal-overlay" onClick={handleCloseEditModal}>
           <div className="modal modal--xl" onClick={(e) => e.stopPropagation()}>
-            <div className="modal__header">
+            <div className="modal__header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div>
-                <h2 className="modal__title">{t('workOrders.editTitle', { defaultValue: 'Edit Work Order' })}</h2>
-                <p className="modal__subtitle">{t('workOrders.editSubtitle', { folio: editingWO.folioNumber, defaultValue: `Edit work order ${editingWO.folioNumber}` })}</p>
+                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span>{t('workOrders.editTitleWithFolio', { folio: editingWO.folioNumber, defaultValue: `#${editingWO.folioNumber} – Edit` })}</span>
+                </h2>
+                <p className="modal__subtitle">{t('workOrders.editSubtitle', { folio: editingWO.folioNumber, defaultValue: 'Edit existing dental lab work order details' })}</p>
               </div>
-              <button
-                className="modal__close"
-                onClick={handleCloseEditModal}
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.125rem' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '4px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.8125rem',
+                    fontWeight: 700,
+                    color: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).color,
+                    backgroundColor: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).bg,
+                    border: `1px solid ${(STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).color}30`,
+                  }}
+                  title={t('workOrders.statusCalculatedTooltip', { defaultValue: 'Status is calculated automatically based on the process steps workflow and cannot be manually modified.' })}
+                >
+                  {(STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).icon}
+                  <span>{t(`enums.workOrderStatus.${currentWOStatus}`, { defaultValue: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).label })}</span>
+                </span>
+                <button
+                  className="modal__close"
+                  onClick={handleCloseEditModal}
+                  aria-label="Close"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             {/* Modal Tabs navigation */}
@@ -2989,10 +3011,10 @@ export function WorkOrdersPage() {
             <div className="modal__body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {modalTab === 'details' ? (
                 <>
-                  {/* Row 1: Doctor + Patient */}
+                  {/* Row 1: Doctor + Patient (Non-editable) */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="edit-wo-doctor">{t('workOrders.doctor', { defaultValue: 'Doctor' })} *</label>
+                      <label className="form-label" htmlFor="edit-wo-doctor">{t('workOrders.doctor', { defaultValue: 'Doctor' })}</label>
                       <SearchableSelect
                         id="edit-wo-doctor"
                         options={doctors.map((d) => ({
@@ -3001,13 +3023,10 @@ export function WorkOrdersPage() {
                         }))}
                         value={form.doctorId}
                         onChange={(val) => handleInputChange('doctorId', val)}
-                        disabled={saving}
+                        disabled={true}
+                        style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed' }}
                         placeholder={t('doctors.selectDoctor', { defaultValue: 'Select a doctor' })}
-                        error={!!formErrors.doctorId}
                       />
-                      {formErrors.doctorId && (
-                        <span className="form-error"><AlertCircle size={12} /> {formErrors.doctorId}</span>
-                      )}
                     </div>
 
                     <div className="form-group">
@@ -3019,7 +3038,8 @@ export function WorkOrdersPage() {
                         placeholder={t('workOrders.patientPlaceholder', { defaultValue: 'e.g., John Doe' })}
                         value={form.patient}
                         onChange={(e) => handleInputChange('patient', e.target.value)}
-                        disabled={saving}
+                        disabled={true}
+                        style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed' }}
                       />
                     </div>
                   </div>
@@ -3077,58 +3097,9 @@ export function WorkOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Row 3: Status (Calculated Field) */}
+                  {/* Row 3: Prosthesis Type (Non-editable) */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span>{t('workOrders.status', { defaultValue: 'Work Order Status' })}</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Lock size={12} />
-                        {t('workOrders.calculatedField', { defaultValue: 'Calculated Field' })}
-                      </span>
-                    </label>
-                    <div
-                      id="edit-wo-status"
-                      className="form-input"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        backgroundColor: 'var(--bg-muted, #F8FAFC)',
-                        borderColor: 'var(--border, #E2E8F0)',
-                        cursor: 'not-allowed',
-                        padding: '0.5rem 0.875rem',
-                        minHeight: '42px',
-                        userSelect: 'none',
-                      }}
-                      title={t('workOrders.statusCalculatedTooltip', { defaultValue: 'Status is calculated automatically based on the process steps workflow and cannot be manually modified.' })}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.375rem',
-                            padding: '3px 10px',
-                            borderRadius: '6px',
-                            fontSize: '0.8125rem',
-                            fontWeight: 700,
-                            color: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).color,
-                            backgroundColor: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).bg,
-                          }}
-                        >
-                          {(STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).icon}
-                          <span>{t(`enums.workOrderStatus.${currentWOStatus}`, { defaultValue: (STATUS_CONFIG[currentWOStatus] || STATUS_CONFIG.CREATED).label })}</span>
-                        </span>
-                      </div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {t('workOrders.autoCalculatedFromSteps', { defaultValue: 'Derived from process steps' })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Row 4: Prosthesis Type */}
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="edit-wo-prosthesis">{t('workOrders.prosthesisType')} *</label>
+                    <label className="form-label" htmlFor="edit-wo-prosthesis">{t('workOrders.prosthesisType')}</label>
                     <SearchableSelect
                       id="edit-wo-prosthesis"
                       options={prosthesisTypes.map((pt) => ({
@@ -3137,21 +3108,10 @@ export function WorkOrdersPage() {
                       }))}
                       value={form.prosthesisTypeId}
                       onChange={handleProsthesisTypeChange}
-                      disabled={saving || (editingWO !== null && editingWO.status !== 'CREATED')}
+                      disabled={true}
+                      style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed' }}
                       placeholder={t('workOrders.selectProsthesisType', { defaultValue: 'Select prosthesis type' })}
-                      error={!!formErrors.prosthesisTypeId}
                     />
-                    {formErrors.prosthesisTypeId && (
-                      <span className="form-error"><AlertCircle size={12} /> {formErrors.prosthesisTypeId}</span>
-                    )}
-                    {editingWO && editingWO.status !== 'CREATED' && (
-                      <span className="form-hint" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <AlertCircle size={12} />
-                        {t('workOrders.cannotChangeProsthesisTypeStarted', {
-                          defaultValue: 'Prosthesis type can only be changed when work order is in Created status.',
-                        })}
-                      </span>
-                    )}
                   </div>
 
                   {/* Specification (Admin only) */}

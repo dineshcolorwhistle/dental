@@ -17,6 +17,7 @@ interface SearchableSelectProps {
   disabled?: boolean;
   className?: string;
   error?: boolean;
+  style?: React.CSSProperties;
 }
 
 export function SearchableSelect({
@@ -28,6 +29,7 @@ export function SearchableSelect({
   disabled = false,
   className = '',
   error = false,
+  style,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -182,6 +184,7 @@ export function SearchableSelect({
         ref={triggerRef}
         type="button"
         disabled={disabled}
+        style={style}
         className={`form-input searchable-select__trigger ${
           error ? 'form-input--error' : ''
         } ${isOpen ? 'searchable-select__trigger--active' : ''}`}
