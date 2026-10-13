@@ -685,6 +685,7 @@
     "createAndAssignSuccess": "Work order created and assigned!",
     "createDesc": "Create your first work order to start managing lab workflows.",
     "createWorkOrderSubtitle": "Create a new dental lab work order",
+    "currentProcess": "Current",
     "deleteConfirmText": "Are you sure you want to delete this work order?",
     "deleteTitle": "Delete Work Order",
     "deleteWarningText": "This action cannot be undone. All process steps and data associated with this work order will be permanently removed.",

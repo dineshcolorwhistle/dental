@@ -685,6 +685,7 @@
     "createAndAssignSuccess": "¡Orden de trabajo creada y asignada!",
     "createDesc": "Cree su primera orden de trabajo para comenzar a administrar los flujos de trabajo del laboratorio.",
     "createWorkOrderSubtitle": "Crear una nueva orden de trabajo de laboratorio dental",
+    "currentProcess": "Actual",
     "deleteConfirmText": "¿Está seguro de que desea eliminar esta orden de trabajo?",
     "deleteTitle": "Eliminar Orden de Trabajo",
     "deleteWarningText": "Esta acción no se puede deshacer. Todos los pasos del proceso y los datos asociados con esta orden de trabajo se eliminarán de forma permanente.",

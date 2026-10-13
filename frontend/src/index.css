@@ -2401,6 +2401,17 @@ a:hover { color: var(--accent-primary-hover); }
   background: rgba(139, 92, 246, 0.03);
 }
 
+.wo-process-item--current {
+  border-color: rgba(59, 130, 246, 0.45);
+  border-left: 4px solid var(--accent-primary, #3B82F6) !important;
+  background: rgba(59, 130, 246, 0.05) !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
+}
+
+.wo-process-item--current .wo-process-item__number {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
 .wo-process-item__order {
   flex-shrink: 0;
 }

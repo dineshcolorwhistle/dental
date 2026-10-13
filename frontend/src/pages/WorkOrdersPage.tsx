@@ -68,6 +68,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   CANCELLED: { label: 'Cancelled', color: '#F97316', bg: '#FFF3E0', icon: <X size={12} /> },
 };
 
+const PROCESS_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
+  NOT_STARTED: { label: 'Not Started', color: '#64748B', bg: '#F8FAFC', border: '#E2E8F0', icon: <CircleDot size={12} /> },
+  IN_PROGRESS: { label: 'In Progress', color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', icon: <PlayCircle size={12} /> },
+  PAUSED: { label: 'Paused', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', icon: <Clock size={12} /> },
+  COMPLETED: { label: 'Completed', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', icon: <CheckCircle2 size={12} /> },
+  FAILED: { label: 'Failed', color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', icon: <AlertCircle size={12} /> },
+  CANCELLED: { label: 'Cancelled', color: '#EA580C', bg: '#FFF7ED', border: '#FED7AA', icon: <X size={12} /> },
+};
+
 interface PaymentHistoryItem {
   id?: string;
   amount: number;
@@ -341,6 +350,22 @@ export function WorkOrdersPage() {
     if (editingWO.status === 'CREATED') return 'CREATED';
     return calculateWorkOrderStatus(processList);
   }, [editingWO, processList]);
+  const currentProcessIdx = useMemo(() => {
+    if (!processList || processList.length === 0) return -1;
+    if (currentWOStatus === 'COMPLETED' || currentWOStatus === 'FAILED' || currentWOStatus === 'CANCELLED') {
+      return -1;
+    }
+    const inProgIdx = processList.findIndex((p) => p.status === 'IN_PROGRESS' || p.status === 'PAUSED');
+    if (inProgIdx !== -1) return inProgIdx;
+
+    if (currentWOStatus !== 'CREATED') {
+      const nextIdx = processList.findIndex(
+        (p) => p.status !== 'COMPLETED' && p.status !== 'FAILED' && p.status !== 'CANCELLED'
+      );
+      if (nextIdx !== -1) return nextIdx;
+    }
+    return -1;
+  }, [processList, currentWOStatus]);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [pendingAction, setPendingAction] = useState<'CREATE_ASSIGN' | 'EDIT_ASSIGN' | null>(null);
 
@@ -3625,22 +3650,53 @@ export function WorkOrdersPage() {
                     <div className="wo-process-list">
                       {processList.map((proc, idx) => {
                         const isStepStarted = proc.status && proc.status !== 'NOT_STARTED';
+                        const isStepNotStarted = !proc.status || proc.status === 'NOT_STARTED';
+                        const isCurrent = idx === currentProcessIdx;
                         const canMoveUp = idx > 0 && !isStepStarted && !(processList[idx - 1].status && processList[idx - 1].status !== 'NOT_STARTED');
                         const canMoveDown = idx < processList.length - 1 && !isStepStarted && !(processList[idx + 1].status && processList[idx + 1].status !== 'NOT_STARTED');
                         const canRemove = !isStepStarted;
                         return (
                           <div
                             key={proc.tempId}
-                            className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''}`}
+                            className={`wo-process-item ${proc.isVerification ? 'wo-process-item--verification' : ''} ${isCurrent ? 'wo-process-item--current' : ''}`}
                           >
                             <div className="wo-process-item__order">
                               <span className="wo-process-item__number">{idx + 1}</span>
                             </div>
 
-                            <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="wo-process-item__name" style={{ flex: '1', minWidth: '120px', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                               <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                                 {proc.processName}
                               </span>
+                              {isCurrent && (
+                                <span
+                                  style={{
+                                    fontSize: '0.6875rem',
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                                    color: 'var(--accent-primary, #3B82F6)',
+                                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    flexShrink: 0,
+                                    letterSpacing: '0.02em',
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      width: '6px',
+                                      height: '6px',
+                                      borderRadius: '50%',
+                                      backgroundColor: 'var(--accent-primary, #3B82F6)',
+                                      display: 'inline-block',
+                                    }}
+                                  />
+                                  {t('workOrders.currentProcess', { defaultValue: 'Current' })}
+                                </span>
+                              )}
                               {(() => {
                                 const isExternal = proc.processType === 'EXTERNAL_VERIFICATION' || (proc.isVerification && !proc.technicianId && proc.processType !== 'INTERNAL_VERIFICATION');
                                 const isInternal = proc.processType === 'INTERNAL_VERIFICATION' || (proc.isVerification && !isExternal);
@@ -3755,58 +3811,43 @@ export function WorkOrdersPage() {
                                     })()}
                                     value={proc.technicianId}
                                     onChange={(val) => updateProcessTechnician(idx, val)}
-                                    disabled={saving || (currentWOStatus !== 'CREATED' && isStepStarted && !proc.rework && !isAdmin)}
+                                    disabled={saving || !isStepNotStarted}
+                                    style={!isStepNotStarted ? { backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed' } : undefined}
                                     placeholder={isInternal ? t('workOrders.selectAdmin', { defaultValue: 'Select admin' }) : t('workOrders.selectTechnician', { defaultValue: 'Select technician' })}
                                   />
                                 );
                               })()}
                             </div>
 
-                            {/* Process Status selection (Conditions 1, 2, 4 + Completed lock) */}
+                            {/* Process Status (View-only, non-editable) */}
                             <div
                               className="wo-process-item__status"
-                              style={{ width: '150px' }}
-                              title={(() => {
-                                const isFirstStep = idx === 0;
-                                const prevStep = idx > 0 ? processList[idx - 1] : null;
-                                const isPrevFinished = prevStep?.status === 'COMPLETED' || prevStep?.status === 'FAILED';
-                                if (currentWOStatus === 'CREATED') {
-                                  return t('workOrders.statusLockedCreated', { defaultValue: 'Process status cannot be changed when Work Order is in Created status' });
-                                }
-                                if (proc.status === 'COMPLETED') {
-                                  return t('workOrders.statusLockedCompleted', { defaultValue: 'Completed process step cannot be modified' });
-                                }
-                                if (!isFirstStep && !isPrevFinished) {
-                                  return t('workOrders.statusLockedSequential', { defaultValue: 'Previous process step must be Completed or Failed before changing status' });
-                                }
-                                return undefined;
-                              })()}
+                              style={{ width: '150px', display: 'flex', alignItems: 'center' }}
                             >
                               {(() => {
-                                const isFirstStep = idx === 0;
-                                const prevStep = idx > 0 ? processList[idx - 1] : null;
-                                const isPrevFinished = prevStep?.status === 'COMPLETED' || prevStep?.status === 'FAILED';
-                                let canChangeStatus = currentWOStatus !== 'CREATED' && currentWOStatus !== 'COMPLETED' && (isFirstStep || isPrevFinished);
-                                if (proc.status === 'COMPLETED') {
-                                  canChangeStatus = false;
-                                }
-
+                                const s = proc.status || 'NOT_STARTED';
+                                const cfg = PROCESS_STATUS_CONFIG[s] || PROCESS_STATUS_CONFIG.NOT_STARTED;
                                 return (
-                                  <SearchableSelect
-                                    id={`select-edit-proc-status-${proc.tempId}`}
-                                    options={[
-                                      { value: 'NOT_STARTED', label: t('enums.processStatus.NOT_STARTED', { defaultValue: 'Not Started' }) },
-                                      { value: 'IN_PROGRESS', label: t('enums.processStatus.IN_PROGRESS', { defaultValue: 'In Progress' }) },
-                                      { value: 'PAUSED', label: t('enums.processStatus.PAUSED', { defaultValue: 'Paused' }) },
-                                      { value: 'COMPLETED', label: t('enums.processStatus.COMPLETED', { defaultValue: 'Completed' }) },
-                                      { value: 'FAILED', label: t('enums.processStatus.FAILED', { defaultValue: 'Failed' }) },
-                                      { value: 'CANCELLED', label: t('enums.processStatus.CANCELLED', { defaultValue: 'Cancelled' }) },
-                                    ]}
-                                    value={proc.status || 'NOT_STARTED'}
-                                    onChange={(val) => updateProcessStatus(idx, val as any)}
-                                    disabled={saving || !canChangeStatus}
-                                    placeholder={t('common.selectStatus', { defaultValue: 'Select status' })}
-                                  />
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.375rem',
+                                      padding: '6px 12px',
+                                      borderRadius: '6px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 700,
+                                      color: cfg.color,
+                                      backgroundColor: cfg.bg,
+                                      border: `1px solid ${cfg.border}`,
+                                      width: '100%',
+                                      justifyContent: 'center',
+                                      userSelect: 'none',
+                                    }}
+                                  >
+                                    {cfg.icon}
+                                    <span>{t(`enums.processStatus.${s}`, { defaultValue: cfg.label })}</span>
+                                  </span>
                                 );
                               })()}
                             </div>
