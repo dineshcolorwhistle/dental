@@ -76,6 +76,7 @@ export function DashboardPage() {
   } | null>(null);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
   const [showAllProductionTasks, setShowAllProductionTasks] = useState(false);
+  const [activeActionTab, setActiveActionTab] = useState<'production' | 'verification' | null>(null);
   const [inProgressSearch, setInProgressSearch] = useState('');
   const [verificationSearch, setVerificationSearch] = useState('');
 
@@ -221,6 +222,7 @@ export function DashboardPage() {
   const displayedAlerts = showAllAlerts ? alerts : alerts.slice(0, 3);
   const assignedProductionTasks = stats?.assignedProductionSteps || [];
   const displayedProductionTasks = showAllProductionTasks ? assignedProductionTasks : assignedProductionTasks.slice(0, 3);
+  const effectiveActionTab = activeActionTab || (assignedProductionTasks.length > 0 ? 'production' : 'verification');
   const statusSummary = stats?.woStatusSummary || {};
   const pendingProcs = stats?.pendingProcesses || [];
   const inProgressWOs = stats?.inProgressWOs || [];
@@ -314,480 +316,8 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Verification Alerts Panel */}
-      {alerts.length > 0 && (
-        <div className="dashboard-card" style={{
-          border: '1px solid rgba(139, 92, 246, 0.25)',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          marginBottom: '2rem',
-          background: 'linear-gradient(to right, rgba(139, 92, 246, 0.03), rgba(99, 102, 241, 0.03))',
-          boxShadow: '0 4px 20px -2px rgba(139, 92, 246, 0.06)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
-            <h3 className="dashboard-card__title" style={{
-              fontSize: '1.05rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              margin: 0
-            }}>
-              <ShieldCheck size={20} style={{ color: '#8B5CF6' }} />
-              {t('dashboard.pendingVerificationAlerts')}
-              <span style={{
-                fontSize: '0.75rem',
-                backgroundColor: '#8B5CF6',
-                color: '#FFFFFF',
-                padding: '2px 8px',
-                borderRadius: '100px',
-                fontWeight: 700
-              }}>{alerts.length}</span>
-            </h3>
-
-            {alerts.length > 3 && (
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                style={{
-                  fontSize: '0.75rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  color: '#8B5CF6',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(139, 92, 246, 0.25)',
-                  backgroundColor: 'rgba(139, 92, 246, 0.05)'
-                }}
-                onClick={() => setShowAllAlerts(prev => !prev)}
-              >
-                {showAllAlerts
-                  ? t('dashboard.showTop3')
-                  : t('dashboard.showAllWithCount', { count: alerts.length })}
-                {showAllAlerts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            )}
-          </div>
-
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            ...(showAllAlerts && { maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' })
-          }}>
-            {displayedAlerts.map((alert: any) => {
-              const isNotStarted = alert.status === 'NOT_STARTED';
-              const isInternal = alert.type === 'INTERNAL';
-              return (
-                <div key={alert.id} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.875rem 1rem',
-                  backgroundColor: 'var(--bg-surface, #FFFFFF)',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border)',
-                  boxShadow: 'var(--shadow-sm)',
-                  flexWrap: 'wrap',
-                  gap: '0.75rem'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
-                        {alert.folioNumber}
-                      </span>
-                      <span
-                        title={alert.patient}
-                        style={{
-                          fontSize: '0.875rem',
-                          fontWeight: 600,
-                          maxWidth: '220px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {alert.patient}
-                      </span>
-                      <span style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: isInternal ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                        color: isInternal ? '#8B5CF6' : '#6366F1'
-                  }}>
-                    {isInternal ? t('enums.verificationType.INTERNAL') : t('enums.verificationType.EXTERNAL')} {t('dashboard.verification')}
-                      </span>
-                      <span style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: isNotStarted ? 'rgba(156, 163, 175, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                        color: isNotStarted ? '#6B7280' : '#F59E0B'
-                      }}>
-                        {isNotStarted ? t('enums.processStatus.NOT_STARTED') : t('enums.processStatus.IN_PROGRESS')}
-                      </span>
-                      {alert.externalDoctorStatus && (
-                        <span style={{
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: alert.externalDoctorStatus === 'SUCCESS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                          color: alert.externalDoctorStatus === 'SUCCESS' ? '#10B981' : '#EF4444',
-                        }}>
-                          {t('dashboard.doctorStatus')}: {t(`enums.externalDoctorStatus.${alert.externalDoctorStatus}`, { defaultValue: alert.externalDoctorStatus })}
-                        </span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      {t('dashboard.process')}: <strong>{alert.type === 'INTERNAL' ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' }) : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })}</strong> • {t('dashboard.assignedEvaluator')}: <strong>{alert.assignedTo}</strong>
-                    </span>
-                    {alert.externalDoctorNotes && (
-                      <div style={{
-                        marginTop: '4px',
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                        borderLeft: '3px solid #EF4444',
-                        fontSize: '0.78rem',
-                        color: 'var(--text-primary)',
-                        maxWidth: '100%'
-                      }}>
-                        <strong>{t('dashboard.doctorNotes')}:</strong> {alert.externalDoctorNotes}
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <button
-                      className="btn btn--ghost btn--sm"
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--border)' }}
-                      onClick={() => {
-                        setSelectedWOId(alert.workOrderId);
-                        setShowViewModal(true);
-                      }}
-                    >
-                      <Eye size={12} /> {t('dashboard.viewWO')}
-                    </button>
-                    {(alert.type === 'EXTERNAL' || !alert.technicianId) && Boolean(alert.doctorPhone) && (
-                      <button
-                        type="button"
-                        className="btn-whatsapp"
-                        style={{ padding: '6px 10px' }}
-                        title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
-                        onClick={() => {
-                          setWhatsAppModalData({
-                            recipientName: alert.doctorName || alert.assignedTo || 'Doctor',
-                            recipientPhone: alert.doctorPhone,
-                            workOrderData: {
-                              workOrderId: alert.workOrderId,
-                              folioNumber: alert.folioNumber,
-                              boxNumber: alert.boxNumber,
-                            },
-                          });
-                        }}
-                      >
-                        <WhatsAppIcon size={16} />
-                      </button>
-                    )}
-                    {(() => {
-                      const isExternal = alert.type === 'EXTERNAL';
-                      const isAssigned = isExternal
-                        ? (user?.role === 'ADMIN' || user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN')
-                        : (alert.technicianId === user?.id || user?.role === 'SUPER_ADMIN');
-
-                      if (!isAssigned) return null;
-
-                      if (isNotStarted) {
-                        if (isExternal) return null;
-                        return (
-                          <button
-                            className="btn btn--primary btn--sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#8B5CF6', border: 'none' }}
-                            onClick={() => handleStartVerification(alert.workOrderId, alert.id)}
-                          >
-                            <Play size={12} /> {t('dashboard.startVerification')}
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <button
-                          className="btn btn--primary btn--sm"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            backgroundColor: '#10B981',
-                            border: 'none',
-                            cursor: 'pointer',
-                          }}
-                          onClick={() => triggerOutcomeSelection(alert)}
-                        >
-                          <Check size={12} /> {t('dashboard.endVerification')}
-                        </button>
-                      );
-                    })()}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* My Assigned Production Tasks Panel */}
-      {assignedProductionTasks.length > 0 && (
-        <div className="dashboard-card" style={{
-          border: '1px solid rgba(59, 130, 246, 0.25)',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          marginBottom: '2rem',
-          background: 'linear-gradient(to right, rgba(59, 130, 246, 0.03), rgba(14, 165, 233, 0.03))',
-          boxShadow: '0 4px 20px -2px rgba(59, 130, 246, 0.06)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
-            <h3 className="dashboard-card__title" style={{
-              fontSize: '1.05rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              margin: 0
-            }}>
-              <Play size={20} style={{ color: '#3B82F6' }} />
-              {t('dashboard.myAssignedProductionTasks', { defaultValue: 'My Assigned Production Tasks' })}
-              <span style={{
-                fontSize: '0.75rem',
-                backgroundColor: '#3B82F6',
-                color: '#FFFFFF',
-                padding: '2px 8px',
-                borderRadius: '100px',
-                fontWeight: 700
-              }}>{assignedProductionTasks.length}</span>
-            </h3>
-
-            {assignedProductionTasks.length > 3 && (
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                style={{
-                  fontSize: '0.75rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  color: '#3B82F6',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                  backgroundColor: 'rgba(59, 130, 246, 0.05)'
-                }}
-                onClick={() => setShowAllProductionTasks(prev => !prev)}
-              >
-                {showAllProductionTasks
-                  ? t('dashboard.showTop3', { defaultValue: 'Show Top 3' })
-                  : t('dashboard.showAllWithCount', { count: assignedProductionTasks.length, defaultValue: `Show All (${assignedProductionTasks.length})` })}
-                {showAllProductionTasks ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            )}
-          </div>
-
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            ...(showAllProductionTasks && { maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' })
-          }}>
-            {displayedProductionTasks.map((task: any) => {
-              const isNotStarted = task.status === 'NOT_STARTED';
-              const isInProgress = task.status === 'IN_PROGRESS';
-              const isPaused = task.status === 'PAUSED' || (task.status === 'IN_PROGRESS' && Boolean(task.lastPausedAt));
-
-              return (
-                <div key={task.id} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.875rem 1rem',
-                  backgroundColor: 'var(--bg-surface, #FFFFFF)',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border)',
-                  boxShadow: 'var(--shadow-sm)',
-                  flexWrap: 'wrap',
-                  gap: '0.75rem'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
-                        {task.folioNumber}
-                      </span>
-                      {task.boxNumber && (
-                        <span style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                          color: '#3B82F6',
-                        }}>
-                          {t('workOrders.boxNumber', { defaultValue: 'Box' })} #{task.boxNumber}
-                        </span>
-                      )}
-                      <span
-                        title={task.patient}
-                        style={{
-                          fontSize: '0.875rem',
-                          fontWeight: 600,
-                          maxWidth: '220px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {task.patient}
-                      </span>
-                      <span style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: isNotStarted ? 'rgba(156, 163, 175, 0.1)' : isPaused ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                        color: isNotStarted ? '#6B7280' : isPaused ? '#F59E0B' : '#10B981'
-                      }}>
-                        {isNotStarted ? t('enums.processStatus.NOT_STARTED') : isPaused ? t('enums.processStatus.PAUSED') : t('enums.processStatus.IN_PROGRESS')}
-                      </span>
-                      {task.isRework && (
-                        <span style={{
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                          color: '#EF4444'
-                        }}>
-                          {t('workOrder.reworkActive', { defaultValue: 'Rework' })}
-                        </span>
-                      )}
-                      {task.isRepetition && (
-                        <span style={{
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                          backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                          color: '#8B5CF6'
-                        }}>
-                          {t('workOrders.repetition', { defaultValue: 'Repetition' })}
-                        </span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      {t('dashboard.process')}: <strong>{task.processName}</strong> (#{task.sequence}) &bull; {t('dashboard.doctor')}: <strong>{task.doctorName || '—'}</strong>
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      className="btn btn--ghost btn--sm"
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--border)' }}
-                      onClick={() => {
-                        setSelectedWOId(task.workOrderId);
-                        setShowViewModal(true);
-                      }}
-                    >
-                      <Eye size={12} /> {t('dashboard.viewWO')}
-                    </button>
-                    {Boolean(task.doctorPhone) && (
-                      <button
-                        type="button"
-                        className="btn-whatsapp"
-                        style={{ padding: '6px 10px' }}
-                        title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
-                        onClick={() => {
-                          setWhatsAppModalData({
-                            recipientName: task.doctorName || 'Doctor',
-                            recipientPhone: task.doctorPhone,
-                            workOrderData: {
-                              workOrderId: task.workOrderId,
-                              folioNumber: task.folioNumber,
-                              boxNumber: task.boxNumber,
-                            },
-                          });
-                        }}
-                      >
-                        <WhatsAppIcon size={16} />
-                      </button>
-                    )}
-
-                    {/* Action Controls for Admin */}
-                    {isNotStarted && (
-                      <button
-                        className="btn btn--primary btn--sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#3B82F6', border: 'none', cursor: 'pointer' }}
-                        onClick={() => handleProductionAction(task.workOrderId, task.id, 'start')}
-                      >
-                        <Play size={12} /> {t('workOrder.startProcess', { defaultValue: 'Start' })}
-                      </button>
-                    )}
-
-                    {isInProgress && !isPaused && (
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button
-                          className="btn btn--warning btn--sm"
-                          style={{ display: 'flex', alignItems: 'center', gap: '4px', border: 'none', cursor: 'pointer' }}
-                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'pause')}
-                        >
-                          <Pause size={12} /> {t('workOrder.pauseProcess', { defaultValue: 'Pause' })}
-                        </button>
-                        <button
-                          className="btn btn--primary btn--sm"
-                          style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', cursor: 'pointer' }}
-                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'end')}
-                        >
-                          <CheckCircle2 size={12} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
-                        </button>
-                      </div>
-                    )}
-
-                    {isPaused && (
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button
-                          className="btn btn--success btn--sm"
-                          style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}
-                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'resume')}
-                        >
-                          <Play size={12} /> {t('workOrder.resumeProcess', { defaultValue: 'Resume' })}
-                        </button>
-                        <button
-                          className="btn btn--primary btn--sm"
-                          style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', cursor: 'pointer' }}
-                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'end')}
-                        >
-                          <CheckCircle2 size={12} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Counters Grid */}
-      <div className="dashboard-page__stats" style={{ marginBottom: '2.5rem' }}>
+      <div className="dashboard-page__stats" style={{ marginBottom: '2rem' }}>
         <div className="stat-card" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
           <div className="stat-card__icon stat-card__icon--primary">
             <Activity size={24} />
@@ -828,6 +358,522 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Unified Action Center (Segmented Tabs) */}
+      {(assignedProductionTasks.length > 0 || alerts.length > 0) && (
+        <div className="dashboard-card" style={{
+          border: '1px solid var(--border)',
+          borderRadius: '16px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '2rem',
+          background: effectiveActionTab === 'production'
+            ? 'linear-gradient(to right, rgba(59, 130, 246, 0.03), rgba(14, 165, 233, 0.03))'
+            : 'linear-gradient(to right, rgba(139, 92, 246, 0.03), rgba(99, 102, 241, 0.03))',
+          boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.04)'
+        }}>
+          {/* Header with Segmented Tabs and Show All Toggle */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            {/* Left: Segmented Tabs */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              backgroundColor: 'var(--bg-overlay, rgba(0, 0, 0, 0.05))',
+              padding: '3px',
+              borderRadius: '10px',
+              border: '1px solid var(--border)',
+              gap: '2px'
+            }}>
+              {assignedProductionTasks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveActionTab('production')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: effectiveActionTab === 'production' ? 700 : 500,
+                    color: effectiveActionTab === 'production' ? '#1D4ED8' : 'var(--text-secondary)',
+                    backgroundColor: effectiveActionTab === 'production' ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: effectiveActionTab === 'production' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Play size={13} style={{ color: effectiveActionTab === 'production' ? '#3B82F6' : 'currentColor' }} />
+                  <span>{t('dashboard.myProductionTasks', { defaultValue: 'My Production Tasks' })}</span>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    backgroundColor: effectiveActionTab === 'production' ? '#3B82F6' : 'rgba(100, 116, 139, 0.25)',
+                    color: '#FFFFFF',
+                    padding: '1px 6px',
+                    borderRadius: '100px',
+                    fontWeight: 700
+                  }}>
+                    {assignedProductionTasks.length}
+                  </span>
+                </button>
+              )}
+
+              {alerts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveActionTab('verification')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: effectiveActionTab === 'verification' ? 700 : 500,
+                    color: effectiveActionTab === 'verification' ? '#6D28D9' : 'var(--text-secondary)',
+                    backgroundColor: effectiveActionTab === 'verification' ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: effectiveActionTab === 'verification' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <ShieldCheck size={13} style={{ color: effectiveActionTab === 'verification' ? '#8B5CF6' : 'currentColor' }} />
+                  <span>{t('dashboard.verificationAlerts', { defaultValue: 'Verification Alerts' })}</span>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    backgroundColor: effectiveActionTab === 'verification' ? '#8B5CF6' : 'rgba(100, 116, 139, 0.25)',
+                    color: '#FFFFFF',
+                    padding: '1px 6px',
+                    borderRadius: '100px',
+                    fontWeight: 700
+                  }}>
+                    {alerts.length}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Right: Show All / Show Top 3 Toggle */}
+            {effectiveActionTab === 'production' && assignedProductionTasks.length > 3 && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                style={{
+                  fontSize: '0.75rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: '#3B82F6',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.05)'
+                }}
+                onClick={() => setShowAllProductionTasks(prev => !prev)}
+              >
+                {showAllProductionTasks
+                  ? t('dashboard.showTop3', { defaultValue: 'Show top 3' })
+                  : t('dashboard.showAllWithCount', { count: assignedProductionTasks.length, defaultValue: `Show all (${assignedProductionTasks.length})` })}
+                {showAllProductionTasks ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            )}
+
+            {effectiveActionTab === 'verification' && alerts.length > 3 && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                style={{
+                  fontSize: '0.75rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: '#8B5CF6',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(139, 92, 246, 0.25)',
+                  backgroundColor: 'rgba(139, 92, 246, 0.05)'
+                }}
+                onClick={() => setShowAllAlerts(prev => !prev)}
+              >
+                {showAllAlerts
+                  ? t('dashboard.showTop3', { defaultValue: 'Show top 3' })
+                  : t('dashboard.showAllWithCount', { count: alerts.length, defaultValue: `Show all (${alerts.length})` })}
+                {showAllAlerts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            )}
+          </div>
+
+          {/* Tab 1: Production Tasks Content */}
+          {effectiveActionTab === 'production' && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.625rem',
+              ...(showAllProductionTasks && { maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' })
+            }}>
+              {displayedProductionTasks.map((task: any) => {
+                const isNotStarted = task.status === 'NOT_STARTED';
+                const isInProgress = task.status === 'IN_PROGRESS';
+                const isPaused = task.status === 'PAUSED' || (task.status === 'IN_PROGRESS' && Boolean(task.lastPausedAt));
+
+                return (
+                  <div key={task.id} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.625rem 0.875rem',
+                    backgroundColor: 'var(--bg-surface, #FFFFFF)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    boxShadow: 'var(--shadow-sm)',
+                    flexWrap: 'wrap',
+                    gap: '0.625rem'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '1px 5px', borderRadius: '4px', flexShrink: 0 }}>
+                          {task.folioNumber}
+                        </span>
+                        {task.boxNumber && (
+                          <span style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            color: '#3B82F6',
+                          }}>
+                            {t('workOrders.boxNumber', { defaultValue: 'Box' })} #{task.boxNumber}
+                          </span>
+                        )}
+                        <span
+                          title={task.patient}
+                          style={{
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            maxWidth: '220px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {task.patient}
+                        </span>
+                        <span style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          backgroundColor: isNotStarted ? 'rgba(156, 163, 175, 0.1)' : isPaused ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                          color: isNotStarted ? '#6B7280' : isPaused ? '#F59E0B' : '#10B981'
+                        }}>
+                          {isNotStarted ? t('enums.processStatus.NOT_STARTED') : isPaused ? t('enums.processStatus.PAUSED') : t('enums.processStatus.IN_PROGRESS')}
+                        </span>
+                        {task.isRework && (
+                          <span style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            color: '#EF4444'
+                          }}>
+                            {t('workOrder.reworkActive', { defaultValue: 'Rework' })}
+                          </span>
+                        )}
+                        {task.isRepetition && (
+                          <span style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            color: '#8B5CF6'
+                          }}>
+                            {t('workOrders.repetition', { defaultValue: 'Repetition' })}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {t('dashboard.process')}: <strong>{task.processName}</strong> (#{task.sequence}) &bull; {t('dashboard.doctor')}: <strong>{task.doctorName || '—'}</strong>
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px', border: '1px solid var(--border)', padding: '4px 8px', fontSize: '0.75rem' }}
+                        onClick={() => {
+                          setSelectedWOId(task.workOrderId);
+                          setShowViewModal(true);
+                        }}
+                      >
+                        <Eye size={12} /> {t('dashboard.viewWO')}
+                      </button>
+                      {Boolean(task.doctorPhone) && (
+                        <button
+                          type="button"
+                          className="btn-whatsapp"
+                          style={{ padding: '4px 8px' }}
+                          title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
+                          onClick={() => {
+                            setWhatsAppModalData({
+                              recipientName: task.doctorName || 'Doctor',
+                              recipientPhone: task.doctorPhone,
+                              workOrderData: {
+                                workOrderId: task.workOrderId,
+                                folioNumber: task.folioNumber,
+                                boxNumber: task.boxNumber,
+                              },
+                            });
+                          }}
+                        >
+                          <WhatsAppIcon size={15} />
+                        </button>
+                      )}
+
+                      {/* Action Controls for Admin */}
+                      {isNotStarted && (
+                        <button
+                          className="btn btn--primary btn--sm"
+                          style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: '#3B82F6', border: 'none', cursor: 'pointer', padding: '4px 10px', fontSize: '0.75rem' }}
+                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'start')}
+                        >
+                          <Play size={12} /> {t('workOrder.startProcess', { defaultValue: 'Start' })}
+                        </button>
+                      )}
+
+                      {isInProgress && !isPaused && (
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            className="btn btn--warning btn--sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: '0.75rem' }}
+                            onClick={() => handleProductionAction(task.workOrderId, task.id, 'pause')}
+                          >
+                            <Pause size={12} /> {t('workOrder.pauseProcess', { defaultValue: 'Pause' })}
+                          </button>
+                          <button
+                            className="btn btn--primary btn--sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: '0.75rem' }}
+                            onClick={() => handleProductionAction(task.workOrderId, task.id, 'end')}
+                          >
+                            <CheckCircle2 size={12} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                          </button>
+                        </div>
+                      )}
+
+                      {isPaused && (
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            className="btn btn--success btn--sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', color: '#fff', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: '0.75rem' }}
+                            onClick={() => handleProductionAction(task.workOrderId, task.id, 'resume')}
+                          >
+                            <Play size={12} /> {t('workOrder.resumeProcess', { defaultValue: 'Resume' })}
+                          </button>
+                          <button
+                            className="btn btn--primary btn--sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: '0.75rem' }}
+                            onClick={() => handleProductionAction(task.workOrderId, task.id, 'end')}
+                          >
+                            <CheckCircle2 size={12} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Tab 2: Verification Alerts Content */}
+          {effectiveActionTab === 'verification' && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.625rem',
+              ...(showAllAlerts && { maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' })
+            }}>
+              {displayedAlerts.map((alert: any) => {
+                const isNotStarted = alert.status === 'NOT_STARTED';
+                const isInternal = alert.type === 'INTERNAL';
+                return (
+                  <div key={alert.id} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.625rem 0.875rem',
+                    backgroundColor: 'var(--bg-surface, #FFFFFF)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    boxShadow: 'var(--shadow-sm)',
+                    flexWrap: 'wrap',
+                    gap: '0.625rem'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '1px 5px', borderRadius: '4px', flexShrink: 0 }}>
+                          {alert.folioNumber}
+                        </span>
+                        <span
+                          title={alert.patient}
+                          style={{
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            maxWidth: '220px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {alert.patient}
+                        </span>
+                        <span style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          backgroundColor: isInternal ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                          color: isInternal ? '#8B5CF6' : '#6366F1'
+                        }}>
+                          {isInternal ? t('enums.verificationType.INTERNAL') : t('enums.verificationType.EXTERNAL')} {t('dashboard.verification')}
+                        </span>
+                        <span style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          backgroundColor: isNotStarted ? 'rgba(156, 163, 175, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: isNotStarted ? '#6B7280' : '#F59E0B'
+                        }}>
+                          {isNotStarted ? t('enums.processStatus.NOT_STARTED') : t('enums.processStatus.IN_PROGRESS')}
+                        </span>
+                        {alert.externalDoctorStatus && (
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: alert.externalDoctorStatus === 'SUCCESS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                            color: alert.externalDoctorStatus === 'SUCCESS' ? '#10B981' : '#EF4444',
+                          }}>
+                            {t('dashboard.doctorStatus')}: {t(`enums.externalDoctorStatus.${alert.externalDoctorStatus}`, { defaultValue: alert.externalDoctorStatus })}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {t('dashboard.process')}: <strong>{alert.type === 'INTERNAL' ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' }) : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })}</strong> &bull; {t('dashboard.assignedEvaluator')}: <strong>{alert.assignedTo}</strong>
+                      </span>
+                      {alert.externalDoctorNotes && (
+                        <div style={{
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                          borderLeft: '3px solid #EF4444',
+                          fontSize: '0.75rem',
+                          color: 'var(--text-primary)',
+                          maxWidth: '100%'
+                        }}>
+                          <strong>{t('dashboard.doctorNotes')}:</strong> {alert.externalDoctorNotes}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px', border: '1px solid var(--border)', padding: '4px 8px', fontSize: '0.75rem' }}
+                        onClick={() => {
+                          setSelectedWOId(alert.workOrderId);
+                          setShowViewModal(true);
+                        }}
+                      >
+                        <Eye size={12} /> {t('dashboard.viewWO')}
+                      </button>
+                      {(alert.type === 'EXTERNAL' || !alert.technicianId) && Boolean(alert.doctorPhone) && (
+                        <button
+                          type="button"
+                          className="btn-whatsapp"
+                          style={{ padding: '4px 8px' }}
+                          title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
+                          onClick={() => {
+                            setWhatsAppModalData({
+                              recipientName: alert.doctorName || alert.assignedTo || 'Doctor',
+                              recipientPhone: alert.doctorPhone,
+                              workOrderData: {
+                                workOrderId: alert.workOrderId,
+                                folioNumber: alert.folioNumber,
+                                boxNumber: alert.boxNumber,
+                              },
+                            });
+                          }}
+                        >
+                          <WhatsAppIcon size={15} />
+                        </button>
+                      )}
+                      {(() => {
+                        const isExternal = alert.type === 'EXTERNAL';
+                        const isAssigned = isExternal
+                          ? (user?.role === 'ADMIN' || user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN')
+                          : (alert.technicianId === user?.id || user?.role === 'SUPER_ADMIN');
+
+                        if (!isAssigned) return null;
+
+                        if (isNotStarted) {
+                          if (isExternal) return null;
+                          return (
+                            <button
+                              className="btn btn--primary btn--sm"
+                              style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: '#8B5CF6', border: 'none', padding: '4px 10px', fontSize: '0.75rem' }}
+                              onClick={() => handleStartVerification(alert.workOrderId, alert.id)}
+                            >
+                              <Play size={12} /> {t('dashboard.startVerification')}
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <button
+                            className="btn btn--primary btn--sm"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              backgroundColor: '#10B981',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '4px 10px',
+                              fontSize: '0.75rem'
+                            }}
+                            onClick={() => triggerOutcomeSelection(alert)}
+                          >
+                            <Check size={12} /> {t('dashboard.endVerification')}
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Workflow Pipelines: In-Progress and Verification WOs Segregated */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem', marginBottom: '2.5rem' }}>

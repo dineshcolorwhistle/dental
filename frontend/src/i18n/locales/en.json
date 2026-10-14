@@ -357,6 +357,8 @@
     "completedToday": "Completed Today",
     "pendingVerificationAlerts": "Pending Verification Alerts",
     "myAssignedProductionTasks": "My Assigned Production Tasks",
+    "myProductionTasks": "My Production Tasks",
+    "verificationAlerts": "Verification Alerts",
     "noAssignedProductionTasks": "No production tasks currently assigned to you",
     "showAllWithCount": "Show all ({{count}})",
     "showTop3": "Show top 3",

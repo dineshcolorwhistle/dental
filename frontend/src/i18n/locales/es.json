@@ -357,6 +357,8 @@
     "completedToday": "Completadas Hoy",
     "pendingVerificationAlerts": "Alertas de Verificación Pendientes",
     "myAssignedProductionTasks": "Mis Tareas de Producción Asignadas",
+    "myProductionTasks": "Mis Tareas de Producción",
+    "verificationAlerts": "Alertas de Verificación",
     "noAssignedProductionTasks": "No tiene tareas de producción asignadas actualmente",
     "showAllWithCount": "Ver todos ({{count}})",
     "showTop3": "Ver los 3 primeros",
