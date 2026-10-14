@@ -13,6 +13,8 @@ import {
   CircleDot,
   Clock,
   PlayCircle,
+  Play,
+  Pause,
   CheckCircle2,
   AlertCircle,
   X,
@@ -181,6 +183,38 @@ export function WorkOrderDetailPage() {
   useEffect(() => {
     fetchWorkOrder(false);
   }, [fetchWorkOrder]);
+
+  const isLabAdminOrOwner = ['ADMIN', 'OWNER', 'SUPER_ADMIN'].includes(user?.role || '');
+
+  const handleProcessAction = async (processId: string, action: 'start' | 'pause' | 'resume' | 'end') => {
+    if (!workOrder) return;
+    const actionKeys: Record<string, string> = {
+      start: 'startingProcess',
+      pause: 'pausingProcess',
+      resume: 'resumingProcess',
+      end: 'endingProcess',
+    };
+    const loadingToast = toast.loading(t(`techDashboard.${actionKeys[action]}`, { defaultValue: 'Processing...' }));
+    try {
+      if (action === 'start') {
+        await workOrderService.startProcess(workOrder.id, processId);
+        toast.success(t('techDashboard.processStarted', { defaultValue: 'Process started!' }), { id: loadingToast });
+      } else if (action === 'pause') {
+        await workOrderService.pauseProcess(workOrder.id, processId);
+        toast.success(t('techDashboard.processPaused', { defaultValue: 'Process paused!' }), { id: loadingToast });
+      } else if (action === 'resume') {
+        await workOrderService.resumeProcess(workOrder.id, processId);
+        toast.success(t('techDashboard.processResumed', { defaultValue: 'Process resumed!' }), { id: loadingToast });
+      } else if (action === 'end') {
+        await workOrderService.endProcess(workOrder.id, processId);
+        toast.success(t('techDashboard.processEnded', { defaultValue: 'Process completed!' }), { id: loadingToast });
+      }
+      fetchWorkOrder(true);
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || t('techDashboard.processActionFailed', { action, defaultValue: 'Action failed' });
+      toast.error(errMsg, { id: loadingToast });
+    }
+  };
 
   useEffect(() => {
     if (!socket || !id) return;
@@ -735,6 +769,7 @@ export function WorkOrderDetailPage() {
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrder.endTime')}</th>
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrder.timeAudit')}</th>
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
+                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.actions', { defaultValue: 'Actions' })}</th>
                 </tr>
               </thead>
               <tbody>
@@ -914,12 +949,92 @@ export function WorkOrderDetailPage() {
                             {statusLabel}
                           </span>
                         </td>
+
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          {!proc.isVerification && isLabAdminOrOwner && (proc.technicianId === user?.id || user?.role === 'SUPER_ADMIN') && !['COMPLETED', 'FAILED', 'CANCELLED'].includes(workOrder.status) ? (
+                            (() => {
+                              const precedingComplete = processes
+                                .filter((p: any) => p.sequence < proc.sequence)
+                                .every((p: any) => p.status === 'COMPLETED');
+
+                              if (stepStatus === 'NOT_STARTED') {
+                                if (precedingComplete) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      className="btn btn--primary btn--sm"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#3B82F6', border: 'none', padding: '4px 10px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                      onClick={() => handleProcessAction(proc.id, 'start')}
+                                    >
+                                      <Play size={12} /> {t('workOrder.startProcess', { defaultValue: 'Start' })}
+                                    </button>
+                                  );
+                                }
+                                return (
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                    <Clock size={11} /> {t('techDashboard.precedingStepBlocked', { defaultValue: 'Preceding step pending' })}
+                                  </span>
+                                );
+                              }
+
+                              if (stepStatus === 'IN_PROGRESS') {
+                                return (
+                                  <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn--warning btn--sm"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', border: 'none', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                      onClick={() => handleProcessAction(proc.id, 'pause')}
+                                    >
+                                      <Pause size={12} /> {t('workOrder.pauseProcess', { defaultValue: 'Pause' })}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn--primary btn--sm"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                      onClick={() => handleProcessAction(proc.id, 'end')}
+                                    >
+                                      <CheckCircle2 size={12} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              if (stepStatus === 'PAUSED') {
+                                return (
+                                  <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn--success btn--sm"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', color: '#fff', border: 'none', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                      onClick={() => handleProcessAction(proc.id, 'resume')}
+                                    >
+                                      <Play size={12} /> {t('workOrder.resumeProcess', { defaultValue: 'Resume' })}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn--primary btn--sm"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                      onClick={() => handleProcessAction(proc.id, 'end')}
+                                    >
+                                      <CheckCircle2 size={12} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              return <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>;
+                            })()
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
+                          )}
+                        </td>
                       </tr>
 
                       {/* Collapsible Audit Logs */}
                       {isExpanded && hasLogs && (
                         <tr style={{ backgroundColor: 'rgba(111, 174, 217, 0.02)' }}>
-                          <td colSpan={7} style={{ padding: '0.75rem 1rem 1rem 2.5rem', borderBottom: '1px solid var(--border)' }}>
+                          <td colSpan={8} style={{ padding: '0.75rem 1rem 1rem 2.5rem', borderBottom: '1px solid var(--border)' }}>
                             <div style={{
                               display: 'flex',
                               flexDirection: 'column',

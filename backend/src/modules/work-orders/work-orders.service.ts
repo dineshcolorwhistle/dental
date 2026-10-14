@@ -1554,6 +1554,84 @@ export class WorkOrdersService implements OnModuleInit {
             }
           }
         }
+
+        // Reassignment Detection: Technician changed on a NOT_STARTED step
+        const oldTechId = old?.technicianId || null;
+        const newTechId = curr.technicianId || null;
+        if (
+          oldTechId !== newTechId &&
+          newTechId &&
+          curr.status === ProcessStatus.NOT_STARTED
+        ) {
+          const precedingSteps = sortedUpdated.filter(
+            (p: any) => p.sequence < curr.sequence,
+          );
+          const isPrecedingCompleted =
+            precedingSteps.length === 0 ||
+            precedingSteps.every(
+              (p: any) => p.status === ProcessStatus.COMPLETED,
+            );
+
+          if (isPrecedingCompleted) {
+            // Notify new assignee immediately because previous step is already completed
+            const isInternalVerify = curr.isVerification;
+            await this.notificationsService.create({
+              tenantId,
+              userId: newTechId,
+              title: isInternalVerify ? 'Verification Pending' : 'WO Step Ready',
+              message: isInternalVerify
+                ? `WO "${updated.folioNumber}"${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''} requires verification "${curr.processName}".`
+                : `WO "${updated.folioNumber}"${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''} is ready. Step "${curr.processName}" assigned to you.`,
+              type: isInternalVerify ? 'VERIFICATION_PENDING' : 'WORK_ORDER',
+              referenceId: updated.id,
+            });
+
+            await this.auditLogsService.log({
+              tenantId,
+              userId,
+              action: 'NOTIFICATION_TRIGGERED',
+              entityName: 'NOTIFICATION',
+              entityId: updated.id,
+              details: {
+                userId: newTechId,
+                title: 'WO Step Ready (Reassigned)',
+                stepName: curr.processName,
+                previousTechnicianId: oldTechId,
+              },
+            });
+
+            // Clean up unread notifications for the previous assignee for this WO
+            if (oldTechId) {
+              await this.prisma.notification.updateMany({
+                where: {
+                  tenantId,
+                  userId: oldTechId,
+                  referenceId: updated.id,
+                  isRead: false,
+                },
+                data: {
+                  isRead: true,
+                },
+              });
+            }
+          }
+
+          // Audit log for reassignment
+          await this.auditLogsService.log({
+            tenantId,
+            userId,
+            action: 'PROCESS_REASSIGNED',
+            entityName: 'PROCESS',
+            entityId: curr.id || updated.id,
+            details: {
+              workOrderId: updated.id,
+              processName: curr.processName,
+              previousTechnicianId: oldTechId,
+              newTechnicianId: newTechId,
+              isReadyToStart: isPrecedingCompleted,
+            },
+          });
+        }
       }
     }
 
@@ -1754,7 +1832,11 @@ export class WorkOrdersService implements OnModuleInit {
   /**
    * Fetch branch-scoped operational dashboard statistics for admins.
    */
-  async getDashboardStats(tenantId: string, branchIdContext: string | null) {
+  async getDashboardStats(
+    tenantId: string,
+    branchIdContext: string | null,
+    userId?: string,
+  ) {
     try {
       // Use tenant timezone for "today" calculation
       const tenantSettings = await this.prisma.tenantSettings.findUnique({
@@ -2175,8 +2257,87 @@ export class WorkOrdersService implements OnModuleInit {
         orderBy: { initiatedAt: 'desc' },
       });
 
+      let assignedProductionSteps: any[] = [];
+      if (userId) {
+        const myProcesses = await this.prisma.workOrderProcess.findMany({
+          where: {
+            technicianId: userId,
+            isVerification: false,
+            status: {
+              in: [
+                ProcessStatus.NOT_STARTED,
+                ProcessStatus.IN_PROGRESS,
+                ProcessStatus.PAUSED,
+              ],
+            },
+            workOrder: {
+              tenantId,
+              ...(branchIdContext && { branchId: branchIdContext }),
+            },
+          },
+          include: {
+            workOrder: {
+              select: {
+                id: true,
+                folioNumber: true,
+                boxNumber: true,
+                patient: true,
+                status: true,
+                doctor: { select: { id: true, name: true, phone: true } },
+                processes: {
+                  orderBy: { sequence: 'asc' },
+                  select: {
+                    id: true,
+                    sequence: true,
+                    status: true,
+                    processName: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { sequence: 'asc' },
+        });
+
+        assignedProductionSteps = myProcesses
+          .filter((proc) => {
+            if (!proc.workOrder) return false;
+            if (
+              proc.status === ProcessStatus.IN_PROGRESS ||
+              proc.status === ProcessStatus.PAUSED
+            ) {
+              return true;
+            }
+            const procs = (proc.workOrder.processes || []) as any[];
+            const preceding = procs.filter(
+              (p: any) => p.sequence < proc.sequence,
+            );
+            return preceding.every(
+              (p: any) => p.status === ProcessStatus.COMPLETED,
+            );
+          })
+          .map((proc) => ({
+            id: proc.id,
+            workOrderId: proc.workOrderId,
+            folioNumber: proc.workOrder.folioNumber,
+            boxNumber: proc.workOrder.boxNumber,
+            patient: proc.workOrder.patient,
+            doctorName: proc.workOrder.doctor?.name || '',
+            doctorPhone: proc.workOrder.doctor?.phone || null,
+            processName: proc.processName,
+            sequence: proc.sequence,
+            status: proc.status,
+            startedAt: proc.startedAt,
+            lastPausedAt: proc.lastPausedAt,
+            totalPauseDuration: proc.totalPauseDuration,
+            pauseCount: proc.pauseCount,
+            isVerification: false,
+          }));
+      }
+
       return {
         verificationAlerts,
+        assignedProductionSteps,
         woStatusSummary,
         pendingProcesses,
         inProgressWorkOrders,
@@ -2193,6 +2354,7 @@ export class WorkOrdersService implements OnModuleInit {
       );
       return {
         verificationAlerts: [],
+        assignedProductionSteps: [],
         woStatusSummary: {
           CREATED: 0,
           ASSIGNED: 0,
@@ -2871,6 +3033,505 @@ export class WorkOrdersService implements OnModuleInit {
 
     await this.updateWorkOrderStatus(workOrderId);
     return updated;
+  }
+
+  /**
+   * Helper to retrieve a production process step and verify it belongs to the user and tenant.
+   */
+  private async getVerifiedProductionProcess(
+    tenantId: string,
+    workOrderId: string,
+    processId: string,
+    userId: string,
+  ) {
+    const process = await this.prisma.workOrderProcess.findFirst({
+      where: { id: processId, workOrderId },
+      include: {
+        workOrder: true,
+      },
+    });
+
+    if (!process || process.workOrder.tenantId !== tenantId) {
+      throw new NotFoundException(
+        `Process step with ID "${processId}" not found.`,
+      );
+    }
+
+    if (process.isVerification) {
+      throw new BadRequestException(
+        'This endpoint is for production processes. Use verification endpoints for verification steps.',
+      );
+    }
+
+    if (process.technicianId !== userId) {
+      throw new BadRequestException(
+        'You are not assigned to this production process step.',
+      );
+    }
+
+    return process;
+  }
+
+  /**
+   * Start a production process step assigned to an admin/owner.
+   */
+  async startProcess(
+    tenantId: string,
+    workOrderId: string,
+    processId: string,
+    userId: string,
+  ) {
+    const process = await this.getVerifiedProductionProcess(
+      tenantId,
+      workOrderId,
+      processId,
+      userId,
+    );
+
+    if (process.status !== ProcessStatus.NOT_STARTED) {
+      throw new BadRequestException(
+        `Cannot start process: current status is ${process.status}.`,
+      );
+    }
+
+    // Strict sequential execution check
+    const precedingProcesses = await this.prisma.workOrderProcess.findMany({
+      where: {
+        workOrderId,
+        sequence: { lt: process.sequence },
+      },
+    });
+
+    if (precedingProcesses.some((p) => p.status !== ProcessStatus.COMPLETED)) {
+      throw new BadRequestException(
+        'Cannot start process: previous process steps are not completed yet.',
+      );
+    }
+
+    // Prevent duplicate active process execution
+    const activeProcesses = await this.prisma.workOrderProcess.findMany({
+      where: {
+        workOrderId,
+        status: { in: [ProcessStatus.IN_PROGRESS, ProcessStatus.PAUSED] },
+      },
+    });
+
+    if (activeProcesses.length > 0) {
+      throw new BadRequestException(
+        'Cannot start process: another step in this work order is already active or paused.',
+      );
+    }
+
+    const now = new Date();
+
+    const updatedProcess = await this.prisma.workOrderProcess.update({
+      where: { id: processId },
+      data: {
+        status: ProcessStatus.IN_PROGRESS,
+        startedAt: now,
+        activityLogs: {
+          create: {
+            action: ProcessActivityAction.START,
+            timestamp: now,
+            notes: 'Process started by administrator',
+          },
+        },
+      },
+      include: {
+        activityLogs: { orderBy: { timestamp: 'desc' } },
+      },
+    });
+
+    if (process.reworkActive) {
+      await this.prisma.reworkLog.updateMany({
+        where: {
+          workOrderId,
+          processName: process.processName,
+          status: 'Pending',
+        },
+        data: {
+          status: 'In Progress',
+        },
+      });
+    }
+
+    await this.updateWorkOrderStatus(workOrderId);
+
+    // Write Audit Log
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'PROCESS_START',
+      entityName: 'PROCESS',
+      entityId: process.id,
+      details: {
+        workOrderId,
+        processName: process.processName,
+        role: 'ADMIN',
+      },
+    });
+
+    this.logger.log(`Process ${processId} started by admin ${userId}`);
+    return updatedProcess;
+  }
+
+  /**
+   * Pause an in-progress production process step.
+   */
+  async pauseProcess(
+    tenantId: string,
+    workOrderId: string,
+    processId: string,
+    userId: string,
+  ) {
+    const process = await this.getVerifiedProductionProcess(
+      tenantId,
+      workOrderId,
+      processId,
+      userId,
+    );
+
+    if (process.status !== ProcessStatus.IN_PROGRESS) {
+      throw new BadRequestException(
+        'Cannot pause process: process is not in progress.',
+      );
+    }
+
+    const now = new Date();
+
+    const updatedProcess = await this.prisma.workOrderProcess.update({
+      where: { id: processId },
+      data: {
+        status: ProcessStatus.PAUSED,
+        lastPausedAt: now,
+        pauseCount: { increment: 1 },
+        activityLogs: {
+          create: {
+            action: ProcessActivityAction.PAUSE,
+            timestamp: now,
+            notes: 'Process paused by administrator',
+          },
+        },
+      },
+      include: {
+        activityLogs: { orderBy: { timestamp: 'desc' } },
+      },
+    });
+
+    await this.updateWorkOrderStatus(workOrderId);
+
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'PROCESS_PAUSE',
+      entityName: 'PROCESS',
+      entityId: process.id,
+      details: {
+        workOrderId,
+        processName: process.processName,
+        role: 'ADMIN',
+      },
+    });
+
+    this.logger.log(`Process ${processId} paused by admin ${userId}`);
+    return updatedProcess;
+  }
+
+  /**
+   * Resume a paused production process step.
+   */
+  async resumeProcess(
+    tenantId: string,
+    workOrderId: string,
+    processId: string,
+    userId: string,
+  ) {
+    const process = await this.getVerifiedProductionProcess(
+      tenantId,
+      workOrderId,
+      processId,
+      userId,
+    );
+
+    if (process.status !== ProcessStatus.PAUSED) {
+      throw new BadRequestException(
+        'Cannot resume process: process is not paused.',
+      );
+    }
+
+    const now = new Date();
+    const lastPaused = process.lastPausedAt || now;
+    const pauseDuration = Math.round(
+      (now.getTime() - lastPaused.getTime()) / 1000,
+    );
+
+    const updatedProcess = await this.prisma.workOrderProcess.update({
+      where: { id: processId },
+      data: {
+        status: ProcessStatus.IN_PROGRESS,
+        totalPauseDuration: { increment: pauseDuration },
+        lastPausedAt: null,
+        activityLogs: {
+          create: {
+            action: ProcessActivityAction.RESUME,
+            timestamp: now,
+            notes: `Process resumed by administrator (paused for ${pauseDuration}s)`,
+          },
+        },
+      },
+      include: {
+        activityLogs: { orderBy: { timestamp: 'desc' } },
+      },
+    });
+
+    await this.updateWorkOrderStatus(workOrderId);
+
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'PROCESS_RESUME',
+      entityName: 'PROCESS',
+      entityId: process.id,
+      details: {
+        workOrderId,
+        processName: process.processName,
+        pauseDuration,
+        role: 'ADMIN',
+      },
+    });
+
+    this.logger.log(`Process ${processId} resumed by admin ${userId}`);
+    return updatedProcess;
+  }
+
+  /**
+   * End and complete a production process step.
+   */
+  async endProcess(
+    tenantId: string,
+    workOrderId: string,
+    processId: string,
+    userId: string,
+  ) {
+    const process = await this.getVerifiedProductionProcess(
+      tenantId,
+      workOrderId,
+      processId,
+      userId,
+    );
+
+    if (
+      process.status !== ProcessStatus.IN_PROGRESS &&
+      process.status !== ProcessStatus.PAUSED
+    ) {
+      throw new BadRequestException(
+        'Cannot end process: process is not active.',
+      );
+    }
+
+    const now = new Date();
+    let totalPause = process.totalPauseDuration;
+
+    if (process.status === ProcessStatus.PAUSED && process.lastPausedAt) {
+      const pauseDuration = Math.round(
+        (now.getTime() - process.lastPausedAt.getTime()) / 1000,
+      );
+      totalPause += pauseDuration;
+    }
+
+    const startedAt = process.startedAt || now;
+    const totalTime = Math.round((now.getTime() - startedAt.getTime()) / 1000);
+    const totalActive = Math.max(0, totalTime - totalPause);
+
+    const updatedProcess = await this.prisma.workOrderProcess.update({
+      where: { id: processId },
+      data: {
+        status: ProcessStatus.COMPLETED,
+        endedAt: now,
+        totalPauseDuration: totalPause,
+        totalActiveDuration: totalActive,
+        lastPausedAt: null,
+        reworkActive: false,
+        activityLogs: {
+          create: {
+            action: ProcessActivityAction.END,
+            timestamp: now,
+            notes: `Process completed by administrator. Active time: ${Math.round(totalActive / 60)} minutes.`,
+          },
+        },
+      },
+      include: {
+        activityLogs: { orderBy: { timestamp: 'desc' } },
+      },
+    });
+
+    if (process.reworkActive) {
+      await this.prisma.reworkLog.updateMany({
+        where: {
+          workOrderId,
+          processName: process.processName,
+          status: { in: ['Pending', 'In Progress'] },
+        },
+        data: {
+          status: 'Completed',
+          completedAt: now,
+        },
+      });
+    }
+
+    // Write Audit Log
+    await this.auditLogsService.log({
+      tenantId,
+      userId,
+      action: 'PROCESS_END',
+      entityName: 'PROCESS',
+      entityId: process.id,
+      details: {
+        workOrderId,
+        processName: process.processName,
+        totalActiveDuration: totalActive,
+        totalPauseDuration: totalPause,
+        role: 'ADMIN',
+      },
+    });
+
+    // Automatically enable next process step and alert next technician/admin
+    const nextProcess = await this.prisma.workOrderProcess.findFirst({
+      where: {
+        workOrderId,
+        sequence: { gt: process.sequence },
+      },
+      orderBy: { sequence: 'asc' },
+    });
+
+    if (nextProcess) {
+      if (nextProcess.isVerification) {
+        if (!nextProcess.technicianId) {
+          const doctor = process.workOrder?.doctorId
+            ? await this.prisma.doctor.findUnique({
+                where: { id: process.workOrder.doctorId },
+                include: { clinic: true },
+              })
+            : null;
+          const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
+
+          if (!isExternal) {
+            // Auto-start External Verification (ONLY for local doctor)
+            const autoStartNow = new Date();
+            await this.prisma.workOrderProcess.update({
+              where: { id: nextProcess.id },
+              data: {
+                status: ProcessStatus.IN_PROGRESS,
+                startedAt: autoStartNow,
+                activityLogs: {
+                  create: {
+                    action: ProcessActivityAction.START,
+                    timestamp: autoStartNow,
+                    notes: 'External verification started automatically',
+                  },
+                },
+              },
+            });
+
+            await this.auditLogsService.log({
+              tenantId,
+              userId,
+              action: 'VERIFICATION_START',
+              entityName: 'PROCESS',
+              entityId: nextProcess.id,
+              details: {
+                workOrderId,
+                processName: nextProcess.processName,
+                type: 'EXTERNAL',
+                notes: 'Started automatically after previous step completion',
+              },
+            });
+          }
+
+          await this.triggerExternalVerification(
+            tenantId,
+            workOrderId,
+            nextProcess.id,
+            nextProcess.processName,
+          );
+        } else {
+          // Internal Verification step assigned to an admin/technician
+          await this.notificationsService.create({
+            tenantId,
+            userId: nextProcess.technicianId,
+            title: 'Verification Pending',
+            message: `WO "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} requires verification "${nextProcess.processName}".`,
+            type: 'VERIFICATION_PENDING',
+            referenceId: workOrderId,
+          });
+
+          await this.auditLogsService.log({
+            tenantId,
+            action: 'NOTIFICATION_TRIGGERED',
+            entityName: 'NOTIFICATION',
+            entityId: workOrderId,
+            details: {
+              userId: nextProcess.technicianId,
+              title: 'Internal Verification Pending Alert',
+            },
+          });
+        }
+      } else if (nextProcess.technicianId) {
+        // Normal process step assigned to a technician or admin
+        await this.notificationsService.create({
+          tenantId,
+          userId: nextProcess.technicianId,
+          title: 'WO Step Ready',
+          message: `WO "${process.workOrder.folioNumber}"${process.workOrder.boxNumber ? ` (Box: ${process.workOrder.boxNumber})` : ''} is ready. Previous step "${process.processName}" completed.`,
+          type: 'WORK_ORDER',
+          referenceId: workOrderId,
+        });
+
+        await this.auditLogsService.log({
+          tenantId,
+          action: 'NOTIFICATION_TRIGGERED',
+          entityName: 'NOTIFICATION',
+          entityId: workOrderId,
+          details: {
+            userId: nextProcess.technicianId,
+            title: 'New Active Work Order Step',
+          },
+        });
+      }
+    } else {
+      // Work order has no more steps, so it is fully completed!
+      const wo = await this.prisma.workOrder.findUnique({
+        where: { id: workOrderId },
+        select: { branchId: true, folioNumber: true, boxNumber: true },
+      });
+
+      if (wo) {
+        const branchAdmins = await this.prisma.user.findMany({
+          where: {
+            tenantId,
+            branchId: wo.branchId,
+            role: UserRole.ADMIN,
+            status: 'ACTIVE',
+          },
+        });
+
+        for (const admin of branchAdmins) {
+          await this.notificationsService.create({
+            tenantId,
+            userId: admin.id,
+            title: 'WO Completed',
+            message: `WO "${wo.folioNumber}"${wo.boxNumber ? ` (Box: ${wo.boxNumber})` : ''} completed!`,
+            type: 'WORK_ORDER_COMPLETED',
+            referenceId: workOrderId,
+          });
+        }
+      }
+    }
+
+    await this.updateWorkOrderStatus(workOrderId);
+
+    this.logger.log(`Process ${processId} ended by admin ${userId}`);
+    return updatedProcess;
   }
 
   // ─── Work Order Note Management ─────────────────────────

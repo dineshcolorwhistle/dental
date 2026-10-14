@@ -11,6 +11,7 @@ import {
   ClipboardList,
   ShieldCheck,
   Play,
+  Pause,
   Check,
   Clock,
   AlertCircle,
@@ -74,6 +75,7 @@ export function DashboardPage() {
     };
   } | null>(null);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const [showAllProductionTasks, setShowAllProductionTasks] = useState(false);
   const [inProgressSearch, setInProgressSearch] = useState('');
   const [verificationSearch, setVerificationSearch] = useState('');
 
@@ -170,6 +172,35 @@ export function DashboardPage() {
     }
   };
 
+  const handleProductionAction = async (workOrderId: string, processId: string, action: 'start' | 'pause' | 'resume' | 'end') => {
+    const actionKeys: Record<string, string> = {
+      start: 'startingProcess',
+      pause: 'pausingProcess',
+      resume: 'resumingProcess',
+      end: 'endingProcess',
+    };
+    const loadingToast = toast.loading(t(`techDashboard.${actionKeys[action]}`, { defaultValue: 'Processing...' }));
+    try {
+      if (action === 'start') {
+        await workOrderService.startProcess(workOrderId, processId);
+        toast.success(t('techDashboard.processStarted', { defaultValue: 'Process started!' }), { id: loadingToast });
+      } else if (action === 'pause') {
+        await workOrderService.pauseProcess(workOrderId, processId);
+        toast.success(t('techDashboard.processPaused', { defaultValue: 'Process paused!' }), { id: loadingToast });
+      } else if (action === 'resume') {
+        await workOrderService.resumeProcess(workOrderId, processId);
+        toast.success(t('techDashboard.processResumed', { defaultValue: 'Process resumed!' }), { id: loadingToast });
+      } else if (action === 'end') {
+        await workOrderService.endProcess(workOrderId, processId);
+        toast.success(t('techDashboard.processEnded', { defaultValue: 'Process completed!' }), { id: loadingToast });
+      }
+      fetchDashboardData();
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || t('techDashboard.processActionFailed', { action, defaultValue: 'Action failed' });
+      toast.error(errMsg, { id: loadingToast });
+    }
+  };
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return t('dashboard.greetingMorning');
@@ -188,6 +219,8 @@ export function DashboardPage() {
 
   const alerts = (stats?.verificationAlerts || []).filter((a: any) => a.status === 'NOT_STARTED' || a.status === 'IN_PROGRESS');
   const displayedAlerts = showAllAlerts ? alerts : alerts.slice(0, 3);
+  const assignedProductionTasks = stats?.assignedProductionSteps || [];
+  const displayedProductionTasks = showAllProductionTasks ? assignedProductionTasks : assignedProductionTasks.slice(0, 3);
   const statusSummary = stats?.woStatusSummary || {};
   const pendingProcs = stats?.pendingProcesses || [];
   const inProgressWOs = stats?.inProgressWOs || [];
@@ -511,6 +544,248 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* My Assigned Production Tasks Panel */}
+      {assignedProductionTasks.length > 0 && (
+        <div className="dashboard-card" style={{
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          marginBottom: '2rem',
+          background: 'linear-gradient(to right, rgba(59, 130, 246, 0.03), rgba(14, 165, 233, 0.03))',
+          boxShadow: '0 4px 20px -2px rgba(59, 130, 246, 0.06)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
+            <h3 className="dashboard-card__title" style={{
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              margin: 0
+            }}>
+              <Play size={20} style={{ color: '#3B82F6' }} />
+              {t('dashboard.myAssignedProductionTasks', { defaultValue: 'My Assigned Production Tasks' })}
+              <span style={{
+                fontSize: '0.75rem',
+                backgroundColor: '#3B82F6',
+                color: '#FFFFFF',
+                padding: '2px 8px',
+                borderRadius: '100px',
+                fontWeight: 700
+              }}>{assignedProductionTasks.length}</span>
+            </h3>
+
+            {assignedProductionTasks.length > 3 && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                style={{
+                  fontSize: '0.75rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: '#3B82F6',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.05)'
+                }}
+                onClick={() => setShowAllProductionTasks(prev => !prev)}
+              >
+                {showAllProductionTasks
+                  ? t('dashboard.showTop3', { defaultValue: 'Show Top 3' })
+                  : t('dashboard.showAllWithCount', { count: assignedProductionTasks.length, defaultValue: `Show All (${assignedProductionTasks.length})` })}
+                {showAllProductionTasks ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            )}
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+            ...(showAllProductionTasks && { maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' })
+          }}>
+            {displayedProductionTasks.map((task: any) => {
+              const isNotStarted = task.status === 'NOT_STARTED';
+              const isInProgress = task.status === 'IN_PROGRESS';
+              const isPaused = task.status === 'PAUSED' || (task.status === 'IN_PROGRESS' && Boolean(task.lastPausedAt));
+
+              return (
+                <div key={task.id} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.875rem 1rem',
+                  backgroundColor: 'var(--bg-surface, #FFFFFF)',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow-sm)',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-light)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
+                        {task.folioNumber}
+                      </span>
+                      {task.boxNumber && (
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                          color: '#3B82F6',
+                        }}>
+                          {t('workOrders.boxNumber', { defaultValue: 'Box' })} #{task.boxNumber}
+                        </span>
+                      )}
+                      <span
+                        title={task.patient}
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          maxWidth: '220px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {task.patient}
+                      </span>
+                      <span style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: isNotStarted ? 'rgba(156, 163, 175, 0.1)' : isPaused ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                        color: isNotStarted ? '#6B7280' : isPaused ? '#F59E0B' : '#10B981'
+                      }}>
+                        {isNotStarted ? t('enums.processStatus.NOT_STARTED') : isPaused ? t('enums.processStatus.PAUSED') : t('enums.processStatus.IN_PROGRESS')}
+                      </span>
+                      {task.isRework && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          color: '#EF4444'
+                        }}>
+                          {t('workOrder.reworkActive', { defaultValue: 'Rework' })}
+                        </span>
+                      )}
+                      {task.isRepetition && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                          color: '#8B5CF6'
+                        }}>
+                          {t('workOrders.repetition', { defaultValue: 'Repetition' })}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      {t('dashboard.process')}: <strong>{task.processName}</strong> (#{task.sequence}) &bull; {t('dashboard.doctor')}: <strong>{task.doctorName || '—'}</strong>
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--border)' }}
+                      onClick={() => {
+                        setSelectedWOId(task.workOrderId);
+                        setShowViewModal(true);
+                      }}
+                    >
+                      <Eye size={12} /> {t('dashboard.viewWO')}
+                    </button>
+                    {Boolean(task.doctorPhone) && (
+                      <button
+                        type="button"
+                        className="btn-whatsapp"
+                        style={{ padding: '6px 10px' }}
+                        title={t('dashboard.sendWhatsApp', { defaultValue: 'Send WhatsApp' })}
+                        onClick={() => {
+                          setWhatsAppModalData({
+                            recipientName: task.doctorName || 'Doctor',
+                            recipientPhone: task.doctorPhone,
+                            workOrderData: {
+                              workOrderId: task.workOrderId,
+                              folioNumber: task.folioNumber,
+                              boxNumber: task.boxNumber,
+                            },
+                          });
+                        }}
+                      >
+                        <WhatsAppIcon size={16} />
+                      </button>
+                    )}
+
+                    {/* Action Controls for Admin */}
+                    {isNotStarted && (
+                      <button
+                        className="btn btn--primary btn--sm"
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#3B82F6', border: 'none', cursor: 'pointer' }}
+                        onClick={() => handleProductionAction(task.workOrderId, task.id, 'start')}
+                      >
+                        <Play size={12} /> {t('workOrder.startProcess', { defaultValue: 'Start' })}
+                      </button>
+                    )}
+
+                    {isInProgress && !isPaused && (
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          className="btn btn--warning btn--sm"
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', border: 'none', cursor: 'pointer' }}
+                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'pause')}
+                        >
+                          <Pause size={12} /> {t('workOrder.pauseProcess', { defaultValue: 'Pause' })}
+                        </button>
+                        <button
+                          className="btn btn--primary btn--sm"
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', cursor: 'pointer' }}
+                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'end')}
+                        >
+                          <CheckCircle2 size={12} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                        </button>
+                      </div>
+                    )}
+
+                    {isPaused && (
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          className="btn btn--success btn--sm"
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}
+                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'resume')}
+                        >
+                          <Play size={12} /> {t('workOrder.resumeProcess', { defaultValue: 'Resume' })}
+                        </button>
+                        <button
+                          className="btn btn--primary btn--sm"
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#10B981', border: 'none', cursor: 'pointer' }}
+                          onClick={() => handleProductionAction(task.workOrderId, task.id, 'end')}
+                        >
+                          <CheckCircle2 size={12} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Counters Grid */}
       <div className="dashboard-page__stats" style={{ marginBottom: '2.5rem' }}>
         <div className="stat-card" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
@@ -695,10 +970,74 @@ export function DashboardPage() {
                         fontSize: '0.78rem',
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '6px'
                       }}>
-                        <span>{t('dashboard.activeStep')}: <strong>{activeStep.processName}</strong></span>
-                        <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>{t('dashboard.tech')}: <strong>{activeStepTech}</strong></span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span>{t('dashboard.activeStep')}: <strong>{activeStep.processName}</strong></span>
+                          <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>{t('dashboard.tech')}: <strong>{activeStepTech}</strong></span>
+                        </div>
+
+                        {!activeStep.isVerification && (activeStep.technicianId === user?.id || user?.role === 'SUPER_ADMIN') && (
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            {activeStep.status === 'NOT_STARTED' && (() => {
+                              const precedingComplete = (wo.processes || [])
+                                .filter((p: any) => p.sequence < activeStep.sequence)
+                                .every((p: any) => p.status === 'COMPLETED');
+                              return precedingComplete ? (
+                                <button
+                                  type="button"
+                                  className="btn btn--primary btn--sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px', backgroundColor: '#3B82F6', border: 'none', cursor: 'pointer' }}
+                                  onClick={() => handleProductionAction(wo.id, activeStep.id, 'start')}
+                                >
+                                  <Play size={10} /> {t('workOrder.startProcess', { defaultValue: 'Start' })}
+                                </button>
+                              ) : null;
+                            })()}
+                            {activeStep.status === 'IN_PROGRESS' && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn--warning btn--sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px', border: 'none', cursor: 'pointer' }}
+                                  onClick={() => handleProductionAction(wo.id, activeStep.id, 'pause')}
+                                >
+                                  <Pause size={10} /> {t('workOrder.pauseProcess', { defaultValue: 'Pause' })}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn--primary btn--sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px', backgroundColor: '#10B981', border: 'none', cursor: 'pointer' }}
+                                  onClick={() => handleProductionAction(wo.id, activeStep.id, 'end')}
+                                >
+                                  <CheckCircle2 size={10} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                                </button>
+                              </>
+                            )}
+                            {activeStep.status === 'PAUSED' && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn--success btn--sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px', backgroundColor: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}
+                                  onClick={() => handleProductionAction(wo.id, activeStep.id, 'resume')}
+                                >
+                                  <Play size={10} /> {t('workOrder.resumeProcess', { defaultValue: 'Resume' })}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn--primary btn--sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px', backgroundColor: '#10B981', border: 'none', cursor: 'pointer' }}
+                                  onClick={() => handleProductionAction(wo.id, activeStep.id, 'end')}
+                                >
+                                  <CheckCircle2 size={10} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

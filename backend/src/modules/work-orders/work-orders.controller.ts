@@ -119,12 +119,17 @@ export class WorkOrdersController {
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('branchId') branchIdContext: string | null,
     @CurrentUser('role') userRole: string,
+    @CurrentUser('id') userId: string,
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
     const finalBranchId = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.workOrdersService.getDashboardStats(tenantId, finalBranchId);
+    return this.workOrdersService.getDashboardStats(
+      tenantId,
+      finalBranchId,
+      userId,
+    );
   }
 
   @Get('qr/:token')
@@ -316,6 +321,142 @@ export class WorkOrdersController {
       body.status,
       userId,
       body.reworkProcessNames,
+    );
+  }
+
+  @Post(':id/processes/:processId/start')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Start assigned production process step by admin' })
+  async startProcess(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+    @Param('processId') processId: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (userRole === 'ADMIN') {
+      const wo = await this.workOrdersService.findOne(
+        tenantId,
+        id,
+        branchIdContext,
+      );
+      if (!wo) {
+        throw new BadRequestException(
+          'Work order not found in your branch context.',
+        );
+      }
+    }
+    return this.workOrdersService.startProcess(
+      tenantId,
+      id,
+      processId,
+      userId,
+    );
+  }
+
+  @Post(':id/processes/:processId/pause')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Pause assigned production process step by admin' })
+  async pauseProcess(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+    @Param('processId') processId: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (userRole === 'ADMIN') {
+      const wo = await this.workOrdersService.findOne(
+        tenantId,
+        id,
+        branchIdContext,
+      );
+      if (!wo) {
+        throw new BadRequestException(
+          'Work order not found in your branch context.',
+        );
+      }
+    }
+    return this.workOrdersService.pauseProcess(
+      tenantId,
+      id,
+      processId,
+      userId,
+    );
+  }
+
+  @Post(':id/processes/:processId/resume')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Resume assigned production process step by admin' })
+  async resumeProcess(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+    @Param('processId') processId: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (userRole === 'ADMIN') {
+      const wo = await this.workOrdersService.findOne(
+        tenantId,
+        id,
+        branchIdContext,
+      );
+      if (!wo) {
+        throw new BadRequestException(
+          'Work order not found in your branch context.',
+        );
+      }
+    }
+    return this.workOrdersService.resumeProcess(
+      tenantId,
+      id,
+      processId,
+      userId,
+    );
+  }
+
+  @Post(':id/processes/:processId/end')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Complete assigned production process step by admin' })
+  async endProcess(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+    @Param('processId') processId: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (userRole === 'ADMIN') {
+      const wo = await this.workOrdersService.findOne(
+        tenantId,
+        id,
+        branchIdContext,
+      );
+      if (!wo) {
+        throw new BadRequestException(
+          'Work order not found in your branch context.',
+        );
+      }
+    }
+    return this.workOrdersService.endProcess(
+      tenantId,
+      id,
+      processId,
+      userId,
     );
   }
 

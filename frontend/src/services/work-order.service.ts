@@ -247,6 +247,26 @@ export const workOrderService = {
     return response.data;
   },
 
+  startProcess: async (workOrderId: string, processId: string): Promise<any> => {
+    const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/start`);
+    return response.data;
+  },
+
+  pauseProcess: async (workOrderId: string, processId: string): Promise<any> => {
+    const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/pause`);
+    return response.data;
+  },
+
+  resumeProcess: async (workOrderId: string, processId: string): Promise<any> => {
+    const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/resume`);
+    return response.data;
+  },
+
+  endProcess: async (workOrderId: string, processId: string): Promise<any> => {
+    const response = await api.post<any>(`/work-orders/${workOrderId}/processes/${processId}/end`);
+    return response.data;
+  },
+
   getByQrToken: async (token: string): Promise<WorkOrderListItem> => {
     const response = await api.get<WorkOrderListItem>(`/work-orders/qr/${token}`);
     return response.data;

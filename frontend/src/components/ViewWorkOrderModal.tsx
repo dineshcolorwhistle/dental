@@ -15,6 +15,8 @@ import {
   ChevronUp,
   Clock,
   FileText,
+  Pause,
+  CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { workOrderService, paymentMethodService, type PaymentMethodItem } from '../services';
@@ -313,6 +315,40 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
       if (onUpdate) onUpdate(detailedWo);
     } catch (err: any) {
       const errMsg = err?.response?.data?.message || t('dashboard.verificationCompleteFailed');
+      toast.error(errMsg, { id: loadingToast });
+    }
+  };
+
+  const handleInlineProcessAction = async (
+    woId: string,
+    processId: string,
+    action: 'start' | 'pause' | 'resume' | 'end'
+  ) => {
+    let actionLoadingKey = 'startingProcess';
+    if (action === 'pause') actionLoadingKey = 'pausingProcess';
+    else if (action === 'resume') actionLoadingKey = 'resumingProcess';
+    else if (action === 'end') actionLoadingKey = 'endingProcess';
+
+    const loadingToast = toast.loading(t(`techDashboard.${actionLoadingKey}`, { defaultValue: 'Processing...' }));
+    try {
+      if (action === 'start') {
+        await workOrderService.startProcess(woId, processId);
+        toast.success(t('techDashboard.processStarted', { defaultValue: 'Process started!' }), { id: loadingToast });
+      } else if (action === 'pause') {
+        await workOrderService.pauseProcess(woId, processId);
+        toast.success(t('techDashboard.processPaused', { defaultValue: 'Process paused!' }), { id: loadingToast });
+      } else if (action === 'resume') {
+        await workOrderService.resumeProcess(woId, processId);
+        toast.success(t('techDashboard.processResumed', { defaultValue: 'Process resumed!' }), { id: loadingToast });
+      } else if (action === 'end') {
+        await workOrderService.endProcess(woId, processId);
+        toast.success(t('techDashboard.processEnded', { defaultValue: 'Process completed!' }), { id: loadingToast });
+      }
+      const detailedWo = await workOrderService.getById(woId);
+      setSelectedWO(detailedWo);
+      if (onUpdate) onUpdate(detailedWo);
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || t('techDashboard.processActionFailed', { action, defaultValue: 'Action failed' });
       toast.error(errMsg, { id: loadingToast });
     }
   };
@@ -1399,6 +1435,69 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                                       </div>
                                                     )}
                                                   </>
+                                                );
+                                              })()
+                                            )}
+                                            {!proc.isVerification && isLabAdminOrOwner && (proc.technicianId === user?.id || user?.role === 'SUPER_ADMIN') && (
+                                              (() => {
+                                                const precedingComplete = processes
+                                                  .filter((p: any) => p.sequence < proc.sequence)
+                                                  .every((p: any) => p.status === 'COMPLETED');
+
+                                                return (
+                                                  <div style={{ marginTop: '6px' }}>
+                                                    {stepStatus === 'NOT_STARTED' && (
+                                                      precedingComplete ? (
+                                                        <button
+                                                          className="btn btn--primary btn--sm"
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#3B82F6', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                                          onClick={() => handleInlineProcessAction(selectedWO.id, proc.id, 'start')}
+                                                        >
+                                                          <Play size={10} /> {t('workOrder.startProcess', { defaultValue: 'Start' })}
+                                                        </button>
+                                                      ) : (
+                                                        <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                          <Clock size={10} /> {t('techDashboard.precedingStepBlocked', { defaultValue: 'Preceding step pending' })}
+                                                        </span>
+                                                      )
+                                                    )}
+                                                    {stepStatus === 'IN_PROGRESS' && (
+                                                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                                        <button
+                                                          className="btn btn--warning btn--sm"
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                                          onClick={() => handleInlineProcessAction(selectedWO.id, proc.id, 'pause')}
+                                                        >
+                                                          <Pause size={10} /> {t('workOrder.pauseProcess', { defaultValue: 'Pause' })}
+                                                        </button>
+                                                        <button
+                                                          className="btn btn--primary btn--sm"
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#10B981', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                                          onClick={() => handleInlineProcessAction(selectedWO.id, proc.id, 'end')}
+                                                        >
+                                                          <CheckCircle2 size={10} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                                                        </button>
+                                                      </div>
+                                                    )}
+                                                    {stepStatus === 'PAUSED' && (
+                                                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                                        <button
+                                                          className="btn btn--success btn--sm"
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#10B981', color: '#fff', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                                          onClick={() => handleInlineProcessAction(selectedWO.id, proc.id, 'resume')}
+                                                        >
+                                                          <Play size={10} /> {t('workOrder.resumeProcess', { defaultValue: 'Resume' })}
+                                                        </button>
+                                                        <button
+                                                          className="btn btn--primary btn--sm"
+                                                          style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#10B981', border: 'none', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                                          onClick={() => handleInlineProcessAction(selectedWO.id, proc.id, 'end')}
+                                                        >
+                                                          <CheckCircle2 size={10} /> {t('workOrder.endProcess', { defaultValue: 'Complete' })}
+                                                        </button>
+                                                      </div>
+                                                    )}
+                                                  </div>
                                                 );
                                               })()
                                             )}
