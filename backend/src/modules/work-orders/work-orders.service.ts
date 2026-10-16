@@ -671,49 +671,6 @@ export class WorkOrdersService implements OnModuleInit {
           },
         });
       } else if (firstProcess.isVerification && !firstProcess.technicianId) {
-        const doctor = doctorId
-          ? await this.prisma.doctor.findUnique({
-              where: { id: doctorId },
-              include: { clinic: true },
-            })
-          : null;
-        const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
-
-        if (!isExternal) {
-          // Auto-start External Verification (ONLY for local doctor)
-          const now = new Date();
-          await this.prisma.workOrderProcess.update({
-            where: { id: firstProcess.id },
-            data: {
-              status: ProcessStatus.IN_PROGRESS,
-              startedAt: now,
-              activityLogs: {
-                create: {
-                  action: ProcessActivityAction.START,
-                  timestamp: now,
-                  notes: 'External verification started automatically',
-                },
-              },
-            },
-          });
-
-          await this.auditLogsService.log({
-            tenantId,
-            userId,
-            action: 'VERIFICATION_START',
-            entityName: 'PROCESS',
-            entityId: firstProcess.id,
-            details: {
-              workOrderId: workOrder.id,
-              processName: firstProcess.processName,
-              type: 'EXTERNAL',
-              notes: 'Started automatically on assignment',
-            },
-          });
-
-          await this.updateWorkOrderStatus(workOrder.id);
-        }
-
         // Notify clinic doctor / admins via triggerExternalVerification helper
         await this.triggerExternalVerification(
           tenantId,
@@ -1673,49 +1630,6 @@ export class WorkOrdersService implements OnModuleInit {
         firstProcess.isVerification &&
         !firstProcess.technicianId
       ) {
-        const doctor = updated.doctorId
-          ? await this.prisma.doctor.findUnique({
-              where: { id: updated.doctorId },
-              include: { clinic: true },
-            })
-          : null;
-        const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
-
-        if (!isExternal) {
-          // Auto-start External Verification (ONLY for local doctor)
-          const now = new Date();
-          await this.prisma.workOrderProcess.update({
-            where: { id: firstProcess.id },
-            data: {
-              status: ProcessStatus.IN_PROGRESS,
-              startedAt: now,
-              activityLogs: {
-                create: {
-                  action: ProcessActivityAction.START,
-                  timestamp: now,
-                  notes: 'External verification started automatically',
-                },
-              },
-            },
-          });
-
-          await this.auditLogsService.log({
-            tenantId,
-            userId,
-            action: 'VERIFICATION_START',
-            entityName: 'PROCESS',
-            entityId: firstProcess.id,
-            details: {
-              workOrderId: updated.id,
-              processName: firstProcess.processName,
-              type: 'EXTERNAL',
-              notes: 'Started automatically on assignment',
-            },
-          });
-
-          await this.updateWorkOrderStatus(updated.id);
-        }
-
         // Notify clinic doctor / admins via triggerExternalVerification helper
         await this.triggerExternalVerification(
           tenantId,
@@ -2406,6 +2320,36 @@ export class WorkOrdersService implements OnModuleInit {
       );
     }
 
+    if (process.isVerification && !process.technicianId) {
+      if (!process.workOrder.branchId) {
+        throw new BadRequestException(
+          'Work order is not assigned to a branch.',
+        );
+      }
+      const executingAdmin = await this.prisma.user.findFirst({
+        where: {
+          id: userId,
+          tenantId,
+          role: { in: [UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN] },
+          status: UserStatus.ACTIVE,
+        },
+      });
+      if (!executingAdmin) {
+        throw new BadRequestException(
+          'Only a branch Administrator or Owner can start this External Verification process.',
+        );
+      }
+      if (
+        executingAdmin.role === UserRole.ADMIN &&
+        executingAdmin.branchId &&
+        executingAdmin.branchId !== process.workOrder.branchId
+      ) {
+        throw new BadRequestException(
+          'You are not an administrator of the branch assigned to this work order.',
+        );
+      }
+    }
+
     // Verify sequence: previous steps completed
     const precedingProcesses = await this.prisma.workOrderProcess.findMany({
       where: {
@@ -2499,6 +2443,15 @@ export class WorkOrdersService implements OnModuleInit {
       if (!executingAdmin) {
         throw new BadRequestException(
           'Only a branch Administrator or Owner can complete this External Verification process.',
+        );
+      }
+      if (
+        executingAdmin.role === UserRole.ADMIN &&
+        executingAdmin.branchId &&
+        executingAdmin.branchId !== process.workOrder.branchId
+      ) {
+        throw new BadRequestException(
+          'You are not an administrator of the branch assigned to this work order.',
         );
       }
     } else {
@@ -2904,47 +2857,6 @@ export class WorkOrdersService implements OnModuleInit {
       if (nextProcess) {
         if (nextProcess.isVerification) {
           if (!nextProcess.technicianId) {
-            const doctor = process.workOrder.doctorId
-              ? await this.prisma.doctor.findUnique({
-                  where: { id: process.workOrder.doctorId },
-                  include: { clinic: true },
-                })
-              : null;
-            const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
-
-            if (!isExternal) {
-              // Auto-start External Verification (ONLY for local doctor)
-              const autoStartNow = new Date();
-              await this.prisma.workOrderProcess.update({
-                where: { id: nextProcess.id },
-                data: {
-                  status: ProcessStatus.IN_PROGRESS,
-                  startedAt: autoStartNow,
-                  activityLogs: {
-                    create: {
-                      action: ProcessActivityAction.START,
-                      timestamp: autoStartNow,
-                      notes: 'External verification started automatically',
-                    },
-                  },
-                },
-              });
-
-              await this.auditLogsService.log({
-                tenantId,
-                userId,
-                action: 'VERIFICATION_START',
-                entityName: 'PROCESS',
-                entityId: nextProcess.id,
-                details: {
-                  workOrderId,
-                  processName: nextProcess.processName,
-                  type: 'EXTERNAL',
-                  notes: 'Started automatically after previous step completion',
-                },
-              });
-            }
-
             // Trigger clinic notification or email / admin notifications via helper
             await this.triggerExternalVerification(
               tenantId,
@@ -3407,47 +3319,6 @@ export class WorkOrdersService implements OnModuleInit {
     if (nextProcess) {
       if (nextProcess.isVerification) {
         if (!nextProcess.technicianId) {
-          const doctor = process.workOrder?.doctorId
-            ? await this.prisma.doctor.findUnique({
-                where: { id: process.workOrder.doctorId },
-                include: { clinic: true },
-              })
-            : null;
-          const isExternal = doctor && doctor.clinicId && doctor.clinic?.url;
-
-          if (!isExternal) {
-            // Auto-start External Verification (ONLY for local doctor)
-            const autoStartNow = new Date();
-            await this.prisma.workOrderProcess.update({
-              where: { id: nextProcess.id },
-              data: {
-                status: ProcessStatus.IN_PROGRESS,
-                startedAt: autoStartNow,
-                activityLogs: {
-                  create: {
-                    action: ProcessActivityAction.START,
-                    timestamp: autoStartNow,
-                    notes: 'External verification started automatically',
-                  },
-                },
-              },
-            });
-
-            await this.auditLogsService.log({
-              tenantId,
-              userId,
-              action: 'VERIFICATION_START',
-              entityName: 'PROCESS',
-              entityId: nextProcess.id,
-              details: {
-                workOrderId,
-                processName: nextProcess.processName,
-                type: 'EXTERNAL',
-                notes: 'Started automatically after previous step completion',
-              },
-            });
-          }
-
           await this.triggerExternalVerification(
             tenantId,
             workOrderId,

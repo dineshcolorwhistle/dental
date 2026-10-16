@@ -1390,7 +1390,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
 
                                                 return (
                                                   <>
-                                                    {stepStatus === 'NOT_STARTED' && !isExternal && (
+                                                    {stepStatus === 'NOT_STARTED' && (
                                                       (() => {
                                                         const precedingComplete = processes
                                                           .filter((p: any) => p.sequence < proc.sequence)

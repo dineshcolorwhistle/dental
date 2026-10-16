@@ -238,7 +238,7 @@ export class WorkOrdersController {
   }
 
   @Post(':id/processes/:processId/start-verification')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Start process step verification' })
   async startVerification(
     @CurrentUser('tenantId') tenantId: string,
@@ -272,7 +272,7 @@ export class WorkOrdersController {
   }
 
   @Post(':id/processes/:processId/end-verification')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({
     summary:
       'End process step verification with SUCCESS, REWORK, or REPETITION',
