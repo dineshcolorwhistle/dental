@@ -185,12 +185,16 @@
     },
     "processAction": {
       "START": "Process Started",
+      "START_VERIFICATION": "Verification Started",
       "PAUSE": "Process Paused",
       "RESUME": "Process Resumed",
       "END": "Process Completed",
+      "END_VERIFICATION": "Verification Ended",
+      "REWORK_TRIGGERED": "Rework Triggered",
       "REWORK_ASSIGNED": "Rework Assigned",
       "REWORK_COMPLETED": "Rework Completed",
-      "REPETITION_RESET": "Process Repeated (Reset)",
+      "REWORK_APPROVED": "Rework Approved",
+      "REPETITION_RESET": "Repetition Triggered (Reset)",
       "REPETITION_TRIGGERED": "Repetition Triggered"
     },
     "inventoryStatus": {

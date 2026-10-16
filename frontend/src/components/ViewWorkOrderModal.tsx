@@ -80,51 +80,86 @@ const getCombinedProcessLogs = (proc: any, workOrder: any) => {
   // 1. Add process activity logs
   if (proc.activityLogs) {
     proc.activityLogs.forEach((log: any) => {
+      // Verification processes do not pause; normalize any historical PAUSE to END
+      const isVerification = proc.isVerification;
+      const normalizedAction = isVerification && log.action === 'PAUSE' ? 'END' : log.action;
       logs.push({
         id: log.id,
-        action: log.action,
+        action: normalizedAction,
         timestamp: log.timestamp,
         notes: log.notes,
       });
     });
   }
 
-  // 2. Add ReworkLog logs for this process step
+  // 2. Add ReworkLog logs for this process step (both if it was reworked OR if this verification step triggered the rework)
   if (workOrder && workOrder.reworkLogs) {
-    const reworkLogsForStep = workOrder.reworkLogs.filter(
-      (log: any) => log.processName === proc.processName
-    );
-    reworkLogsForStep.forEach((log: any) => {
-      logs.push({
-        id: log.id,
-        action: 'REWORK_INITIATED',
-        timestamp: log.initiatedAt,
-        notes: `Rework initiated by ${log.initiatedBy?.firstName || 'User'} ${log.initiatedBy?.lastName || ''}. Reason: ${log.reworkReason || 'No reason provided'}`,
-      });
+    workOrder.reworkLogs.forEach((log: any) => {
+      const initiatorName = `${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}`.trim();
+
+      // Check if this step was the one being reworked (production process)
+      if (log.processName === proc.processName) {
+        logs.push({
+          id: `rework-init-${log.id}`,
+          action: 'REWORK_TRIGGERED',
+          timestamp: log.initiatedAt,
+          notes: `Rework cycle #${log.reworkCount} triggered by ${initiatorName} at verification step "${log.verificationStage}".${log.reworkReason ? ` Reason: ${log.reworkReason}` : ''}`,
+        });
+
+        if (log.completedAt) {
+          logs.push({
+            id: `rework-comp-${log.id}`,
+            action: 'REWORK_COMPLETED',
+            timestamp: log.completedAt,
+            notes: `Rework cycle #${log.reworkCount} completed.`,
+          });
+        }
+
+        if (log.approvedAt) {
+          logs.push({
+            id: `rework-appr-${log.id}`,
+            action: 'REWORK_APPROVED',
+            timestamp: log.approvedAt,
+            notes: `Rework cycle #${log.reworkCount} approved.`,
+          });
+        }
+      }
+
+      // Check if this step was the verification step that triggered the rework
+      if (proc.isVerification && log.verificationStage === proc.processName) {
+        logs.push({
+          id: `rework-trig-${log.id}`,
+          action: 'REWORK_TRIGGERED',
+          timestamp: log.initiatedAt,
+          notes: `Rework cycle #${log.reworkCount} triggered by ${initiatorName} for step "${log.processName}".${log.reworkReason ? ` Reason: ${log.reworkReason}` : ''}`,
+        });
+      }
     });
   }
 
   // 3. Add RepetitionLog logs where this process was affected
   if (workOrder && workOrder.repetitionLogs) {
     workOrder.repetitionLogs.forEach((log: any) => {
-      // Check if this step was reset due to this repetition
+      const initiatorName = `${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}`.trim();
+
+      // Check if this step was reset due to this repetition (production process)
       const wasReset = log.completedSteps && log.completedSteps.split(', ').map((s: string) => s.trim()).includes(proc.processName);
       if (wasReset) {
         logs.push({
           id: `rep-reset-${log.id}`,
-          action: 'REPETITION_RESET',
+          action: 'REPETITION_TRIGGERED',
           timestamp: log.initiatedAt,
-          notes: `Repetition cycle #${log.repetitionCount} triggered by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''} at step "${log.verificationStage}". This step was reset to NOT_STARTED.`,
+          notes: `Repetition cycle #${log.repetitionCount} triggered by ${initiatorName} at step "${log.verificationStage}". This step was reset to NOT_STARTED.`,
         });
       }
 
-      // Check if this step was the one that triggered the repetition
-      if (log.verificationStage === proc.processName) {
+      // Check if this step was the one that triggered the repetition (verification process)
+      if (proc.isVerification && log.verificationStage === proc.processName) {
         logs.push({
           id: `rep-trig-${log.id}`,
           action: 'REPETITION_TRIGGERED',
           timestamp: log.initiatedAt,
-          notes: `Repetition cycle #${log.repetitionCount} triggered by ${log.initiatedBy?.firstName || 'Admin'} ${log.initiatedBy?.lastName || ''}. All preceding completed steps have been reset.`,
+          notes: `Repetition cycle #${log.repetitionCount} triggered by ${initiatorName}. All preceding completed steps have been reset.`,
         });
       }
     });
@@ -1525,16 +1560,21 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                                 {combinedLogs.map((log: any, lidx: number) => {
                                                   const getActionLabel = (act: string) => {
+                                                    if (proc.isVerification) {
+                                                      if (act === 'START') return t('enums.processAction.START_VERIFICATION', { defaultValue: 'Verification Started' });
+                                                      if (act === 'END') return t('enums.processAction.END_VERIFICATION', { defaultValue: 'Verification Ended' });
+                                                    }
                                                     switch (act) {
-                                                      case 'START': return t('enums.processAction.START');
-                                                      case 'PAUSE': return t('enums.processAction.PAUSE');
-                                                      case 'RESUME': return t('enums.processAction.RESUME');
-                                                      case 'END': return t('enums.processAction.END');
-                                                      case 'REWORK_ASSIGNED': return t('enums.processAction.REWORK_ASSIGNED');
-                                                      case 'REWORK_COMPLETED': return t('enums.processAction.REWORK_COMPLETED');
-                                                      case 'REWORK_APPROVED': return t('enums.processAction.REWORK_APPROVED');
-                                                      case 'REPETITION_RESET': return t('enums.processAction.REPETITION_RESET');
-                                                      case 'REPETITION_TRIGGERED': return t('enums.processAction.REPETITION_TRIGGERED');
+                                                      case 'START': return t('enums.processAction.START', { defaultValue: 'Process Started' });
+                                                      case 'PAUSE': return t('enums.processAction.PAUSE', { defaultValue: 'Process Paused' });
+                                                      case 'RESUME': return t('enums.processAction.RESUME', { defaultValue: 'Process Resumed' });
+                                                      case 'END': return t('enums.processAction.END', { defaultValue: 'Process Completed' });
+                                                      case 'REWORK_TRIGGERED': return t('enums.processAction.REWORK_TRIGGERED', { defaultValue: 'Rework Triggered' });
+                                                      case 'REWORK_ASSIGNED': return t('enums.processAction.REWORK_ASSIGNED', { defaultValue: 'Rework Assigned' });
+                                                      case 'REWORK_COMPLETED': return t('enums.processAction.REWORK_COMPLETED', { defaultValue: 'Rework Completed' });
+                                                      case 'REWORK_APPROVED': return t('enums.processAction.REWORK_APPROVED', { defaultValue: 'Rework Approved' });
+                                                      case 'REPETITION_RESET': return t('enums.processAction.REPETITION_RESET', { defaultValue: 'Repetition Triggered (Reset)' });
+                                                      case 'REPETITION_TRIGGERED': return t('enums.processAction.REPETITION_TRIGGERED', { defaultValue: 'Repetition Triggered' });
                                                       default: return act.replace('_', ' ');
                                                     }
                                                   };
@@ -1545,6 +1585,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                                       case 'PAUSE': return 'var(--warning, #F59E0B)';
                                                       case 'RESUME': return 'var(--accent-primary, #3B82F6)';
                                                       case 'END': return 'var(--success, #10B981)';
+                                                      case 'REWORK_TRIGGERED':
                                                       case 'REWORK_ASSIGNED': return '#EF4444';
                                                       case 'REWORK_COMPLETED': return '#10B981';
                                                       case 'REWORK_APPROVED': return '#8B5CF6';

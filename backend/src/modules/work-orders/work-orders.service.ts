@@ -2497,10 +2497,7 @@ export class WorkOrdersService implements OnModuleInit {
         verificationResolvedById: userId,
         activityLogs: {
           create: {
-            action:
-              outcome === 'REWORK'
-                ? ProcessActivityAction.PAUSE
-                : ProcessActivityAction.END,
+            action: ProcessActivityAction.END,
             timestamp: now,
             notes: activityNote,
           },
@@ -2689,6 +2686,19 @@ export class WorkOrdersService implements OnModuleInit {
             affectedProcesses: processesToRework.map((p) => p.processName),
           },
         });
+
+        await this.auditLogsService.log({
+          tenantId,
+          userId,
+          action: 'VERIFICATION_REWORK_TRIGGERED',
+          entityName: 'PROCESS',
+          entityId: process.id,
+          details: {
+            workOrderId,
+            verificationStage: process.processName,
+            affectedProcesses: processesToRework.map((p) => p.processName),
+          },
+        });
       }
     }
 
@@ -2794,6 +2804,20 @@ export class WorkOrdersService implements OnModuleInit {
         entityId: workOrderId,
         details: {
           initiatedBy: userId,
+          verificationStage: process.processName,
+          repetitionCount: updatedWO.repetitionCount,
+          affectedCompletedProcesses: completedProcs.map((p) => p.processName),
+        },
+      });
+
+      await this.auditLogsService.log({
+        tenantId,
+        userId,
+        action: 'VERIFICATION_REPETITION_TRIGGERED',
+        entityName: 'PROCESS',
+        entityId: process.id,
+        details: {
+          workOrderId,
           verificationStage: process.processName,
           repetitionCount: updatedWO.repetitionCount,
           affectedCompletedProcesses: completedProcs.map((p) => p.processName),

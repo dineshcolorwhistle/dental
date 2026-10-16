@@ -593,6 +593,12 @@ export class TechnicianPortalService {
       );
     }
 
+    if (process.isVerification) {
+      throw new BadRequestException(
+        'This endpoint is for production processes. Use verification endpoints for verification steps.',
+      );
+    }
+
     if (process.technicianId !== userId) {
       throw new BadRequestException(
         'You are not assigned to this process step.',

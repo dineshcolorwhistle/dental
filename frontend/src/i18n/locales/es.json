@@ -185,12 +185,16 @@
     },
     "processAction": {
       "START": "Proceso Iniciado",
+      "START_VERIFICATION": "Verificación Iniciada",
       "PAUSE": "Proceso Pausado",
       "RESUME": "Proceso Reanudado",
       "END": "Proceso Completado",
+      "END_VERIFICATION": "Verificación Finalizada",
+      "REWORK_TRIGGERED": "Retrabajo Activado",
       "REWORK_ASSIGNED": "Retrabajo Asignado",
       "REWORK_COMPLETED": "Retrabajo Completado",
-      "REPETITION_RESET": "Proceso Repetido (Reiniciado)",
+      "REWORK_APPROVED": "Retrabajo Aprobado",
+      "REPETITION_RESET": "Repetición Activada (Reinicio)",
       "REPETITION_TRIGGERED": "Repetición Activada"
     },
     "inventoryStatus": {
