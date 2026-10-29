@@ -142,6 +142,7 @@ model Tenant {
   odontogramConfigs OdontogramConfig[]
   odontogramTreatments OdontogramTreatment[]
   odontogramDiagnostics OdontogramDiagnostic[]
+  workOrderOdontograms  WorkOrderOdontogram[]
 
   @@map("tenants")
 }
@@ -503,6 +504,7 @@ model WorkOrder {
   conversation     Conversation?
   notesList        WorkOrderNote[]
   interestRequests InterestRequest[]
+  odontogram       WorkOrderOdontogram?
 
   @@unique([tenantId, folioNumber])
   @@map("work_orders")
@@ -1006,4 +1008,22 @@ model OdontogramDiagnostic {
 
   @@unique([tenantId, branchId, name])
   @@map("odontogram_diagnostics")
+}
+
+model WorkOrderOdontogram {
+  id          String     @id @default(uuid())
+  workOrderId String     @unique @map("work_order_id")
+  tenantId    String     @map("tenant_id")
+  teethModel  TeethModel @default(ADULT) @map("teeth_model")
+  teethData   Json       @default("{}") @map("teeth_data")
+  notes       String?    @map("notes")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("work_order_odontograms")
 }

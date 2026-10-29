@@ -20,6 +20,7 @@ import {
   UpdateOdontogramTreatmentDto,
   CreateOdontogramDiagnosticDto,
   UpdateOdontogramDiagnosticDto,
+  SaveWorkOrderOdontogramDto,
 } from './dto';
 import { Roles, CurrentUser } from '../../common/decorators';
 
@@ -230,6 +231,65 @@ export class OdontogramController {
       userRole,
     );
     return this.odontogramService.removeDiagnostic(resolvedTenantId, id);
+  }
+
+  // ─── Work Order Odontogram Endpoints ─────────────────────
+
+  @Get('work-order/:workOrderId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Get odontogram data for a specific work order' })
+  async getWorkOrderOdontogram(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('workOrderId') workOrderId: string,
+  ) {
+    const resolvedTenantId = await this.odontogramService.resolveTenantId(
+      tenantId,
+      userRole,
+    );
+    return this.odontogramService.getWorkOrderOdontogram(
+      resolvedTenantId,
+      workOrderId,
+    );
+  }
+
+  @Put('work-order/:workOrderId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Save or update odontogram data for a work order' })
+  async saveWorkOrderOdontogram(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('workOrderId') workOrderId: string,
+    @Body() dto: SaveWorkOrderOdontogramDto,
+  ) {
+    const resolvedTenantId = await this.odontogramService.resolveTenantId(
+      tenantId,
+      userRole,
+    );
+    return this.odontogramService.saveWorkOrderOdontogram(
+      resolvedTenantId,
+      workOrderId,
+      dto,
+    );
+  }
+
+  @Delete('work-order/:workOrderId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset odontogram data for a work order' })
+  async deleteWorkOrderOdontogram(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('workOrderId') workOrderId: string,
+  ) {
+    const resolvedTenantId = await this.odontogramService.resolveTenantId(
+      tenantId,
+      userRole,
+    );
+    return this.odontogramService.deleteWorkOrderOdontogram(
+      resolvedTenantId,
+      workOrderId,
+    );
   }
 }
 

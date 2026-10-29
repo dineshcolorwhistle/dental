@@ -10,3 +10,5 @@ export { SendWhatsAppModal, WhatsAppIcon } from './SendWhatsAppModal';
 export { RecurrencePanel } from './RecurrencePanel';
 export { ClinicWorkOrdersModal } from './ClinicWorkOrdersModal';
 export { VersionChecker } from './VersionChecker';
+export { ToothSvg, getSurfaceDisplayName } from './ToothSvg';
+export { WorkOrderOdontogramModal } from './WorkOrderOdontogramModal';

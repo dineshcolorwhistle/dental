@@ -13,6 +13,7 @@ import {
   UpdateOdontogramTreatmentDto,
   CreateOdontogramDiagnosticDto,
   UpdateOdontogramDiagnosticDto,
+  SaveWorkOrderOdontogramDto,
 } from './dto';
 
 @Injectable()
@@ -441,6 +442,145 @@ export class OdontogramService {
     });
 
     return { success: true, message: 'Diagnostic deleted successfully' };
+  }
+
+  // ─── Work Order Odontogram ───────────────────────────────
+
+  async getWorkOrderOdontogram(tenantId: string, workOrderId: string) {
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, tenantId },
+      include: {
+        doctor: { select: { id: true, name: true } },
+        branch: { select: { id: true, name: true, code: true } },
+      },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException(
+        `Work Order with ID "${workOrderId}" was not found.`,
+      );
+    }
+
+    // 1. Get branch or tenant config
+    const config = await this.getConfig(
+      tenantId,
+      workOrder.branchId || undefined,
+    );
+
+    // 2. Get treatments for this branch / tenant
+    const treatments = await this.prisma.odontogramTreatment.findMany({
+      where: {
+        tenantId,
+        ...(workOrder.branchId
+          ? {
+              OR: [{ branchId: workOrder.branchId }, { branchId: null }],
+            }
+          : { branchId: null }),
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // 3. Get diagnostics for this branch / tenant
+    const diagnostics = await this.prisma.odontogramDiagnostic.findMany({
+      where: {
+        tenantId,
+        ...(workOrder.branchId
+          ? {
+              OR: [{ branchId: workOrder.branchId }, { branchId: null }],
+            }
+          : { branchId: null }),
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // 4. Get saved work order odontogram
+    const savedOdontogram = await this.prisma.workOrderOdontogram.findUnique({
+      where: { workOrderId },
+    });
+
+    return {
+      workOrder: {
+        id: workOrder.id,
+        folioNumber: workOrder.folioNumber,
+        patient: workOrder.patient,
+        doctor: workOrder.doctor,
+        branch: workOrder.branch,
+        prosthesisTypeId: workOrder.prosthesisTypeId,
+      },
+      defaultTeethModel: config.defaultTeethModel,
+      teethModel: savedOdontogram?.teethModel || config.defaultTeethModel,
+      teethData: savedOdontogram?.teethData || {},
+      notes: savedOdontogram?.notes || '',
+      treatments,
+      diagnostics,
+      hasSavedData: !!savedOdontogram,
+      updatedAt: savedOdontogram?.updatedAt || null,
+    };
+  }
+
+  async saveWorkOrderOdontogram(
+    tenantId: string,
+    workOrderId: string,
+    dto: SaveWorkOrderOdontogramDto,
+  ) {
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, tenantId },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException(
+        `Work Order with ID "${workOrderId}" was not found.`,
+      );
+    }
+
+    const result = await this.prisma.workOrderOdontogram.upsert({
+      where: { workOrderId },
+      create: {
+        workOrderId,
+        tenantId,
+        teethModel: dto.teethModel,
+        teethData: dto.teethData,
+        notes: dto.notes?.trim() || null,
+      },
+      update: {
+        teethModel: dto.teethModel,
+        teethData: dto.teethData,
+        notes: dto.notes?.trim() || null,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Odontogram saved successfully',
+      data: result,
+    };
+  }
+
+  async deleteWorkOrderOdontogram(tenantId: string, workOrderId: string) {
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, tenantId },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException(
+        `Work Order with ID "${workOrderId}" was not found.`,
+      );
+    }
+
+    const existing = await this.prisma.workOrderOdontogram.findUnique({
+      where: { workOrderId },
+    });
+
+    if (existing) {
+      await this.prisma.workOrderOdontogram.delete({
+        where: { workOrderId },
+      });
+    }
+
+    return {
+      success: true,
+      message: 'Odontogram reset successfully',
+    };
   }
 }
 

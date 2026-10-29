@@ -88,6 +88,12 @@ export type {
   OdontogramDiagnosticItem,
   CreateOdontogramDiagnosticPayload,
   UpdateOdontogramDiagnosticPayload,
+  ToothPart,
+  AppliedFinding,
+  ToothPartsMap,
+  OdontogramTeethData,
+  WorkOrderOdontogramResponse,
+  SaveWorkOrderOdontogramPayload,
 } from './odontogram.service';
 export type { PaymentMethodItem, CreatePaymentMethodPayload, UpdatePaymentMethodPayload } from './payment-method.service';
 

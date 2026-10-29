@@ -26,6 +26,7 @@ import {
   Calendar,
   Check,
   CreditCard,
+  Smile,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -52,7 +53,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
 import { useAppDate } from '../hooks';
-import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal } from '../components';
+import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal, WorkOrderOdontogramModal } from '../components';
 import { formatDate } from '../utils/dateUtils';
 
 type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
@@ -298,6 +299,10 @@ export function WorkOrdersPage() {
   // QR modal
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrWO, setQrWO] = useState<WorkOrderListItem | null>(null);
+
+  // Odontogram modal
+  const [showOdontogramModal, setShowOdontogramModal] = useState(false);
+  const [odontogramWO, setOdontogramWO] = useState<WorkOrderListItem | null>(null);
 
   // Reference data for create form
   const [doctors, setDoctors] = useState<DoctorListItem[]>([]);
@@ -1822,6 +1827,17 @@ export function WorkOrdersPage() {
                           title={t('workOrders.viewWorkOrder', { defaultValue: 'View Work Order' })}
                         >
                           <Eye size={15} />
+                        </button>
+                        <button
+                          className="btn-action"
+                          style={{ color: '#0284C7', backgroundColor: '#E0F2FE' }}
+                          onClick={() => {
+                            setOdontogramWO(wo);
+                            setShowOdontogramModal(true);
+                          }}
+                          title={t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}
+                        >
+                          <Smile size={15} />
                         </button>
                         {user?.role !== 'OWNER' && (
                         <button
@@ -4190,6 +4206,22 @@ export function WorkOrdersPage() {
         }}
         workOrder={qrWO}
       />
+      {/* Odontogram Modal */}
+      {showOdontogramModal && (
+        <WorkOrderOdontogramModal
+          isOpen={showOdontogramModal}
+          onClose={() => {
+            setShowOdontogramModal(false);
+            setOdontogramWO(null);
+          }}
+          workOrderId={odontogramWO?.id || null}
+          workOrderFolio={odontogramWO?.folioNumber}
+          patientName={odontogramWO?.patient}
+          doctorName={odontogramWO?.doctor?.name}
+          branchName={odontogramWO?.branch?.name}
+          onSaved={fetchData}
+        />
+      )}
     </div>
   );
 }

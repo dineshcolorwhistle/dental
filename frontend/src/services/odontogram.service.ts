@@ -80,6 +80,54 @@ export interface UpdateOdontogramDiagnosticPayload {
   appliesToWholeTooth?: boolean;
 }
 
+export type ToothPart =
+  | 'center'
+  | 'top'
+  | 'upper_inner'
+  | 'right'
+  | 'lower_inner'
+  | 'bottom'
+  | 'left'
+  | 'whole';
+
+export interface AppliedFinding {
+  itemId: string;
+  itemType: 'DIAGNOSTIC' | 'TREATMENT';
+  name: string;
+  color: string;
+  appliesToWholeTooth?: boolean;
+  appliedAt?: string;
+}
+
+export type ToothPartsMap = Partial<Record<ToothPart, AppliedFinding>>;
+
+export type OdontogramTeethData = Record<string, ToothPartsMap>;
+
+export interface WorkOrderOdontogramResponse {
+  workOrder: {
+    id: string;
+    folioNumber: string;
+    patient: string | null;
+    doctor: { id: string; name: string } | null;
+    branch: { id: string; name: string; code: string } | null;
+    prosthesisTypeId?: string;
+  };
+  defaultTeethModel: TeethModel;
+  teethModel: TeethModel;
+  teethData: OdontogramTeethData;
+  notes: string;
+  treatments: OdontogramTreatmentItem[];
+  diagnostics: OdontogramDiagnosticItem[];
+  hasSavedData: boolean;
+  updatedAt: string | null;
+}
+
+export interface SaveWorkOrderOdontogramPayload {
+  teethModel: TeethModel;
+  teethData: OdontogramTeethData;
+  notes?: string;
+}
+
 export const odontogramService = {
   // Config
   getConfig: async (branchId?: string): Promise<OdontogramConfigItem> => {
@@ -134,6 +182,32 @@ export const odontogramService = {
 
   deleteDiagnostic: async (id: string): Promise<{ success: boolean; message: string }> => {
     const { data } = await api.delete<{ success: boolean; message: string }>(`/odontogram/diagnostics/${id}`);
+    return data;
+  },
+
+  // Work Order Odontogram
+  getWorkOrderOdontogram: async (workOrderId: string): Promise<WorkOrderOdontogramResponse> => {
+    const { data } = await api.get<WorkOrderOdontogramResponse>(`/odontogram/work-order/${workOrderId}`);
+    return data;
+  },
+
+  saveWorkOrderOdontogram: async (
+    workOrderId: string,
+    payload: SaveWorkOrderOdontogramPayload,
+  ): Promise<{ success: boolean; message: string }> => {
+    const { data } = await api.put<{ success: boolean; message: string }>(
+      `/odontogram/work-order/${workOrderId}`,
+      payload,
+    );
+    return data;
+  },
+
+  deleteWorkOrderOdontogram: async (
+    workOrderId: string,
+  ): Promise<{ success: boolean; message: string }> => {
+    const { data } = await api.delete<{ success: boolean; message: string }>(
+      `/odontogram/work-order/${workOrderId}`,
+    );
     return data;
   },
 };
