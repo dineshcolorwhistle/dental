@@ -38,6 +38,7 @@ import {
   VolumeX,
   Rocket,
   CreditCard,
+  Smile,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, tenantService, type NotificationItem } from '../services';
@@ -475,6 +476,19 @@ export function DashboardLayout() {
               >
                 <Building2 size={20} />
                 <span>{t('navigation.connectedClinics')}</span>
+              </NavLink>
+
+              {/* Odontogram Settings */}
+              <NavLink
+                to="/odontogram-settings"
+                className={({ isActive }) =>
+                  `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+                data-tooltip={t('navigation.odontogramSettings', { defaultValue: 'Odontogram Settings' })}
+              >
+                <Smile size={20} />
+                <span>{t('navigation.odontogramSettings', { defaultValue: 'Odontogram Settings' })}</span>
               </NavLink>
 
               {/* Settings Submenu */}

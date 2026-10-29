@@ -77,6 +77,18 @@ export type { PublicWorkOrder, PublicProcessItem, CreateInterestRequestPayload, 
 export { reminderService } from './reminder.service';
 export type { ReminderItem, ReminderAssignee, ReminderAssigneeUser, AssignableUser, CreateReminderPayload, UpdateReminderPayload } from './reminder.service';
 export { paymentMethodService } from './payment-method.service';
+export { odontogramService } from './odontogram.service';
+export type {
+  TeethModel,
+  OdontogramConfigItem,
+  UpdateOdontogramConfigPayload,
+  OdontogramTreatmentItem,
+  CreateOdontogramTreatmentPayload,
+  UpdateOdontogramTreatmentPayload,
+  OdontogramDiagnosticItem,
+  CreateOdontogramDiagnosticPayload,
+  UpdateOdontogramDiagnosticPayload,
+} from './odontogram.service';
 export type { PaymentMethodItem, CreatePaymentMethodPayload, UpdatePaymentMethodPayload } from './payment-method.service';
 
 

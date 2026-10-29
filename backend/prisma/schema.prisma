@@ -87,6 +87,11 @@ enum ReminderRecurrence {
   YEARLY
 }
 
+enum TeethModel {
+  ADULT
+  CHILD
+}
+
 enum ReminderStatus {
   PENDING
   COMPLETED
@@ -134,6 +139,9 @@ model Tenant {
   doctorLists       DoctorList[]
   reminders         Reminder[]
   paymentMethods    PaymentMethod[]
+  odontogramConfigs OdontogramConfig[]
+  odontogramTreatments OdontogramTreatment[]
+  odontogramDiagnostics OdontogramDiagnostic[]
 
   @@map("tenants")
 }
@@ -186,6 +194,10 @@ model Branch {
   apiKeys         ApiKey[]
   doctorLists     DoctorList[]
   reminders       Reminder[]
+
+  odontogramConfigs     OdontogramConfig[]
+  odontogramTreatments  OdontogramTreatment[]
+  odontogramDiagnostics OdontogramDiagnostic[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -938,4 +950,60 @@ model PaymentMethod {
 
   @@unique([tenantId, name])
   @@map("payment_methods")
+}
+
+// ─── Odontogram ──────────────────────────────────────────
+
+model OdontogramConfig {
+  id                String     @id @default(uuid())
+  tenantId          String     @map("tenant_id")
+  branchId          String?    @map("branch_id")
+  defaultTeethModel TeethModel @default(ADULT) @map("default_teeth_model")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, branchId])
+  @@map("odontogram_configs")
+}
+
+model OdontogramTreatment {
+  id                  String   @id @default(uuid())
+  tenantId            String   @map("tenant_id")
+  branchId            String?  @map("branch_id")
+  name                String
+  description         String?
+  color               String
+  appliesToWholeTooth Boolean  @default(false) @map("applies_to_whole_tooth")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, branchId, name])
+  @@map("odontogram_treatments")
+}
+
+model OdontogramDiagnostic {
+  id                  String   @id @default(uuid())
+  tenantId            String   @map("tenant_id")
+  branchId            String?  @map("branch_id")
+  name                String
+  description         String?
+  color               String
+  appliesToWholeTooth Boolean  @default(false) @map("applies_to_whole_tooth")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, branchId, name])
+  @@map("odontogram_diagnostics")
 }

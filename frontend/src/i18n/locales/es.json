@@ -125,7 +125,8 @@
     "onboardingTenants": "Incorporación de Laboratorios",
     "calendar": "Calendario",
     "reminders": "Recordatorios",
-    "paymentMethods": "Métodos de Pago"
+    "paymentMethods": "Métodos de Pago",
+    "odontogramSettings": "Configuración de Odontograma"
   },
   "enums": {
     "workOrderStatus": {
@@ -1186,10 +1187,10 @@
     "startTime": "Hora de Inicio",
     "endTime": "Hora de Finalización",
     "timeAudit": "Auditoría de Tiempo",
-    "startProcess": "Iniciar",
-    "pauseProcess": "Pausar",
-    "resumeProcess": "Reanudar",
-    "endProcess": "Completar",
+    "startProcess": "Iniciar Proceso",
+    "pauseProcess": "Pausar Proceso",
+    "resumeProcess": "Reanudar Proceso",
+    "endProcess": "Finalizar Proceso",
     "running": "En Ejecución...",
     "reworkActive": "Reproceso Activo",
     "reworkedCount": "Reprocesado {{count}} vez/veces",
@@ -1218,10 +1219,6 @@
     "partRepetitionDesc": "Etapa de verificación: {{stage}} desencadenó repetición; restablecido por {{name}}",
     "blockedSequenceMsg": "Este paso está bloqueado hasta que se complete el paso anterior.",
     "activeTimeElapsed": "Tiempo activo transcurrido",
-    "startProcess": "Iniciar Proceso",
-    "pauseProcess": "Pausar Proceso",
-    "resumeProcess": "Reanudar Proceso",
-    "endProcess": "Finalizar Proceso",
     "completedTotalActiveTime": "¡Completado! Tiempo activo total: {{duration}}",
     "processLogAuditTrail": "Registro de Actividad y Auditoría de Procesos",
     "failedRetrieveWorkOrders": "Error al obtener las órdenes de trabajo",
@@ -2001,7 +1998,12 @@
         "role": "SUPER_ADMIN",
         "desc": "El Super Administrador registra el nuevo laboratorio dental en la plataforma y asigna los límites de usuarios iniciales.",
         "prereq": "Ninguno (primer paso de la plataforma).",
-        "fields": ["Nombre del Lab", "Nombre del Propietario", "Correo del Propietario", "Límites de Usuarios"],
+        "fields": [
+          "Nombre del Lab",
+          "Nombre del Propietario",
+          "Correo del Propietario",
+          "Límites de Usuarios"
+        ],
         "whatHappens": "El sistema crea el entorno aislado del laboratorio y envía un correo automático de invitación / restablecimiento de contraseña al propietario.",
         "actionUrl": "/tenants",
         "actionLabel": "Ir a Laboratorios"
@@ -2012,7 +2014,10 @@
         "role": "OWNER",
         "desc": "El propietario del laboratorio abre el correo recibido, hace clic en el enlace seguro para definir su contraseña y accede a la plataforma.",
         "prereq": "Laboratorio creado por el Super Admin (Paso 1).",
-        "fields": ["Nueva Contraseña", "Confirmar Contraseña"],
+        "fields": [
+          "Nueva Contraseña",
+          "Confirmar Contraseña"
+        ],
         "whatHappens": "La cuenta se activa y el propietario es redirigido a su Panel de Propietario.",
         "actionUrl": "/login",
         "actionLabel": "Ir al Acceso"
@@ -2023,7 +2028,12 @@
         "role": "OWNER",
         "desc": "El propietario crea al menos una sucursal física. El personal, técnicos y órdenes de trabajo deben pertenecer a una sucursal.",
         "prereq": "Propietario autenticado en la plataforma (Paso 2).",
-        "fields": ["Nombre de Sucursal", "Código de Sucursal", "Teléfono", "Dirección"],
+        "fields": [
+          "Nombre de Sucursal",
+          "Código de Sucursal",
+          "Teléfono",
+          "Dirección"
+        ],
         "whatHappens": "Establece la sede operativa para asignar personal y enrutar las órdenes de trabajo.",
         "actionUrl": "/branches",
         "actionLabel": "Ir a Sucursales"
@@ -2034,7 +2044,12 @@
         "role": "OWNER",
         "desc": "El propietario invita a Administradores de Laboratorio para gestionar la recepción de órdenes, asignación de técnicos y atención a clínicas.",
         "prereq": "Al menos una Sucursal creada (Paso 3).",
-        "fields": ["Nombre", "Apellidos", "Correo Electrónico", "Sucursal Asignada"],
+        "fields": [
+          "Nombre",
+          "Apellidos",
+          "Correo Electrónico",
+          "Sucursal Asignada"
+        ],
         "whatHappens": "El administrador recibe un correo de invitación con enlace para definir su contraseña.",
         "actionUrl": "/admins",
         "actionLabel": "Ir a Administradores"
@@ -2046,11 +2061,36 @@
         "desc": "Antes de crear órdenes de trabajo, el laboratorio debe configurar su catálogo de producción en este orden exacto:",
         "prereq": "Sucursal (Paso 3) y Administrador de Lab (Paso 4) creados.",
         "substeps": [
-          { "num": "5.1", "name": "Técnicos", "url": "/technicians", "desc": "Agregar técnicos con su sucursal y especialidades (CAD/CAM, Cerámica, Metal, Pulido)." },
-          { "num": "5.2", "name": "Áreas de Proceso", "url": "/process-areas", "desc": "Crear estaciones de trabajo físicas (ej., CAD/CAM, Cerámica, Impresión 3D, Control de Calidad)." },
-          { "num": "5.3", "name": "Procesos", "url": "/processes", "desc": "Definir etapas individuales de trabajo (ej., Escaneo, Diseño, Fresado, Sinterizado, Glaseado) vinculadas a áreas." },
-          { "num": "5.4", "name": "Tipos de Prótesis", "url": "/prosthesis-types", "desc": "Definir catálogo de productos (ej., Corona Zirconia, Puente Metal-Porcelana, Férula) con precio base y flujo de etapas." },
-          { "num": "5.5", "name": "Doctores y Clínicas", "url": "/doctors", "desc": "Registrar odontólogos y clínicas clientes con datos de contacto y dirección." }
+          {
+            "num": "5.1",
+            "name": "Técnicos",
+            "url": "/technicians",
+            "desc": "Agregar técnicos con su sucursal y especialidades (CAD/CAM, Cerámica, Metal, Pulido)."
+          },
+          {
+            "num": "5.2",
+            "name": "Áreas de Proceso",
+            "url": "/process-areas",
+            "desc": "Crear estaciones de trabajo físicas (ej., CAD/CAM, Cerámica, Impresión 3D, Control de Calidad)."
+          },
+          {
+            "num": "5.3",
+            "name": "Procesos",
+            "url": "/processes",
+            "desc": "Definir etapas individuales de trabajo (ej., Escaneo, Diseño, Fresado, Sinterizado, Glaseado) vinculadas a áreas."
+          },
+          {
+            "num": "5.4",
+            "name": "Tipos de Prótesis",
+            "url": "/prosthesis-types",
+            "desc": "Definir catálogo de productos (ej., Corona Zirconia, Puente Metal-Porcelana, Férula) con precio base y flujo de etapas."
+          },
+          {
+            "num": "5.5",
+            "name": "Doctores y Clínicas",
+            "url": "/doctors",
+            "desc": "Registrar odontólogos y clínicas clientes con datos de contacto y dirección."
+          }
         ],
         "whatHappens": "Configura todas las plantillas de producto y asignación técnica necesarias para emitir órdenes de trabajo."
       },
@@ -2060,7 +2100,14 @@
         "role": "ADMIN",
         "desc": "El Administrador crea una orden para un doctor, selecciona la prótesis, diente/color, fecha de entrega y asigna técnicos a cada etapa.",
         "prereq": "Doctor, Tipo de Prótesis y Técnicos configurados (Paso 5).",
-        "fields": ["Doctor / Clínica", "ID / Nombre de Paciente", "Tipo de Prótesis", "Dientes y Color", "Fecha de Entrega", "Técnico por Etapa"],
+        "fields": [
+          "Doctor / Clínica",
+          "ID / Nombre de Paciente",
+          "Tipo de Prótesis",
+          "Dientes y Color",
+          "Fecha de Entrega",
+          "Técnico por Etapa"
+        ],
         "whatHappens": "Genera un número secuencial de Orden y un código QR único para seguimiento en estaciones de trabajo.",
         "actionUrl": "/work-orders",
         "actionLabel": "Ir a Órdenes de Trabajo"
@@ -2071,7 +2118,11 @@
         "role": "TECHNICIAN",
         "desc": "Los técnicos escanean el código QR o ven sus órdenes asignadas, actualizan el estado (En Progreso -> Completada) y el Administrador realiza el control de calidad.",
         "prereq": "Orden de Trabajo creada y asignada (Paso 6).",
-        "fields": ["Estado de la Etapa (En Progreso / Completada)", "Notas Técnicas / Lote", "Verificación de Ajuste y Calidad"],
+        "fields": [
+          "Estado de la Etapa (En Progreso / Completada)",
+          "Notas Técnicas / Lote",
+          "Verificación de Ajuste y Calidad"
+        ],
         "whatHappens": "Registra los tiempos de cada etapa, alerta al siguiente técnico y avanza la orden hacia su finalización.",
         "actionUrl": "/work-orders",
         "actionLabel": "Ver Órdenes de Trabajo"
@@ -2082,11 +2133,105 @@
         "role": "ADMIN",
         "desc": "La prótesis terminada se empaqueta, se entrega con comprobante de recepción firmado, se marca como Completada y se factura en Finanzas.",
         "prereq": "Orden de Trabajo completada y aprobada en calidad (Paso 7).",
-        "fields": ["Albarán de Entrega y Firma", "Detalle de Factura y Cobro"],
+        "fields": [
+          "Albarán de Entrega y Firma",
+          "Detalle de Factura y Cobro"
+        ],
         "whatHappens": "Finaliza el ciclo de vida del caso, actualiza las métricas del laboratorio y registra la cuenta por cobrar en Finanzas.",
         "actionUrl": "/finance",
         "actionLabel": "Ir a Finanzas"
       }
     }
+  },
+  "odontogramSettings": {
+    "title": "Configuración de Odontograma",
+    "subtitle": "Configure modelos de dientes predeterminados, opciones de tratamiento y diagnósticos por sucursal",
+    "tabs": {
+      "default": "Predeterminado",
+      "treatments": "Tratamientos de Odontograma",
+      "diagnostics": "Diagnósticos de Odontograma"
+    },
+    "defaultTab": {
+      "title": "Modelo Dental Predeterminado",
+      "subtitle": "Seleccione si el odontograma se muestra por defecto con el modelo de Adulto o Infantil",
+      "adultTitle": "Modelo Adulto (32 Dientes)",
+      "adultDescription": "Dentición permanente estándar con cuadrantes 1 al 4 y 32 dientes (11-48)",
+      "childTitle": "Modelo Infantil (20 Dientes)",
+      "childDescription": "Dentición temporal/pediátrica con cuadrantes 5 al 8 y 20 dientes (51-85)",
+      "currentlySelected": "Activo Actualmente",
+      "saveButton": "Guardar Modelo Predeterminado",
+      "saving": "Guardando...",
+      "saveSuccess": "Modelo dental predeterminado actualizado exitosamente",
+      "saveFailed": "Error al actualizar el modelo dental predeterminado",
+      "ownerNotice": "El modelo predeterminado es configurado por los Administradores de Laboratorio. Está en modo de solo lectura para esta sucursal."
+    },
+    "treatmentsTab": {
+      "title": "Tratamientos de Odontograma",
+      "subtitle": "Administre los tratamientos clínicos y restaurativos para el odontograma",
+      "addTreatment": "Agregar Tratamiento",
+      "searchPlaceholder": "Buscar tratamientos por nombre o descripción...",
+      "emptyTitle": "No hay tratamientos configurados",
+      "emptySubtitle": "Agregue tratamientos como Obturaciones, Coronas, Incrustaciones o Extracciones para comenzar.",
+      "name": "Nombre del Tratamiento",
+      "description": "Descripción",
+      "color": "Color",
+      "appliesTo": "Alcance de Aplicación",
+      "appliesToWholeTooth": "Aplica a Diente Completo",
+      "wholeToothBadge": "Diente Completo",
+      "surfaceBadge": "Superficies",
+      "branch": "Sucursal",
+      "actions": "Acciones",
+      "addModalTitle": "Agregar Tratamiento de Odontograma",
+      "editModalTitle": "Editar Tratamiento de Odontograma",
+      "namePlaceholder": "ej. Resina Compuesta, Corona, Endodoncia",
+      "descPlaceholder": "Notas clínicas opcionales o indicaciones",
+      "appliesHelp": "Al seleccionar esta opción, el tratamiento se aplica a todo el diente en lugar de a superficies específicas (ej. Mesial, Distal, Oclusal).",
+      "createSuccess": "Tratamiento creado exitosamente",
+      "createFailed": "Error al crear el tratamiento",
+      "updateSuccess": "Tratamiento actualizado exitosamente",
+      "updateFailed": "Error al actualizar el tratamiento",
+      "deleteSuccess": "Tratamiento eliminado exitosamente",
+      "deleteFailed": "Error al eliminar el tratamiento",
+      "deleteModalTitle": "Eliminar Tratamiento",
+      "deleteConfirm": "¿Está seguro de que desea eliminar el tratamiento \"{{name}}\"? Esta acción no se puede deshacer.",
+      "ownerOnlyDelete": "Como Administrador de Organización, puede revisar y eliminar tratamientos en todas las sucursales.",
+      "adminOnlyManage": "Como Administrador de Laboratorio, puede agregar y editar tratamientos para su sucursal."
+    },
+    "diagnosticsTab": {
+      "title": "Diagnósticos de Odontograma",
+      "subtitle": "Administre hallazgos clínicos y marcadores diagnósticos dentales",
+      "addDiagnostic": "Agregar Diagnóstico",
+      "searchPlaceholder": "Buscar diagnósticos por nombre o descripción...",
+      "emptyTitle": "No hay diagnósticos configurados",
+      "emptySubtitle": "Agregue diagnósticos como Caries, Fractura, Diente Ausente o Placa para comenzar.",
+      "name": "Nombre del Diagnóstico",
+      "description": "Descripción",
+      "color": "Color",
+      "appliesTo": "Alcance de Aplicación",
+      "appliesToWholeTooth": "Aplica a Diente Completo",
+      "wholeToothBadge": "Diente Completo",
+      "surfaceBadge": "Superficies",
+      "branch": "Sucursal",
+      "actions": "Acciones",
+      "addModalTitle": "Agregar Diagnóstico de Odontograma",
+      "editModalTitle": "Editar Diagnóstico de Odontograma",
+      "namePlaceholder": "ej. Caries Dental, Fractura Dental, Diente Ausente",
+      "descPlaceholder": "Descripción diagnóstica o síntomas opcionales",
+      "appliesHelp": "Al seleccionar esta opción, el diagnóstico se aplica a la estructura dental completa en lugar de caras individuales.",
+      "createSuccess": "Diagnóstico creado exitosamente",
+      "createFailed": "Error al crear el diagnóstico",
+      "updateSuccess": "Diagnóstico actualizado exitosamente",
+      "updateFailed": "Error al actualizar el diagnóstico",
+      "deleteSuccess": "Diagnóstico eliminado exitosamente",
+      "deleteFailed": "Error al eliminar el diagnóstico",
+      "deleteModalTitle": "Eliminar Diagnóstico",
+      "deleteConfirm": "¿Está seguro de que desea eliminar el diagnóstico \"{{name}}\"? Esta acción no se puede deshacer.",
+      "ownerOnlyDelete": "Como Administrador de Organización, puede revisar y eliminar diagnósticos en todas las sucursales.",
+      "adminOnlyManage": "Como Administrador de Laboratorio, puede agregar y editar diagnósticos para su sucursal."
+    },
+    "branchScope": "Sucursal",
+    "allBranches": "Todas las Sucursales",
+    "selectBranch": "Seleccionar Sucursal",
+    "failedLoad": "Error al cargar los datos de configuración del odontograma"
   }
 }

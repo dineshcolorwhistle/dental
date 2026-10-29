@@ -35,6 +35,7 @@ import { InterestRequestsPage } from './pages/InterestRequestsPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { RemindersPage } from './pages/RemindersPage';
 import { TenantOnboardingPage } from './pages/TenantOnboardingPage';
+import { OdontogramSettingsPage } from './pages/OdontogramSettingsPage';
 
 
 function App() {
@@ -246,6 +247,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN']}>
                   <WhatsAppTemplatesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/odontogram-settings"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN']}>
+                  <OdontogramSettingsPage />
                 </ProtectedRoute>
               }
             />

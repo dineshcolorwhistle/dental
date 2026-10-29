@@ -30,6 +30,7 @@ import { InterestRequestsModule } from './modules/interest-requests/interest-req
 import { WhatsAppTemplatesModule } from './modules/whatsapp-templates/whatsapp-templates.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
+import { OdontogramModule } from './modules/odontogram/odontogram.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.
     WhatsAppTemplatesModule,
     RemindersModule,
     PaymentMethodsModule,
+    OdontogramModule,
   ],
   providers: [
     // Global JWT guard — all routes require auth by default

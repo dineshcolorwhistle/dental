@@ -125,7 +125,8 @@
     "onboardingTenants": "Onboarding Tenants",
     "calendar": "Calendar",
     "reminders": "Reminders",
-    "paymentMethods": "Payment Methods"
+    "paymentMethods": "Payment Methods",
+    "odontogramSettings": "Odontogram Settings"
   },
   "enums": {
     "workOrderStatus": {
@@ -1186,10 +1187,10 @@
     "startTime": "Start Time",
     "endTime": "End Time",
     "timeAudit": "Time Audit",
-    "startProcess": "Start",
-    "pauseProcess": "Pause",
-    "resumeProcess": "Resume",
-    "endProcess": "Complete",
+    "startProcess": "Start Process",
+    "pauseProcess": "Pause Process",
+    "resumeProcess": "Resume Process",
+    "endProcess": "End Process",
     "running": "Running...",
     "reworkActive": "Rework Active",
     "reworkedCount": "Reworked {{count}} time(s)",
@@ -1218,10 +1219,6 @@
     "partRepetitionDesc": "Verification stage: {{stage}} triggered repetition; reset by {{name}}",
     "blockedSequenceMsg": "This step is blocked until the previous step is completed.",
     "activeTimeElapsed": "Active time elapsed",
-    "startProcess": "Start Process",
-    "pauseProcess": "Pause Process",
-    "resumeProcess": "Resume Process",
-    "endProcess": "End Process",
     "completedTotalActiveTime": "Completed! Total active time: {{duration}}",
     "processLogAuditTrail": "Process Activity & Audit Log",
     "failedRetrieveWorkOrders": "Failed to retrieve work orders",
@@ -2001,7 +1998,12 @@
         "role": "SUPER_ADMIN",
         "desc": "Super Admin registers the new dental laboratory on the platform and assigns initial user limits.",
         "prereq": "None (initial platform step).",
-        "fields": ["Lab Name", "Owner Full Name", "Owner Email", "User Quotas (Owners, Admins, Techs)"],
+        "fields": [
+          "Lab Name",
+          "Owner Full Name",
+          "Owner Email",
+          "User Quotas (Owners, Admins, Techs)"
+        ],
         "whatHappens": "System creates the tenant database boundary and automatically sends an invitation / password reset email to the owner.",
         "actionUrl": "/tenants",
         "actionLabel": "Go to Tenants"
@@ -2012,7 +2014,10 @@
         "role": "OWNER",
         "desc": "The lab owner opens the invitation email, clicks the secure link to set their master password, and logs into the platform.",
         "prereq": "Tenant created by Super Admin (Step 1).",
-        "fields": ["New Password", "Confirm Password"],
+        "fields": [
+          "New Password",
+          "Confirm Password"
+        ],
         "whatHappens": "Account is activated and the owner is redirected to the Owner Dashboard.",
         "actionUrl": "/login",
         "actionLabel": "Go to Login"
@@ -2023,7 +2028,12 @@
         "role": "OWNER",
         "desc": "The owner creates at least one physical branch/facility. Staff, technicians, and work orders must belong to a branch.",
         "prereq": "Owner authenticated into the platform (Step 2).",
-        "fields": ["Branch Name", "Branch Code", "Phone", "Address"],
+        "fields": [
+          "Branch Name",
+          "Branch Code",
+          "Phone",
+          "Address"
+        ],
         "whatHappens": "Establishes the operational base for staff assignments and case routing.",
         "actionUrl": "/branches",
         "actionLabel": "Go to Branches"
@@ -2034,7 +2044,12 @@
         "role": "OWNER",
         "desc": "The owner invites Lab Administrators to handle daily order intake, technician task assignment, and clinic communication.",
         "prereq": "At least one Branch created (Step 3).",
-        "fields": ["First Name", "Last Name", "Email", "Assigned Branch"],
+        "fields": [
+          "First Name",
+          "Last Name",
+          "Email",
+          "Assigned Branch"
+        ],
         "whatHappens": "Administrator receives an email invite with an activation link to set their password.",
         "actionUrl": "/admins",
         "actionLabel": "Go to Admins"
@@ -2046,11 +2061,36 @@
         "desc": "Before creating work orders, the lab must configure its production catalog in this exact sequence:",
         "prereq": "Branch (Step 3) and Lab Admin (Step 4) created.",
         "substeps": [
-          { "num": "5.1", "name": "Technicians", "url": "/technicians", "desc": "Add lab technicians with their specialties (CAD/CAM, Ceramics, Metal, Polish)." },
-          { "num": "5.2", "name": "Process Areas", "url": "/process-areas", "desc": "Create workstation departments (e.g., CAD/CAM Station, Ceramics, 3D Printing, QC)." },
-          { "num": "5.3", "name": "Processes", "url": "/processes", "desc": "Define individual work stages (e.g., Scan, CAD Design, Milling, Sintering, Glaze) linked to areas." },
-          { "num": "5.4", "name": "Prosthesis Types", "url": "/prosthesis-types", "desc": "Define product catalog (e.g., Zirconia Crown, PFM Bridge, Night Guard) with base price and stage workflow." },
-          { "num": "5.5", "name": "Doctors & Clinics", "url": "/doctors", "desc": "Register prescribing dentists and dental clinics with contact info and address." }
+          {
+            "num": "5.1",
+            "name": "Technicians",
+            "url": "/technicians",
+            "desc": "Add lab technicians with their specialties (CAD/CAM, Ceramics, Metal, Polish)."
+          },
+          {
+            "num": "5.2",
+            "name": "Process Areas",
+            "url": "/process-areas",
+            "desc": "Create workstation departments (e.g., CAD/CAM Station, Ceramics, 3D Printing, QC)."
+          },
+          {
+            "num": "5.3",
+            "name": "Processes",
+            "url": "/processes",
+            "desc": "Define individual work stages (e.g., Scan, CAD Design, Milling, Sintering, Glaze) linked to areas."
+          },
+          {
+            "num": "5.4",
+            "name": "Prosthesis Types",
+            "url": "/prosthesis-types",
+            "desc": "Define product catalog (e.g., Zirconia Crown, PFM Bridge, Night Guard) with base price and stage workflow."
+          },
+          {
+            "num": "5.5",
+            "name": "Doctors & Clinics",
+            "url": "/doctors",
+            "desc": "Register prescribing dentists and dental clinics with contact info and address."
+          }
         ],
         "whatHappens": "Configures all product templates and technician routing required to generate work orders."
       },
@@ -2060,7 +2100,14 @@
         "role": "ADMIN",
         "desc": "Admin creates a work order for a doctor, selects prosthesis, tooth/shade, delivery date, and assigns technicians to each stage.",
         "prereq": "Doctor, Prosthesis Type, and Technicians configured (Step 5).",
-        "fields": ["Doctor / Clinic", "Patient ID / Name", "Prosthesis Type", "Teeth & Shade", "Delivery Date", "Technician per Stage"],
+        "fields": [
+          "Doctor / Clinic",
+          "Patient ID / Name",
+          "Prosthesis Type",
+          "Teeth & Shade",
+          "Delivery Date",
+          "Technician per Stage"
+        ],
         "whatHappens": "Generates a sequential Work Order number and unique QR tracking code for workstation tracking.",
         "actionUrl": "/work-orders",
         "actionLabel": "Go to Work Orders"
@@ -2071,7 +2118,11 @@
         "role": "TECHNICIAN",
         "desc": "Technicians scan the case QR code or view assigned orders, update stage status (In Progress -> Completed), and Admin performs QC inspection.",
         "prereq": "Work Order created and assigned (Step 6).",
-        "fields": ["Stage Status (In Progress / Completed)", "Technical Notes / Lot #", "QC Fit & Margin Verification"],
+        "fields": [
+          "Stage Status (In Progress / Completed)",
+          "Technical Notes / Lot #",
+          "QC Fit & Margin Verification"
+        ],
         "whatHappens": "Tracks stage cycle times, alerts next technician, and advances the work order toward completion.",
         "actionUrl": "/work-orders",
         "actionLabel": "View Work Orders"
@@ -2082,11 +2133,105 @@
         "role": "ADMIN",
         "desc": "The completed restoration is packaged, dispatched with delivery confirmation slip, marked Completed, and billed in Finance.",
         "prereq": "Work Order completed and QC approved (Step 7).",
-        "fields": ["Delivery Manifest & Signature", "Invoice Itemization & Payment"],
+        "fields": [
+          "Delivery Manifest & Signature",
+          "Invoice Itemization & Payment"
+        ],
         "whatHappens": "Finalizes the case lifecycle, updates turnaround metrics, and logs the invoice in accounts receivable.",
         "actionUrl": "/finance",
         "actionLabel": "Go to Finance"
       }
     }
+  },
+  "odontogramSettings": {
+    "title": "Odontogram Settings",
+    "subtitle": "Configure default teeth models, treatment options, and diagnostic entries per branch",
+    "tabs": {
+      "default": "Default",
+      "treatments": "Odontogram Treatment",
+      "diagnostics": "Odontogram Diagnostics"
+    },
+    "defaultTab": {
+      "title": "Default Teeth Model",
+      "subtitle": "Choose whether the odontogram defaults to the Adult (permanent) or Child (pediatric) teeth model",
+      "adultTitle": "Adult Model (32 Teeth)",
+      "adultDescription": "Standard permanent dentition with quadrants 1 to 4 and 32 teeth (11-48)",
+      "childTitle": "Child Model (20 Teeth)",
+      "childDescription": "Pediatric primary/deciduous dentition with quadrants 5 to 8 and 20 teeth (51-85)",
+      "currentlySelected": "Currently Active",
+      "saveButton": "Save Default Model",
+      "saving": "Saving...",
+      "saveSuccess": "Default teeth model updated successfully",
+      "saveFailed": "Failed to update default teeth model",
+      "ownerNotice": "The default teeth model is configured by Lab Admins. You are currently viewing the setting for this branch."
+    },
+    "treatmentsTab": {
+      "title": "Odontogram Treatments",
+      "subtitle": "Manage clinical and restorative dental treatments for odontogram charting",
+      "addTreatment": "Add Treatment",
+      "searchPlaceholder": "Search treatments by name or description...",
+      "emptyTitle": "No treatments configured",
+      "emptySubtitle": "Add treatment entries such as Fillings, Crowns, Inlays, or Extractions to begin.",
+      "name": "Treatment Name",
+      "description": "Description",
+      "color": "Color",
+      "appliesTo": "Application Scope",
+      "appliesToWholeTooth": "Applies to Whole Tooth",
+      "wholeToothBadge": "Whole Tooth",
+      "surfaceBadge": "Surfaces",
+      "branch": "Branch",
+      "actions": "Actions",
+      "addModalTitle": "Add Odontogram Treatment",
+      "editModalTitle": "Edit Odontogram Treatment",
+      "namePlaceholder": "e.g. Composite Restoration, Crown, Root Canal",
+      "descPlaceholder": "Optional clinical notes or instructions",
+      "appliesHelp": "When checked, applying this treatment covers the entire tooth rather than specific surfaces (e.g. Mesial, Distal, Occlusal).",
+      "createSuccess": "Treatment created successfully",
+      "createFailed": "Failed to create treatment",
+      "updateSuccess": "Treatment updated successfully",
+      "updateFailed": "Failed to update treatment",
+      "deleteSuccess": "Treatment deleted successfully",
+      "deleteFailed": "Failed to delete treatment",
+      "deleteModalTitle": "Delete Treatment",
+      "deleteConfirm": "Are you sure you want to delete the treatment \"{{name}}\"? This action cannot be undone.",
+      "ownerOnlyDelete": "As a Tenant Admin, you can review and delete treatments across branches.",
+      "adminOnlyManage": "As a Lab Admin, you can add and edit treatments for your branch."
+    },
+    "diagnosticsTab": {
+      "title": "Odontogram Diagnostics",
+      "subtitle": "Manage clinical findings and tooth condition diagnostic markers",
+      "addDiagnostic": "Add Diagnostic",
+      "searchPlaceholder": "Search diagnostics by name or description...",
+      "emptyTitle": "No diagnostics configured",
+      "emptySubtitle": "Add diagnostic entries such as Caries, Fracture, Missing Tooth, or Plaque to begin.",
+      "name": "Diagnostic Name",
+      "description": "Description",
+      "color": "Color",
+      "appliesTo": "Application Scope",
+      "appliesToWholeTooth": "Applies to Whole Tooth",
+      "wholeToothBadge": "Whole Tooth",
+      "surfaceBadge": "Surfaces",
+      "branch": "Branch",
+      "actions": "Actions",
+      "addModalTitle": "Add Odontogram Diagnostic",
+      "editModalTitle": "Edit Odontogram Diagnostic",
+      "namePlaceholder": "e.g. Dental Caries, Tooth Fracture, Missing Tooth",
+      "descPlaceholder": "Optional diagnostic description or symptoms",
+      "appliesHelp": "When checked, this diagnostic applies to the entire tooth structure instead of individual tooth faces.",
+      "createSuccess": "Diagnostic created successfully",
+      "createFailed": "Failed to create diagnostic",
+      "updateSuccess": "Diagnostic updated successfully",
+      "updateFailed": "Failed to update diagnostic",
+      "deleteSuccess": "Diagnostic deleted successfully",
+      "deleteFailed": "Failed to delete diagnostic",
+      "deleteModalTitle": "Delete Diagnostic",
+      "deleteConfirm": "Are you sure you want to delete the diagnostic \"{{name}}\"? This action cannot be undone.",
+      "ownerOnlyDelete": "As a Tenant Admin, you can review and delete diagnostics across branches.",
+      "adminOnlyManage": "As a Lab Admin, you can add and edit diagnostics for your branch."
+    },
+    "branchScope": "Branch Scope",
+    "allBranches": "All Branches",
+    "selectBranch": "Select Branch",
+    "failedLoad": "Failed to load odontogram settings data"
   }
 }
