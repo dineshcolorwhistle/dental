@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { ToothPart, ToothPartsMap } from '../services';
 
 interface ToothSvgProps {
@@ -13,8 +13,9 @@ interface ToothSvgProps {
     appliesToWholeTooth?: boolean;
   } | null;
   onSelectPart: (toothNumber: number, part: ToothPart) => void;
-  onHoverPart?: (toothNumber: number, part: ToothPart | null) => void;
+  onHoverPart?: (toothNumber: number, part: ToothPart | null, rect?: DOMRect) => void;
   disabled?: boolean;
+  size?: 'md' | 'lg';
 }
 
 export function getSurfaceDisplayName(
@@ -63,8 +64,14 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
   onSelectPart,
   onHoverPart,
   disabled = false,
+  size = 'lg',
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const wholeToothFinding = partsMap.whole;
+  const isLg = size === 'lg';
+  const containerWidth = isLg ? '54px' : '46px';
+  const svgWidth = isLg ? '52' : '44';
+  const svgHeight = isLg ? '58' : '48';
 
   // Helper to determine fill color for each part
   const getPartFill = (part: ToothPart) => {
@@ -90,9 +97,10 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
     onSelectPart(toothNumber, part);
   };
 
-  const handleMouseEnter = (part: ToothPart) => {
+  const handleMouseEnter = (part: ToothPart, e?: React.MouseEvent) => {
     if (onHoverPart) {
-      onHoverPart(toothNumber, part);
+      const rect = containerRef.current?.getBoundingClientRect() || (e?.currentTarget as Element | undefined)?.getBoundingClientRect();
+      onHoverPart(toothNumber, part, rect);
     }
   };
 
@@ -102,46 +110,35 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
     }
   };
 
-  // Annular sector path builder
-  // cx=20, cy=20
-  // Inner ring: r_in = 6, r_out = 13.5
-  // Angles:
-  // Top inner: -135° to -45°
-  // Right: -45° to 45°
-  // Bottom inner: 45° to 135°
-  // Left: 135° to 225°
-  // Outer caps:
-  // Top: r_in = 14.5, r_out = 18.5, angle -135° to -45°
-  // Bottom: r_in = 14.5, r_out = 18.5, angle 45° to 135°
-
   return (
     <div
+      ref={containerRef}
+      className="tooth-container"
       style={{
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
         padding: '2px',
         userSelect: 'none',
-        width: '46px',
+        width: containerWidth,
       }}
     >
       {/* Tooth Number */}
       <div
         onClick={(e) => handleClick(e, 'whole')}
-        onMouseEnter={() => handleMouseEnter('whole')}
+        onMouseEnter={(e) => handleMouseEnter('whole', e)}
         onMouseLeave={handleMouseLeave}
         style={{
-          fontSize: '0.75rem',
+          fontSize: isLg ? '0.8125rem' : '0.75rem',
           fontWeight: 700,
           color: wholeToothFinding ? wholeToothFinding.color : 'var(--text-heading, #1E293B)',
-          marginBottom: '2px',
+          marginBottom: isLg ? '3px' : '2px',
           cursor: disabled ? 'default' : 'pointer',
-          padding: '1px 4px',
+          padding: isLg ? '1px 5px' : '1px 4px',
           borderRadius: '4px',
           backgroundColor: wholeToothFinding ? `${wholeToothFinding.color}15` : 'transparent',
           transition: 'all 0.15s ease',
         }}
-        title={`Tooth ${toothNumber} - Click for whole tooth`}
       >
         {toothNumber}
       </div>
@@ -149,15 +146,14 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
       {/* 7-Part SVG Diagram */}
       <svg
         viewBox="0 0 40 48"
-        width="44"
-        height="48"
+        width={svgWidth}
+        height={svgHeight}
         style={{
           overflow: 'visible',
           filter: wholeToothFinding ? `drop-shadow(0 0 2px ${wholeToothFinding.color}80)` : 'none',
         }}
       >
         {/* 1. TOP OUTER CAP (Uppermost section) */}
-        {/* r_in = 14.2, r_out = 18.2 from -135° to -45° */}
         <path
           d="M 9.96 9.96 A 14.2 14.2 0 0 1 30.04 9.96 L 32.87 7.13 A 18.2 18.2 0 0 0 7.13 7.13 Z"
           fill={getPartFill('top')}
@@ -166,15 +162,12 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
           strokeLinejoin="round"
           cursor={disabled ? 'default' : 'pointer'}
           onClick={(e) => handleClick(e, 'top')}
-          onMouseEnter={() => handleMouseEnter('top')}
+          onMouseEnter={(e) => handleMouseEnter('top', e)}
           onMouseLeave={handleMouseLeave}
           style={{ transition: 'fill 0.15s ease' }}
-        >
-          <title>{`Tooth ${toothNumber} - ${getSurfaceDisplayName(toothNumber, 'top')}`}</title>
-        </path>
+        />
 
         {/* 2. UPPER INNER (Ring segment directly above center) */}
-        {/* r_in = 5.8, r_out = 13.2 from -135° to -45° */}
         <path
           d="M 15.9 15.9 A 5.8 5.8 0 0 1 24.1 15.9 L 29.33 10.67 A 13.2 13.2 0 0 0 10.67 10.67 Z"
           fill={getPartFill('upper_inner')}
@@ -183,15 +176,12 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
           strokeLinejoin="round"
           cursor={disabled ? 'default' : 'pointer'}
           onClick={(e) => handleClick(e, 'upper_inner')}
-          onMouseEnter={() => handleMouseEnter('upper_inner')}
+          onMouseEnter={(e) => handleMouseEnter('upper_inner', e)}
           onMouseLeave={handleMouseLeave}
           style={{ transition: 'fill 0.15s ease' }}
-        >
-          <title>{`Tooth ${toothNumber} - ${getSurfaceDisplayName(toothNumber, 'upper_inner')}`}</title>
-        </path>
+        />
 
         {/* 3. RIGHT (Ring segment to the right of center) */}
-        {/* r_in = 5.8, r_out = 13.2 from -45° to 45° */}
         <path
           d="M 24.1 15.9 A 5.8 5.8 0 0 1 24.1 24.1 L 29.33 29.33 A 13.2 13.2 0 0 0 29.33 10.67 Z"
           fill={getPartFill('right')}
@@ -200,15 +190,12 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
           strokeLinejoin="round"
           cursor={disabled ? 'default' : 'pointer'}
           onClick={(e) => handleClick(e, 'right')}
-          onMouseEnter={() => handleMouseEnter('right')}
+          onMouseEnter={(e) => handleMouseEnter('right', e)}
           onMouseLeave={handleMouseLeave}
           style={{ transition: 'fill 0.15s ease' }}
-        >
-          <title>{`Tooth ${toothNumber} - ${getSurfaceDisplayName(toothNumber, 'right')}`}</title>
-        </path>
+        />
 
         {/* 4. LOWER INNER (Ring segment directly below center) */}
-        {/* r_in = 5.8, r_out = 13.2 from 45° to 135° */}
         <path
           d="M 24.1 24.1 A 5.8 5.8 0 0 1 15.9 24.1 L 10.67 29.33 A 13.2 13.2 0 0 0 29.33 29.33 Z"
           fill={getPartFill('lower_inner')}
@@ -217,15 +204,12 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
           strokeLinejoin="round"
           cursor={disabled ? 'default' : 'pointer'}
           onClick={(e) => handleClick(e, 'lower_inner')}
-          onMouseEnter={() => handleMouseEnter('lower_inner')}
+          onMouseEnter={(e) => handleMouseEnter('lower_inner', e)}
           onMouseLeave={handleMouseLeave}
           style={{ transition: 'fill 0.15s ease' }}
-        >
-          <title>{`Tooth ${toothNumber} - ${getSurfaceDisplayName(toothNumber, 'lower_inner')}`}</title>
-        </path>
+        />
 
         {/* 5. LEFT (Ring segment to the left of center) */}
-        {/* r_in = 5.8, r_out = 13.2 from 135° to 225° */}
         <path
           d="M 15.9 24.1 A 5.8 5.8 0 0 1 15.9 15.9 L 10.67 10.67 A 13.2 13.2 0 0 0 10.67 29.33 Z"
           fill={getPartFill('left')}
@@ -234,15 +218,12 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
           strokeLinejoin="round"
           cursor={disabled ? 'default' : 'pointer'}
           onClick={(e) => handleClick(e, 'left')}
-          onMouseEnter={() => handleMouseEnter('left')}
+          onMouseEnter={(e) => handleMouseEnter('left', e)}
           onMouseLeave={handleMouseLeave}
           style={{ transition: 'fill 0.15s ease' }}
-        >
-          <title>{`Tooth ${toothNumber} - ${getSurfaceDisplayName(toothNumber, 'left')}`}</title>
-        </path>
+        />
 
         {/* 6. BOTTOM OUTER CAP (Bottommost section) */}
-        {/* r_in = 14.2, r_out = 18.2 from 45° to 135° */}
         <path
           d="M 30.04 30.04 A 14.2 14.2 0 0 1 9.96 30.04 L 7.13 32.87 A 18.2 18.2 0 0 0 32.87 32.87 Z"
           fill={getPartFill('bottom')}
@@ -251,12 +232,10 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
           strokeLinejoin="round"
           cursor={disabled ? 'default' : 'pointer'}
           onClick={(e) => handleClick(e, 'bottom')}
-          onMouseEnter={() => handleMouseEnter('bottom')}
+          onMouseEnter={(e) => handleMouseEnter('bottom', e)}
           onMouseLeave={handleMouseLeave}
           style={{ transition: 'fill 0.15s ease' }}
-        >
-          <title>{`Tooth ${toothNumber} - ${getSurfaceDisplayName(toothNumber, 'bottom')}`}</title>
-        </path>
+        />
 
         {/* 7. CENTER (Central circle) */}
         <circle
@@ -268,12 +247,10 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
           strokeWidth="1.1"
           cursor={disabled ? 'default' : 'pointer'}
           onClick={(e) => handleClick(e, 'center')}
-          onMouseEnter={() => handleMouseEnter('center')}
+          onMouseEnter={(e) => handleMouseEnter('center', e)}
           onMouseLeave={handleMouseLeave}
           style={{ transition: 'fill 0.15s ease' }}
-        >
-          <title>{`Tooth ${toothNumber} - ${getSurfaceDisplayName(toothNumber, 'center')}`}</title>
-        </circle>
+        />
 
         {/* 8. WHOLE TOOTH STATUS BAR (Horizontal bar underneath) */}
         <rect
@@ -287,12 +264,10 @@ export const ToothSvg: React.FC<ToothSvgProps> = ({
           strokeWidth="0.9"
           cursor={disabled ? 'default' : 'pointer'}
           onClick={(e) => handleClick(e, 'whole')}
-          onMouseEnter={() => handleMouseEnter('whole')}
+          onMouseEnter={(e) => handleMouseEnter('whole', e)}
           onMouseLeave={handleMouseLeave}
           style={{ transition: 'all 0.15s ease' }}
-        >
-          <title>{`Tooth ${toothNumber} - ${getSurfaceDisplayName(toothNumber, 'whole')}`}</title>
-        </rect>
+        />
       </svg>
     </div>
   );

@@ -2262,6 +2262,12 @@
     "saveFailed": "Failed to save odontogram",
     "loadFailed": "Failed to load odontogram data",
     "noDiagnosticsConfigured": "No diagnostics configured. Configure them in Odontogram Settings.",
-    "noTreatmentsConfigured": "No treatments configured. Configure them in Odontogram Settings."
+    "noTreatmentsConfigured": "No treatments configured. Configure them in Odontogram Settings.",
+    "treatmentPlan": "Treatment Plan",
+    "diagnosticsInstruction": "Click a tooth block to mark its condition (Healthy, Damaged, Filling, Missing, Crown, or Implant). Filling and Crown apply to the whole tooth.",
+    "treatmentInstruction": "Click a tooth block to add clinical treatments. The treatment color is applied to the selected block. Saved treatments appear in ZONA POSTERIOR or ZONA ANTERIOR.",
+    "clear": "Clear",
+    "posteriorZone": "ZONA POSTERIOR",
+    "anteriorZone": "ZONA ANTERIOR"
   }
 }

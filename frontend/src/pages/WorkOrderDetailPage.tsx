@@ -22,6 +22,7 @@ import {
   ChevronUp,
   ArrowLeft,
   History as HistoryIcon,
+  Smile,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -400,7 +401,17 @@ export function WorkOrderDetailPage() {
           </div>
         </div>
 
-        <div className="page-header__right">
+        <div className="page-header__right" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (
+            <button
+              className="btn btn--secondary"
+              onClick={() => navigate(`/work-orders/${id}/odontogram`)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <Smile size={16} />
+              <span>{t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}</span>
+            </button>
+          )}
           <button className="btn btn--primary" onClick={() => setIsQrModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Printer size={16} />
             <span>{t('workOrder.printQRLabel')}</span>

@@ -36,6 +36,7 @@ import { CalendarPage } from './pages/CalendarPage';
 import { RemindersPage } from './pages/RemindersPage';
 import { TenantOnboardingPage } from './pages/TenantOnboardingPage';
 import { OdontogramSettingsPage } from './pages/OdontogramSettingsPage';
+import { WorkOrderOdontogramPage } from './pages/WorkOrderOdontogramPage';
 
 
 function App() {
@@ -167,6 +168,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN', 'TECHNICIAN', 'DELIVERY']}>
                   <WorkOrderDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/work-orders/:id/odontogram"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <WorkOrderOdontogramPage />
                 </ProtectedRoute>
               }
             />

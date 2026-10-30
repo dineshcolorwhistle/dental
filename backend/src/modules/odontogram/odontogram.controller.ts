@@ -236,7 +236,7 @@ export class OdontogramController {
   // ─── Work Order Odontogram Endpoints ─────────────────────
 
   @Get('work-order/:workOrderId')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
   @ApiOperation({ summary: 'Get odontogram data for a specific work order' })
   async getWorkOrderOdontogram(
     @CurrentUser('tenantId') tenantId: string,
@@ -254,7 +254,7 @@ export class OdontogramController {
   }
 
   @Put('work-order/:workOrderId')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
   @ApiOperation({ summary: 'Save or update odontogram data for a work order' })
   async saveWorkOrderOdontogram(
     @CurrentUser('tenantId') tenantId: string,
@@ -274,7 +274,7 @@ export class OdontogramController {
   }
 
   @Delete('work-order/:workOrderId')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset odontogram data for a work order' })
   async deleteWorkOrderOdontogram(

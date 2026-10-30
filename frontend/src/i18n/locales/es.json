@@ -2262,6 +2262,12 @@
     "saveFailed": "Error al guardar el odontograma",
     "loadFailed": "Error al cargar los datos del odontograma",
     "noDiagnosticsConfigured": "No hay diagnósticos configurados. Configúrelos en la pantalla de Configuración de Odontograma.",
-    "noTreatmentsConfigured": "No hay tratamientos configurados. Configúrelos en la pantalla de Configuración de Odontograma."
+    "noTreatmentsConfigured": "No hay tratamientos configurados. Configúrelos en la pantalla de Configuración de Odontograma.",
+    "treatmentPlan": "Plan de Tratamiento",
+    "diagnosticsInstruction": "Haga clic en un bloque dental para marcar su condición (Sano, Dañado, Obturación, Ausente, Corona o Implante). Las coronas y obturaciones aplican a todo el diente.",
+    "treatmentInstruction": "Haga clic en un bloque dental para agregar tratamientos clínicos. El color del tratamiento se aplica al bloque seleccionado. Los tratamientos guardados aparecen en ZONA POSTERIOR o ZONA ANTERIOR.",
+    "clear": "Limpiar",
+    "posteriorZone": "ZONA POSTERIOR",
+    "anteriorZone": "ZONA ANTERIOR"
   }
 }

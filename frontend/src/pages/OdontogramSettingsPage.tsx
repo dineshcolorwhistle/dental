@@ -848,17 +848,12 @@ export function OdontogramSettingsPage() {
                       ))}
                     </tbody>
                   </table>
-
-                  {filteredTreatments.length > PAGE_SIZE && (
-                    <div style={{ padding: '0.875rem 1.25rem', borderTop: '1px solid var(--border)' }}>
-                      <Pagination
-                        currentPage={treatmentPage}
-                        totalItems={filteredTreatments.length}
-                        pageSize={PAGE_SIZE}
-                        onPageChange={setTreatmentPage}
-                      />
-                    </div>
-                  )}
+                  <Pagination
+                    currentPage={treatmentPage}
+                    totalItems={filteredTreatments.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setTreatmentPage}
+                  />
                 </div>
               )}
             </div>
@@ -1032,17 +1027,12 @@ export function OdontogramSettingsPage() {
                       ))}
                     </tbody>
                   </table>
-
-                  {filteredDiagnostics.length > PAGE_SIZE && (
-                    <div style={{ padding: '0.875rem 1.25rem', borderTop: '1px solid var(--border)' }}>
-                      <Pagination
-                        currentPage={diagnosticPage}
-                        totalItems={filteredDiagnostics.length}
-                        pageSize={PAGE_SIZE}
-                        onPageChange={setDiagnosticPage}
-                      />
-                    </div>
-                  )}
+                  <Pagination
+                    currentPage={diagnosticPage}
+                    totalItems={filteredDiagnostics.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setDiagnosticPage}
+                  />
                 </div>
               )}
             </div>
