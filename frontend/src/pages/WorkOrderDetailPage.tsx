@@ -22,12 +22,11 @@ import {
   ChevronUp,
   ArrowLeft,
   History as HistoryIcon,
-  Smile,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService, type WorkOrderListItem } from '../services';
-import { WorkOrderChat, QRLabelModal } from '../components';
+import { WorkOrderChat, QRLabelModal, ToothIcon } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -408,7 +407,7 @@ export function WorkOrderDetailPage() {
               onClick={() => navigate(`/work-orders/${id}/odontogram`)}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              <Smile size={16} />
+              <ToothIcon size={16} />
               <span>{t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}</span>
             </button>
           )}

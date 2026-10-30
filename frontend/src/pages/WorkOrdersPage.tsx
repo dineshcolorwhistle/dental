@@ -26,7 +26,6 @@ import {
   Calendar,
   Check,
   CreditCard,
-  Smile,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -53,7 +52,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
 import { useAppDate } from '../hooks';
-import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal } from '../components';
+import { Pagination, SearchableSelect, ViewWorkOrderModal, QRLabelModal, ToothIcon } from '../components';
 import { formatDate } from '../utils/dateUtils';
 
 type StatusFilter = 'ALL' | 'CREATED' | 'ASSIGNED' | 'IN_PROGRESS' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
@@ -1831,7 +1830,7 @@ export function WorkOrdersPage() {
                             onClick={() => navigate(`/work-orders/${wo.id}/odontogram`)}
                             title={t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}
                           >
-                            <Smile size={15} />
+                            <ToothIcon size={15} />
                           </button>
                         )}
                         {user?.role !== 'OWNER' && (

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Smile,
   Search,
   Plus,
   Trash2,
@@ -29,7 +28,7 @@ import {
   type CreateOdontogramDiagnosticPayload,
 } from '../services';
 import { useAuth } from '../context';
-import { Pagination } from '../components';
+import { Pagination, ToothIcon } from '../components';
 
 type ActiveTab = 'DEFAULT' | 'TREATMENTS' | 'DIAGNOSTICS';
 
@@ -393,7 +392,7 @@ export function OdontogramSettingsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-header__title" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-            <Smile size={28} style={{ color: 'var(--accent-primary)' }} />
+            <ToothIcon size={28} style={{ color: 'var(--accent-primary)' }} />
             <span>{t('odontogramSettings.title')}</span>
           </h1>
           <p className="page-header__subtitle">
@@ -487,7 +486,7 @@ export function OdontogramSettingsPage() {
           onClick={() => setActiveTab('DEFAULT')}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
         >
-          <Smile size={16} />
+          <ToothIcon size={16} />
           <span>{t('odontogramSettings.tabs.default')}</span>
         </button>
 
@@ -582,7 +581,7 @@ export function OdontogramSettingsPage() {
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                       <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-md)', backgroundColor: 'rgba(59, 130, 246, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)' }}>
-                        <Smile size={24} />
+                        <ToothIcon size={24} />
                       </div>
                       {defaultTeethModel === 'ADULT' && (
                         <span className="badge badge--info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
@@ -627,7 +626,7 @@ export function OdontogramSettingsPage() {
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                       <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-md)', backgroundColor: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
-                        <Smile size={24} />
+                        <ToothIcon size={24} />
                       </div>
                       {defaultTeethModel === 'CHILD' && (
                         <span className="badge badge--info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}>

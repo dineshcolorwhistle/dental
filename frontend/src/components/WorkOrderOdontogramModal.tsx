@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   X,
   Loader2,
-  Smile,
   Activity,
   Layers,
   Eraser,
@@ -24,6 +23,7 @@ import {
   type AppliedFinding,
 } from '../services';
 import { ToothSvg, getSurfaceDisplayName } from './ToothSvg';
+import { ToothIcon } from './ToothIcon';
 import { useAppDate } from '../hooks';
 
 interface WorkOrderOdontogramModalProps {
@@ -781,7 +781,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
                   color: 'var(--accent-primary)',
                 }}
               >
-                <Smile size={20} />
+                <ToothIcon size={20} />
               </div>
               <h2 className="modal__title" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                 {t('odontogram.modalTitle', { defaultValue: 'Work Order Odontogram' })}

@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Smile,
   Activity,
   Layers,
   Eraser,
@@ -29,6 +28,7 @@ import {
   type AppliedFinding,
 } from '../services';
 import { ToothSvg, getSurfaceDisplayName } from '../components/ToothSvg';
+import { ToothIcon } from '../components';
 
 type ViewMode = 'ADULT' | 'CHILD' | 'BOTH';
 type ActiveTab = 'DIAGNOSTICS' | 'TREATMENT_PLAN';
@@ -886,7 +886,7 @@ export const WorkOrderOdontogramPage: React.FC = () => {
               flexShrink: 0,
             }}
           >
-            <Smile size={26} />
+            <ToothIcon size={26} />
           </div>
 
           <div>

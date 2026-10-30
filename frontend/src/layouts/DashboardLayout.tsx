@@ -38,8 +38,8 @@ import {
   VolumeX,
   Rocket,
   CreditCard,
-  Smile,
 } from 'lucide-react';
+import { ToothIcon } from '../components/ToothIcon';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { notificationService, tenantService, type NotificationItem } from '../services';
 import { usePushNotifications } from '../hooks/usePushNotifications';
@@ -487,7 +487,7 @@ export function DashboardLayout() {
                 onClick={() => setSidebarOpen(false)}
                 data-tooltip={t('navigation.odontogramSettings', { defaultValue: 'Odontogram Settings' })}
               >
-                <Smile size={20} />
+                <ToothIcon size={20} />
                 <span>{t('navigation.odontogramSettings', { defaultValue: 'Odontogram Settings' })}</span>
               </NavLink>
 
