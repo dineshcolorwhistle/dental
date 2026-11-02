@@ -867,13 +867,13 @@ export function WorkOrderDetailPage() {
                         <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <span>
-                              {proc.isVerification
+                              {(proc.isVerification || proc.processName?.toLowerCase().includes('verification') || proc.processName?.toLowerCase().includes('external'))
                                 ? proc.technicianId
                                   ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
                                   : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
                                 : proc.processName}
                             </span>
-                            {proc.isVerification && (
+                            {(proc.isVerification || proc.processName?.toLowerCase().includes('verification') || proc.processName?.toLowerCase().includes('external')) && (
                               <span style={{
                                 fontSize: '0.625rem',
                                 fontWeight: 700,
@@ -924,7 +924,7 @@ export function WorkOrderDetailPage() {
                           </div>
                         </td>
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                          {proc.isVerification && !proc.technicianId ? (
+                          {(proc.isVerification ? !proc.technicianId : (proc.processName?.toLowerCase().includes('external') || (!proc.technicianId && proc.processName?.toLowerCase().includes('verification')))) ? (
                             <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
                               {workOrder.doctor?.name
                                 ? (workOrder.doctor.clinicName

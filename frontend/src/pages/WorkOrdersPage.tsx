@@ -1087,13 +1087,24 @@ export function WorkOrdersPage() {
 
     // Populate existing process steps and verification steps
     const items: ProcessFormItem[] = (freshWO.processes || []).map((p, idx) => {
+      const isExternal = p.isVerification
+        ? !p.technicianId
+        : (p.processName?.toLowerCase().includes('external') || (!p.technicianId && p.processName?.toLowerCase().includes('verification')));
+      const isInternal = p.isVerification
+        ? !!p.technicianId
+        : (!isExternal && p.processName?.toLowerCase().includes('verification'));
+      const isVerification = p.isVerification || isExternal || isInternal;
+      const processType: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' =
+        isExternal ? 'EXTERNAL_VERIFICATION' : isInternal ? 'INTERNAL_VERIFICATION' : 'PRODUCTION';
+
       return {
         id: p.id,
         tempId: p.id || `proc-edit-${Date.now()}-${idx}`,
         processName: p.processName,
-        technicianId: p.technicianId || '',
+        technicianId: isExternal ? '' : (p.technicianId || (isInternal ? (admins[0]?.id || '') : '')),
         sequence: p.sequence,
-        isVerification: p.isVerification,
+        isVerification,
+        processType,
         status: p.status,
         rework: (p as any).reworkActive || false,
         reworkCount: (p as any).reworkCount || 0,

@@ -16,6 +16,7 @@ import {
   WorkOrderStatus,
   ProcessActivityAction,
   UserRole,
+  UserStatus,
 } from '@prisma/client';
 
 import { CreateRequestedWorkOrderDto } from './dto';
@@ -358,7 +359,7 @@ export class TechnicianPortalService {
     // 1. Verify branch exists
     const branch = await this.prisma.branch.findFirst({
       where: { id: branchIdContext, tenantId },
-      select: { code: true },
+      select: { id: true, code: true, defaultAdminId: true },
     });
     if (!branch) {
       throw new NotFoundException(`Branch not found in your organization.`);
@@ -380,13 +381,77 @@ export class TechnicianPortalService {
       throw new NotFoundException(`Prosthesis type not found.`);
     }
 
+    // Resolve default admin for internal verification
+    let defaultAdminId: string | null = branch.defaultAdminId || null;
+    if (defaultAdminId) {
+      const adminUser = await this.prisma.user.findFirst({
+        where: { id: defaultAdminId, tenantId, status: UserStatus.ACTIVE },
+        select: { id: true },
+      });
+      if (!adminUser) {
+        defaultAdminId = null;
+      }
+    }
+
+    if (!defaultAdminId) {
+      const activeBranchAdmin = await this.prisma.user.findFirst({
+        where: {
+          tenantId,
+          branchId: branchIdContext,
+          role: UserRole.ADMIN,
+          status: UserStatus.ACTIVE,
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      defaultAdminId = activeBranchAdmin?.id || null;
+    }
+
+    if (!defaultAdminId) {
+      const activeTenantAdmin = await this.prisma.user.findFirst({
+        where: {
+          tenantId,
+          role: { in: [UserRole.ADMIN, UserRole.OWNER] },
+          status: UserStatus.ACTIVE,
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      defaultAdminId = activeTenantAdmin?.id || null;
+    }
+
+    // Resolve active admins and technicians in tenant for validation
+    const activeAdmins = await this.prisma.user.findMany({
+      where: {
+        tenantId,
+        role: { in: [UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN] },
+        status: UserStatus.ACTIVE,
+      },
+      select: { id: true },
+    });
+    const activeAdminIdSet = new Set(activeAdmins.map((a) => a.id));
+
+    const activeBranchTech = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        branchId: branchIdContext,
+        role: UserRole.TECHNICIAN,
+        status: UserStatus.ACTIVE,
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    const fallbackTechId = activeBranchTech?.id || null;
+
     // 3.5. Load prosthesis type processes
     const assignments = await this.prisma.prosthesisTypeProcess.findMany({
       where: { prosthesisTypeId },
       include: {
         process: {
           select: {
+            id: true,
             name: true,
+            type: true,
             defaultTechnicianId: true,
           },
         },
@@ -394,13 +459,46 @@ export class TechnicianPortalService {
       orderBy: { sequence: 'asc' },
     });
 
-    const mappedProcesses = assignments.map((assign) => ({
-      processName: assign.process.name,
-      technicianId: assign.process.defaultTechnicianId || null,
-      sequence: assign.sequence,
-      isVerification: false,
-      status: ProcessStatus.NOT_STARTED,
-    }));
+    const mappedProcesses = assignments.map((assign) => {
+      const proc = assign.process;
+      const processType: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' =
+        proc?.type ||
+        (proc?.name?.toLowerCase().includes('external')
+          ? 'EXTERNAL_VERIFICATION'
+          : proc?.name?.toLowerCase().includes('verification')
+            ? 'INTERNAL_VERIFICATION'
+            : 'PRODUCTION');
+
+      const isVerification =
+        processType === 'INTERNAL_VERIFICATION' ||
+        processType === 'EXTERNAL_VERIFICATION';
+
+      let assignedTechnicianId: string | null = null;
+
+      if (processType === 'EXTERNAL_VERIFICATION') {
+        // External verification: assigned to the doctor, technicianId in DB is null
+        assignedTechnicianId = null;
+      } else if (processType === 'INTERNAL_VERIFICATION') {
+        // Internal verification: assigned to pre-assigned admin or branch default admin
+        const isProcAdminValid =
+          proc.defaultTechnicianId &&
+          activeAdminIdSet.has(proc.defaultTechnicianId);
+        assignedTechnicianId = isProcAdminValid
+          ? proc.defaultTechnicianId
+          : defaultAdminId;
+      } else {
+        // Production: assigned to defaultTechnicianId, or fallback to branch technician
+        assignedTechnicianId = proc.defaultTechnicianId || fallbackTechId;
+      }
+
+      return {
+        processName: proc.name,
+        technicianId: assignedTechnicianId,
+        sequence: assign.sequence,
+        isVerification,
+        status: ProcessStatus.NOT_STARTED,
+      };
+    });
 
     // 4. Generate folio number
     const folioNumber = await generateFolioNumber(

@@ -638,7 +638,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                 const activeStepName = displayProc?.processName || t('workOrders.noProcesses');
                 const activeTechnician = displayProc?.technician 
                   ? `${displayProc.technician.firstName} ${displayProc.technician.lastName}` 
-                  : (displayProc?.isVerification && !displayProc?.technicianId 
+                  : ((displayProc?.isVerification ? !displayProc?.technicianId : (displayProc?.processName?.toLowerCase().includes('external') || (!displayProc?.technicianId && displayProc?.processName?.toLowerCase().includes('verification')))) 
                       ? (selectedWO.doctor?.name 
                           ? (selectedWO.doctor.clinicName 
                               ? `${selectedWO.doctor.name} (${selectedWO.doctor.clinicName})` 
@@ -1276,13 +1276,13 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                         <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             <span>
-                                              {proc.isVerification
+                                              {(proc.isVerification || proc.processName?.toLowerCase().includes('verification') || proc.processName?.toLowerCase().includes('external'))
                                                 ? proc.technicianId
                                                   ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
                                                   : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
                                                 : proc.processName}
                                             </span>
-                                            {proc.isVerification && (
+                                            {(proc.isVerification || proc.processName?.toLowerCase().includes('verification') || proc.processName?.toLowerCase().includes('external')) && (
                                               <span style={{
                                                 fontSize: '0.625rem',
                                                 fontWeight: 700,
@@ -1355,7 +1355,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                           )}
                                         </td>
                                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                          {proc.isVerification && !proc.technicianId ? (
+                                          {(proc.isVerification ? !proc.technicianId : (proc.processName?.toLowerCase().includes('external') || (!proc.technicianId && proc.processName?.toLowerCase().includes('verification')))) ? (
                                             <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
                                               {selectedWO.doctor?.name 
                                                 ? (selectedWO.doctor.clinicName 
