@@ -584,6 +584,7 @@
       "payments": "3. Pagos"
     },
     "editWorkOrder": "Editar Orden de Trabajo",
+    "completedCannotEdit": "Las órdenes de trabajo completadas no se pueden modificar",
     "createdBy": "Creado Por",
     "searchPlaceholder": "Buscar por folio, paciente, médico...",
     "folioNumber": "Número de Folio",

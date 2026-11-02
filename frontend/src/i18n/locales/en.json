@@ -584,6 +584,7 @@
       "payments": "3. Payments"
     },
     "editWorkOrder": "Edit Work Order",
+    "completedCannotEdit": "Completed work orders cannot be modified",
     "createdBy": "Created By",
     "searchPlaceholder": "Search by folio, patient, doctor...",
     "folioNumber": "Folio Number",

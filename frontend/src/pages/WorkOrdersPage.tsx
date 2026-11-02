@@ -560,7 +560,11 @@ export function WorkOrdersPage() {
         try {
           const wo = await workOrderService.getById(targetWoId);
           if (wo) {
-            await handleEditOpen(wo);
+            if (wo.status === 'COMPLETED') {
+              toast.error(t('workOrders.completedCannotEdit', { defaultValue: 'Completed work orders cannot be modified' }));
+            } else {
+              await handleEditOpen(wo);
+            }
             if (isRework) {
               setIsReworkFlow(true);
             }
@@ -665,7 +669,7 @@ export function WorkOrdersPage() {
   const validateTab1Details = (): boolean => {
     const errors: Record<string, string> = {};
     if (!form.doctorId) errors.doctorId = t('validation.fieldRequired', { defaultValue: 'Doctor is required' });
-    if (!showEditModal && !form.patient.trim()) errors.patient = t('validation.fieldRequired', { defaultValue: 'Patient name is required' });
+    if (!form.patient.trim()) errors.patient = t('validation.fieldRequired', { defaultValue: 'Patient name is required' });
     if (!form.prosthesisTypeId) errors.prosthesisTypeId = t('validation.fieldRequired', { defaultValue: 'Prosthesis type is required' });
     if (!isAdmin && branches.length > 0 && !form.branchId) errors.branchId = t('validation.fieldRequired', { defaultValue: 'Branch is required' });
     if (isAdmin && !form.specification.trim()) errors.specification = t('validation.fieldRequired', { defaultValue: 'Specification is required' });
@@ -996,7 +1000,7 @@ export function WorkOrdersPage() {
 
       const payload: CreateWorkOrderPayload = {
         doctorId: form.doctorId,
-        patient: form.patient || undefined,
+        patient: form.patient.trim() || undefined,
         boxNumber: form.boxNumber || undefined,
         fileNumber: form.fileNumber || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
@@ -1038,13 +1042,22 @@ export function WorkOrdersPage() {
 
   // ─── Edit ────────────────────────────
   const handleEditOpen = async (wo: WorkOrderListItem) => {
-    if (!canEdit) return;
+    if (!canEdit || wo.status === 'COMPLETED') {
+      if (wo.status === 'COMPLETED') {
+        toast.error(t('workOrders.completedCannotEdit', { defaultValue: 'Completed work orders cannot be modified' }));
+      }
+      return;
+    }
     await loadReferenceData();
     let freshWO = wo;
     try {
       freshWO = await workOrderService.getById(wo.id);
     } catch (e) {
       console.warn('Could not fetch fresh work order, using table item', e);
+    }
+    if (freshWO.status === 'COMPLETED') {
+      toast.error(t('workOrders.completedCannotEdit', { defaultValue: 'Completed work orders cannot be modified' }));
+      return;
     }
     setEditingWO(freshWO);
     const { userNotes, payments } = parseNotesAndPayments(freshWO.notes);
@@ -1195,7 +1208,12 @@ export function WorkOrdersPage() {
   };
 
   const handleEditSubmit = async (isAssign = true, skipConfirm = false) => {
-    if (!canEdit || !editingWO) return;
+    if (!canEdit || !editingWO || editingWO.status === 'COMPLETED') {
+      if (editingWO?.status === 'COMPLETED') {
+        toast.error(t('workOrders.completedCannotEdit', { defaultValue: 'Completed work orders cannot be modified' }));
+      }
+      return;
+    }
     if (!validateForm(isAssign)) return;
 
     if (isAssign && editingWO.status === 'CREATED' && !skipConfirm) {
@@ -1249,7 +1267,7 @@ export function WorkOrdersPage() {
 
       const payload: any = {
         doctorId: form.doctorId,
-        patient: form.patient || undefined,
+        patient: form.patient.trim() || undefined,
         boxNumber: form.boxNumber || undefined,
         fileNumber: form.fileNumber || undefined,
         prosthesisTypeId: form.prosthesisTypeId,
@@ -1898,9 +1916,22 @@ export function WorkOrdersPage() {
                         {canEdit && (
                           <button
                             className="btn-action"
-                            style={{ color: '#D97706', backgroundColor: '#FEF3C7' }}
-                            onClick={() => handleEditOpen(wo)}
-                            title={t('workOrders.editWorkOrder')}
+                            style={
+                              wo.status === 'COMPLETED'
+                                ? { color: 'var(--text-muted, #9CA3AF)', backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed', opacity: 0.6 }
+                                : { color: '#D97706', backgroundColor: '#FEF3C7' }
+                            }
+                            onClick={() => {
+                              if (wo.status !== 'COMPLETED') {
+                                handleEditOpen(wo);
+                              }
+                            }}
+                            disabled={wo.status === 'COMPLETED'}
+                            title={
+                              wo.status === 'COMPLETED'
+                                ? t('workOrders.completedCannotEdit', { defaultValue: 'Completed work orders cannot be modified' })
+                                : t('workOrders.editWorkOrder')
+                            }
                           >
                             <Pencil size={15} />
                           </button>
@@ -3079,14 +3110,19 @@ export function WorkOrdersPage() {
                       <label className="form-label" htmlFor="edit-wo-patient">{t('workOrders.patient')}</label>
                       <input
                         id="edit-wo-patient"
-                        className="form-input"
+                        className={`form-input ${formErrors.patient ? 'input-error' : ''}`}
                         type="text"
                         placeholder={t('workOrders.patientPlaceholder', { defaultValue: 'e.g., John Doe' })}
                         value={form.patient}
                         onChange={(e) => handleInputChange('patient', e.target.value)}
-                        disabled={true}
-                        style={{ backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed' }}
+                        disabled={!canEdit || saving}
+                        style={!canEdit ? { backgroundColor: 'var(--bg-muted, #F3F4F6)', cursor: 'not-allowed' } : undefined}
                       />
+                      {formErrors.patient && (
+                        <span className="error-text" style={{ color: 'var(--danger, #EF4444)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                          {formErrors.patient}
+                        </span>
+                      )}
                     </div>
                   </div>
 

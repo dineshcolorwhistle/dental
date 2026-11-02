@@ -966,6 +966,27 @@ export class WorkOrdersService implements OnModuleInit {
     // Verify existence
     const existing = await this.findOne(tenantId, id, branchIdContext);
 
+    // Completed work orders cannot be modified (view-only), except for recording pure payments/settlements
+    if (existing.status === WorkOrderStatus.COMPLETED) {
+      const isPaymentOnlyUpdate =
+        dto.doctorId === undefined &&
+        dto.patient === undefined &&
+        dto.boxNumber === undefined &&
+        dto.fileNumber === undefined &&
+        dto.prosthesisTypeId === undefined &&
+        dto.specification === undefined &&
+        dto.color === undefined &&
+        dto.deliveryDate === undefined &&
+        dto.processes === undefined &&
+        dto.status === undefined;
+
+      if (!isPaymentOnlyUpdate) {
+        throw new BadRequestException(
+          'Completed work orders are view-only and cannot be modified.',
+        );
+      }
+    }
+
     const {
       doctorId,
       patient,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSocket, useAuth } from '../context';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
@@ -28,6 +28,7 @@ import toast from 'react-hot-toast';
 import { workOrderService, type WorkOrderListItem } from '../services';
 import { WorkOrderChat, QRLabelModal, ToothIcon } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
+import { useAppDate } from '../hooks';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ReactNode }> = {
   CREATED: { labelKey: 'enums.workOrderStatus.CREATED', color: '#6B7280', bg: '#F3F4F6', icon: <CircleDot size={12} /> },
@@ -187,6 +188,23 @@ export function WorkOrderDetailPage() {
 
   const { socket, isConnected } = useSocket();
   const { user } = useAuth();
+  const { formatDate: appFormatDate } = useAppDate();
+
+  const sortedProcs = useMemo(() => {
+    return [...(workOrder?.processes || [])].sort((a: any, b: any) => (a.sequence ?? 0) - (b.sequence ?? 0));
+  }, [workOrder?.processes]);
+
+  const isCompleted = useMemo(() => {
+    if (!workOrder) return false;
+    if (workOrder.status === 'COMPLETED') return true;
+    return sortedProcs.length > 0 && sortedProcs.every((p: any) => p.status === 'COMPLETED');
+  }, [workOrder?.status, sortedProcs]);
+
+  const completionDate = useMemo(() => {
+    if (!isCompleted || !workOrder) return null;
+    const finalProc = sortedProcs.length > 0 ? sortedProcs[sortedProcs.length - 1] : null;
+    return finalProc?.endedAt || workOrder.updatedAt;
+  }, [isCompleted, sortedProcs, workOrder]);
 
   const fetchWorkOrder = useCallback((silent = false) => {
     if (!id) return;
@@ -401,6 +419,46 @@ export function WorkOrderDetailPage() {
         </div>
 
         <div className="page-header__right" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {isCompleted && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.1))',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                padding: '0.375rem 0.75rem',
+                borderRadius: '8px',
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  color: 'var(--success, #10B981)',
+                  fontWeight: 700,
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <CheckCircle2 size={15} />
+                {t('enums.workOrderStatus.COMPLETED', { defaultValue: 'Completed' })}
+              </span>
+              {completionDate && (
+                <span
+                  style={{
+                    fontSize: '0.8125rem',
+                    color: 'var(--text-secondary, #6B7280)',
+                    fontWeight: 500,
+                    borderLeft: '1px solid rgba(16, 185, 129, 0.3)',
+                    paddingLeft: '0.5rem',
+                  }}
+                >
+                  {appFormatDate(completionDate, { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              )}
+            </div>
+          )}
           {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (
             <button
               className="btn btn--secondary"

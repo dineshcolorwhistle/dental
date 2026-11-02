@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
@@ -173,12 +173,28 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const { formatDateTime: appFormatDateTime } = useAppDate();
+  const { formatDateTime: appFormatDateTime, formatDate: appFormatDate } = useAppDate();
   const { socket, isConnected } = useSocket();
   const isAdmin = user?.role === 'ADMIN';
   const isLabAdminOrOwner = user?.role === 'ADMIN' || user?.role === 'OWNER';
 
   const [selectedWO, setSelectedWO] = useState<any>(null);
+
+  const sortedProcs = useMemo(() => {
+    return [...(selectedWO?.processes || [])].sort((a: any, b: any) => (a.sequence ?? 0) - (b.sequence ?? 0));
+  }, [selectedWO?.processes]);
+
+  const isCompleted = useMemo(() => {
+    if (!selectedWO) return false;
+    if (selectedWO.status === 'COMPLETED') return true;
+    return sortedProcs.length > 0 && sortedProcs.every((p: any) => p.status === 'COMPLETED');
+  }, [selectedWO?.status, sortedProcs]);
+
+  const completionDate = useMemo(() => {
+    if (!isCompleted || !selectedWO) return null;
+    const finalProc = sortedProcs.length > 0 ? sortedProcs[sortedProcs.length - 1] : null;
+    return finalProc?.endedAt || selectedWO.updatedAt;
+  }, [isCompleted, sortedProcs, selectedWO]);
   const [loading, setLoading] = useState(false);
   const [viewTab, setViewTab] = useState<'general' | 'process' | 'rework' | 'repetition' | 'payment' | 'chat'>(initialTab || 'general');
 
@@ -451,7 +467,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
           </div>
         ) : (
           <>
-            <div className="modal__header" style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
+            <div className="modal__header" style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', margin: 0, fontWeight: 800 }}>
                   <span>WO#: {selectedWO.folioNumber}</span>
@@ -470,11 +486,55 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                   )}
                 </h2>
               </div>
+              {isCompleted && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.1))',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    padding: '0.375rem 0.75rem',
+                    borderRadius: '8px',
+                    marginLeft: 'auto',
+                    marginRight: '0.75rem',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      color: 'var(--success, #10B981)',
+                      fontWeight: 700,
+                      fontSize: '0.8125rem',
+                    }}
+                  >
+                    <CheckCircle2 size={15} />
+                    {t('enums.workOrderStatus.COMPLETED', { defaultValue: 'Completed' })}
+                  </span>
+                  {completionDate && (
+                    <span
+                      style={{
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary, #6B7280)',
+                        fontWeight: 500,
+                        borderLeft: '1px solid rgba(16, 185, 129, 0.3)',
+                        paddingLeft: '0.5rem',
+                      }}
+                    >
+                      {appFormatDate(completionDate, { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div style={{ display: 'none' }}>
+              </div>
               <button
                 className="modal__close"
                 onClick={onClose}
                 aria-label={t('common.close')}
-                style={{ top: '1.5rem', right: '1.5rem' }}
+                style={{ position: 'static', marginLeft: isCompleted ? 0 : 'auto' }}
               >
                 <X size={20} />
               </button>
