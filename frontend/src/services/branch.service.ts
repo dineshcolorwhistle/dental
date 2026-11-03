@@ -10,6 +10,7 @@ export interface CreateBranchPayload {
   email?: string;
   isActive?: boolean;
   defaultAdminId?: string | null;
+  defaultTechnicianId?: string | null;
 }
 
 export interface BranchListItem {
@@ -23,6 +24,14 @@ export interface BranchListItem {
   isActive: boolean;
   defaultAdminId?: string | null;
   defaultAdmin?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    status: string;
+  } | null;
+  defaultTechnicianId?: string | null;
+  defaultTechnician?: {
     id: string;
     firstName: string;
     lastName: string;

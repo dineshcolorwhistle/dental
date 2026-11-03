@@ -264,7 +264,8 @@ export function DoctorsPage() {
 
     try {
       setSaving(true);
-      await doctorService.update(selectedDoctor.id, form);
+      const { isActive: _isActive, ...updatePayload } = form;
+      await doctorService.update(selectedDoctor.id, updatePayload);
       toast.success(t('doctors.updateSuccess'));
       setShowEditModal(false);
       await fetchData();
@@ -865,10 +866,10 @@ export function DoctorsPage() {
                                 doctor.isActive ? 'btn-action--danger' : 'btn-action--success'
                               }`}
                               onClick={() => handleToggleStatus(doctor)}
-                              title={doctor.isActive ? t('common.disable') : t('common.enable')}
+                              title={doctor.isActive ? t('common.inactive') : t('common.active')}
                             >
                               {doctor.isActive ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                              <span>{doctor.isActive ? t('common.disable') : t('common.enable')}</span>
+                              <span>{doctor.isActive ? t('common.inactive') : t('common.active')}</span>
                             </button>
                             <button
                               className="btn-action"
@@ -1436,22 +1437,6 @@ export function DoctorsPage() {
                   )}
                 </div>
               )}
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="select-edit-doctor-status">
-                  {t('common.status')} *
-                </label>
-                <select
-                  id="select-edit-doctor-status"
-                  className="form-input"
-                  value={form.isActive ? 'ACTIVE' : 'INACTIVE'}
-                  onChange={(e) => handleInputChange('isActive', e.target.value === 'ACTIVE')}
-                  disabled={saving}
-                >
-                  <option value="ACTIVE">{t('common.active')}</option>
-                  <option value="INACTIVE">{t('common.inactive')}</option>
-                </select>
-              </div>
 
               <div className="modal__footer">
                 <button

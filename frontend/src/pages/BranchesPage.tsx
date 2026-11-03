@@ -18,7 +18,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { branchService, adminService, type BranchListItem, type CreateBranchPayload, type AdminListItem } from '../services';
+import { branchService, type BranchListItem, type CreateBranchPayload } from '../services';
 import { Pagination, PhoneInput } from '../components';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -37,8 +37,6 @@ export function BranchesPage() {
   const [saving, setSaving] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'code' | 'createdAt'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [branchAdmins, setBranchAdmins] = useState<AdminListItem[]>([]);
-  const [loadingAdmins, setLoadingAdmins] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
@@ -54,14 +52,13 @@ export function BranchesPage() {
   const [deleting, setDeleting] = useState(false);
 
   // Form states
-  const [form, setForm] = useState<CreateBranchPayload & { defaultAdminId?: string | null }>({
+  const [form, setForm] = useState<CreateBranchPayload>({
     name: '',
     code: '',
     address: '',
     phone: '',
     email: '',
     isActive: true,
-    defaultAdminId: '',
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof CreateBranchPayload, string>>>({});
 
@@ -154,13 +151,12 @@ export function BranchesPage() {
       phone: '',
       email: '',
       isActive: true,
-      defaultAdminId: '',
     });
     setFormErrors({});
     setShowCreateModal(true);
   };
 
-  const handleEditOpen = async (branch: BranchListItem) => {
+  const handleEditOpen = (branch: BranchListItem) => {
     setSelectedBranch(branch);
     setForm({
       name: branch.name,
@@ -169,20 +165,9 @@ export function BranchesPage() {
       phone: branch.phone || '',
       email: branch.email || '',
       isActive: branch.isActive,
-      defaultAdminId: branch.defaultAdminId || '',
     });
     setFormErrors({});
     setShowEditModal(true);
-
-    try {
-      setLoadingAdmins(true);
-      const admins = await adminService.getAll(branch.id);
-      setBranchAdmins(admins.filter((a) => a.status === 'ACTIVE'));
-    } catch (err) {
-      console.error('Failed to load branch admins', err);
-    } finally {
-      setLoadingAdmins(false);
-    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -191,14 +176,12 @@ export function BranchesPage() {
 
     try {
       setSaving(true);
-      const { defaultAdminId, ...createPayload } = form;
-      
       const sanitized = {
-        ...createPayload,
-        code: createPayload.code ? createPayload.code.trim() : undefined,
-        email: createPayload.email ? createPayload.email.trim() : undefined,
-        phone: createPayload.phone ? createPayload.phone.trim() : undefined,
-        address: createPayload.address ? createPayload.address.trim() : undefined,
+        ...form,
+        code: form.code ? form.code.trim() : undefined,
+        email: form.email ? form.email.trim() : undefined,
+        phone: form.phone ? form.phone.trim() : undefined,
+        address: form.address ? form.address.trim() : undefined,
       };
 
       await branchService.create(sanitized);
@@ -226,7 +209,6 @@ export function BranchesPage() {
         phone: form.phone,
         email: form.email,
         isActive: form.isActive,
-        defaultAdminId: form.defaultAdminId || null,
       });
       toast.success(t('branches.updateSuccess'));
       setShowEditModal(false);
@@ -501,10 +483,10 @@ export function BranchesPage() {
                       <button
                         className={`btn-action ${branch.isActive ? 'btn-action--danger' : 'btn-action--success'}`}
                         onClick={() => handleToggleStatus(branch)}
-                        title={branch.isActive ? t('common.disable') : t('common.enable')}
+                        title={branch.isActive ? t('common.inactive') : t('common.active')}
                       >
                         {branch.isActive ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                        <span>{branch.isActive ? t('common.disable') : t('common.enable')}</span>
+                        <span>{branch.isActive ? t('common.inactive') : t('common.active')}</span>
                       </button>
                       <button
                         className="btn-action"
@@ -784,35 +766,44 @@ export function BranchesPage() {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="select-edit-branch-admin">
-                  {t('branches.defaultAdmin')}
-                </label>
-                {loadingAdmins ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                    <Loader2 size={16} className="spinner" />
-                    <span>{t('admins.loading')}</span>
-                  </div>
-                ) : branchAdmins.length === 0 ? (
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '4px 0' }}>
-                    {t('branches.noAdminsFound', { defaultValue: 'No active administrators found in this branch. To assign a Default Admin, first add or activate an administrator for this branch.' })}
-                  </div>
-                ) : (
-                  <select
-                    id="select-edit-branch-admin"
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-edit-branch-default-admin">
+                    {t('branches.defaultAdmin', { defaultValue: 'Default Admin' })}
+                  </label>
+                  <input
+                    id="input-edit-branch-default-admin"
                     className="form-input"
-                    value={form.defaultAdminId || ''}
-                    onChange={(e) => handleInputChange('defaultAdminId', e.target.value || null)}
-                    disabled={saving}
-                  >
-                    <option value="">{t('branches.selectAdmin')}</option>
-                    {branchAdmins.map((admin) => (
-                      <option key={admin.id} value={admin.id}>
-                        {admin.firstName} {admin.lastName} ({admin.email})
-                      </option>
-                    ))}
-                  </select>
-                )}
+                    type="text"
+                    value={
+                      selectedBranch.defaultAdmin
+                        ? `${selectedBranch.defaultAdmin.firstName} ${selectedBranch.defaultAdmin.lastName} (${selectedBranch.defaultAdmin.email})`
+                        : t('branches.notAssigned', { defaultValue: 'Not Assigned' })
+                    }
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: 'var(--bg-overlay, #f8fafc)', cursor: 'not-allowed', color: 'var(--text-secondary)' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="input-edit-branch-default-technician">
+                    {t('branches.defaultTechnician', { defaultValue: 'Default Technician' })}
+                  </label>
+                  <input
+                    id="input-edit-branch-default-technician"
+                    className="form-input"
+                    type="text"
+                    value={
+                      selectedBranch.defaultTechnician
+                        ? `${selectedBranch.defaultTechnician.firstName} ${selectedBranch.defaultTechnician.lastName} (${selectedBranch.defaultTechnician.email})`
+                        : t('branches.notAssigned', { defaultValue: 'Not Assigned' })
+                    }
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: 'var(--bg-overlay, #f8fafc)', cursor: 'not-allowed', color: 'var(--text-secondary)' }}
+                  />
+                </div>
               </div>
 
               <div className="modal__footer">

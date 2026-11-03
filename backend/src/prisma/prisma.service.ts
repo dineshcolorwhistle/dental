@@ -20,6 +20,9 @@ export class PrismaService
       await this.$executeRawUnsafe(
         'ALTER TABLE "prosthesis_types" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION DEFAULT 0;',
       );
+      await this.$executeRawUnsafe(
+        'ALTER TABLE "branches" ADD COLUMN IF NOT EXISTS "default_technician_id" TEXT;',
+      );
       await this.$executeRawUnsafe(`
         DO $$ BEGIN
           IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'WhatsAppTemplateStatus') THEN

@@ -183,7 +183,9 @@ model Branch {
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users           User[]
   defaultAdminId  String?          @map("default_admin_id")
-  defaultAdmin    User?            @relation("BranchDefaultAdmin", fields: [defaultAdminId], references: [id], onDelete: SetNull)
+  defaultAdmin         User?            @relation("BranchDefaultAdmin", fields: [defaultAdminId], references: [id], onDelete: SetNull)
+  defaultTechnicianId  String?          @map("default_technician_id")
+  defaultTechnician    User?            @relation("BranchDefaultTechnician", fields: [defaultTechnicianId], references: [id], onDelete: SetNull)
   doctors         Doctor[]
   clinics         Clinic[]
   prosthesisTypes ProsthesisType[]
@@ -226,7 +228,8 @@ model User {
   // Relations
   tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branch              Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  defaultAdminBranches Branch[]            @relation("BranchDefaultAdmin")
+  defaultAdminBranches      Branch[]            @relation("BranchDefaultAdmin")
+  defaultTechnicianBranches Branch[]            @relation("BranchDefaultTechnician")
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   defaultTechnicianProcesses Process[]     @relation("ProcessDefaultTechnician")

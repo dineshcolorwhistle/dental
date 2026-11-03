@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
   Body,
   Param,
   Query,
@@ -75,19 +74,5 @@ export class AdminsController {
       throw new BadRequestException('Organization context is required.');
     }
     return this.adminsService.update(tenantId, id, dto);
-  }
-
-  @Delete(':id')
-  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a Lab Admin' })
-  async remove(
-    @CurrentUser('tenantId') tenantId: string,
-    @Param('id') id: string,
-  ) {
-    if (!tenantId) {
-      throw new BadRequestException('Organization context is required.');
-    }
-    return this.adminsService.remove(tenantId, id);
   }
 }

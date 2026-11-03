@@ -16,7 +16,16 @@ export interface TechnicianListItem {
     id: string;
     name: string;
     code: string;
+    defaultTechnicianId?: string | null;
   };
+}
+
+export interface InactivationCheckResult {
+  canInactivate: boolean;
+  isDefaultTechnician: boolean;
+  activeWorkOrders: string[];
+  pendingProcessesCount: number;
+  defaultTechnician: { id: string; name: string; email: string } | null;
 }
 
 export interface CreateTechnicianPayload {
@@ -56,6 +65,16 @@ export const technicianService = {
 
   update: async (id: string, payload: UpdateTechnicianPayload): Promise<TechnicianListItem> => {
     const response = await api.patch<TechnicianListItem>(`/technicians/${id}`, payload);
+    return response.data;
+  },
+
+  setDefaultTechnician: async (technicianId: string): Promise<{ success: boolean; defaultTechnicianId: string }> => {
+    const response = await api.patch<{ success: boolean; defaultTechnicianId: string }>(`/technicians/${technicianId}/set-default`);
+    return response.data;
+  },
+
+  checkInactivation: async (technicianId: string): Promise<InactivationCheckResult> => {
+    const response = await api.get<InactivationCheckResult>(`/technicians/${technicianId}/inactivation-check`);
     return response.data;
   },
 

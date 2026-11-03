@@ -39,9 +39,13 @@ export class AdminsService {
       );
     }
 
-    // Check user limits
+    // Check user limits — only active/invited users count against the limit
     const currentAdminsCount = await this.prisma.user.count({
-      where: { tenantId, role: UserRole.ADMIN },
+      where: {
+        tenantId,
+        role: UserRole.ADMIN,
+        status: { not: UserStatus.INACTIVE },
+      },
     });
 
     // Load tenant name, subdomain, and limit details
@@ -56,7 +60,7 @@ export class AdminsService {
 
     if (currentAdminsCount >= tenant.maxAdmins) {
       throw new BadRequestException(
-        `Your organization has reached the limit of ${tenant.maxAdmins} Lab Administrator(s).`,
+        `Your organization has reached the limit of ${tenant.maxAdmins} active Lab Administrator(s).`,
       );
     }
 
@@ -263,6 +267,31 @@ export class AdminsService {
 
     const { firstName, lastName, phone, branchId, status } = dto;
 
+    // Reactivation limit check: when moving from INACTIVE to ACTIVE
+    if (
+      status === UserStatus.ACTIVE &&
+      currentAdmin.status === UserStatus.INACTIVE
+    ) {
+      const activeAdminsCount = await this.prisma.user.count({
+        where: {
+          tenantId,
+          role: UserRole.ADMIN,
+          status: { not: UserStatus.INACTIVE },
+        },
+      });
+
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { maxAdmins: true },
+      });
+
+      if (tenant && activeAdminsCount >= tenant.maxAdmins) {
+        throw new BadRequestException(
+          `Cannot reactivate: your organization has reached the limit of ${tenant.maxAdmins} active Lab Administrator(s).`,
+        );
+      }
+    }
+
     // 2. If branch is updated, verify it belongs to this tenant
     if (branchId) {
       const branch = await this.prisma.branch.findFirst({
@@ -365,32 +394,11 @@ export class AdminsService {
   }
 
   /**
-   * Delete an admin user.
+   * Permanent user deletion is restricted for all users.
    */
   async remove(tenantId: string, id: string) {
-    // Verify admin exists
-    const admin = await this.findOne(tenantId, id);
-
-    if (admin.branch?.defaultAdminId === admin.id) {
-      const otherAdminsCount = await this.prisma.user.count({
-        where: {
-          branchId: admin.branchId,
-          role: UserRole.ADMIN,
-          id: { not: admin.id },
-        },
-      });
-      if (otherAdminsCount > 0) {
-        throw new BadRequestException(
-          'Cannot delete the default admin. Please designate another active administrator as the default admin first.',
-        );
-      }
-    }
-
-    await this.prisma.user.delete({
-      where: { id },
-    });
-
-    this.logger.log(`Admin deleted: ${id} in tenant ${tenantId}`);
-    return { success: true };
+    throw new BadRequestException(
+      'Permanent user deletion is restricted. Please mark the admin as inactive instead.',
+    );
   }
 }

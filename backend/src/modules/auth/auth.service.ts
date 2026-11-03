@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto, ResetPasswordDto, ForgotPasswordDto } from './dto';
 import { JwtPayload } from './strategies/jwt.strategy';
-import { UserRole } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -536,11 +536,19 @@ export class AuthService {
     }
 
     const currentAdmins = await this.prisma.user.count({
-      where: { tenantId, role: UserRole.ADMIN },
+      where: {
+        tenantId,
+        role: UserRole.ADMIN,
+        status: { not: UserStatus.INACTIVE },
+      },
     });
 
     const currentTechnicians = await this.prisma.user.count({
-      where: { tenantId, role: UserRole.TECHNICIAN },
+      where: {
+        tenantId,
+        role: UserRole.TECHNICIAN,
+        status: { not: UserStatus.INACTIVE },
+      },
     });
 
     return {

@@ -12,7 +12,6 @@ import {
   ArrowUpDown,
   Phone,
   Building2,
-  Trash2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -26,7 +25,7 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'INVITED';
 export function AdminsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const canDelete = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
+  const isTenantAdmin = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const [admins, setAdmins] = useState<AdminListItem[]>([]);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,10 +47,6 @@ export function AdminsPage() {
   const [sortField, setSortField] = useState<'name' | 'email' | 'createdAt'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  // Delete modal state
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [adminToDelete, setAdminToDelete] = useState<AdminListItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   // Form states
   const [form, setForm] = useState<CreateAdminPayload & { status?: 'ACTIVE' | 'INACTIVE' | 'INVITED' }>({
@@ -210,7 +205,8 @@ export function AdminsPage() {
 
     try {
       setSaving(true);
-      await adminService.update(selectedAdmin.id, form);
+      const { status: _status, ...updatePayload } = form;
+      await adminService.update(selectedAdmin.id, updatePayload);
       toast.success(t('admins.updateSuccess'));
       setShowEditModal(false);
       await fetchData();
@@ -275,6 +271,11 @@ export function AdminsPage() {
   };
 
   const handleToggleStatus = async (admin: AdminListItem) => {
+    if (!isTenantAdmin) return;
+    if (admin.status === 'ACTIVE' && admin.branch?.defaultAdminId === admin.id) {
+      toast.error(t('admins.cannotDeactivateDefaultAdmin', { defaultValue: 'Cannot deactivate the default administrator.' }));
+      return;
+    }
     const newStatus = admin.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
       await adminService.update(admin.id, { status: newStatus });
@@ -287,7 +288,7 @@ export function AdminsPage() {
   };
 
   const handleMakeDefaultAdmin = async (admin: AdminListItem) => {
-    if (!admin.branchId) return;
+    if (!isTenantAdmin || !admin.branchId) return;
     try {
       setLoading(true);
       await branchService.update(admin.branchId, { defaultAdminId: admin.id });
@@ -300,29 +301,6 @@ export function AdminsPage() {
       setLoading(false);
     }
   };
-
-  const confirmDelete = (admin: AdminListItem) => {
-    setAdminToDelete(admin);
-    setDeleteModalOpen(true);
-  };
-
-  const handleDelete = async () => {
-    if (!adminToDelete) return;
-    try {
-      setDeleting(true);
-      await adminService.delete(adminToDelete.id);
-      toast.success(t('admins.deleteSuccess'));
-      setDeleteModalOpen(false);
-      setAdminToDelete(null);
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || t('admins.failedDelete'));
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // ─── Status Badge ───────────────────────────────────
 
   const StatusBadge = ({ status }: { status: string }) => {
     const config: Record<string, { className: string; icon: React.ReactNode; labelKey: string }> = {
@@ -577,15 +555,30 @@ export function AdminsPage() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        className={`btn-action ${admin.status === 'ACTIVE' ? 'btn-action--danger' : 'btn-action--success'}`}
-                        onClick={() => handleToggleStatus(admin)}
-                        title={admin.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}
-                      >
-                        {admin.status === 'ACTIVE' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                        <span>{admin.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}</span>
-                      </button>
-                      {admin.status === 'ACTIVE' && admin.branchId && admin.branch?.defaultAdminId !== admin.id && (
+                      {isTenantAdmin && admin.status !== 'INVITED' && (
+                        admin.status === 'ACTIVE' ? (
+                          admin.branch?.defaultAdminId !== admin.id && (
+                            <button
+                              className="btn-action btn-action--danger"
+                              onClick={() => handleToggleStatus(admin)}
+                              title={t('common.inactive')}
+                            >
+                              <XCircle size={15} />
+                              <span>{t('common.inactive')}</span>
+                            </button>
+                          )
+                        ) : (
+                          <button
+                            className="btn-action btn-action--success"
+                            onClick={() => handleToggleStatus(admin)}
+                            title={t('common.active')}
+                          >
+                            <CheckCircle2 size={15} />
+                            <span>{t('common.active')}</span>
+                          </button>
+                        )
+                      )}
+                      {isTenantAdmin && admin.status === 'ACTIVE' && admin.branchId && admin.branch?.defaultAdminId !== admin.id && (
                          <button
                            className="btn-action"
                            style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
@@ -602,15 +595,6 @@ export function AdminsPage() {
                       >
                         <span>{t('common.edit')}</span>
                       </button>
-                      {canDelete && (
-                        <button
-                          className="btn-action btn-action--danger"
-                          onClick={() => confirmDelete(admin)}
-                          title={t('common.delete')}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -897,23 +881,6 @@ export function AdminsPage() {
                 )}
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="select-edit-admin-status">
-                  {t('common.status')} *
-                </label>
-                <select
-                  id="select-edit-admin-status"
-                  className="form-input"
-                  value={form.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  disabled={saving}
-                >
-                  <option value="ACTIVE">{t('enums.userStatus.ACTIVE')}</option>
-                  <option value="INACTIVE">{t('enums.userStatus.INACTIVE')}</option>
-                  <option value="INVITED">{t('enums.userStatus.INVITED')}</option>
-                </select>
-              </div>
-
               <div className="modal__footer">
                 <button
                   type="button"
@@ -940,62 +907,6 @@ export function AdminsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteModalOpen && adminToDelete && (
-        <div className="modal-overlay" onClick={() => !deleting && setDeleteModalOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-            <div className="modal__header">
-              <div>
-                <h2 className="modal__title">{t('common.delete')}</h2>
-              </div>
-              <button
-                className="modal__close"
-                onClick={() => !deleting && setDeleteModalOpen(false)}
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
-              <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                {t('admins.deleteConfirmText', { name: `${adminToDelete.firstName} ${adminToDelete.lastName}`, defaultValue: `Are you sure you want to delete administrator ${adminToDelete.firstName} ${adminToDelete.lastName}? This action will permanently remove their user account.` })}
-              </p>
-            </div>
-
-            <div className="modal__footer" style={{ padding: '1rem 1.75rem' }}>
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => setDeleteModalOpen(false)}
-                disabled={deleting}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary"
-                style={{ backgroundColor: 'var(--danger)' }}
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 size={16} className="spinner" />
-                    <span>{t('common.saving')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={16} />
-                    <span>{t('common.delete')}</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
       )}

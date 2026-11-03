@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
   Body,
   Param,
   Query,
@@ -77,6 +76,22 @@ export class TechniciansController {
     );
   }
 
+  @Get(':id/inactivation-check')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Check if a technician can be safely inactivated' })
+  async checkInactivation(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
+    return this.techniciansService.checkInactivation(tenantId, id, branchContext);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get details of a specific technician' })
   async findOne(
@@ -92,11 +107,33 @@ export class TechniciansController {
     return this.techniciansService.findOne(tenantId, id, branchContext);
   }
 
+  @Patch(':id/set-default')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Designate a technician as the default technician for their branch' })
+  async setDefaultTechnician(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+    @Param('id') id: string,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+    if (!branchIdContext) {
+      throw new BadRequestException('Branch context is required for administrators.');
+    }
+    return this.techniciansService.setDefaultTechnician(
+      tenantId,
+      branchIdContext,
+      id,
+    );
+  }
+
   @Patch(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Update a specific technician's details" })
   async update(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
     @CurrentUser('branchId') branchIdContext: string | null,
     @CurrentUser('role') userRole: string,
     @Param('id') id: string,
@@ -106,23 +143,12 @@ export class TechniciansController {
       throw new BadRequestException('Organization context is required.');
     }
     const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.techniciansService.update(tenantId, id, dto, branchContext);
-  }
-
-  @Delete(':id')
-  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a technician user' })
-  async remove(
-    @CurrentUser('tenantId') tenantId: string,
-    @CurrentUser('branchId') branchIdContext: string | null,
-    @CurrentUser('role') userRole: string,
-    @Param('id') id: string,
-  ) {
-    if (!tenantId) {
-      throw new BadRequestException('Organization context is required.');
-    }
-    const branchContext = userRole === 'ADMIN' ? branchIdContext : null;
-    return this.techniciansService.remove(tenantId, id, branchContext);
+    return this.techniciansService.update(
+      tenantId,
+      id,
+      dto,
+      branchContext,
+      userId,
+    );
   }
 }

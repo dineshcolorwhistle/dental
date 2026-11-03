@@ -74,6 +74,15 @@ export class BranchesService {
             status: true,
           },
         },
+        defaultTechnician: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            status: true,
+          },
+        },
         _count: {
           select: {
             users: true,
@@ -92,6 +101,15 @@ export class BranchesService {
       where: { id, tenantId },
       include: {
         defaultAdmin: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            status: true,
+          },
+        },
+        defaultTechnician: {
           select: {
             id: true,
             firstName: true,

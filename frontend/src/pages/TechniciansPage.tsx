@@ -7,16 +7,26 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  AlertTriangle,
   Mail,
   Loader2,
   ArrowUpDown,
   Phone,
   Building2,
-  Trash2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { technicianService, branchService, authService, type TechnicianListItem, type BranchListItem, type CreateTechnicianPayload, type UpdateTechnicianPayload, type TenantLimitsResponse } from '../services';
+import {
+  technicianService,
+  branchService,
+  authService,
+  type TechnicianListItem,
+  type BranchListItem,
+  type CreateTechnicianPayload,
+  type UpdateTechnicianPayload,
+  type TenantLimitsResponse,
+  type InactivationCheckResult,
+} from '../services';
 import { useAuth } from '../context';
 import { Pagination, SearchableSelect, PhoneInput } from '../components';
 import { formatDate } from '../utils/dateUtils';
@@ -30,7 +40,6 @@ export function TechniciansPage() {
   const isOwner = user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN';
   const canEdit = isAdmin || isOwner;
   const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  const canDelete = isOwner;
 
   const [technicians, setTechnicians] = useState<TechnicianListItem[]>([]);
   const [branches, setBranches] = useState<BranchListItem[]>([]);
@@ -46,6 +55,7 @@ export function TechniciansPage() {
   useEffect(() => {
     setCurrentPage(0);
   }, [search, selectedBranchFilter, selectedStatusFilter]);
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTechnician, setSelectedTechnician] = useState<TechnicianListItem | null>(null);
@@ -53,10 +63,12 @@ export function TechniciansPage() {
   const [sortField, setSortField] = useState<'name' | 'email' | 'createdAt'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  // Delete modal state
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [technicianToDelete, setTechnicianToDelete] = useState<TechnicianListItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  // Inactivation & warning modal states
+  const [inactivationCheckLoading, setInactivationCheckLoading] = useState(false);
+  const [inactivationCheckResult, setInactivationCheckResult] = useState<InactivationCheckResult | null>(null);
+  const [showInactivationBlockedModal, setShowInactivationBlockedModal] = useState(false);
+  const [showDeactivationWarningModal, setShowDeactivationWarningModal] = useState(false);
+  const [techToDeactivate, setTechToDeactivate] = useState<TechnicianListItem | null>(null);
 
   // Form states
   const [form, setForm] = useState<CreateTechnicianPayload & { status?: 'ACTIVE' | 'INACTIVE' | 'INVITED' }>({
@@ -213,6 +225,8 @@ export function TechniciansPage() {
     e.preventDefault();
     if (!selectedTechnician || !validateForm(true)) return;
 
+
+
     try {
       setSaving(true);
       const payload: UpdateTechnicianPayload = {
@@ -220,7 +234,6 @@ export function TechniciansPage() {
         lastName: form.lastName,
         phone: form.phone || undefined,
         branchId: isAdmin ? user?.branchId || undefined : form.branchId || undefined,
-        status: form.status,
       };
       await technicianService.update(selectedTechnician.id, payload);
       toast.success(t('technicians.updateSuccess'));
@@ -250,35 +263,97 @@ export function TechniciansPage() {
     }
   };
 
-  const handleToggleStatus = async (tech: TechnicianListItem) => {
-    const newStatus = tech.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+  const handleMakeDefaultTechnician = async (tech: TechnicianListItem) => {
+    if (!isAdmin || !tech.branchId) return;
     try {
-      await technicianService.update(tech.id, { status: newStatus });
-      toast.success(t('technicians.statusChanged', { status: newStatus === 'ACTIVE' ? t('common.active') : t('common.inactive'), defaultValue: `Technician ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}` }));
+      setLoading(true);
+      await technicianService.setDefaultTechnician(tech.id);
+      toast.success(
+        t('technicians.defaultTechnicianSet', {
+          name: `${tech.firstName} ${tech.lastName}`,
+          branch: tech.branch?.name,
+          defaultValue: `${tech.firstName} ${tech.lastName} set as default technician for ${tech.branch?.name}`,
+        }),
+      );
       await fetchData();
-    } catch {
-      toast.error(t('technicians.failedUpdate'));
+    } catch (err: any) {
+      const message = err?.response?.data?.message || t('technicians.failedUpdate');
+      toast.error(Array.isArray(message) ? message[0] : message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const confirmDelete = (tech: TechnicianListItem) => {
-    setTechnicianToDelete(tech);
-    setDeleteModalOpen(true);
+  const handleToggleStatus = async (tech: TechnicianListItem) => {
+    if (!isAdmin) return;
+    if (tech.status === 'ACTIVE') {
+      // Step 1: Default technician cannot be deactivated
+      if (tech.branch?.defaultTechnicianId === tech.id) {
+        toast.error(
+          t('technicians.cannotInactivateDefault', {
+            defaultValue:
+              'Cannot deactivate the default technician. Please designate another technician as the default technician first.',
+          }),
+        );
+        return;
+      }
+
+      // Step 2: Run inactivation pre-check
+      try {
+        setInactivationCheckLoading(true);
+        setTechToDeactivate(tech);
+        const result = await technicianService.checkInactivation(tech.id);
+        setInactivationCheckResult(result);
+
+        if (result.activeWorkOrders.length > 0) {
+          setShowInactivationBlockedModal(true);
+        } else {
+          setShowDeactivationWarningModal(true);
+        }
+      } catch (err: any) {
+        const message = err?.response?.data?.message || t('technicians.failedUpdate');
+        toast.error(Array.isArray(message) ? message[0] : message);
+      } finally {
+        setInactivationCheckLoading(false);
+      }
+    } else {
+      // Reactivation flow
+      try {
+        await technicianService.update(tech.id, { status: 'ACTIVE' });
+        toast.success(
+          t('technicians.statusChanged', {
+            status: t('common.active'),
+            defaultValue: 'Technician activated',
+          }),
+        );
+        await fetchData();
+      } catch (err: any) {
+        const message = err?.response?.data?.message || t('technicians.failedUpdate');
+        toast.error(Array.isArray(message) ? message[0] : message);
+      }
+    }
   };
 
-  const handleDelete = async () => {
-    if (!technicianToDelete) return;
+  const confirmDeactivation = async () => {
+    if (!isAdmin || !techToDeactivate) return;
     try {
-      setDeleting(true);
-      await technicianService.delete(technicianToDelete.id);
-      toast.success(t('technicians.deleteSuccess'));
-      setDeleteModalOpen(false);
-      setTechnicianToDelete(null);
+      setInactivationCheckLoading(true);
+      await technicianService.update(techToDeactivate.id, { status: 'INACTIVE' });
+      toast.success(
+        t('technicians.statusChanged', {
+          status: t('common.inactive'),
+          defaultValue: 'Technician deactivated',
+        }),
+      );
+      setShowDeactivationWarningModal(false);
+      setTechToDeactivate(null);
+      setInactivationCheckResult(null);
       await fetchData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || t('technicians.failedDelete'));
+      const message = err?.response?.data?.message || t('technicians.failedUpdate');
+      toast.error(Array.isArray(message) ? message[0] : message);
     } finally {
-      setDeleting(false);
+      setInactivationCheckLoading(false);
     }
   };
 
@@ -309,7 +384,9 @@ export function TechniciansPage() {
       <div className="page-header">
         <div className="page-header__left">
           <h1 className="page-header__title">{t('technicians.title')}</h1>
-          <p className="page-header__subtitle">{t('technicians.subtitle', { defaultValue: 'Manage dental lab technicians and their access' })}</p>
+          <p className="page-header__subtitle">
+            {t('technicians.subtitle', { defaultValue: 'Manage dental lab technicians and their access' })}
+          </p>
         </div>
         {canCreate && (
           <button
@@ -325,12 +402,29 @@ export function TechniciansPage() {
       </div>
 
       {isLimitReached && (
-        <div className="alert alert--danger" style={{ display: 'flex', gap: '0.75rem', padding: '1rem', borderRadius: '12px', border: '1px solid var(--danger)', background: 'var(--bg-base)', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+        <div
+          className="alert alert--danger"
+          style={{
+            display: 'flex',
+            gap: '0.75rem',
+            padding: '1rem',
+            borderRadius: '12px',
+            border: '1px solid var(--danger)',
+            background: 'var(--bg-base)',
+            marginBottom: '1.5rem',
+            color: 'var(--text-primary)',
+          }}
+        >
           <AlertCircle size={20} style={{ color: 'var(--danger)', flexShrink: 0 }} />
           <div>
-            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>{t('technicians.limitReachedTitle', { defaultValue: 'Technician Limit Reached' })}</h4>
+            <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600 }}>
+              {t('technicians.limitReachedTitle', { defaultValue: 'Technician Limit Reached' })}
+            </h4>
             <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              {t('technicians.limitReachedDesc', { count: tenantLimits?.maxTechnicians, defaultValue: `Your organization has reached the limit of ${tenantLimits?.maxTechnicians} Lab Technician(s). To invite more, please contact your laboratory administrator or support to upgrade your plan.` })}
+              {t('technicians.limitReachedDesc', {
+                count: tenantLimits?.maxTechnicians,
+                defaultValue: `Your organization has reached the limit of ${tenantLimits?.maxTechnicians} Lab Technician(s). To invite more, please contact your laboratory administrator or support to upgrade your plan.`,
+              })}
             </p>
           </div>
         </div>
@@ -344,7 +438,9 @@ export function TechniciansPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.total}</span>
-            <span className="stat-card__label">{t('technicians.totalTechnicians', { defaultValue: 'Total Technicians' })}</span>
+            <span className="stat-card__label">
+              {t('technicians.totalTechnicians', { defaultValue: 'Total Technicians' })}
+            </span>
           </div>
         </div>
         <div className="stat-card">
@@ -362,7 +458,9 @@ export function TechniciansPage() {
           </div>
           <div className="stat-card__content">
             <span className="stat-card__value">{stats.invited}</span>
-            <span className="stat-card__label">{t('technicians.pendingInvites', { defaultValue: 'Pending Invites' })}</span>
+            <span className="stat-card__label">
+              {t('technicians.pendingInvites', { defaultValue: 'Pending Invites' })}
+            </span>
           </div>
         </div>
       </div>
@@ -386,11 +484,16 @@ export function TechniciansPage() {
           )}
         </div>
 
-        <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        <div
+          className="table-toolbar__filters"
+          style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}
+        >
           {/* Branch Filter dropdown (Only for OWNER, since ADMIN is auto-scoped) */}
           {!isAdmin && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('common.branch')}:</span>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                {t('common.branch')}:
+              </span>
               <select
                 className="form-input"
                 style={{ width: '160px', height: '36px', padding: '0 0.75rem', borderRadius: '8px', fontSize: '0.8125rem' }}
@@ -415,7 +518,13 @@ export function TechniciansPage() {
                 className={`filter-chip ${selectedStatusFilter === s ? 'filter-chip--active' : ''}`}
                 onClick={() => setSelectedStatusFilter(s)}
               >
-                {s === 'ALL' ? t('common.all') : s === 'ACTIVE' ? t('enums.userStatus.ACTIVE') : s === 'INACTIVE' ? t('enums.userStatus.INACTIVE') : t('enums.userStatus.INVITED')}
+                {s === 'ALL'
+                  ? t('common.all')
+                  : s === 'ACTIVE'
+                  ? t('enums.userStatus.ACTIVE')
+                  : s === 'INACTIVE'
+                  ? t('enums.userStatus.INACTIVE')
+                  : t('enums.userStatus.INVITED')}
               </button>
             ))}
           </div>
@@ -434,7 +543,9 @@ export function TechniciansPage() {
             <Wrench size={48} style={{ color: 'var(--accent-primary)' }} />
           </div>
           <h3 className="empty-state__title">
-            {technicians.length === 0 ? t('technicians.noTechnicians', { defaultValue: 'No technicians found' }) : t('technicians.noMatching', { defaultValue: 'No matching records' })}
+            {technicians.length === 0
+              ? t('technicians.noTechnicians', { defaultValue: 'No technicians found' })
+              : t('technicians.noMatching', { defaultValue: 'No matching records' })}
           </h3>
           <p className="empty-state__text">
             {technicians.length === 0
@@ -487,6 +598,21 @@ export function TechniciansPage() {
                       <div>
                         <span className="cell-primary__name">
                           {tech.firstName} {tech.lastName}
+                          {tech.branch?.defaultTechnicianId === tech.id && (
+                            <span
+                              className="badge badge--success"
+                              style={{
+                                marginLeft: '8px',
+                                fontSize: '0.6875rem',
+                                padding: '2px 6px',
+                                textTransform: 'uppercase',
+                                verticalAlign: 'middle',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {t('technicians.defaultTechnician', { defaultValue: 'Default Technician' })}
+                            </span>
+                          )}
                         </span>
                         <span className="cell-primary__meta">
                           {t('common.joined', { defaultValue: 'Joined' })} {formatDate(tech.createdAt, i18n.language, user?.timezone, {
@@ -529,14 +655,25 @@ export function TechniciansPage() {
                   {canEdit && (
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {tech.status !== 'INVITED' && (
+                        {isAdmin && tech.status !== 'INVITED' && tech.branch?.defaultTechnicianId !== tech.id && (
                           <button
                             className={`btn-action ${tech.status === 'ACTIVE' ? 'btn-action--danger' : 'btn-action--success'}`}
                             onClick={() => handleToggleStatus(tech)}
-                            title={tech.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}
+                            title={tech.status === 'ACTIVE' ? t('common.inactive') : t('common.active')}
+                            disabled={inactivationCheckLoading && techToDeactivate?.id === tech.id}
                           >
                             {tech.status === 'ACTIVE' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                            <span>{tech.status === 'ACTIVE' ? t('common.disable') : t('common.enable')}</span>
+                            <span>{tech.status === 'ACTIVE' ? t('common.inactive') : t('common.active')}</span>
+                          </button>
+                        )}
+                        {isAdmin && tech.status === 'ACTIVE' && tech.branchId && tech.branch?.defaultTechnicianId !== tech.id && (
+                          <button
+                            className="btn-action"
+                            style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+                            onClick={() => handleMakeDefaultTechnician(tech)}
+                            title={t('technicians.designateDefault', { defaultValue: 'Designate as Default Technician' })}
+                          >
+                            <span>{t('technicians.makeDefault', { defaultValue: 'Make Default' })}</span>
                           </button>
                         )}
                         <button
@@ -546,15 +683,6 @@ export function TechniciansPage() {
                         >
                           <span>{t('common.edit')}</span>
                         </button>
-                        {canDelete && (
-                          <button
-                            className="btn-action btn-action--danger"
-                            onClick={() => confirmDelete(tech)}
-                            title={t('technicians.deleteConfirm')}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        )}
                       </div>
                     </td>
                   )}
@@ -728,7 +856,12 @@ export function TechniciansPage() {
             <div className="modal__header">
               <div>
                 <h2 className="modal__title">{t('technicians.editTechnician')}</h2>
-                <p className="modal__subtitle">{t('admins.updateDetailsFor', { defaultValue: 'Update details for' })} <strong>{selectedTechnician.firstName} {selectedTechnician.lastName}</strong></p>
+                <p className="modal__subtitle">
+                  {t('admins.updateDetailsFor', { defaultValue: 'Update details for' })}{' '}
+                  <strong>
+                    {selectedTechnician.firstName} {selectedTechnician.lastName}
+                  </strong>
+                </p>
               </div>
               <button
                 className="modal__close"
@@ -782,15 +915,8 @@ export function TechniciansPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">
-                  {t('common.email')}
-                </label>
-                <input
-                  className="form-input"
-                  type="email"
-                  value={form.email}
-                  disabled
-                />
+                <label className="form-label">{t('common.email')}</label>
+                <input className="form-input" type="email" value={form.email} disabled />
                 <span className="form-error" style={{ color: 'var(--text-muted)' }}>
                   {t('technicians.emailChangeHint', { defaultValue: 'Email cannot be changed after invitation.' })}
                 </span>
@@ -834,23 +960,7 @@ export function TechniciansPage() {
                 </div>
               )}
 
-              {selectedTechnician.status !== 'INVITED' && (
-                <div className="form-group">
-                  <label className="form-label" htmlFor="select-edit-tech-status">
-                    {t('common.status')} *
-                  </label>
-                  <select
-                    id="select-edit-tech-status"
-                    className="form-input"
-                    value={form.status}
-                    onChange={(e) => handleInputChange('status', e.target.value)}
-                    disabled={saving}
-                  >
-                    <option value="ACTIVE">{t('common.active')}</option>
-                    <option value="INACTIVE">{t('common.inactive')}</option>
-                  </select>
-                </div>
-              )}
+
 
               <div className="modal__footer">
                 <button
@@ -882,35 +992,196 @@ export function TechniciansPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteModalOpen && technicianToDelete && (
-        <div className="modal-overlay" onClick={() => !deleting && setDeleteModalOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+      {/* Inactivation Blocked Modal */}
+      {showInactivationBlockedModal && inactivationCheckResult && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowInactivationBlockedModal(false);
+            setTechToDeactivate(null);
+            setInactivationCheckResult(null);
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
             <div className="modal__header">
               <div>
-                <h2 className="modal__title">{t('common.delete')}</h2>
+                <h2 className="modal__title">
+                  {t('technicians.inactivationBlockedTitle', { defaultValue: 'Cannot Deactivate Technician' })}
+                </h2>
+                {techToDeactivate && (
+                  <p className="modal__subtitle">
+                    {techToDeactivate.firstName} {techToDeactivate.lastName}
+                  </p>
+                )}
               </div>
               <button
                 className="modal__close"
-                onClick={() => !deleting && setDeleteModalOpen(false)}
+                onClick={() => {
+                  setShowInactivationBlockedModal(false);
+                  setTechToDeactivate(null);
+                  setInactivationCheckResult(null);
+                }}
                 aria-label="Close"
               >
                 <X size={20} />
               </button>
             </div>
-
             <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
-              <p style={{ margin: 0, color: 'var(--text-body)' }}>
-                {t('technicians.deleteConfirmText', { name: `${technicianToDelete.firstName} ${technicianToDelete.lastName}`, defaultValue: `Are you sure you want to delete technician ${technicianToDelete.firstName} ${technicianToDelete.lastName}? This action will permanently remove the record from the database.` })}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  padding: '0.875rem',
+                  background: 'var(--danger-light, #fee2e2)',
+                  borderRadius: '8px',
+                  marginBottom: '1rem',
+                }}
+              >
+                <AlertCircle size={18} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '2px' }} />
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                  {t('technicians.inactivationBlockedDesc', {
+                    defaultValue: 'This technician currently has active or paused processes in the following Work Orders:',
+                  })}
+                </span>
+              </div>
+              <ul
+                style={{
+                  paddingLeft: '1.25rem',
+                  margin: '0 0 1rem 0',
+                  maxHeight: '140px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.375rem',
+                }}
+              >
+                {inactivationCheckResult.activeWorkOrders.map((folio: string) => (
+                  <li key={folio} style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                    {folio}
+                  </li>
+                ))}
+              </ul>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', margin: 0, lineHeight: 1.5 }}>
+                {t('technicians.completeOrReassignFirst', {
+                  defaultValue: 'Please complete or reassign these processes before deactivating this technician.',
+                })}
               </p>
             </div>
+            <div className="modal__footer" style={{ padding: '1rem 1.75rem' }}>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => {
+                  setShowInactivationBlockedModal(false);
+                  setTechToDeactivate(null);
+                  setInactivationCheckResult(null);
+                }}
+              >
+                {t('common.close', { defaultValue: 'Close' })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* Deactivation Warning Modal */}
+      {showDeactivationWarningModal && inactivationCheckResult && techToDeactivate && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            if (!inactivationCheckLoading) {
+              setShowDeactivationWarningModal(false);
+              setTechToDeactivate(null);
+              setInactivationCheckResult(null);
+            }
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal__header">
+              <div>
+                <h2 className="modal__title">
+                  {t('technicians.deactivationWarningTitle', { defaultValue: 'Deactivate Technician' })}
+                </h2>
+                <p className="modal__subtitle">
+                  {techToDeactivate.firstName} {techToDeactivate.lastName} ({techToDeactivate.email})
+                </p>
+              </div>
+              <button
+                className="modal__close"
+                onClick={() => {
+                  if (!inactivationCheckLoading) {
+                    setShowDeactivationWarningModal(false);
+                    setTechToDeactivate(null);
+                    setInactivationCheckResult(null);
+                  }
+                }}
+                aria-label="Close"
+                disabled={inactivationCheckLoading}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '1rem 1.75rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  padding: '0.875rem',
+                  background: 'var(--warning-light, #fef3c7)',
+                  borderRadius: '8px',
+                  marginBottom: '1rem',
+                }}
+              >
+                <AlertTriangle size={18} style={{ color: 'var(--warning, #d97706)', flexShrink: 0, marginTop: '2px' }} />
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {t('technicians.deactivationWarningCard', {
+                    defaultValue: 'Pending Process Reassignment Warning',
+                  })}
+                </span>
+              </div>
+              <div
+                style={{
+                  background: 'var(--bg-card, #f8fafc)',
+                  border: '1px solid var(--border-color, #e2e8f0)',
+                  borderRadius: '8px',
+                  padding: '0.875rem 1rem',
+                  fontSize: '0.8125rem',
+                  lineHeight: 1.6,
+                }}
+              >
+                <ul style={{ paddingLeft: '1.25rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <li>
+                    {t('technicians.deactivationWarningPending', {
+                      count: inactivationCheckResult.pendingProcessesCount,
+                      name:
+                        inactivationCheckResult.defaultTechnician?.name ||
+                        t('common.unknown', { defaultValue: 'Default Technician' }),
+                      defaultValue: `All ${inactivationCheckResult.pendingProcessesCount} pending or not-yet-started process(es) across all Work Orders will be reassigned to the Default Technician: ${
+                        inactivationCheckResult.defaultTechnician?.name || 'Default Technician'
+                      }.`,
+                    })}
+                  </li>
+                  <li>
+                    {t('technicians.deactivationWarningCompleted', {
+                      defaultValue:
+                        'All completed processes will retain this technician\'s name for historical reference.',
+                    })}
+                  </li>
+                </ul>
+              </div>
+            </div>
             <div className="modal__footer" style={{ padding: '1rem 1.75rem' }}>
               <button
                 type="button"
                 className="btn btn--ghost"
-                onClick={() => setDeleteModalOpen(false)}
-                disabled={deleting}
+                onClick={() => {
+                  setShowDeactivationWarningModal(false);
+                  setTechToDeactivate(null);
+                  setInactivationCheckResult(null);
+                }}
+                disabled={inactivationCheckLoading}
               >
                 {t('common.cancel')}
               </button>
@@ -918,19 +1189,16 @@ export function TechniciansPage() {
                 type="button"
                 className="btn btn--primary"
                 style={{ backgroundColor: 'var(--danger)' }}
-                onClick={handleDelete}
-                disabled={deleting}
+                onClick={confirmDeactivation}
+                disabled={inactivationCheckLoading}
               >
-                {deleting ? (
+                {inactivationCheckLoading ? (
                   <>
                     <Loader2 size={16} className="spinner" />
                     <span>{t('common.saving')}</span>
                   </>
                 ) : (
-                  <>
-                    <Trash2 size={16} />
-                    <span>{t('common.delete')}</span>
-                  </>
+                  <span>{t('technicians.confirmDeactivation', { defaultValue: 'Confirm Deactivation' })}</span>
                 )}
               </button>
             </div>
