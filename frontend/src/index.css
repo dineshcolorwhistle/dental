@@ -2397,9 +2397,15 @@ a:hover { color: var(--accent-primary-hover); }
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
-.wo-process-item--verification {
-  border-left: 3px solid #8B5CF6;
-  background: rgba(139, 92, 246, 0.03);
+.wo-process-item--verification,
+.wo-process-item--internal-verification {
+  border-left: 3px solid #7C3AED;
+  background: rgba(124, 58, 237, 0.04);
+}
+
+.wo-process-item--external-verification {
+  border-left: 3px solid #10B981;
+  background: rgba(16, 185, 129, 0.04);
 }
 
 .wo-process-item--current {

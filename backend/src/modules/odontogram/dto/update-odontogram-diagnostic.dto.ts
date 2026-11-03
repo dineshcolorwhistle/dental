@@ -4,4 +4,3 @@ import { CreateOdontogramDiagnosticDto } from './create-odontogram-diagnostic.dt
 export class UpdateOdontogramDiagnosticDto extends PartialType(
   CreateOdontogramDiagnosticDto,
 ) {}
-

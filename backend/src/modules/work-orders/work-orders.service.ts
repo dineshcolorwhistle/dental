@@ -352,10 +352,19 @@ export class WorkOrdersService implements OnModuleInit {
       (p) => p.status === ProcessStatus.NOT_STARTED,
     );
     if (allNotStarted) {
-      const hasAnyTechnician = sorted.some((p) => p.technicianId !== null);
-      return hasAnyTechnician
-        ? WorkOrderStatus.ASSIGNED
-        : WorkOrderStatus.CREATED;
+      const allAssigned =
+        sorted.length > 0 &&
+        sorted.every((p) => {
+          if (p.isVerification && !p.technicianId) {
+            return true;
+          }
+          return (
+            p.technicianId !== null &&
+            p.technicianId !== undefined &&
+            p.technicianId !== ''
+          );
+        });
+      return allAssigned ? WorkOrderStatus.ASSIGNED : WorkOrderStatus.CREATED;
     }
 
     // Default fallback
@@ -579,6 +588,24 @@ export class WorkOrdersService implements OnModuleInit {
         };
       }),
     );
+
+    if (action === 'createAndAssign') {
+      if (!mappedProcesses || mappedProcesses.length === 0) {
+        throw new BadRequestException(
+          'Cannot assign Work Order: At least one process step is required.',
+        );
+      }
+      const unassigned = mappedProcesses.find((p) => {
+        const isExternal = p.isVerification && !p.technicianId;
+        if (isExternal) return false;
+        return !p.technicianId;
+      });
+      if (unassigned) {
+        throw new BadRequestException(
+          `Cannot assign Work Order: All process steps must have an assigned person. Process "${unassigned.processName}" is not assigned.`,
+        );
+      }
+    }
 
     const status =
       action === 'create'
@@ -1057,8 +1084,7 @@ export class WorkOrdersService implements OnModuleInit {
             oldStatus === ProcessStatus.COMPLETED &&
             currentStatus !== ProcessStatus.COMPLETED
           ) {
-            const isRework =
-              p.rework === true || (ep as any)?.reworkActive === true;
+            const isRework = p.rework === true || ep?.reworkActive === true;
             if (!isRework) {
               throw new BadRequestException(
                 `Completed process step "${p.processName}" cannot be modified unless marked for rework.`,
@@ -1241,6 +1267,22 @@ export class WorkOrdersService implements OnModuleInit {
     let finalStatus: WorkOrderStatus;
     if (existing.status === WorkOrderStatus.CREATED) {
       if (status === WorkOrderStatus.ASSIGNED) {
+        const checkList = mappedProcesses || existing.processes;
+        if (!checkList || checkList.length === 0) {
+          throw new BadRequestException(
+            'Cannot assign Work Order: At least one process step is required.',
+          );
+        }
+        const unassigned = checkList.find((p: any) => {
+          const isExternal = p.isVerification && !p.technicianId;
+          if (isExternal) return false;
+          return !p.technicianId;
+        });
+        if (unassigned) {
+          throw new BadRequestException(
+            `Cannot assign Work Order: All process steps must have an assigned person. Process "${unassigned.processName}" is not assigned.`,
+          );
+        }
         finalStatus = mappedProcesses
           ? this.calculateWorkOrderStatus(mappedProcesses)
           : this.calculateWorkOrderStatus(existing.processes);
@@ -1556,7 +1598,9 @@ export class WorkOrdersService implements OnModuleInit {
             await this.notificationsService.create({
               tenantId,
               userId: newTechId,
-              title: isInternalVerify ? 'Verification Pending' : 'WO Step Ready',
+              title: isInternalVerify
+                ? 'Verification Pending'
+                : 'WO Step Ready',
               message: isInternalVerify
                 ? `WO "${updated.folioNumber}"${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''} requires verification "${curr.processName}".`
                 : `WO "${updated.folioNumber}"${updated.boxNumber ? ` (Box: ${updated.boxNumber})` : ''} is ready. Step "${curr.processName}" assigned to you.`,

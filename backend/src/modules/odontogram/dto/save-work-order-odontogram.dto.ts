@@ -12,7 +12,8 @@ export class SaveWorkOrderOdontogramDto {
   teethModel: TeethModel;
 
   @ApiProperty({
-    description: 'Structured JSON data of charted teeth, parts, and applied items',
+    description:
+      'Structured JSON data of charted teeth, parts, and applied items',
     example: {},
   })
   @IsObject()
@@ -26,4 +27,3 @@ export class SaveWorkOrderOdontogramDto {
   @IsString()
   notes?: string;
 }
-

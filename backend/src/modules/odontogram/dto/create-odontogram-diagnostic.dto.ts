@@ -51,4 +51,3 @@ export class CreateOdontogramDiagnosticDto {
   @IsUUID()
   branchId?: string;
 }
-

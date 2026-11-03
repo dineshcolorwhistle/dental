@@ -27,7 +27,7 @@ import {
   type AdminListItem,
 } from '../services';
 import { useAuth } from '../context';
-import { Pagination, SearchableSelect } from '../components';
+import { Pagination, SearchableSelect, RoleBadge } from '../components';
 
 export function ProcessesPage() {
   const { t } = useTranslation();
@@ -505,9 +505,12 @@ export function ProcessesPage() {
                       </div>
                     ) : proc.defaultTechnician ? (
                       <div className="cell-user">
-                        <span className="cell-user__name">
-                          {proc.defaultTechnician.firstName} {proc.defaultTechnician.lastName}
-                        </span>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <span className="cell-user__name">
+                            {proc.defaultTechnician.firstName} {proc.defaultTechnician.lastName}
+                          </span>
+                          <RoleBadge role={proc.defaultTechnician.role || (proc.type === 'INTERNAL_VERIFICATION' ? 'ADMIN' : 'TECHNICIAN')} />
+                        </div>
                         <span className="cell-user__email">
                           {proc.defaultTechnician.email}
                         </span>
@@ -746,7 +749,9 @@ export function ProcessesPage() {
                     id="select-process-technician"
                     options={formTechnicians.map((tech) => ({
                       value: tech.id,
-                      label: `${tech.firstName} ${tech.lastName}${tech.role === 'ADMIN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''} (${tech.email})`,
+                      label: `${tech.firstName} ${tech.lastName} (${tech.email})`,
+                      badge: <RoleBadge role={tech.role || 'TECHNICIAN'} />,
+                      searchMeta: `${tech.role || 'TECHNICIAN'} ${tech.email}`,
                     }))}
                     value={form.defaultTechnicianId || ''}
                     onChange={(val) => handleInputChange('defaultTechnicianId', val)}
@@ -973,7 +978,9 @@ export function ProcessesPage() {
                     id="select-edit-process-technician"
                     options={formTechnicians.map((tech) => ({
                       value: tech.id,
-                      label: `${tech.firstName} ${tech.lastName}${tech.role === 'ADMIN' ? ` [${t('workOrders.adminBadge', { defaultValue: 'Admin' })}]` : ''} (${tech.email})`,
+                      label: `${tech.firstName} ${tech.lastName} (${tech.email})`,
+                      badge: <RoleBadge role={tech.role || 'TECHNICIAN'} />,
+                      searchMeta: `${tech.role || 'TECHNICIAN'} ${tech.email}`,
                     }))}
                     value={form.defaultTechnicianId || ''}
                     onChange={(val) => handleInputChange('defaultTechnicianId', val)}

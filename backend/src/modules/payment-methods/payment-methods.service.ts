@@ -12,7 +12,10 @@ const DEFAULT_PAYMENT_METHODS = [
   { name: 'Cash', description: 'Cash payment / Efectivo' },
   { name: 'Credit Card', description: 'Credit Card / Tarjeta de Crédito' },
   { name: 'Debit Card', description: 'Debit Card / Tarjeta de Débito' },
-  { name: 'Bank Transfer', description: 'Electronic bank transfer / Transferencia' },
+  {
+    name: 'Bank Transfer',
+    description: 'Electronic bank transfer / Transferencia',
+  },
   { name: 'Check', description: 'Check / Cheque' },
 ];
 
@@ -49,7 +52,9 @@ export class PaymentMethodsService {
       });
 
       if (count === 0) {
-        this.logger.log(`Seeding default payment methods for tenant: ${tenantId}`);
+        this.logger.log(
+          `Seeding default payment methods for tenant: ${tenantId}`,
+        );
         await this.prisma.paymentMethod.createMany({
           data: DEFAULT_PAYMENT_METHODS.map((m) => ({
             tenantId,

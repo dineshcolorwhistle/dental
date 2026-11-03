@@ -9,7 +9,8 @@ import {
 
 export class CreatePaymentMethodDto {
   @ApiProperty({
-    description: 'Name of the payment method (e.g., Cash, Credit Card, Bank Transfer)',
+    description:
+      'Name of the payment method (e.g., Cash, Credit Card, Bank Transfer)',
     example: 'Bank Transfer',
   })
   @IsString()

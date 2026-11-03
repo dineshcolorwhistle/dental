@@ -350,12 +350,7 @@ export class WorkOrdersController {
         );
       }
     }
-    return this.workOrdersService.startProcess(
-      tenantId,
-      id,
-      processId,
-      userId,
-    );
+    return this.workOrdersService.startProcess(tenantId, id, processId, userId);
   }
 
   @Post(':id/processes/:processId/pause')
@@ -384,12 +379,7 @@ export class WorkOrdersController {
         );
       }
     }
-    return this.workOrdersService.pauseProcess(
-      tenantId,
-      id,
-      processId,
-      userId,
-    );
+    return this.workOrdersService.pauseProcess(tenantId, id, processId, userId);
   }
 
   @Post(':id/processes/:processId/resume')
@@ -428,7 +418,9 @@ export class WorkOrdersController {
 
   @Post(':id/processes/:processId/end')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Complete assigned production process step by admin' })
+  @ApiOperation({
+    summary: 'Complete assigned production process step by admin',
+  })
   async endProcess(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('branchId') branchIdContext: string | null,
@@ -452,12 +444,7 @@ export class WorkOrdersController {
         );
       }
     }
-    return this.workOrdersService.endProcess(
-      tenantId,
-      id,
-      processId,
-      userId,
-    );
+    return this.workOrdersService.endProcess(tenantId, id, processId, userId);
   }
 
   // ─── Notes Endpoints ─────────────────────────────────────

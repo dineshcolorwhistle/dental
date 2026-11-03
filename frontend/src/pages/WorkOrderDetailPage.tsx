@@ -16,6 +16,7 @@ import {
   Play,
   Pause,
   CheckCircle2,
+  ShieldCheck,
   AlertCircle,
   X,
   ChevronDown,
@@ -26,7 +27,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService, type WorkOrderListItem } from '../services';
-import { WorkOrderChat, QRLabelModal, ToothIcon } from '../components';
+import { WorkOrderChat, QRLabelModal, ToothIcon, RoleBadge } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
 import { useAppDate } from '../hooks';
 
@@ -910,6 +911,18 @@ export function WorkOrderDetailPage() {
                   const hasLogs = combinedLogs.length > 0;
                   const isExpanded = expandedAuditRow === proc.id;
 
+                  const isExternal =
+                    proc.processType === 'EXTERNAL_VERIFICATION' ||
+                    (proc.isVerification && (!proc.technicianId || proc.technicianId === workOrder?.doctorId)) ||
+                    proc.processName?.toLowerCase().includes('external');
+
+                  const isInternal =
+                    !isExternal &&
+                    (proc.processType === 'INTERNAL_VERIFICATION' ||
+                     proc.isVerification ||
+                     proc.processName?.toLowerCase().includes('internal') ||
+                     proc.processName?.toLowerCase().includes('verification'));
+
                   const repetitionsForStep = (workOrder?.repetitionLogs || []).filter((r: any) =>
                     r.verificationStage === proc.processName ||
                     (r.completedSteps && r.completedSteps.split(', ').map((s: string) => s.trim()).includes(proc.processName))
@@ -919,28 +932,55 @@ export function WorkOrderDetailPage() {
                     <Fragment key={proc.id}>
                       <tr style={{
                         borderBottom: idx < processes.length - 1 ? '1px solid var(--border)' : 'none',
-                        backgroundColor: stepStatus === 'IN_PROGRESS' ? 'rgba(111, 174, 217, 0.03)' : 'transparent'
+                        borderLeft: isExternal
+                          ? '4px solid #10B981'
+                          : isInternal
+                            ? '4px solid #7C3AED'
+                            : '4px solid transparent',
+                        backgroundColor: isExternal
+                          ? 'rgba(16, 185, 129, 0.04)'
+                          : isInternal
+                            ? 'rgba(124, 58, 237, 0.04)'
+                            : stepStatus === 'IN_PROGRESS'
+                              ? 'rgba(111, 174, 217, 0.03)'
+                              : 'transparent',
                       }}>
                         <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-muted)' }}>{idx + 1}</td>
                         <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <span>
-                              {(proc.isVerification || proc.processName?.toLowerCase().includes('verification') || proc.processName?.toLowerCase().includes('external'))
-                                ? proc.technicianId
-                                  ? t('workOrders.internalVerification', { defaultValue: 'Verification (Internal)' })
-                                  : t('workOrders.externalVerification', { defaultValue: 'Verification (External)' })
-                                : proc.processName}
-                            </span>
-                            {(proc.isVerification || proc.processName?.toLowerCase().includes('verification') || proc.processName?.toLowerCase().includes('external')) && (
+                            <span>{proc.processName}</span>
+                            {isInternal && (
                               <span style={{
                                 fontSize: '0.625rem',
                                 fontWeight: 700,
-                                padding: '1px 5px',
+                                padding: '1px 6px',
                                 borderRadius: '4px',
-                                backgroundColor: proc.technicianId ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                                color: proc.technicianId ? '#8B5CF6' : '#6366F1'
+                                backgroundColor: '#F5F3FF',
+                                color: '#7C3AED',
+                                border: '1px solid #DDD6FE',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
                               }}>
-                                {proc.technicianId ? t('enums.verificationType.INTERNAL') : t('enums.verificationType.EXTERNAL')} {t('dashboard.verification')}
+                                <ShieldCheck size={10} />
+                                {t('enums.processType.INTERNAL_VERIFICATION', { defaultValue: 'Internal Verification' })}
+                              </span>
+                            )}
+                            {isExternal && (
+                              <span style={{
+                                fontSize: '0.625rem',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: '#ECFDF5',
+                                color: '#059669',
+                                border: '1px solid #A7F3D0',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}>
+                                <Stethoscope size={10} />
+                                {t('enums.processType.EXTERNAL_VERIFICATION', { defaultValue: 'External Verification' })}
                               </span>
                             )}
                             {proc.reworkActive && (
@@ -982,16 +1022,22 @@ export function WorkOrderDetailPage() {
                           </div>
                         </td>
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                          {(proc.isVerification ? !proc.technicianId : (proc.processName?.toLowerCase().includes('external') || (!proc.technicianId && proc.processName?.toLowerCase().includes('verification')))) ? (
-                            <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                              {workOrder.doctor?.name
-                                ? (workOrder.doctor.clinicName
-                                  ? `${workOrder.doctor.name} (${workOrder.doctor.clinicName})`
-                                  : workOrder.doctor.name)
-                                : t('dashboard.unassigned')}
-                            </span>
+                          {isExternal ? (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                                {workOrder.doctor?.name
+                                  ? (workOrder.doctor.clinicName
+                                    ? `${workOrder.doctor.name} (${workOrder.doctor.clinicName})`
+                                    : workOrder.doctor.name)
+                                  : t('dashboard.unassigned')}
+                              </span>
+                              <RoleBadge role="DOCTOR" />
+                            </div>
                           ) : proc.technician ? (
-                            `${proc.technician.firstName} ${proc.technician.lastName}`
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <span>{`${proc.technician.firstName} ${proc.technician.lastName}`}</span>
+                              <RoleBadge role={proc.technician.role || (isInternal ? 'ADMIN' : 'TECHNICIAN')} />
+                            </div>
                           ) : (
                             <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('dashboard.unassigned')}</span>
                           )}

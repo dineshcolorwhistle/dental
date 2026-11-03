@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateWhatsAppTemplateDto,
@@ -49,7 +53,10 @@ export class WhatsAppTemplatesService {
     return (this.prisma as any).whatsAppTemplate;
   }
 
-  private async resolveTenantId(tenantId?: string, role?: string): Promise<string> {
+  private async resolveTenantId(
+    tenantId?: string,
+    role?: string,
+  ): Promise<string> {
     if (tenantId && tenantId.trim() !== '') {
       return tenantId;
     }
@@ -117,7 +124,11 @@ export class WhatsAppTemplatesService {
     return template;
   }
 
-  async create(tenantId: string, dto: CreateWhatsAppTemplateDto, role?: string) {
+  async create(
+    tenantId: string,
+    dto: CreateWhatsAppTemplateDto,
+    role?: string,
+  ) {
     const effectiveTenantId = await this.resolveTenantId(tenantId, role);
     if (!this.templateModel) throw new NotFoundException('Service unavailable');
 
@@ -138,7 +149,12 @@ export class WhatsAppTemplatesService {
     }
   }
 
-  async update(tenantId: string, id: string, dto: UpdateWhatsAppTemplateDto, role?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateWhatsAppTemplateDto,
+    role?: string,
+  ) {
     const effectiveTenantId = await this.resolveTenantId(tenantId, role);
     await this.findOne(effectiveTenantId, id, role);
 

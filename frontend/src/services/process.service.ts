@@ -20,6 +20,7 @@ export interface ProcessListItem {
     firstName: string;
     lastName: string;
     email: string;
+    role?: string;
   } | null;
   prosthesisTypeAssignments?: {
     id: string;

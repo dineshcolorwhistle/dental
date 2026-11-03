@@ -48,7 +48,8 @@ export class InterestRequestsController {
   @Get('public/work-orders/:token')
   @Public()
   @ApiOperation({
-    summary: 'Get public work order details by ID or QR token (no auth required)',
+    summary:
+      'Get public work order details by ID or QR token (no auth required)',
   })
   async getPublicWorkOrder(@Param('token') token: string) {
     const workOrder =

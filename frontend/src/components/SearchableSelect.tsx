@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 export interface Option {
   value: string;
   label: string;
+  badge?: React.ReactNode;
+  searchMeta?: string;
 }
 
 interface SearchableSelectProps {
@@ -83,9 +85,13 @@ export function SearchableSelect({
   const selectedOption = options.find((opt) => opt.value === value);
 
   // Filter options based on search query
-  const filteredOptions = options.filter((opt) =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = options.filter((opt) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      opt.label.toLowerCase().includes(term) ||
+      (opt.searchMeta && opt.searchMeta.toLowerCase().includes(term))
+    );
+  });
 
   // Reset highlighted index when options filter changes
   useEffect(() => {
@@ -192,8 +198,29 @@ export function SearchableSelect({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <span className={selectedOption ? 'searchable-select__label' : 'searchable-select__placeholder'}>
-          {selectedOption ? selectedOption.label : placeholder}
+        <span
+          className={selectedOption ? 'searchable-select__label' : 'searchable-select__placeholder'}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          {selectedOption ? (
+            <>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedOption.label}
+              </span>
+              {selectedOption.badge}
+            </>
+          ) : (
+            placeholder
+          )}
         </span>
         <ChevronDown
           size={16}
@@ -260,9 +287,20 @@ export function SearchableSelect({
                     } ${isHighlighted ? 'searchable-select__option--highlighted' : ''}`}
                     onClick={() => selectOption(opt.value)}
                     onMouseEnter={() => setHighlightedIndex(index)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem',
+                    }}
                   >
-                    <span>{opt.label}</span>
-                    {isSelected && <Check size={14} className="searchable-select__check" />}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {opt.label}
+                    </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', flexShrink: 0, marginLeft: 'auto' }}>
+                      {opt.badge}
+                      {isSelected && <Check size={14} className="searchable-select__check" />}
+                    </div>
                   </div>
                 );
               })

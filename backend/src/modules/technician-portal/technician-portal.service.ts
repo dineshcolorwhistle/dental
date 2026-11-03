@@ -461,7 +461,10 @@ export class TechnicianPortalService {
 
     const mappedProcesses = assignments.map((assign) => {
       const proc = assign.process;
-      const processType: 'PRODUCTION' | 'INTERNAL_VERIFICATION' | 'EXTERNAL_VERIFICATION' =
+      const processType:
+        | 'PRODUCTION'
+        | 'INTERNAL_VERIFICATION'
+        | 'EXTERNAL_VERIFICATION' =
         proc?.type ||
         (proc?.name?.toLowerCase().includes('external')
           ? 'EXTERNAL_VERIFICATION'

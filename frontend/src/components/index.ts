@@ -13,3 +13,4 @@ export { VersionChecker } from './VersionChecker';
 export { ToothSvg, getSurfaceDisplayName } from './ToothSvg';
 export { ToothIcon, Tooth } from './ToothIcon';
 export { WorkOrderOdontogramModal } from './WorkOrderOdontogramModal';
+export { RoleBadge } from './RoleBadge';
