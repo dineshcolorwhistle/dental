@@ -34,7 +34,7 @@ import {
 } from '../services';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { useAppDate } from '../hooks';
-import { QRLabelModal, WorkOrderChat } from '../components';
+import { QRLabelModal, WorkOrderChat, RoleBadge } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
 import { NoteHistoryThread } from '../components/NoteHistoryThread';
 
@@ -775,7 +775,10 @@ export function TechnicianWorkOrdersPage() {
 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '0.75rem' }}>
                       <div>{t('dashboard.prosthesis')}: <strong>{wo.prosthesisType?.name}</strong></div>
-                      <div>{t('dashboard.doctor')}: <strong>{wo.doctor?.name}{wo.doctor?.clinicName ? ` (${wo.doctor.clinicName})` : ''}</strong></div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span>{t('dashboard.doctor')}: <strong>{wo.doctor?.name}{wo.doctor?.clinicName ? ` (${wo.doctor.clinicName})` : ''}</strong></span>
+                        {wo.doctor && <RoleBadge role="DOCTOR" size="xs" />}
+                      </div>
                       <div>{t('workOrder.boxNo')}: <strong>{wo.boxNumber || t('common.na')}</strong></div>
                       {wo.deliveryDate && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#D97706', fontWeight: 600 }}>
@@ -997,9 +1000,10 @@ export function TechnicianWorkOrdersPage() {
                       )}
                       <div>
                         <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{t('workOrder.doctor')}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, color: 'var(--text-primary)', flexWrap: 'wrap' }}>
                           <User size={14} style={{ color: 'var(--accent-primary)' }} />
                           <span>{selectedOrder.doctor?.name}{selectedOrder.doctor?.clinicName ? ` (${selectedOrder.doctor.clinicName})` : ''}</span>
+                          {selectedOrder.doctor && <RoleBadge role="DOCTOR" size="xs" />}
                         </div>
                       </div>
                       <div>
@@ -1292,6 +1296,24 @@ export function TechnicianWorkOrdersPage() {
                         const isReady = proc.status === 'NOT_STARTED' && isPrecedingStepCompleted(proc, selectedOrder.processes);
                         const isBlocked = proc.status === 'NOT_STARTED' && !isReady;
 
+                        const isExternal =
+                          proc.processType === 'EXTERNAL_VERIFICATION' ||
+                          (proc.isVerification && (!proc.technicianId || proc.technicianId === selectedOrder?.doctorId)) ||
+                          proc.processName?.toLowerCase().includes('external');
+
+                        const isInternal =
+                          !isExternal &&
+                          (proc.processType === 'INTERNAL_VERIFICATION' ||
+                           proc.isVerification ||
+                           proc.processName?.toLowerCase().includes('internal') ||
+                           proc.processName?.toLowerCase().includes('verification'));
+
+                        const assignedRole = isExternal
+                          ? 'DOCTOR'
+                          : proc.technician
+                            ? (proc.technician.role || (isInternal ? 'ADMIN' : 'TECHNICIAN'))
+                            : null;
+
                         return (
                           <div
                             key={proc.id}
@@ -1400,17 +1422,25 @@ export function TechnicianWorkOrdersPage() {
                                     return null;
                                   })()}
                                 </div>
-                                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                                  {t('workOrder.tech')}: {proc.technician 
-                                    ? `${proc.technician.firstName} ${proc.technician.lastName[0]}.` 
-                                    : (proc.isVerification && !proc.technicianId) 
-                                      ? (selectedOrder.doctor 
-                                          ? (selectedOrder.doctor.clinicName 
-                                              ? `${selectedOrder.doctor.name} (${selectedOrder.doctor.clinicName})` 
-                                              : selectedOrder.doctor.name) 
-                                          : t('dashboard.unassigned'))
-                                      : t('dashboard.unassigned')}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                                    {isExternal ? t('workOrder.doctor', { defaultValue: 'Doctor' }) : t('workOrder.tech', { defaultValue: 'Tech' })}:{' '}
+                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                      {isExternal
+                                        ? (selectedOrder.doctor 
+                                            ? (selectedOrder.doctor.clinicName 
+                                                ? `${selectedOrder.doctor.name} (${selectedOrder.doctor.clinicName})` 
+                                                : selectedOrder.doctor.name) 
+                                            : t('dashboard.unassigned'))
+                                        : proc.technician 
+                                          ? `${proc.technician.firstName} ${proc.technician.lastName[0] ? `${proc.technician.lastName[0]}.` : proc.technician.lastName}` 
+                                          : t('dashboard.unassigned')}
+                                    </span>
+                                  </span>
+                                  {assignedRole && (
+                                    <RoleBadge role={assignedRole} size="xs" />
+                                  )}
+                                </div>
                               </div>
 
                               {proc.totalActiveDuration > 0 && isCompleted && (

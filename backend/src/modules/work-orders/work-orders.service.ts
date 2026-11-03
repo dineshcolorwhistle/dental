@@ -409,7 +409,7 @@ export class WorkOrdersService implements OnModuleInit {
       orderBy: { sequence: 'asc' as const },
       include: {
         technician: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+          select: { id: true, firstName: true, lastName: true, email: true, role: true },
         },
         activityLogs: {
           orderBy: { timestamp: 'asc' as const },
@@ -839,6 +839,7 @@ export class WorkOrdersService implements OnModuleInit {
                     firstName: true,
                     lastName: true,
                     email: true,
+                    role: true,
                   },
                 },
               },
@@ -920,6 +921,7 @@ export class WorkOrdersService implements OnModuleInit {
                     firstName: true,
                     lastName: true,
                     email: true,
+                    role: true,
                   },
                 },
               },
@@ -2164,7 +2166,7 @@ export class WorkOrdersService implements OnModuleInit {
             orderBy: { sequence: 'asc' },
             include: {
               technician: {
-                select: { id: true, firstName: true, lastName: true },
+                select: { id: true, firstName: true, lastName: true, role: true },
               },
             },
           },
@@ -2201,7 +2203,7 @@ export class WorkOrdersService implements OnModuleInit {
             orderBy: { sequence: 'asc' },
             include: {
               technician: {
-                select: { id: true, firstName: true, lastName: true },
+                select: { id: true, firstName: true, lastName: true, role: true },
               },
             },
           },

@@ -15,6 +15,7 @@ export interface WorkOrderProcessItem {
   technicianId: string | null;
   sequence: number;
   isVerification: boolean;
+  processType?: string;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   createdAt: string;
   startedAt?: string | null;
@@ -25,6 +26,7 @@ export interface WorkOrderProcessItem {
     firstName: string;
     lastName: string;
     email: string;
+    role?: string;
   } | null;
   reworkCount?: number;
   reworkActive?: boolean;
