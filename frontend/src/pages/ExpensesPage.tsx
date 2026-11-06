@@ -434,7 +434,7 @@ export function ExpensesPage() {
 
           {/* Filters toolbar */}
           <div className="table-toolbar" style={{ gap: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div className="search-input-wrap" style={{ flexGrow: 1, minWidth: '250px' }}>
+            <div className="search-input-wrap" style={{ flexGrow: 1, minWidth: '240px' }}>
               <Search size={16} className="search-input__icon" />
               <input
                 type="text"
@@ -442,7 +442,7 @@ export function ExpensesPage() {
                 placeholder={t('common.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ width: '100%' }}
+                style={{ width: '100%', height: '38px' }}
               />
               {searchQuery && (
                 <button className="search-input__clear" onClick={() => setSearchQuery('')}>
@@ -451,10 +451,12 @@ export function ExpensesPage() {
               )}
             </div>
 
-            <div className="table-toolbar__filters" style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="table-toolbar__filters" style={{ display: 'flex', gap: '0.875rem', flexWrap: 'wrap', alignItems: 'center' }}>
               {/* Category Filter */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600 }}>{t('expenses.fields.category')}:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  {t('expenses.fields.category')}:
+                </span>
                 <select
                   className="form-input"
                   value={selectedCategoryFilter}
@@ -469,16 +471,22 @@ export function ExpensesPage() {
               </div>
 
               {/* Date Range Picker */}
-              <DateRangePicker
-                startDate={startDateFilter}
-                endDate={endDateFilter}
-                presetType={datePreset}
-                onChange={(start, end, preset) => {
-                  setStartDateFilter(start);
-                  setEndDateFilter(end);
-                  setDatePreset(preset);
-                }}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  {t('expenses.dateFilters.dateRangeLabel', { defaultValue: 'Date Range' })}:
+                </span>
+                <DateRangePicker
+                  showLabel={false}
+                  startDate={startDateFilter}
+                  endDate={endDateFilter}
+                  presetType={datePreset}
+                  onChange={(start, end, preset) => {
+                    setStartDateFilter(start);
+                    setEndDateFilter(end);
+                    setDatePreset(preset);
+                  }}
+                />
+              </div>
 
               <button
                 type="button"
@@ -702,7 +710,7 @@ export function ExpensesPage() {
                 placeholder={t('common.search')}
                 value={categorySearchQuery}
                 onChange={(e) => setCategorySearchQuery(e.target.value)}
-                style={{ width: '100%' }}
+                style={{ width: '100%', height: '38px' }}
               />
               {categorySearchQuery && (
                 <button className="search-input__clear" onClick={() => setCategorySearchQuery('')}>
@@ -714,7 +722,7 @@ export function ExpensesPage() {
               type="button"
               className="btn btn--secondary"
               onClick={() => setCategorySearchQuery('')}
-              style={{ padding: '0.5rem 1rem' }}
+              style={{ height: '38px', padding: '0 1.25rem', borderRadius: '8px' }}
             >
               {t('common.reset')}
             </button>

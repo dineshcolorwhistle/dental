@@ -8,9 +8,17 @@ interface DateRangePickerProps {
   presetType: string; // 'today', 'thisMonth', 'custom', etc.
   onChange: (startDate: string, endDate: string, presetType: string) => void;
   allowedPresets?: string[];
+  showLabel?: boolean;
 }
 
-export function DateRangePicker({ startDate, endDate, presetType, onChange, allowedPresets }: DateRangePickerProps) {
+export function DateRangePicker({
+  startDate,
+  endDate,
+  presetType,
+  onChange,
+  allowedPresets,
+  showLabel = true,
+}: DateRangePickerProps) {
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -308,9 +316,11 @@ export function DateRangePicker({ startDate, endDate, presetType, onChange, allo
 
   return (
     <div className="date-range-picker-wrap" ref={containerRef} style={{ position: 'relative' }}>
-      <span className="drp-label" style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600, marginBottom: '6px' }}>
-        {t('expenses.dateFilters.dateRangeLabel', { defaultValue: 'Date Range' })}
-      </span>
+      {showLabel && (
+        <span className="drp-label" style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600, marginBottom: '6px' }}>
+          {t('expenses.dateFilters.dateRangeLabel', { defaultValue: 'Date Range' })}
+        </span>
+      )}
       <button
         type="button"
         className={`drp-trigger-btn ${isOpen ? 'drp-trigger-btn--active' : ''}`}
