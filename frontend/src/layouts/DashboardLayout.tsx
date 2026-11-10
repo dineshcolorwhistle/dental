@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useAuth, useSocket } from '../context';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
@@ -69,7 +70,27 @@ export function DashboardLayout() {
 
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [usersExpanded, setUsersExpanded] = useState(false);
+  const [collapsedFlyoutOpen, setCollapsedFlyoutOpen] = useState(false);
+  const [flyoutPosition, setFlyoutPosition] = useState<{ top: number; left: number }>({ top: 0, left: 76 });
+  const [flyoutUsersExpanded, setFlyoutUsersExpanded] = useState(false);
+  const settingsTriggerRef = useRef<HTMLDivElement>(null);
+  const flyoutRef = useRef<HTMLDivElement>(null);
+  const flyoutCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
+
+  // Close flyout when sidebar collapse state changes
+  useEffect(() => {
+    setCollapsedFlyoutOpen(false);
+    if (flyoutCloseTimerRef.current) {
+      clearTimeout(flyoutCloseTimerRef.current);
+      flyoutCloseTimerRef.current = null;
+    }
+  }, [sidebarCollapsed]);
+
+  // Close flyout when route changes
+  useEffect(() => {
+    setCollapsedFlyoutOpen(false);
+  }, [location.pathname]);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
@@ -123,8 +144,85 @@ export function DashboardLayout() {
   useEffect(() => {
     if (isUsersRoute) {
       setUsersExpanded(true);
+      setFlyoutUsersExpanded(true);
     }
   }, [location.pathname, isUsersRoute]);
+
+  const openCollapsedFlyout = useCallback(() => {
+    if (!sidebarCollapsed) return;
+    if (flyoutCloseTimerRef.current) {
+      clearTimeout(flyoutCloseTimerRef.current);
+      flyoutCloseTimerRef.current = null;
+    }
+    if (settingsTriggerRef.current) {
+      const rect = settingsTriggerRef.current.getBoundingClientRect();
+      const flyoutEstimatedHeight = 440;
+      const top = Math.max(12, Math.min(rect.top, window.innerHeight - flyoutEstimatedHeight - 12));
+      setFlyoutPosition({ top, left: rect.right + 6 });
+    }
+    setCollapsedFlyoutOpen(true);
+  }, [sidebarCollapsed]);
+
+  const scheduleCloseCollapsedFlyout = useCallback(() => {
+    if (!sidebarCollapsed) return;
+    if (flyoutCloseTimerRef.current) {
+      clearTimeout(flyoutCloseTimerRef.current);
+    }
+    flyoutCloseTimerRef.current = setTimeout(() => {
+      setCollapsedFlyoutOpen(false);
+    }, 180);
+  }, [sidebarCollapsed]);
+
+  const cancelCloseCollapsedFlyout = useCallback(() => {
+    if (flyoutCloseTimerRef.current) {
+      clearTimeout(flyoutCloseTimerRef.current);
+      flyoutCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const handleSettingsClick = () => {
+    if (sidebarCollapsed) {
+      if (collapsedFlyoutOpen) {
+        setCollapsedFlyoutOpen(false);
+      } else {
+        openCollapsedFlyout();
+      }
+    } else {
+      setSettingsExpanded((prev) => !prev);
+    }
+  };
+
+  // Close flyout on click outside
+  useEffect(() => {
+    if (!collapsedFlyoutOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        settingsTriggerRef.current &&
+        !settingsTriggerRef.current.contains(target) &&
+        flyoutRef.current &&
+        !flyoutRef.current.contains(target)
+      ) {
+        setCollapsedFlyoutOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [collapsedFlyoutOpen]);
+
+  // Close flyout on window scroll or resize
+  useEffect(() => {
+    if (!collapsedFlyoutOpen) return;
+    const handleScrollOrResize = () => {
+      setCollapsedFlyoutOpen(false);
+    };
+    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    return () => {
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+    };
+  }, [collapsedFlyoutOpen]);
 
   // Push notifications hook integration
   const {
@@ -494,21 +592,33 @@ export function DashboardLayout() {
               {/* Settings Submenu */}
               <div className="sidebar__submenu-container">
                 <div
-                  className={`sidebar__link sidebar__settings-toggle ${isSettingsRoute ? 'sidebar__link--active-parent' : ''}`}
-                  onClick={() => setSettingsExpanded(!settingsExpanded)}
-                  style={{ cursor: 'pointer' }}
-                  data-tooltip={t('navigation.settings')}
+                  ref={settingsTriggerRef}
+                  className={`sidebar__link sidebar__settings-toggle ${isSettingsRoute ? 'sidebar__link--active-parent' : ''} ${collapsedFlyoutOpen && sidebarCollapsed ? 'sidebar__link--flyout-open' : ''}`}
+                  onClick={handleSettingsClick}
+                  onMouseEnter={openCollapsedFlyout}
+                  onMouseLeave={scheduleCloseCollapsedFlyout}
+                  style={{ cursor: 'pointer', position: 'relative' }}
+                  data-tooltip={sidebarCollapsed && !collapsedFlyoutOpen ? t('navigation.settings') : undefined}
                 >
-                  <SettingsIcon size={20} />
-                  {!sidebarCollapsed && <span>{t('navigation.settings')}</span>}
+                  <SettingsIcon size={sidebarCollapsed ? 18 : 20} className="sidebar__settings-icon" />
+                  {!sidebarCollapsed && <span className="sidebar__link-text">{t('navigation.settings')}</span>}
+
+                  {/* Arrow indicator in expanded state */}
                   {!sidebarCollapsed && (
-                    <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-                      {settingsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <span className={`sidebar__arrow-indicator ${settingsExpanded ? 'sidebar__arrow-indicator--open' : ''}`}>
+                      <ChevronRight size={16} strokeWidth={2} />
+                    </span>
+                  )}
+
+                  {/* Arrow indicator in collapsed state */}
+                  {sidebarCollapsed && (
+                    <span className={`sidebar__arrow-indicator-collapsed ${collapsedFlyoutOpen ? 'sidebar__arrow-indicator-collapsed--open' : ''}`} aria-hidden="true">
+                      <ChevronRight size={12} strokeWidth={2.5} />
                     </span>
                   )}
                 </div>
 
-                {settingsExpanded && (
+                {!sidebarCollapsed && settingsExpanded && (
                   <div className="sidebar__submenu">
                     {/* Branches - Owner only */}
                     {user?.role === 'OWNER' && (
@@ -534,12 +644,10 @@ export function DashboardLayout() {
                         data-tooltip={t('navigation.users')}
                       >
                         <Users size={16} />
-                        {!sidebarCollapsed && <span>{t('navigation.users')}</span>}
-                        {!sidebarCollapsed && (
-                          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-                            {usersExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                          </span>
-                        )}
+                        <span>{t('navigation.users')}</span>
+                        <span className={`sidebar__arrow-indicator ${usersExpanded ? 'sidebar__arrow-indicator--open' : ''}`}>
+                          <ChevronRight size={14} />
+                        </span>
                       </div>
 
                       {usersExpanded && (
@@ -555,6 +663,7 @@ export function DashboardLayout() {
                               data-tooltip={t('navigation.labAdmins')}
                               style={{ fontSize: '0.75rem', padding: '4px 8px' }}
                             >
+                              <User size={14} />
                               <span>{t('navigation.labAdmins')}</span>
                             </NavLink>
                           )}
@@ -567,6 +676,7 @@ export function DashboardLayout() {
                             data-tooltip={t('navigation.technicians')}
                             style={{ fontSize: '0.75rem', padding: '4px 8px' }}
                           >
+                            <User size={14} />
                             <span>{t('navigation.technicians')}</span>
                           </NavLink>
                         </div>
@@ -794,6 +904,213 @@ export function DashboardLayout() {
           </button>
         </div>
       </aside>
+
+      {/* Collapsed Sidebar Flyout Menu */}
+      {sidebarCollapsed && collapsedFlyoutOpen && createPortal(
+        <div
+          ref={flyoutRef}
+          className="sidebar__flyout-menu"
+          style={{
+            top: `${flyoutPosition.top}px`,
+            left: `${flyoutPosition.left}px`,
+          }}
+          onMouseEnter={cancelCloseCollapsedFlyout}
+          onMouseLeave={scheduleCloseCollapsedFlyout}
+        >
+          <div className="sidebar__flyout-header">
+            <SettingsIcon size={16} />
+            <span>{t('navigation.settings')}</span>
+          </div>
+
+          <div className="sidebar__flyout-content">
+            {/* Branches - Owner only */}
+            {user?.role === 'OWNER' && (
+              <NavLink
+                to="/branches"
+                className={({ isActive }) =>
+                  `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+                }
+                onClick={() => {
+                  setCollapsedFlyoutOpen(false);
+                  setSidebarOpen(false);
+                }}
+              >
+                <GitBranch size={16} />
+                <span>{t('navigation.branches')}</span>
+              </NavLink>
+            )}
+
+            {/* Users sub-group */}
+            <div className="sidebar__flyout-subgroup">
+              <div
+                className={`sidebar__flyout-link sidebar__flyout-users-toggle ${isUsersRoute ? 'sidebar__flyout-link--active-parent' : ''}`}
+                onClick={() => setFlyoutUsersExpanded(!flyoutUsersExpanded)}
+                style={{ cursor: 'pointer' }}
+              >
+                <Users size={16} />
+                <span>{t('navigation.users')}</span>
+                <span className={`sidebar__arrow-indicator ${flyoutUsersExpanded ? 'sidebar__arrow-indicator--open' : ''}`}>
+                  <ChevronRight size={14} />
+                </span>
+              </div>
+
+              {flyoutUsersExpanded && (
+                <div className="sidebar__flyout-subitems">
+                  {user?.role === 'OWNER' && (
+                    <NavLink
+                      to="/admins"
+                      className={({ isActive }) =>
+                        `sidebar__flyout-sublink ${isActive ? 'sidebar__flyout-sublink--active' : ''}`
+                      }
+                      onClick={() => {
+                        setCollapsedFlyoutOpen(false);
+                        setSidebarOpen(false);
+                      }}
+                    >
+                      <User size={14} />
+                      <span>{t('navigation.labAdmins')}</span>
+                    </NavLink>
+                  )}
+                  <NavLink
+                    to="/technicians"
+                    className={({ isActive }) =>
+                      `sidebar__flyout-sublink ${isActive ? 'sidebar__flyout-sublink--active' : ''}`
+                    }
+                    onClick={() => {
+                      setCollapsedFlyoutOpen(false);
+                      setSidebarOpen(false);
+                    }}
+                  >
+                    <User size={14} />
+                    <span>{t('navigation.technicians')}</span>
+                  </NavLink>
+                </div>
+              )}
+            </div>
+
+            <NavLink
+              to="/doctors"
+              className={({ isActive }) =>
+                `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+              }
+              onClick={() => {
+                setCollapsedFlyoutOpen(false);
+                setSidebarOpen(false);
+              }}
+            >
+              <Stethoscope size={16} />
+              <span>{t('navigation.doctors')}</span>
+            </NavLink>
+
+            <NavLink
+              to="/prosthesis-types"
+              className={({ isActive }) =>
+                `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+              }
+              onClick={() => {
+                setCollapsedFlyoutOpen(false);
+                setSidebarOpen(false);
+              }}
+            >
+              <Sparkles size={16} />
+              <span>{t('navigation.prosthesisTypes')}</span>
+            </NavLink>
+
+            <NavLink
+              to="/processes"
+              className={({ isActive }) =>
+                `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+              }
+              onClick={() => {
+                setCollapsedFlyoutOpen(false);
+                setSidebarOpen(false);
+              }}
+            >
+              <GitMerge size={16} />
+              <span>{t('navigation.processes')}</span>
+            </NavLink>
+
+            <NavLink
+              to="/process-areas"
+              className={({ isActive }) =>
+                `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+              }
+              onClick={() => {
+                setCollapsedFlyoutOpen(false);
+                setSidebarOpen(false);
+              }}
+            >
+              <Layers size={16} />
+              <span>{t('navigation.processAreas')}</span>
+            </NavLink>
+
+            {/* Delivery Management */}
+            <NavLink
+              to="/settings/delivery"
+              className={({ isActive }) =>
+                `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+              }
+              onClick={(e) => {
+                e.preventDefault();
+                toast(t('common.comingSoon', { defaultValue: 'Feature coming soon!' }));
+              }}
+            >
+              <Truck size={16} />
+              <span>{t('navigation.deliveryManagement')}</span>
+            </NavLink>
+
+            {/* Other Configurations */}
+            <NavLink
+              to="/settings/general"
+              className={({ isActive }) =>
+                `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+              }
+              onClick={() => {
+                setCollapsedFlyoutOpen(false);
+                setSidebarOpen(false);
+              }}
+            >
+              <Sliders size={16} />
+              <span>{t('navigation.otherConfigurations')}</span>
+            </NavLink>
+
+            {/* WhatsApp Templates — Lab Admin only */}
+            {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+              <NavLink
+                to="/settings/whatsapp-templates"
+                className={({ isActive }) =>
+                  `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+                }
+                onClick={() => {
+                  setCollapsedFlyoutOpen(false);
+                  setSidebarOpen(false);
+                }}
+              >
+                <MessageSquare size={16} />
+                <span>{t('navigation.whatsappTemplates')}</span>
+              </NavLink>
+            )}
+
+            {/* Payment Methods — Lab Admin only */}
+            {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+              <NavLink
+                to="/settings/payment-methods"
+                className={({ isActive }) =>
+                  `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+                }
+                onClick={() => {
+                  setCollapsedFlyoutOpen(false);
+                  setSidebarOpen(false);
+                }}
+              >
+                <CreditCard size={16} />
+                <span>{t('navigation.paymentMethods', { defaultValue: 'Payment Methods' })}</span>
+              </NavLink>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Overlay for mobile */}
       {sidebarOpen && (
