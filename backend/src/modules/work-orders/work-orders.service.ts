@@ -2540,15 +2540,22 @@ export class WorkOrdersService implements OnModuleInit {
       0,
       Math.round((now.getTime() - startedAt.getTime()) / 1000),
     );
+    const newTotalActive = (process.totalActiveDuration || 0) + totalActive;
 
     const adminName = executingAdmin
       ? `${executingAdmin.firstName} ${executingAdmin.lastName}`.trim()
       : 'Admin';
+    const durationNote =
+      totalActive < 60
+        ? `${totalActive}s`
+        : totalActive % 60 !== 0
+          ? `${Math.floor(totalActive / 60)}m ${totalActive % 60}s`
+          : `${Math.round(totalActive / 60)} minutes`;
     const activityNote = !process.technicianId
       ? `External verification resolved by Admin (${adminName}) with outcome ${outcome}.${(process as any).externalDoctorStatus ? ` Doctor status: ${(process as any).externalDoctorStatus}${(process as any).externalDoctorNotes ? ` (Notes: ${(process as any).externalDoctorNotes})` : ''}` : ''}`
       : outcome === 'REWORK'
         ? `Verification flagged for rework by ${adminName}. Reworking steps: ${reworkProcessNames?.join(', ') || 'Preceding step'}.`
-        : `Verification ended by ${adminName} with outcome ${outcome}. Duration: ${Math.round(totalActive / 60)} minutes.`;
+        : `Verification ended by ${adminName} with outcome ${outcome}. Duration: ${durationNote}.`;
 
     const updated = await this.prisma.workOrderProcess.update({
       where: { id: processId },
@@ -2559,7 +2566,7 @@ export class WorkOrdersService implements OnModuleInit {
             : ProcessStatus.COMPLETED,
         startedAt: outcome === 'REWORK' ? null : startedAt,
         endedAt: outcome === 'REWORK' ? null : now,
-        totalActiveDuration: outcome === 'REWORK' ? 0 : totalActive,
+        totalActiveDuration: newTotalActive,
         verificationStatus: outcome,
         verificationResolvedById: userId,
         activityLogs: {
@@ -2587,6 +2594,7 @@ export class WorkOrdersService implements OnModuleInit {
         processName: process.processName,
         outcome,
         durationSeconds: totalActive,
+        totalActiveDuration: newTotalActive,
         adminUserId: userId,
         adminUserEmail: executingAdmin?.email,
         adminRole: executingAdmin?.role,
@@ -2649,7 +2657,6 @@ export class WorkOrdersService implements OnModuleInit {
                 lastPausedAt: null,
                 pauseCount: 0,
                 totalPauseDuration: 0,
-                totalActiveDuration: 0,
                 reworkActive: false,
               },
             });
@@ -2682,7 +2689,6 @@ export class WorkOrdersService implements OnModuleInit {
               lastPausedAt: null,
               pauseCount: 0,
               totalPauseDuration: 0,
-              totalActiveDuration: 0,
               reworkCount: p.reworkCount + 1,
               reworkActive: true,
             },
@@ -2795,7 +2801,6 @@ export class WorkOrdersService implements OnModuleInit {
             lastPausedAt: null,
             pauseCount: 0,
             totalPauseDuration: 0,
-            totalActiveDuration: 0,
             reworkActive: false,
           },
         });
@@ -3345,6 +3350,14 @@ export class WorkOrdersService implements OnModuleInit {
     const startedAt = process.startedAt || now;
     const totalTime = Math.round((now.getTime() - startedAt.getTime()) / 1000);
     const totalActive = Math.max(0, totalTime - totalPause);
+    const newTotalActive = (process.totalActiveDuration || 0) + totalActive;
+
+    const durationNote =
+      totalActive < 60
+        ? `${totalActive}s`
+        : totalActive % 60 !== 0
+          ? `${Math.floor(totalActive / 60)}m ${totalActive % 60}s`
+          : `${Math.round(totalActive / 60)} minutes`;
 
     const updatedProcess = await this.prisma.workOrderProcess.update({
       where: { id: processId },
@@ -3352,14 +3365,14 @@ export class WorkOrdersService implements OnModuleInit {
         status: ProcessStatus.COMPLETED,
         endedAt: now,
         totalPauseDuration: totalPause,
-        totalActiveDuration: totalActive,
+        totalActiveDuration: newTotalActive,
         lastPausedAt: null,
         reworkActive: false,
         activityLogs: {
           create: {
             action: ProcessActivityAction.END,
             timestamp: now,
-            notes: `Process completed by administrator. Active time: ${Math.round(totalActive / 60)} minutes.`,
+            notes: `Process completed by administrator. Active time: ${durationNote}.`,
           },
         },
       },
@@ -3392,7 +3405,8 @@ export class WorkOrdersService implements OnModuleInit {
       details: {
         workOrderId,
         processName: process.processName,
-        totalActiveDuration: totalActive,
+        totalActiveDuration: newTotalActive,
+        sessionActiveDuration: totalActive,
         totalPauseDuration: totalPause,
         role: 'ADMIN',
       },

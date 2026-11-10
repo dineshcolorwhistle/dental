@@ -31,7 +31,7 @@ export class TechnicianPortalService {
     private readonly auditLogsService: AuditLogsService,
     private readonly websocketsGateway: WebsocketsGateway,
     private readonly mailService: MailService,
-  ) {}
+  ) { }
 
   /**
    * Triggers the external verification notification flow for a process step.
@@ -85,11 +85,11 @@ export class TechnicianPortalService {
 
       const apiKeyRecord = workOrder.branchId
         ? await this.prisma.apiKey.findFirst({
-            where: {
-              branchId: workOrder.branchId,
-              isActive: true,
-            },
-          })
+          where: {
+            branchId: workOrder.branchId,
+            isActive: true,
+          },
+        })
         : null;
       const apiKey = apiKeyRecord ? apiKeyRecord.key : '';
 
@@ -942,6 +942,14 @@ export class TechnicianPortalService {
     const startedAt = process.startedAt || now;
     const totalTime = Math.round((now.getTime() - startedAt.getTime()) / 1000);
     const totalActive = Math.max(0, totalTime - totalPause);
+    const newTotalActive = (process.totalActiveDuration || 0) + totalActive;
+
+    const durationNote =
+      totalActive < 60
+        ? `${totalActive}s`
+        : totalActive % 60 !== 0
+          ? `${Math.floor(totalActive / 60)}m ${totalActive % 60}s`
+          : `${Math.round(totalActive / 60)} minutes`;
 
     const updatedProcess = await this.prisma.workOrderProcess.update({
       where: { id: processId },
@@ -949,14 +957,14 @@ export class TechnicianPortalService {
         status: ProcessStatus.COMPLETED,
         endedAt: now,
         totalPauseDuration: totalPause,
-        totalActiveDuration: totalActive,
+        totalActiveDuration: newTotalActive,
         lastPausedAt: null,
         reworkActive: false,
         activityLogs: {
           create: {
             action: ProcessActivityAction.END,
             timestamp: now,
-            notes: `Process completed. Active time: ${Math.round(totalActive / 60)} minutes.`,
+            notes: `Process completed. Active time: ${durationNote}.`,
           },
         },
       },
@@ -989,7 +997,8 @@ export class TechnicianPortalService {
       details: {
         workOrderId: process.workOrderId,
         processName: process.processName,
-        totalActiveDuration: totalActive,
+        totalActiveDuration: newTotalActive,
+        sessionActiveDuration: totalActive,
         totalPauseDuration: totalPause,
       },
     });

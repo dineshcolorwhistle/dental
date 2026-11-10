@@ -28,7 +28,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { workOrderService, type WorkOrderListItem } from '../services';
 import { WorkOrderChat, QRLabelModal, ToothIcon, RoleBadge } from '../components';
-import { formatAuditNote } from '../utils/audit-formatter';
+import { formatAuditNote, formatDuration, extractDurationFromNote } from '../utils/audit-formatter';
 import { useAppDate } from '../hooks';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -763,8 +763,13 @@ export function WorkOrderDetailPage() {
 
       {/* Total Completed Work Time Metric Section */}
       {(() => {
-        const completedProcs = (workOrder.processes || []).filter((p) => p.status === 'COMPLETED');
-        const totalCompletedSeconds = completedProcs.reduce((acc, p: any) => acc + (p.totalActiveDuration || 0), 0);
+        const completedProcs = (workOrder.processes || []).filter(
+          (p: any) => p.status === 'COMPLETED' || (p.totalActiveDuration && p.totalActiveDuration > 0)
+        );
+        const totalCompletedSeconds = (workOrder.processes || []).reduce(
+          (acc: number, p: any) => acc + (p.totalActiveDuration || 0),
+          0
+        );
         const hours = Math.floor(totalCompletedSeconds / 3600);
         const mins = Math.floor((totalCompletedSeconds % 3600) / 60);
         const timeText = hours > 0
@@ -860,6 +865,7 @@ export function WorkOrderDetailPage() {
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrder.assignedTechnician')}</th>
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrder.startTime')}</th>
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrder.endTime')}</th>
+                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.workTime', { defaultValue: 'Work Time' })}</th>
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrder.timeAudit')}</th>
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
                   <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.actions', { defaultValue: 'Actions' })}</th>
@@ -1045,6 +1051,102 @@ export function WorkOrderDetailPage() {
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{startTimeStr}</td>
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{endTimeStr}</td>
 
+                        {/* Work Time Column */}
+                        <td style={{ padding: '0.75rem 1rem', verticalAlign: 'middle' }}>
+                          {(() => {
+                            const hasWorkTime = (proc.totalActiveDuration && proc.totalActiveDuration > 0);
+                            const cycleCount = 1 + (proc.reworkCount || 0) + repetitionsForStep.length;
+
+                            if (stepStatus === 'COMPLETED') {
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontWeight: 700,
+                                    color: '#10B981',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.8125rem',
+                                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                                    width: 'fit-content'
+                                  }}>
+                                    <Clock size={12} />
+                                    {formatDuration(proc.totalActiveDuration)}
+                                  </span>
+                                  {cycleCount > 1 && (
+                                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                      {cycleCount} {t('workOrders.attempts', { defaultValue: 'attempts' })}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            if (hasWorkTime) {
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontWeight: 700,
+                                    color: '#8B5CF6',
+                                    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.8125rem',
+                                    border: '1px solid rgba(139, 92, 246, 0.2)',
+                                    width: 'fit-content'
+                                  }}>
+                                    <Clock size={12} />
+                                    {formatDuration(proc.totalActiveDuration)}
+                                  </span>
+                                  <span style={{ fontSize: '0.6875rem', color: '#D97706', fontWeight: 600 }}>
+                                    {stepStatus === 'IN_PROGRESS'
+                                      ? `+ Attempt #${cycleCount} running`
+                                      : stepStatus === 'PAUSED'
+                                        ? `+ Attempt #${cycleCount} paused`
+                                        : `(${t('workOrders.prevCycle', { defaultValue: 'Prev. cycle' })})`}
+                                  </span>
+                                </div>
+                              );
+                            }
+
+                            if (stepStatus === 'IN_PROGRESS') {
+                              return (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  color: '#F59E0B',
+                                  backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  width: 'fit-content'
+                                }}>
+                                  <Clock size={11} className="animate-pulse" />
+                                  {t('common.running', { defaultValue: 'Running' })}
+                                </span>
+                              );
+                            }
+
+                            if (stepStatus === 'PAUSED') {
+                              return (
+                                <span style={{ fontSize: '0.75rem', color: '#F59E0B', fontStyle: 'italic' }}>
+                                  {t('enums.processStatus.PAUSED', { defaultValue: 'Paused' })}
+                                </span>
+                              );
+                            }
+
+                            return <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>—</span>;
+                          })()}
+                        </td>
+
                         {/* Time Audit Column */}
                         <td style={{ padding: '0.75rem 1rem' }}>
                           {hasLogs ? (
@@ -1172,7 +1274,7 @@ export function WorkOrderDetailPage() {
                       {/* Collapsible Audit Logs */}
                       {isExpanded && hasLogs && (
                         <tr style={{ backgroundColor: 'rgba(111, 174, 217, 0.02)' }}>
-                          <td colSpan={8} style={{ padding: '0.75rem 1rem 1rem 2.5rem', borderBottom: '1px solid var(--border)' }}>
+                          <td colSpan={9} style={{ padding: '0.75rem 1rem 1rem 2.5rem', borderBottom: '1px solid var(--border)' }}>
                             <div style={{
                               display: 'flex',
                               flexDirection: 'column',
@@ -1182,11 +1284,51 @@ export function WorkOrderDetailPage() {
                               borderRadius: '8px',
                               backgroundColor: 'var(--bg-surface)'
                             }}>
-                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                {t('workOrder.processActivityHistory')} &mdash; {proc.processName}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  {t('workOrder.processActivityHistory')} &mdash; {proc.processName}
+                                </div>
+                                {(() => {
+                                  const cycleCount = 1 + (proc.reworkCount || 0) + repetitionsForStep.length;
+                                  if (!proc.totalActiveDuration && cycleCount <= 1) return null;
+                                  return (
+                                    <div style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 700,
+                                      color: '#10B981',
+                                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                                      padding: '3px 10px',
+                                      borderRadius: '100px'
+                                    }}>
+                                      <Clock size={12} />
+                                      <span>{t('workOrders.totalWorkTime', { defaultValue: 'Total Work Time' })}: {formatDuration(proc.totalActiveDuration)}</span>
+                                      {cycleCount > 1 && (
+                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 600 }}>
+                                          • {cycleCount} {t('workOrders.attempts', { defaultValue: 'attempts' })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                {combinedLogs.map((log: any, lidx: number) => {
+                                {(() => {
+                                  const chronologicalEndLogs = combinedLogs
+                                    .filter((l: any) => l.action === 'END')
+                                    .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+                                  return combinedLogs.map((log: any, lidx: number) => {
+                                    const durationPill = log.action === 'END' ? extractDurationFromNote(log.notes) : null;
+                                    const attemptIdx = log.action === 'END'
+                                      ? chronologicalEndLogs.findIndex((l: any) => l.id === log.id)
+                                      : -1;
+                                    const attemptLabel = (chronologicalEndLogs.length > 1 && attemptIdx !== -1)
+                                      ? ` (${t('workOrders.attempt', { defaultValue: 'Attempt' })} #${attemptIdx + 1})`
+                                      : '';
                                   const getActionLabel = (act: string) => {
                                     if (proc.isVerification) {
                                       if (act === 'START') return t('enums.processAction.START_VERIFICATION', { defaultValue: 'Verification Started' });
@@ -1224,7 +1366,25 @@ export function WorkOrderDetailPage() {
                                       <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
                                           <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                            <span style={{ color: getActionColor(log.action) }}>{getActionLabel(log.action)}</span>
+                                            <span style={{ color: getActionColor(log.action) }}>{getActionLabel(log.action)}{attemptLabel}</span>
+                                            {durationPill && (
+                                              <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                marginLeft: '6px',
+                                                padding: '1px 6px',
+                                                borderRadius: '4px',
+                                                fontSize: '0.7rem',
+                                                fontWeight: 700,
+                                                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                                color: '#10B981',
+                                                border: '1px solid rgba(16, 185, 129, 0.2)'
+                                              }}>
+                                                <Clock size={10} />
+                                                {durationPill}
+                                              </span>
+                                            )}
                                           </span>
                                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                             {formatDateTime(log.timestamp, i18n.language, user?.timezone)}
@@ -1238,7 +1398,8 @@ export function WorkOrderDetailPage() {
                                       </div>
                                     </div>
                                   );
-                                })}
+                                  });
+                                })()}
                               </div>
                             </div>
                           </td>
