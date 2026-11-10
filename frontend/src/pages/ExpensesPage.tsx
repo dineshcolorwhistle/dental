@@ -387,9 +387,9 @@ export function ExpensesPage() {
   }, [filteredCategories, categoryCurrentPage]);
 
   return (
-    <div className="page-container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="page-container" style={{ padding: 'clamp(1rem, 3vw, 2rem)', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {t('expenses.title')}
@@ -507,7 +507,7 @@ export function ExpensesPage() {
           </div>
 
           {/* KPI Widgets Grid - Placed BELOW the filter section */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
             {/* Card: Total Expenses */}
             <div style={{
               backgroundColor: 'var(--bg-surface)',
@@ -807,7 +807,7 @@ export function ExpensesPage() {
 
             <form onSubmit={handleSaveExpense} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {/* Row 1: Date, Title, Category */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1.25rem' }}>
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
                     {t('expenses.fields.date')} *
@@ -875,7 +875,7 @@ export function ExpensesPage() {
               </div>
 
               {/* Row 3: Amount, Payment Method */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1.25rem' }}>
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
                     {t('expenses.fields.amount')} *
@@ -1007,7 +1007,7 @@ export function ExpensesPage() {
               {/* Details Grid */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                 gap: '1.25rem',
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border)',

@@ -440,7 +440,7 @@ export function InventoryPage() {
   return (
     <div className="admins-page">
       {/* Page Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('inventory.title')}</h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{t('inventory.description')}</p>
@@ -875,7 +875,7 @@ export function InventoryPage() {
 
             <form onSubmit={handleSaveItem} className="modal__body">
               {/* Row 1: Item Name & SKU */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">{t('inventory.fields.name')} *</label>
                   <input
@@ -912,7 +912,7 @@ export function InventoryPage() {
               </div>
 
               {/* Row 2: Category & Status */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">{t('inventory.fields.category')} *</label>
                   <select
@@ -949,7 +949,7 @@ export function InventoryPage() {
               </div>
 
               {/* Row 3: Current Quantity, Minimum Quantity & Unit Price */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">{t('inventory.fields.currentQuantity')} *</label>
                   <input
@@ -991,7 +991,7 @@ export function InventoryPage() {
               </div>
 
               {/* Row 4: Brand, Supplier & Expiry Date */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">{t('inventory.fields.brand')}</label>
                   <input
@@ -1188,7 +1188,7 @@ export function InventoryPage() {
               </div>
 
               {/* Quick Metrics Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem' }}>
                 <div style={{
                   backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border)',
@@ -1243,7 +1243,7 @@ export function InventoryPage() {
               {/* Detailed Info Grid */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                 gap: '1rem',
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border)',
@@ -1471,7 +1471,7 @@ export function InventoryPage() {
               </div>
 
               {/* Status & Product Type */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">{t('inventory.fields.productType')} *</label>
                   <select

@@ -952,13 +952,13 @@ export function FinancePage() {
           </div>
           {/* KPI Widgets Grid */}
       {statsLoading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1.25rem' }}>
           {[...Array(6)].map((_, i) => (
             <div key={i} className="shimmer" style={{ height: '108px', borderRadius: '16px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }} />
           ))}
         </div>
       ) : stats ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1.25rem' }}>
           
           {/* Card: Total Quoted (Revenue) */}
           <div style={{
@@ -1122,7 +1122,7 @@ export function FinancePage() {
 
       {/* Visual Analytics / Charts Grid */}
       {!statsLoading && stats ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '1.5rem' }}>
           
           {/* Chart 1: Monthly Revenue Trend (Line Chart) */}
           {lineChartData && (
@@ -2021,7 +2021,7 @@ export function FinancePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
           
           {/* Doctor Balances KPI Summary Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1.25rem' }}>
             {/* Card 1: Total Outstanding */}
             <div style={{
               backgroundColor: 'var(--bg-surface)',
@@ -2796,7 +2796,7 @@ export function FinancePage() {
               {/* Financial Balance Strip */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
                 gap: '1rem',
                 backgroundColor: 'var(--bg-overlay, rgba(148, 163, 184, 0.06))',
                 border: '1px solid var(--border)',
@@ -2934,7 +2934,7 @@ export function FinancePage() {
               {/* Financial Balance Strip */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
                 gap: '1rem',
                 backgroundColor: 'var(--bg-overlay, rgba(148, 163, 184, 0.06))',
                 border: '1px solid var(--border)',

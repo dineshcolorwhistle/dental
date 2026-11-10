@@ -875,7 +875,7 @@ export function DashboardPage() {
       )}
 
       {/* Workflow Pipelines: In-Progress and Verification WOs Segregated */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem', marginBottom: '2.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
         {/* In-Progress Work Orders */}
         <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
@@ -1319,7 +1319,7 @@ export function DashboardPage() {
       </div>
 
       {/* Technician Activity and Repetition Lists */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem', marginBottom: '2.5rem', marginTop: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '1.5rem', marginBottom: '2.5rem', marginTop: '2rem' }}>
         
         {/* Technician Activity & Performance Overview */}
         <div className="dashboard-card" style={{ borderRadius: '16px', border: '1px solid var(--border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
@@ -1515,7 +1515,7 @@ export function DashboardPage() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     <div>
                       {t('dashboard.triggeredBy')}: <strong style={{ color: 'var(--text-primary)' }}>{log.initiatedBy ? `${log.initiatedBy.firstName} ${log.initiatedBy.lastName}` : t('dashboard.system')}</strong>
                     </div>

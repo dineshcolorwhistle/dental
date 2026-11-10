@@ -850,8 +850,8 @@ export function RemindersPage() {
     <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
       <div className="modal__body" style={{ flex: 1, overflowY: 'auto' }}>
         {/* Row 1: Title + Priority */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '1rem' }}>
-          <div className="form-group">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem' }}>
+          <div className="form-group" style={{ minWidth: 0 }}>
             <label className="form-label" htmlFor="input-reminder-title">
               {t('reminders.fields.title', { defaultValue: 'Title' })} *
             </label>
@@ -871,7 +871,7 @@ export function RemindersPage() {
               </span>
             )}
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ minWidth: 0 }}>
             <label className="form-label" htmlFor="select-reminder-priority">
               {t('reminders.fields.priority', { defaultValue: 'Priority' })}
             </label>
@@ -906,8 +906,8 @@ export function RemindersPage() {
         </div>
 
         {/* Row 3: Assigned To + Recurrence (Side by Side matching screenshots) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-          <div className="form-group">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem', marginTop: '1rem' }}>
+          <div className="form-group" style={{ minWidth: 0 }}>
             <label className="form-label" htmlFor="select-reminder-assignees">
               {t('reminders.fields.assignedTo', { defaultValue: 'Assigned To' })} *
             </label>
@@ -976,7 +976,7 @@ export function RemindersPage() {
             )}
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ minWidth: 0 }}>
             <label className="form-label" htmlFor="select-reminder-recurrence">
               {t('reminders.fields.recurrence', { defaultValue: 'Recurrence' })}
             </label>
@@ -997,7 +997,7 @@ export function RemindersPage() {
         </div>
 
         {/* Row 4: Date & Time */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem', marginTop: '1rem' }}>
           <div className="form-group">
             <label className="form-label" htmlFor="input-reminder-date">
               {form.recurrence === 'ONE_TIME'
@@ -1639,9 +1639,10 @@ export function RemindersPage() {
         <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
           {/* Month Mode View */}
           {calendarViewMode === 'month' && (
-            <div>
-              {/* Day Headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: '700px' }}>
+                {/* Day Headers */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
                 {dayNames.map((dName, idx) => (
                   <div
                     key={idx}
@@ -1856,12 +1857,14 @@ export function RemindersPage() {
                 })}
               </div>
             </div>
+            </div>
           )}
 
           {/* Week Mode View */}
           {calendarViewMode === 'week' && (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: '700px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
                 {weekGridDays.map((wDate, idx) => {
                   const dateKey = getLocalDateKey(wDate);
                   const isToday = dateKey === todayKeyStr;
@@ -1987,6 +1990,7 @@ export function RemindersPage() {
                   );
                 })}
               </div>
+            </div>
             </div>
           )}
 
@@ -2206,7 +2210,7 @@ export function RemindersPage() {
               </div>
 
               {/* Details Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem' }}>
                 <div style={{ padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
                     📅 {viewingReminder.recurrence === 'ONE_TIME' ? t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' }) : t('reminders.recurrencePanel.startDate', { defaultValue: 'Start Date' })}

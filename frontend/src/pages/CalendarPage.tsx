@@ -488,9 +488,10 @@ export function CalendarPage() {
         <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)' }}>
           {/* Month View Grid */}
           {viewMode === 'month' && (
-            <div>
-              {/* Days Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: '700px' }}>
+                {/* Days Header */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
                 {dayNamesHeader.map((dName, i) => (
                   <div
                     key={i}
@@ -643,12 +644,14 @@ export function CalendarPage() {
                 })}
               </div>
             </div>
+            </div>
           )}
 
           {/* Week View Grid */}
           {viewMode === 'week' && (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: '700px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
                 {weekGridDays.map((wDate, idx) => {
                   const dateKey = getLocalDateKey(wDate);
                   const isToday = dateKey === todayKeyStr;
@@ -734,6 +737,7 @@ export function CalendarPage() {
                   );
                 })}
               </div>
+            </div>
             </div>
           )}
 

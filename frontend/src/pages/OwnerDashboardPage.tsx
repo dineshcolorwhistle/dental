@@ -107,7 +107,7 @@ export function OwnerDashboardPage() {
             background: 'linear-gradient(135deg, rgba(111, 174, 217, 0.05) 0%, rgba(169, 207, 232, 0.05) 100%)',
             border: '1px solid var(--border)',
             borderRadius: '16px',
-            padding: '2.5rem',
+            padding: 'clamp(1.25rem, 4vw, 2.5rem)',
             marginBottom: '2.5rem',
             position: 'relative',
             overflow: 'hidden',
@@ -146,8 +146,8 @@ export function OwnerDashboardPage() {
             {/* Grid of Limits */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '2rem',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+              gap: '1.25rem',
               marginTop: '1rem'
             }}>
               {/* Lab Administrators Stats */}

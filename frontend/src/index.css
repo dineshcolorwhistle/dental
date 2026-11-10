@@ -4927,3 +4927,48 @@ a:hover { color: var(--accent-primary-hover); }
   line-height: 1.4;
 }
 
+
+/* ─── Responsive DateRangePicker ────────────────────────── */
+@media (max-width: 768px) {
+  .drp-popover {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 1000;
+  }
+
+  .drp-popover__body {
+    flex-direction: column;
+  }
+
+  .drp-presets {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem;
+    white-space: nowrap;
+  }
+
+  .drp-presets__btn {
+    flex-shrink: 0;
+  }
+
+  .drp-calendars {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0.875rem;
+    align-items: center;
+  }
+
+  .drp-calendar {
+    width: 100%;
+    max-width: 280px;
+  }
+}
