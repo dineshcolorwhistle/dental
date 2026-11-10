@@ -186,9 +186,43 @@ export class FinanceService {
       const collectionPercentage =
         totalQuotedAmount > 0 ? (totalPaidAmount / totalQuotedAmount) * 100 : 0;
 
-      const monthsList = this.getMonthsInRange(startDate, endDate);
-      const numMonths = Math.max(1, monthsList.length);
+      // Determine active operational start date for monthly trends and averages
+      let earliestRecordDate: Date | null = null;
+      if (workOrders.length > 0) {
+        earliestRecordDate = workOrders.reduce(
+          (min, wo) => (wo.createdAt < min ? wo.createdAt : min),
+          workOrders[0].createdAt,
+        );
+      }
+      for (const p of reconstructedPayments) {
+        if (!earliestRecordDate || p.date < earliestRecordDate) {
+          earliestRecordDate = p.date;
+        }
+      }
+
+      // If range starts way before first record (e.g. All Time), clamp start date for averages & trends
+      const effectiveMonthlyStart = earliestRecordDate
+        ? (startDate < earliestRecordDate ? earliestRecordDate : startDate)
+        : (startDate < new Date(endDate.getFullYear() - 1, endDate.getMonth(), 1)
+            ? new Date(endDate.getFullYear() - 1, endDate.getMonth(), 1)
+            : startDate);
+
+      const fullMonthsList = this.getMonthsInRange(effectiveMonthlyStart, endDate);
+      const numMonths = Math.max(1, fullMonthsList.length);
       const averageMonthlyRevenue = totalQuotedAmount / numMonths;
+
+      // Ensure the trend chart always has at least a 6-month historical window for context
+      let trendMonthsList = fullMonthsList;
+      if (trendMonthsList.length < 6) {
+        const minStartDate = new Date(
+          endDate.getFullYear(),
+          endDate.getMonth() - 5,
+          1,
+        );
+        trendMonthsList = this.getMonthsInRange(minStartDate, endDate);
+      } else if (trendMonthsList.length > 18) {
+        trendMonthsList = trendMonthsList.slice(-18);
+      }
 
       // 6. Branch performance aggregation
       const branchStatsMap = new Map<
@@ -325,12 +359,12 @@ export class FinanceService {
       };
 
       // 7. Monthly revenue trends
-      const monthlyTrends = monthsList.map((m) => {
-        const wosInMonth = workOrdersInRange.filter((wo) => {
+      const monthlyTrends = trendMonthsList.map((m) => {
+        const wosInMonth = workOrders.filter((wo) => {
           const woMonth = wo.createdAt.toISOString().substring(0, 7);
           return woMonth === m;
         });
-        const paymentsInMonth = paymentsInRange.filter((p) => {
+        const paymentsInMonth = reconstructedPayments.filter((p) => {
           const pMonth = p.date.toISOString().substring(0, 7);
           return pMonth === m;
         });

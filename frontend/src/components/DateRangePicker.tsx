@@ -45,7 +45,7 @@ export function DateRangePicker({
 
   // Month shown on the left calendar
   const [viewDate, setViewDate] = useState<Date>(() => {
-    return startDate ? parseLocalDate(startDate) : new Date();
+    return startDate && presetType !== 'allTime' ? parseLocalDate(startDate) : new Date();
   });
 
   // Sync temporary selection when props change
@@ -53,9 +53,13 @@ export function DateRangePicker({
     setTempStart(startDate);
     setTempEnd(endDate);
     if (startDate) {
-      setViewDate(parseLocalDate(startDate));
+      if (presetType === 'allTime') {
+        setViewDate(new Date());
+      } else {
+        setViewDate(parseLocalDate(startDate));
+      }
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, presetType]);
 
   // Click outside handler
   useEffect(() => {
@@ -74,6 +78,7 @@ export function DateRangePicker({
 
   // Presets definition
   const allPresets = [
+    { value: 'allTime', label: t('expenses.dateFilters.all', { defaultValue: 'All Time' }) },
     { value: 'today', label: t('expenses.dateFilters.today', { defaultValue: 'Today' }) },
     { value: 'yesterday', label: t('expenses.dateFilters.yesterday', { defaultValue: 'Yesterday' }) },
     { value: 'last7Days', label: t('expenses.dateFilters.last7Days', { defaultValue: 'Last 7 Days' }) },
@@ -98,6 +103,10 @@ export function DateRangePicker({
     let end = new Date();
 
     switch (val) {
+      case 'allTime':
+        start = new Date(2000, 0, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
       case 'today':
         start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -303,6 +312,9 @@ export function DateRangePicker({
 
   // Localized date formatting for the trigger display
   const formatDateRangeDisplay = () => {
+    if (presetType === 'allTime') {
+      return t('expenses.dateFilters.all', { defaultValue: 'All Time' });
+    }
     if (!startDate || !endDate) return t('common.selectOption', { defaultValue: 'Select date range...' });
     const fmt = (dStr: string) => {
       const [y, m, d] = dStr.split('-');

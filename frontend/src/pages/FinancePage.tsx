@@ -79,23 +79,15 @@ export function FinancePage() {
   const [branches, setBranches] = useState<BranchItem[]>([]);
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]); // Empty means ALL
 
-  const [startDateFilter, setStartDateFilter] = useState<string>(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const year = start.getFullYear();
-    const month = String(start.getMonth() + 1).padStart(2, '0');
-    const day = String(start.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  });
+  const [startDateFilter, setStartDateFilter] = useState<string>('2000-01-01');
   const [endDateFilter, setEndDateFilter] = useState<string>(() => {
     const now = new Date();
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const year = end.getFullYear();
-    const month = String(end.getMonth() + 1).padStart(2, '0');
-    const day = String(end.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   });
-  const [datePreset, setDatePreset] = useState<string>('thisMonth');
+  const [datePreset, setDatePreset] = useState<string>('allTime');
 
   // Finance Stats data
   const [stats, setStats] = useState<FinanceStats | null>(null);
@@ -531,7 +523,7 @@ export function FinancePage() {
     const yMax = maxVal * 1.15; // 15% headroom
     
     const pointsQuoted = trends.map((t, idx) => ({
-      x: padding + idx * xStep,
+      x: trends.length === 1 ? chartWidth / 2 : padding + idx * xStep,
       y: chartHeight - padding - ((t.quotedAmount / yMax) * (chartHeight - padding * 2)),
       val: t.quotedAmount,
       label: t.label,
@@ -539,7 +531,7 @@ export function FinancePage() {
     }));
 
     const pointsPaid = trends.map((t, idx) => ({
-      x: padding + idx * xStep,
+      x: trends.length === 1 ? chartWidth / 2 : padding + idx * xStep,
       y: chartHeight - padding - ((t.paidAmount / yMax) * (chartHeight - padding * 2)),
       val: t.paidAmount,
       label: t.label,
@@ -549,7 +541,9 @@ export function FinancePage() {
     // Generate Path descriptions
     const createSmoothPath = (pts: { x: number; y: number }[]) => {
       if (pts.length === 0) return '';
-      if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+      if (pts.length === 1) {
+        return `M ${pts[0].x - 40} ${pts[0].y} L ${pts[0].x + 40} ${pts[0].y}`;
+      }
       let path = `M ${pts[0].x} ${pts[0].y}`;
       for (let i = 0; i < pts.length - 1; i++) {
         const cpX1 = pts[i].x + xStep / 3;
@@ -565,8 +559,12 @@ export function FinancePage() {
     const pathPaid = createSmoothPath(pointsPaid);
 
     // Area path closed under line
-    const areaQuoted = pathQuoted ? `${pathQuoted} L ${pointsQuoted[pointsQuoted.length - 1].x} ${chartHeight - padding} L ${pointsQuoted[0].x} ${chartHeight - padding} Z` : '';
-    const areaPaid = pathPaid ? `${pathPaid} L ${pointsPaid[pointsPaid.length - 1].x} ${chartHeight - padding} L ${pointsPaid[0].x} ${chartHeight - padding} Z` : '';
+    const areaQuoted = pointsQuoted.length === 1
+      ? `M ${pointsQuoted[0].x - 40} ${pointsQuoted[0].y} L ${pointsQuoted[0].x + 40} ${pointsQuoted[0].y} L ${pointsQuoted[0].x + 40} ${chartHeight - padding} L ${pointsQuoted[0].x - 40} ${chartHeight - padding} Z`
+      : pathQuoted ? `${pathQuoted} L ${pointsQuoted[pointsQuoted.length - 1].x} ${chartHeight - padding} L ${pointsQuoted[0].x} ${chartHeight - padding} Z` : '';
+    const areaPaid = pointsPaid.length === 1
+      ? `M ${pointsPaid[0].x - 40} ${pointsPaid[0].y} L ${pointsPaid[0].x + 40} ${pointsPaid[0].y} L ${pointsPaid[0].x + 40} ${chartHeight - padding} L ${pointsPaid[0].x - 40} ${chartHeight - padding} Z`
+      : pathPaid ? `${pathPaid} L ${pointsPaid[pointsPaid.length - 1].x} ${chartHeight - padding} L ${pointsPaid[0].x} ${chartHeight - padding} Z` : '';
 
     // Y Axis Grid lines (4 intervals)
     const gridLines: { y: number; val: number }[] = [];
@@ -944,7 +942,7 @@ export function FinancePage() {
               startDate={startDateFilter}
               endDate={endDateFilter}
               presetType={datePreset}
-              allowedPresets={['thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'custom']}
+              allowedPresets={['allTime', 'thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'custom']}
               onChange={(start, end, preset) => {
                 setStartDateFilter(start);
                 setEndDateFilter(end);
