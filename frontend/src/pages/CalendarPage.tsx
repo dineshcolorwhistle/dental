@@ -412,9 +412,9 @@ export function CalendarPage() {
       </div>
 
       {/* Professional Search & Searchable Filters Toolbar */}
-      <div className="table-toolbar" style={{ gap: '0.875rem', flexWrap: 'wrap' }}>
+      <div className="table-toolbar" style={{ gap: '0.875rem' }}>
         {/* Search input wrap */}
-        <div className="search-input-wrap" style={{ flex: '1 1 240px', maxWidth: '340px' }}>
+        <div className="search-input-wrap">
           <Search size={16} className="search-input__icon" />
           <input
             id="input-calendar-search"

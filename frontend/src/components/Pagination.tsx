@@ -58,19 +58,7 @@ export function Pagination({ currentPage, totalItems, pageSize, onPageChange }: 
   };
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
-        alignItems: 'center',
-        padding: '1.25rem 1.5rem',
-        backgroundColor: 'var(--bg-surface)',
-        borderTop: '1px solid var(--border)',
-        borderBottomLeftRadius: 'var(--radius-xl)',
-        borderBottomRightRadius: 'var(--radius-xl)',
-        gap: '1rem',
-      }}
-    >
+    <div className="data-pagination">
       {/* Entries Info */}
       <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', justifySelf: 'start' }}>
         {t('pagination.showing')} <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{startItem}</span> {t('pagination.to')}{' '}
@@ -178,9 +166,6 @@ export function Pagination({ currentPage, totalItems, pageSize, onPageChange }: 
           <ChevronRight size={16} />
         </button>
       </div>
-
-      {/* Right spacer for centering balance */}
-      <div style={{ justifySelf: 'end' }} />
     </div>
   );
 }

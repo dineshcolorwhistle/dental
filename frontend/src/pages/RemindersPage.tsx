@@ -1271,8 +1271,8 @@ export function RemindersPage() {
       )}
 
       {/* Table & Filter Toolbar */}
-      <div className="table-toolbar" style={{ gap: '0.875rem', flexWrap: 'wrap' }}>
-        <div className="search-input-wrap" style={{ flex: '1 1 240px', maxWidth: '340px' }}>
+      <div className="table-toolbar" style={{ gap: '0.875rem' }}>
+        <div className="search-input-wrap">
           <Search size={16} className="search-input__icon" />
           <input
             id="input-reminder-search"
@@ -1289,7 +1289,7 @@ export function RemindersPage() {
           )}
         </div>
 
-        <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="table-toolbar__filters" style={{ flexGrow: 1, display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Status Filter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
             <Filter size={15} style={{ color: 'var(--text-secondary)' }} />
@@ -1355,7 +1355,8 @@ export function RemindersPage() {
           </div>
         ) : (
           <div className="data-table-wrap">
-            <table className="data-table" id="reminders-table">
+            <div className="data-table-scroll">
+              <table className="data-table" id="reminders-table">
               <thead>
                 <tr>
                   <th>
@@ -1626,6 +1627,7 @@ export function RemindersPage() {
                 })}
               </tbody>
             </table>
+            </div>
             <Pagination
               currentPage={currentPage}
               totalItems={filteredReminders.length}

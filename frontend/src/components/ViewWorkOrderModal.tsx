@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth, useSocket } from '../context';
@@ -460,8 +461,8 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
+  const modalContent = (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
       <div className="modal" style={{ maxWidth: '1020px', width: '95%', height: 'auto', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
         {loading || !selectedWO ? (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '300px', gap: '12px' }}>
@@ -470,9 +471,9 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
           </div>
         ) : (
           <>
-            <div className="modal__header" style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', margin: 0, fontWeight: 800 }}>
+            <div className="modal__header" style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                <h2 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', margin: 0, fontWeight: 800, fontSize: '1.25rem' }}>
                   <span>WO#: {selectedWO.folioNumber}</span>
                   {selectedWO.boxNumber && (
                     <span style={{ 
@@ -488,64 +489,63 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                     </span>
                   )}
                 </h2>
-              </div>
-              {isCompleted && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.1))',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    padding: '0.375rem 0.75rem',
-                    borderRadius: '8px',
-                    marginLeft: 'auto',
-                    marginRight: '0.75rem',
-                  }}
-                >
-                  <span
+
+                {isCompleted && (
+                  <div
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '0.375rem',
-                      color: 'var(--success, #10B981)',
-                      fontWeight: 700,
-                      fontSize: '0.8125rem',
+                      gap: '0.4rem',
+                      backgroundColor: 'var(--success-bg, rgba(16, 185, 129, 0.1))',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      padding: '0.25rem 0.6rem',
+                      borderRadius: '8px',
+                      flexWrap: 'wrap',
                     }}
                   >
-                    <CheckCircle2 size={15} />
-                    {t('enums.workOrderStatus.COMPLETED', { defaultValue: 'Completed' })}
-                  </span>
-                  {completionDate && (
                     <span
                       style={{
-                        fontSize: '0.8125rem',
-                        color: 'var(--text-secondary, #6B7280)',
-                        fontWeight: 500,
-                        borderLeft: '1px solid rgba(16, 185, 129, 0.3)',
-                        paddingLeft: '0.5rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        color: 'var(--success, #10B981)',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
                       }}
                     >
-                      {appFormatDate(completionDate, { day: 'numeric', month: 'short', year: 'numeric' })}
+                      <CheckCircle2 size={14} />
+                      {t('enums.workOrderStatus.COMPLETED', { defaultValue: 'Completed' })}
                     </span>
-                  )}
-                </div>
-              )}
-              <div style={{ display: 'none' }}>
+                    {completionDate && (
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary, #6B7280)',
+                          fontWeight: 500,
+                          borderLeft: '1px solid rgba(16, 185, 129, 0.3)',
+                          paddingLeft: '0.4rem',
+                        }}
+                      >
+                        {appFormatDate(completionDate, { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
+
               <button
                 className="modal__close"
                 onClick={onClose}
                 aria-label={t('common.close')}
-                style={{ position: 'static', marginLeft: isCompleted ? 0 : 'auto' }}
+                style={{ position: 'static', margin: 0, flexShrink: 0 }}
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Modal Tabs navigation */}
-            <div style={{ padding: '0 1.5rem', marginTop: '1rem', borderBottom: '1px solid var(--border)' }}>
-              <div className="modal-tabs" style={{ display: 'flex', gap: '1.5rem' }}>
+            <div style={{ padding: '0 1rem', marginTop: '0.75rem', borderBottom: '1px solid var(--border)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div className="modal-tabs" style={{ display: 'flex', gap: '1rem', minWidth: 'max-content' }}>
                 <button
                   type="button"
                   className={`modal-tab-btn ${viewTab === 'general' ? 'modal-tab-btn--active' : ''}`}
@@ -1055,13 +1055,19 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                         </span>
 
                         <div style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          justifyContent: 'space-between',
-                          position: 'relative',
-                          width: '100%',
-                          margin: '0 auto',
+                          overflowX: 'auto',
+                          WebkitOverflowScrolling: 'touch',
+                          paddingBottom: '0.25rem'
                         }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
+                            position: 'relative',
+                            width: '100%',
+                            minWidth: '540px',
+                            margin: '0 auto',
+                          }}>
                           {/* Background Line (Center aligned between first and last circles) */}
                           <div style={{
                             position: 'absolute',
@@ -1176,6 +1182,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                             );
                           })}
                         </div>
+                        </div>
                       </div>
 
                       {/* Total Completed Work Time Metric Section */}
@@ -1267,21 +1274,23 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                         ) : (
                           <div style={{
                             overflowX: 'auto',
+                            WebkitOverflowScrolling: 'touch',
                             border: '1px solid var(--border)',
                             borderRadius: '12px',
-                            backgroundColor: 'var(--bg-surface)'
+                            backgroundColor: 'var(--bg-surface)',
+                            width: '100%'
                           }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                            <table style={{ width: '100%', minWidth: '820px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.step')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.processName')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.assignedTechnician')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.startTime')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.endTime')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.workTime', { defaultValue: 'Work Time' })}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.timeAudit')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('common.step')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.processName')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.assignedTechnician')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('common.startTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('common.endTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.workTime', { defaultValue: 'Work Time' })}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('common.timeAudit')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('common.status')}</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -1364,8 +1373,8 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                               ? 'rgba(111, 174, 217, 0.03)'
                                               : 'transparent',
                                       }}>
-                                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{idx + 1}</td>
+                                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)', minWidth: '180px' }}>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             <span>{proc.processName}</span>
                                             {isInternal && (
@@ -1462,7 +1471,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                             </div>
                                           )}
                                         </td>
-                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-primary)', fontWeight: 500, minWidth: '150px' }}>
                                           {isExternal ? (
                                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                               <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
@@ -1483,11 +1492,11 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                             <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('dashboard.unassigned')}</span>
                                           )}
                                         </td>
-                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{startTimeStr}</td>
-                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{endTimeStr}</td>
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{startTimeStr}</td>
+                                        <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{endTimeStr}</td>
 
                                         {/* Work Time Column */}
-                                        <td style={{ padding: '0.75rem 1rem', verticalAlign: 'middle' }}>
+                                        <td style={{ padding: '0.75rem 1rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                                           {(() => {
                                             const hasWorkTime = (proc.totalActiveDuration && proc.totalActiveDuration > 0);
                                             const cycleCount = 1 + (proc.reworkCount || 0) + repetitionsForStep.length;
@@ -1583,7 +1592,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                         </td>
                                         
                                         {/* Time Audit Column */}
-                                        <td style={{ padding: '0.75rem 1rem' }}>
+                                        <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>
                                           {hasLogs ? (
                                             <button
                                               type="button"
@@ -1610,7 +1619,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                                           )}
                                         </td>
 
-                                        <td style={{ padding: '0.75rem 1rem' }}>
+                                        <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>
                                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                                             <span style={{
                                               display: 'inline-flex',
@@ -2131,17 +2140,19 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                         <div style={{
                           border: '1px solid var(--border)',
                           borderRadius: '12px',
-                          overflow: 'hidden',
-                          backgroundColor: 'var(--bg-surface)'
+                          overflowX: 'auto',
+                          WebkitOverflowScrolling: 'touch',
+                          backgroundColor: 'var(--bg-surface)',
+                          width: '100%'
                         }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                          <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(111, 174, 217, 0.04)' }}>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('financePage.paymentDate')}</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.receivedAmount')}</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('paymentMethods.method', { defaultValue: 'Method' })}</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.notes')}</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('financePage.paymentDate')}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.receivedAmount')}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('paymentMethods.method', { defaultValue: 'Method' })}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.notes')}</th>
+                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('common.status')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2275,18 +2286,18 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                             borderRadius: '12px',
                             backgroundColor: 'var(--bg-surface)'
                           }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                            <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239, 68, 68, 0.02)' }}>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.processName')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.reworkCount')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.initiatedBy')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.initiationDateTime')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.triggeringStage')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.assignedTechnician')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.completionDateTime')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.approvalDateTime')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('common.status')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.processName')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.reworkCount')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.initiatedBy')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.initiationDateTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.triggeringStage')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.assignedTechnician')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.completionDateTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.approvalDateTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('common.status')}</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -2408,14 +2419,14 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                             borderRadius: '12px',
                             backgroundColor: 'var(--bg-surface)'
                           }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                            <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239, 68, 68, 0.02)' }}>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.repetitionCycle')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.triggeringStage')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.initiatedBy')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.initiationDateTime')}</th>
-                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('workOrders.previousCompletedSteps')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.repetitionCycle')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.triggeringStage')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.initiatedBy')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.initiationDateTime')}</th>
+                                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('workOrders.previousCompletedSteps')}</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -2506,4 +2517,6 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

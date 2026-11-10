@@ -1648,7 +1648,8 @@ export function WorkOrdersPage() {
         </div>
       ) : (
         <div className="data-table-wrap">
-          <table className="data-table" id="work-orders-table">
+          <div className="data-table-scroll">
+            <table className="data-table" id="work-orders-table">
             <thead>
               <tr>
                 <th>
@@ -1969,6 +1970,7 @@ export function WorkOrdersPage() {
               })}
             </tbody>
           </table>
+          </div>
           <Pagination
             currentPage={currentPage}
             totalItems={filtered.length}
