@@ -821,7 +821,7 @@ export function OdontogramSettingsPage() {
                               {canAddEdit && (
                                 <button
                                   type="button"
-                                  className="btn-action"
+                                  className="btn-action btn-action--edit"
                                   onClick={() => openEditTreatment(item)}
                                   title={t('common.edit')}
                                 >
@@ -1000,7 +1000,7 @@ export function OdontogramSettingsPage() {
                               {canAddEdit && (
                                 <button
                                   type="button"
-                                  className="btn-action"
+                                  className="btn-action btn-action--edit"
                                   onClick={() => openEditDiagnostic(item)}
                                   title={t('common.edit')}
                                 >

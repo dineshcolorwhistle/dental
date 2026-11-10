@@ -1911,7 +1911,7 @@ export function WorkOrdersPage() {
                         )}
                         <button
                           className="btn-action"
-                          style={{ color: 'var(--text-heading, #1E293B)', backgroundColor: 'var(--bg-overlay, #F1F5F9)' }}
+                          style={{ color: '#0F766E', backgroundColor: '#F0FDFA', borderColor: '#99F6E4' }}
                           onClick={() => {
                             setQrWO(wo);
                             setShowQrModal(true);

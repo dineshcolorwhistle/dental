@@ -153,6 +153,8 @@ export function RemindersPage() {
   const [editingReminder, setEditingReminder] = useState<ReminderItem | null>(null);
   const [deletingReminder, setDeletingReminder] = useState<ReminderItem | null>(null);
   const [viewingReminder, setViewingReminder] = useState<ReminderItem | null>(null);
+  const [stoppingReminder, setStoppingReminder] = useState<ReminderItem | null>(null);
+  const [stopping, setStopping] = useState(false);
 
   // Day View Modal for Calendar
   const [dayModal, setDayModal] = useState<{ isOpen: boolean; date: Date | null; reminders: ReminderItem[] }>({
@@ -555,18 +557,25 @@ export function RemindersPage() {
     }
   };
 
-  const handleStatusToggle = async (reminder: ReminderItem) => {
-    const newStatus = reminder.status === 'PENDING' ? 'COMPLETED' : 'PENDING';
+  const handleStopReminder = async () => {
+    if (!stoppingReminder) return;
+    setStopping(true);
     try {
-      await reminderService.updateStatus(reminder.id, newStatus);
-      if (newStatus === 'COMPLETED' && reminder.recurrence !== 'ONE_TIME') {
-        toast.success(t('reminders.recurringCompleted', { defaultValue: "Completed today's instance! Advanced to next cycle." }));
-      } else {
-        toast.success(t('reminders.statusUpdateSuccess', { defaultValue: 'Reminder status updated!' }));
-      }
+      await reminderService.updateStatus(stoppingReminder.id, 'CANCELLED');
+      toast.success(
+        stoppingReminder.recurrence !== 'ONE_TIME'
+          ? t('reminders.stopRecurrence.success', { defaultValue: 'Recurrence stopped successfully.' })
+          : t('reminders.cancelReminder.success', { defaultValue: 'Reminder cancelled.' }),
+      );
+      setStoppingReminder(null);
       fetchData();
-    } catch {
-      toast.error(t('reminders.statusUpdateError', { defaultValue: 'Failed to update status' }));
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ||
+          t('reminders.statusUpdateError', { defaultValue: 'Failed to update reminder status' }),
+      );
+    } finally {
+      setStopping(false);
     }
   };
 
@@ -604,6 +613,10 @@ export function RemindersPage() {
   };
 
   const openEditModal = (reminder: ReminderItem) => {
+    if (reminder.status !== 'PENDING') {
+      toast.error(t('reminders.readOnlyNotice', { defaultValue: 'Completed or cancelled reminders cannot be edited.' }));
+      return;
+    }
     setEditingReminder(reminder);
     let parsedWeeklyDays: number[] = [];
     if (reminder.weeklyDays) {
@@ -1416,8 +1429,11 @@ export function RemindersPage() {
                               </span>
                             )}
                             {r.description && (
-                              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-                                {r.description}
+                              <p
+                                style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}
+                                title={r.description.length > 50 ? r.description : undefined}
+                              >
+                                {r.description.length > 50 ? `${r.description.slice(0, 50)}...` : r.description}
                               </p>
                             )}
                           </div>
@@ -1552,34 +1568,47 @@ export function RemindersPage() {
                         </span>
                       </td>
 
-                      {/* ACTIONS: VIEW DETAILS (ADMIN & OWNER), COMPLETE, EDIT, DELETE */}
+                      {/* ACTIONS: VIEW DETAILS (ALL), EDIT (PENDING ONLY), STOP/CANCEL (PENDING ONLY), DELETE (OWNER) */}
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <button
-                            className="btn-action"
+                            className="btn-action btn-action--primary"
                             title={t('reminders.viewDetails', { defaultValue: 'View Details' })}
                             onClick={() => openViewModal(r)}
                           >
                             <Eye size={14} />
                             <span>{t('common.view', { defaultValue: 'View' })}</span>
                           </button>
-                          <button
-                            className={`btn-action ${r.status === 'COMPLETED' ? 'btn-action--success' : ''}`}
-                            title={r.status === 'PENDING' ? t('reminders.actions.markComplete', { defaultValue: 'Mark Complete' }) : t('reminders.actions.markPending', { defaultValue: 'Mark Pending' })}
-                            onClick={() => handleStatusToggle(r)}
-                          >
-                            <CheckCircle2 size={14} />
-                            <span>{r.status === 'COMPLETED' ? t('enums.reminderStatus.COMPLETED', { defaultValue: 'Completed' }) : t('common.complete', { defaultValue: 'Complete' })}</span>
-                          </button>
-                          {canEdit && (
+                          {canEdit && r.status === 'PENDING' && (
                             <button
-                              className="btn-action"
+                              className="btn-action btn-action--edit"
                               title={t('common.edit', { defaultValue: 'Edit' })}
                               onClick={() => openEditModal(r)}
                             >
                               <Edit3 size={14} />
                               <span>{t('common.edit', { defaultValue: 'Edit' })}</span>
                             </button>
+                          )}
+                          {isAdmin && r.status === 'PENDING' && (
+                            r.recurrence !== 'ONE_TIME' ? (
+                              <button
+                                className="btn-action btn-action--danger"
+                                title={t('reminders.stopRecurrence.title', { defaultValue: 'Stop Recurrence' })}
+                                onClick={() => setStoppingReminder(r)}
+                              >
+                                <XCircle size={14} />
+                                <span>{t('reminders.actions.stopRecurrence', { defaultValue: 'Stop Recurrence' })}</span>
+                              </button>
+                            ) : (
+                              <button
+                                className="btn-action btn-action--danger"
+                                title={t('reminders.cancelReminder.title', { defaultValue: 'Cancel Reminder' })}
+                                onClick={() => setStoppingReminder(r)}
+                              >
+                                <XCircle size={14} />
+                                <span>{t('common.cancel', { defaultValue: 'Cancel' })}</span>
+                              </button>
+                            )
                           )}
                           {canDelete && (
                             <button
@@ -2085,8 +2114,11 @@ export function RemindersPage() {
                               </div>
 
                               {rem.description && (
-                                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0 }}>
-                                  {rem.description}
+                                <p
+                                  style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0 }}
+                                  title={rem.description.length > 50 ? rem.description : undefined}
+                                >
+                                  {rem.description.length > 50 ? `${rem.description.slice(0, 50)}...` : rem.description}
                                 </p>
                               )}
                             </div>
@@ -2495,7 +2527,7 @@ export function RemindersPage() {
               <button className="btn btn-outline" onClick={() => setShowViewModal(false)}>
                 {t('common.close', { defaultValue: 'Close' })}
               </button>
-              {canEdit && (
+              {canEdit && viewingReminder.status === 'PENDING' && (
                 <button
                   className="btn btn--primary"
                   onClick={() => {
@@ -2545,6 +2577,81 @@ export function RemindersPage() {
                   </>
                 ) : (
                   <span>{t('common.delete', { defaultValue: 'Delete' })}</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── STOP RECURRENCE / CANCEL MODAL ─── */}
+      {stoppingReminder && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '440px', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal__header">
+              <h3 className="modal__title">
+                {stoppingReminder.recurrence !== 'ONE_TIME'
+                  ? t('reminders.stopRecurrence.title', { defaultValue: 'Stop Recurrence' })
+                  : t('reminders.cancelReminder.title', { defaultValue: 'Cancel Reminder' })}
+              </h3>
+              <button
+                className="btn btn-icon"
+                onClick={() => setStoppingReminder(null)}
+                disabled={stopping}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal__body" style={{ padding: '1.25rem 1.75rem' }}>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {stoppingReminder.recurrence !== 'ONE_TIME'
+                  ? t('reminders.stopRecurrence.confirmMessage', {
+                      title: stoppingReminder.title,
+                      defaultValue: `Are you sure you want to stop the recurrence for "${stoppingReminder.title}"? Upcoming scheduled notifications will be stopped and status will be updated to Cancelled.`,
+                    })
+                  : t('reminders.cancelReminder.confirmMessage', {
+                      title: stoppingReminder.title,
+                      defaultValue: `Are you sure you want to cancel the reminder "${stoppingReminder.title}"? No notifications will be sent and status will be updated to Cancelled.`,
+                    })}
+              </p>
+            </div>
+            <div
+              className="modal__footer"
+              style={{
+                padding: '1rem 1.75rem',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                backgroundColor: 'var(--bg-surface)',
+                marginTop: 0,
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setStoppingReminder(null)}
+                disabled={stopping}
+              >
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={handleStopReminder}
+                disabled={stopping}
+              >
+                {stopping ? (
+                  <>
+                    <Loader2 size={16} className="spinner" />
+                    <span>{t('common.processing', { defaultValue: 'Processing...' })}</span>
+                  </>
+                ) : (
+                  <span>
+                    {stoppingReminder.recurrence !== 'ONE_TIME'
+                      ? t('reminders.stopRecurrence.action', { defaultValue: 'Stop Recurrence' })
+                      : t('reminders.cancelReminder.action', { defaultValue: 'Cancel Reminder' })}
+                  </span>
                 )}
               </button>
             </div>

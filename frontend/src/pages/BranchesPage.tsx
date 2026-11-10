@@ -489,7 +489,7 @@ export function BranchesPage() {
                         <span>{branch.isActive ? t('common.inactive') : t('common.active')}</span>
                       </button>
                       <button
-                        className="btn-action"
+                        className="btn-action btn-action--edit"
                         onClick={() => handleEditOpen(branch)}
                         title={t('branches.editBranch')}
                       >

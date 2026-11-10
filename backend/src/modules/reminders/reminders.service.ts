@@ -428,6 +428,15 @@ export class RemindersService {
       throw new NotFoundException('Reminder not found.');
     }
 
+    if (
+      existing.status === ReminderStatus.COMPLETED ||
+      existing.status === ReminderStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        'Completed or cancelled reminders cannot be modified.',
+      );
+    }
+
     // Validate one-time requires date
     const recurrence = dto.recurrence ?? existing.recurrence;
     if (recurrence === ReminderRecurrence.ONE_TIME) {
@@ -575,75 +584,18 @@ export class RemindersService {
       throw new NotFoundException('Reminder not found.');
     }
 
-    const updateData: Record<string, any> = { status };
-
-    // For recurring reminders, marking complete advances to next cycle
     if (
-      status === ReminderStatus.COMPLETED &&
-      existing.recurrence !== ReminderRecurrence.ONE_TIME
+      existing.status === ReminderStatus.COMPLETED ||
+      existing.status === ReminderStatus.CANCELLED
     ) {
-      const config = this.buildRecurrenceConfig(existing);
-      const newCompletedCount = existing.completedOccurrences + 1;
-
-      if (config) {
-        // Check if we've reached the AFTER limit
-        if (
-          config.endType === 'AFTER' &&
-          config.endAfterOccurrences != null &&
-          newCompletedCount >= config.endAfterOccurrences
-        ) {
-          // Series is truly complete
-          updateData.status = ReminderStatus.COMPLETED;
-          updateData.completedOccurrences = newCompletedCount;
-        } else {
-          const currentDate = existing.reminderDate || new Date();
-          const nextDate = getNextOccurrence(config, currentDate);
-
-          if (nextDate) {
-            // Advance to next occurrence
-            updateData.status = ReminderStatus.PENDING;
-            updateData.reminderDate = nextDate;
-            updateData.lastNotifiedAt = null;
-            updateData.completedOccurrences = newCompletedCount;
-          } else {
-            // No more occurrences — series complete
-            updateData.status = ReminderStatus.COMPLETED;
-            updateData.completedOccurrences = newCompletedCount;
-          }
-        }
-      } else {
-        // Fallback: legacy reminder without config — use simple advance
-        const baseDate = existing.reminderDate
-          ? new Date(existing.reminderDate)
-          : new Date();
-        const nextDate = new Date(baseDate);
-
-        if (existing.recurrence === ReminderRecurrence.DAILY) {
-          nextDate.setDate(nextDate.getDate() + (existing.repeatInterval || 1));
-        } else if (existing.recurrence === ReminderRecurrence.WEEKLY) {
-          nextDate.setDate(
-            nextDate.getDate() + 7 * (existing.repeatInterval || 1),
-          );
-        } else if (existing.recurrence === ReminderRecurrence.MONTHLY) {
-          nextDate.setMonth(
-            nextDate.getMonth() + (existing.repeatInterval || 1),
-          );
-        } else if (existing.recurrence === ReminderRecurrence.YEARLY) {
-          nextDate.setFullYear(
-            nextDate.getFullYear() + (existing.repeatInterval || 1),
-          );
-        }
-
-        updateData.status = ReminderStatus.PENDING;
-        updateData.reminderDate = nextDate;
-        updateData.lastNotifiedAt = null;
-        updateData.completedOccurrences = newCompletedCount;
-      }
+      throw new BadRequestException(
+        'Completed or cancelled reminders cannot be modified.',
+      );
     }
 
     return this.prisma.reminder.update({
       where: { id },
-      data: updateData,
+      data: { status },
       include: REMINDER_INCLUDE,
     });
   }

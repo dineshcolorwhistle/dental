@@ -1879,6 +1879,8 @@
     "actions": {
       "markComplete": "Marcar como Completado",
       "markPending": "Marcar como Pendiente",
+      "stopRecurrence": "Detener Recurrencia",
+      "cancelReminder": "Cancelar",
       "edit": "Editar",
       "delete": "Eliminar",
       "cancel": "Cancelar",

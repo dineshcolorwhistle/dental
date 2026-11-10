@@ -510,17 +510,17 @@ export function PaymentMethodsPage() {
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                           <button
                             type="button"
-                            className="btn btn--ghost btn--sm"
-                            style={{ padding: '6px', borderRadius: '6px' }}
-                            onClick={() => handleOpenEdit(method)}
+
+
+                            className="btn-action btn-action--edit" onClick={() => handleOpenEdit(method)}
                             title={t('common.edit')}
                           >
                             <Pencil size={15} />
                           </button>
                           <button
                             type="button"
-                            className="btn btn--ghost btn--sm"
-                            style={{ padding: '6px', borderRadius: '6px', color: '#EF4444' }}
+
+                            className="btn-action btn-action--danger"
                             onClick={() => {
                               setMethodToDelete(method);
                               setDeleteModalOpen(true);

@@ -589,7 +589,7 @@ export function AdminsPage() {
                          </button>
                        )}
                       <button
-                        className="btn-action"
+                        className="btn-action btn-action--edit"
                         onClick={() => handleEditOpen(admin)}
                         title={t('admins.editAdmin')}
                       >

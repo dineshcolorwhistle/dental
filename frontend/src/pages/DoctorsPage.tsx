@@ -872,7 +872,7 @@ export function DoctorsPage() {
                               <span>{doctor.isActive ? t('common.inactive') : t('common.active')}</span>
                             </button>
                             <button
-                              className="btn-action"
+                              className="btn-action btn-action--edit"
                               onClick={() => handleEditOpen(doctor)}
                               title={t('doctors.editDoctor')}
                             >
@@ -1117,7 +1117,7 @@ export function DoctorsPage() {
                           <td>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                               <button
-                                className="btn-action"
+                                className="btn-action btn-action--edit"
                                 onClick={() => handleEditListOpen(list)}
                                 title={t('doctors.lists.editList', { defaultValue: 'Edit List' })}
                               >

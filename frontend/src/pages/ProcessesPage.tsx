@@ -586,7 +586,7 @@ export function ProcessesPage() {
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
-                          className="btn-action"
+                          className="btn-action btn-action--edit"
                           onClick={() => handleEditOpen(proc)}
                           title={t('processesPage.editProcess')}
                         >

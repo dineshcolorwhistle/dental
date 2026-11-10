@@ -668,7 +668,7 @@ export function TechniciansPage() {
                         )}
                         {isAdmin && tech.status === 'ACTIVE' && tech.branchId && tech.branch?.defaultTechnicianId !== tech.id && (
                           <button
-                            className="btn-action"
+                            className="btn-action btn-action--edit"
                             style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
                             onClick={() => handleMakeDefaultTechnician(tech)}
                             title={t('technicians.designateDefault', { defaultValue: 'Designate as Default Technician' })}
@@ -677,7 +677,7 @@ export function TechniciansPage() {
                           </button>
                         )}
                         <button
-                          className="btn-action"
+                          className="btn-action btn-action--edit"
                           onClick={() => handleEditOpen(tech)}
                           title={t('technicians.editTechnician')}
                         >

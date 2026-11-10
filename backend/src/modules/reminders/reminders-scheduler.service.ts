@@ -6,6 +6,7 @@ import { ReminderRecurrence, ReminderStatus } from '@prisma/client';
 import { getHHmmInTz, getDateKeyInTz } from '../../common/utils/timezone.util';
 import {
   isOccurrenceDate,
+  getNextOccurrence,
   type RecurrenceConfig,
 } from '../../common/utils/recurrence.util';
 
@@ -79,15 +80,70 @@ export class RemindersSchedulerService {
         if (shouldNotify) {
           await this.sendNotificationEmails(reminder);
 
-          // Update lastNotifiedAt
-          await this.prisma.reminder.update({
-            where: { id: reminder.id },
-            data: { lastNotifiedAt: now },
-          });
+          if (reminder.recurrence === ReminderRecurrence.ONE_TIME) {
+            // One-time reminder auto-completes immediately once notification is sent
+            await this.prisma.reminder.update({
+              where: { id: reminder.id },
+              data: {
+                lastNotifiedAt: now,
+                status: ReminderStatus.COMPLETED,
+              },
+            });
 
-          this.logger.log(
-            `Sent reminder notification for "${reminder.title}" (ID: ${reminder.id}) [TZ: ${tz}]`,
-          );
+            this.logger.log(
+              `Sent and COMPLETED one-time reminder "${reminder.title}" (ID: ${reminder.id}) [TZ: ${tz}]`,
+            );
+          } else {
+            // Recurring reminder: advance occurrence or complete if end condition is met
+            const config = this.buildRecurrenceConfig(reminder);
+            const newCompletedCount = (reminder.completedOccurrences || 0) + 1;
+            let isComplete = false;
+            let nextDate: Date | null = null;
+
+            if (config) {
+              if (
+                config.endType === 'AFTER' &&
+                config.endAfterOccurrences != null &&
+                newCompletedCount >= config.endAfterOccurrences
+              ) {
+                isComplete = true;
+              } else {
+                const currentDate = reminder.reminderDate || now;
+                nextDate = getNextOccurrence(config, currentDate);
+                if (!nextDate) {
+                  isComplete = true;
+                }
+              }
+            }
+
+            if (isComplete) {
+              await this.prisma.reminder.update({
+                where: { id: reminder.id },
+                data: {
+                  lastNotifiedAt: now,
+                  completedOccurrences: newCompletedCount,
+                  status: ReminderStatus.COMPLETED,
+                },
+              });
+
+              this.logger.log(
+                `Sent and COMPLETED recurring reminder "${reminder.title}" (ID: ${reminder.id}) - end condition reached.`,
+              );
+            } else {
+              await this.prisma.reminder.update({
+                where: { id: reminder.id },
+                data: {
+                  lastNotifiedAt: now,
+                  completedOccurrences: newCompletedCount,
+                  ...(nextDate ? { reminderDate: nextDate } : {}),
+                },
+              });
+
+              this.logger.log(
+                `Sent recurring reminder notification for "${reminder.title}" (ID: ${reminder.id}). Next date: ${nextDate?.toISOString()}`,
+              );
+            }
+          }
         }
       }
     } catch (error) {

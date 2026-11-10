@@ -582,7 +582,7 @@ export function ProsthesisTypesPage() {
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
-                          className="btn-action"
+                          className="btn-action btn-action--edit"
                           onClick={() => handleEditOpen(item)}
                           title={t('prosthesisTypes.editProsthesis', { defaultValue: 'Edit Prosthesis Type' })}
                         >

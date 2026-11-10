@@ -648,22 +648,22 @@ export function ExpensesPage() {
                         <td>
                           <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
                             <button
-                              className="btn btn--icon btn--ghost"
-                              onClick={() => handleOpenViewExpense(exp)}
+
+                              className="btn-action btn-action--primary" onClick={() => handleOpenViewExpense(exp)}
                               title={t('common.view')}
                             >
                               <Eye size={16} />
                             </button>
                             <button
-                              className="btn btn--icon btn--ghost"
-                              onClick={() => handleOpenEditExpense(exp)}
+
+                              className="btn-action btn-action--edit" onClick={() => handleOpenEditExpense(exp)}
                               title={t('common.edit')}
                             >
                               <Edit2 size={16} />
                             </button>
                             {canDelete && (
                               <button
-                                className="btn btn--icon btn--ghost btn--icon-danger"
+                                className="btn-action btn-action--danger"
                                 onClick={() => handleOpenDeleteExpense(exp)}
                                 title={t('common.delete')}
                               >
@@ -758,15 +758,15 @@ export function ExpensesPage() {
                           <td>
                             <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
                               <button
-                                className="btn btn--icon btn--ghost"
-                                onClick={() => handleOpenCategoryEditModal(cat)}
+  
+                                className="btn-action btn-action--edit" onClick={() => handleOpenCategoryEditModal(cat)}
                                 title={t('common.edit')}
                               >
                                 <Edit2 size={16} />
                               </button>
                               {canDelete && (
                                 <button
-                                  className="btn btn--icon btn--ghost btn--icon-danger"
+                                  className="btn-action btn-action--danger"
                                   onClick={() => handleOpenDeleteCategory(cat)}
                                   title={t('common.delete')}
                                 >

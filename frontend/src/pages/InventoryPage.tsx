@@ -662,15 +662,15 @@ export function InventoryPage() {
                           <td>
                             <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
                               <button
-                                className="btn btn--icon btn--ghost"
-                                onClick={() => handleOpenViewModal(item)}
+
+                                className="btn-action btn-action--primary" onClick={() => handleOpenViewModal(item)}
                                 title={t('common.view')}
                               >
                                 <Eye size={16} />
                               </button>
                               {canEdit && (
                                 <button
-                                  className="btn btn--icon btn--ghost"
+                                  className="btn-action btn-action--edit"
                                   onClick={() => handleOpenEditModal(item)}
                                   title={t('common.edit')}
                                 >
@@ -679,7 +679,7 @@ export function InventoryPage() {
                               )}
                               {canDelete && (
                                 <button
-                                  className="btn btn--icon btn--ghost btn--icon-danger"
+                                  className="btn-action btn-action--danger"
                                   onClick={() => handleOpenDeleteModal(item)}
                                   title={t('common.delete')}
                                 >
@@ -824,15 +824,15 @@ export function InventoryPage() {
                           <td>
                             <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
                               <button
-                                className="btn btn--icon btn--ghost"
-                                onClick={() => handleOpenCategoryEditModal(cat)}
+
+                                className="btn-action btn-action--edit" onClick={() => handleOpenCategoryEditModal(cat)}
                                 title={t('common.edit')}
                               >
                                 <Edit2 size={16} />
                               </button>
                               {canDelete && (
                                 <button
-                                  className="btn btn--icon btn--ghost btn--icon-danger"
+                                  className="btn-action btn-action--danger"
                                   onClick={() => handleOpenCategoryDeleteModal(cat)}
                                   title={t('common.delete')}
                                 >
