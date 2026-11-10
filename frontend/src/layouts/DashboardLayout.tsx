@@ -58,8 +58,22 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
-    return saved === null ? true : saved === 'true';
+    return saved === null ? false : saved === 'true';
   });
+
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isCollapsed = !isMobile && sidebarCollapsed;
 
   useEffect(() => {
     localStorage.setItem('sidebar_collapsed', sidebarCollapsed.toString());
@@ -85,7 +99,7 @@ export function DashboardLayout() {
       clearTimeout(flyoutCloseTimerRef.current);
       flyoutCloseTimerRef.current = null;
     }
-  }, [sidebarCollapsed]);
+  }, [isCollapsed]);
 
   // Close flyout when route changes
   useEffect(() => {
@@ -149,7 +163,7 @@ export function DashboardLayout() {
   }, [location.pathname, isUsersRoute]);
 
   const openCollapsedFlyout = useCallback(() => {
-    if (!sidebarCollapsed) return;
+    if (!isCollapsed) return;
     if (flyoutCloseTimerRef.current) {
       clearTimeout(flyoutCloseTimerRef.current);
       flyoutCloseTimerRef.current = null;
@@ -161,17 +175,17 @@ export function DashboardLayout() {
       setFlyoutPosition({ top, left: rect.right + 6 });
     }
     setCollapsedFlyoutOpen(true);
-  }, [sidebarCollapsed]);
+  }, [isCollapsed]);
 
   const scheduleCloseCollapsedFlyout = useCallback(() => {
-    if (!sidebarCollapsed) return;
+    if (!isCollapsed) return;
     if (flyoutCloseTimerRef.current) {
       clearTimeout(flyoutCloseTimerRef.current);
     }
     flyoutCloseTimerRef.current = setTimeout(() => {
       setCollapsedFlyoutOpen(false);
     }, 180);
-  }, [sidebarCollapsed]);
+  }, [isCollapsed]);
 
   const cancelCloseCollapsedFlyout = useCallback(() => {
     if (flyoutCloseTimerRef.current) {
@@ -181,7 +195,7 @@ export function DashboardLayout() {
   }, []);
 
   const handleSettingsClick = () => {
-    if (sidebarCollapsed) {
+    if (isCollapsed) {
       if (collapsedFlyoutOpen) {
         setCollapsedFlyoutOpen(false);
       } else {
@@ -406,7 +420,7 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className={`dashboard-layout ${sidebarCollapsed ? 'layout--collapsed' : ''}`}>
+    <div className={`dashboard-layout ${isCollapsed ? 'layout--collapsed' : ''}`}>
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
         <div className="sidebar__header">
@@ -433,7 +447,7 @@ export function DashboardLayout() {
                 </defs>
               </svg>
             )}
-            {!sidebarCollapsed && (
+            {!isCollapsed && (
               <span className="sidebar__brand-text" style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
                 <span>
                   {user?.role === 'SUPER_ADMIN' ? 'DentalLab' : (user?.tenantName || 'DentalLab')}
@@ -456,9 +470,9 @@ export function DashboardLayout() {
             type="button"
             className="sidebar__toggle"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
           <button
             className="sidebar__close"
@@ -593,32 +607,32 @@ export function DashboardLayout() {
               <div className="sidebar__submenu-container">
                 <div
                   ref={settingsTriggerRef}
-                  className={`sidebar__link sidebar__settings-toggle ${isSettingsRoute ? 'sidebar__link--active-parent' : ''} ${collapsedFlyoutOpen && sidebarCollapsed ? 'sidebar__link--flyout-open' : ''}`}
+                  className={`sidebar__link sidebar__settings-toggle ${isSettingsRoute ? 'sidebar__link--active-parent' : ''} ${collapsedFlyoutOpen && isCollapsed ? 'sidebar__link--flyout-open' : ''}`}
                   onClick={handleSettingsClick}
                   onMouseEnter={openCollapsedFlyout}
                   onMouseLeave={scheduleCloseCollapsedFlyout}
                   style={{ cursor: 'pointer', position: 'relative' }}
-                  data-tooltip={sidebarCollapsed && !collapsedFlyoutOpen ? t('navigation.settings') : undefined}
+                  data-tooltip={isCollapsed && !collapsedFlyoutOpen ? t('navigation.settings') : undefined}
                 >
-                  <SettingsIcon size={sidebarCollapsed ? 18 : 20} className="sidebar__settings-icon" />
-                  {!sidebarCollapsed && <span className="sidebar__link-text">{t('navigation.settings')}</span>}
+                  <SettingsIcon size={isCollapsed ? 18 : 20} className="sidebar__settings-icon" />
+                  {!isCollapsed && <span className="sidebar__link-text">{t('navigation.settings')}</span>}
 
                   {/* Arrow indicator in expanded state */}
-                  {!sidebarCollapsed && (
+                  {!isCollapsed && (
                     <span className={`sidebar__arrow-indicator ${settingsExpanded ? 'sidebar__arrow-indicator--open' : ''}`}>
                       <ChevronRight size={16} strokeWidth={2} />
                     </span>
                   )}
 
                   {/* Arrow indicator in collapsed state */}
-                  {sidebarCollapsed && (
+                  {isCollapsed && (
                     <span className={`sidebar__arrow-indicator-collapsed ${collapsedFlyoutOpen ? 'sidebar__arrow-indicator-collapsed--open' : ''}`} aria-hidden="true">
                       <ChevronRight size={12} strokeWidth={2.5} />
                     </span>
                   )}
                 </div>
 
-                {!sidebarCollapsed && settingsExpanded && (
+                {!isCollapsed && settingsExpanded && (
                   <div className="sidebar__submenu">
                     {/* Branches - Owner only */}
                     {user?.role === 'OWNER' && (
@@ -906,7 +920,7 @@ export function DashboardLayout() {
       </aside>
 
       {/* Collapsed Sidebar Flyout Menu */}
-      {sidebarCollapsed && collapsedFlyoutOpen && createPortal(
+      {isCollapsed && collapsedFlyoutOpen && createPortal(
         <div
           ref={flyoutRef}
           className="sidebar__flyout-menu"
