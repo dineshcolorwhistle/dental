@@ -28,6 +28,23 @@ import { formatDate as formatDateUtil } from '../utils/dateUtils';
 const PAGE_SIZE = 10;
 type ActiveTab = 'ITEMS' | 'CATEGORIES';
 
+export const computeInventoryStatus = (
+  currentQuantity: number,
+  minQuantity: number,
+  status?: string,
+): string => {
+  if (status === 'DISCONTINUED') {
+    return 'DISCONTINUED';
+  }
+  if (currentQuantity <= 0) {
+    return 'OUT_OF_STOCK';
+  }
+  if (currentQuantity <= minQuantity) {
+    return 'LOW_STOCK';
+  }
+  return 'IN_STOCK';
+};
+
 export function InventoryPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -152,7 +169,7 @@ export function InventoryPage() {
       name: '',
       sku: generateSku(),
       categoryId: categories[0]?.id || '',
-      status: 'IN_STOCK',
+      status: computeInventoryStatus(0, 5),
       currentQuantity: 0,
       minQuantity: 5,
       unitPrice: 0,
@@ -168,11 +185,12 @@ export function InventoryPage() {
 
   const handleOpenEditModal = (item: InventoryItem) => {
     setEditingItem(item);
+    const effStatus = computeInventoryStatus(item.currentQuantity, item.minQuantity, item.status);
     setItemForm({
       name: item.name,
       sku: item.sku,
       categoryId: item.categoryId,
-      status: item.status,
+      status: item.status === 'DISCONTINUED' ? 'DISCONTINUED' : effStatus,
       currentQuantity: item.currentQuantity,
       minQuantity: item.minQuantity,
       unitPrice: item.unitPrice,
@@ -188,10 +206,20 @@ export function InventoryPage() {
 
   // Form input handlers
   const handleInputChange = (field: string, value: any) => {
-    setItemForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setItemForm((prev) => {
+      const updated = {
+        ...prev,
+        [field]: value,
+      };
+      if (field === 'currentQuantity' || field === 'minQuantity') {
+        if (updated.status !== 'DISCONTINUED') {
+          const qty = field === 'currentQuantity' ? Number(value) : Number(updated.currentQuantity);
+          const min = field === 'minQuantity' ? Number(value) : Number(updated.minQuantity);
+          updated.status = computeInventoryStatus(qty, min, updated.status);
+        }
+      }
+      return updated;
+    });
   };
 
   // Validation
@@ -200,7 +228,6 @@ export function InventoryPage() {
     if (!itemForm.name.trim()) errors.name = t('validation.fieldRequired');
     if (!itemForm.sku.trim()) errors.sku = t('validation.fieldRequired');
     if (!itemForm.categoryId) errors.categoryId = t('validation.fieldRequired');
-    if (!itemForm.status) errors.status = t('validation.fieldRequired');
     if (itemForm.currentQuantity < 0) errors.currentQuantity = t('validation.invalidNumber');
     if (itemForm.minQuantity < 0) errors.minQuantity = t('validation.invalidNumber');
     if (itemForm.unitPrice < 0) errors.unitPrice = t('validation.invalidNumber');
@@ -216,11 +243,19 @@ export function InventoryPage() {
 
     try {
       setSavingItem(true);
+      const finalStatus = itemForm.status === 'DISCONTINUED'
+        ? 'DISCONTINUED'
+        : computeInventoryStatus(
+            Number(itemForm.currentQuantity),
+            Number(itemForm.minQuantity),
+            itemForm.status,
+          );
+
       const payload = {
         name: itemForm.name,
         sku: itemForm.sku,
         categoryId: itemForm.categoryId,
-        status: itemForm.status,
+        status: finalStatus,
         currentQuantity: Number(itemForm.currentQuantity),
         minQuantity: Number(itemForm.minQuantity),
         unitPrice: Number(itemForm.unitPrice),
@@ -350,12 +385,14 @@ export function InventoryPage() {
   // Metrics
   const metrics = useMemo(() => {
     const total = items.length;
-    const low = items.filter(
-      (item) => item.currentQuantity <= item.minQuantity && item.status !== 'OUT_OF_STOCK'
-    ).length;
-    const out = items.filter(
-      (item) => item.currentQuantity === 0 || item.status === 'OUT_OF_STOCK'
-    ).length;
+    const low = items.filter((item) => {
+      const eff = computeInventoryStatus(item.currentQuantity, item.minQuantity, item.status);
+      return eff === 'LOW_STOCK';
+    }).length;
+    const out = items.filter((item) => {
+      const eff = computeInventoryStatus(item.currentQuantity, item.minQuantity, item.status);
+      return eff === 'OUT_OF_STOCK';
+    }).length;
 
     return { total, low, out };
   }, [items]);
@@ -363,12 +400,13 @@ export function InventoryPage() {
   // Filtered Inventory List
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
+      const eff = computeInventoryStatus(item.currentQuantity, item.minQuantity, item.status);
       // Branch filter (owners only)
       if (!isAdmin && selectedBranchFilter !== 'ALL' && item.branchId !== selectedBranchFilter) return false;
       // Category filter
       if (selectedCategoryFilter !== 'ALL' && item.categoryId !== selectedCategoryFilter) return false;
       // Status filter
-      if (selectedStatusFilter !== 'ALL' && item.status !== selectedStatusFilter) return false;
+      if (selectedStatusFilter !== 'ALL' && eff !== selectedStatusFilter) return false;
 
       // Search query
       if (searchQuery) {
@@ -624,13 +662,14 @@ export function InventoryPage() {
                   </thead>
                   <tbody>
                     {paginatedItems.map((item) => {
-                      const isLow = item.currentQuantity <= item.minQuantity && item.status !== 'OUT_OF_STOCK' && item.status !== 'DISCONTINUED';
-                      const isOut = item.currentQuantity === 0 || item.status === 'OUT_OF_STOCK';
+                      const effStatus = computeInventoryStatus(item.currentQuantity, item.minQuantity, item.status);
+                      const isLow = effStatus === 'LOW_STOCK';
+                      const isOut = effStatus === 'OUT_OF_STOCK';
 
                       let statusClass = 'badge--success';
-                      if (item.status === 'LOW_STOCK' || isLow) statusClass = 'badge--warning';
-                      if (item.status === 'OUT_OF_STOCK' || isOut) statusClass = 'badge--danger';
-                      if (item.status === 'DISCONTINUED') statusClass = 'badge--neutral';
+                      if (effStatus === 'LOW_STOCK') statusClass = 'badge--warning';
+                      if (effStatus === 'OUT_OF_STOCK') statusClass = 'badge--danger';
+                      if (effStatus === 'DISCONTINUED') statusClass = 'badge--neutral';
 
                       return (
                         <tr key={item.id}>
@@ -656,7 +695,7 @@ export function InventoryPage() {
                           <td>{formatDate(item.expiryDate)}</td>
                           <td>
                             <span className={`badge ${statusClass}`}>
-                              {t(`enums.inventoryStatus.${item.status}`)}
+                              {t(`enums.inventoryStatus.${effStatus}`)}
                             </span>
                           </td>
                           <td>
@@ -936,13 +975,25 @@ export function InventoryPage() {
                   <label className="form-label">{t('inventory.fields.status')} *</label>
                   <select
                     className={`form-input ${formErrors.status ? 'form-input--error' : ''}`}
-                    value={itemForm.status}
-                    onChange={(e) => handleInputChange('status', e.target.value)}
+                    value={itemForm.status === 'DISCONTINUED' ? 'DISCONTINUED' : 'AUTO'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'DISCONTINUED') {
+                        handleInputChange('status', 'DISCONTINUED');
+                      } else {
+                        const autoVal = computeInventoryStatus(
+                          Number(itemForm.currentQuantity),
+                          Number(itemForm.minQuantity),
+                          'IN_STOCK',
+                        );
+                        handleInputChange('status', autoVal);
+                      }
+                    }}
                     disabled={savingItem}
                   >
-                    <option value="IN_STOCK">{t('enums.inventoryStatus.IN_STOCK')}</option>
-                    <option value="LOW_STOCK">{t('enums.inventoryStatus.LOW_STOCK')}</option>
-                    <option value="OUT_OF_STOCK">{t('enums.inventoryStatus.OUT_OF_STOCK')}</option>
+                    <option value="AUTO">
+                      {t(`enums.inventoryStatus.${computeInventoryStatus(Number(itemForm.currentQuantity), Number(itemForm.minQuantity), itemForm.status === 'DISCONTINUED' ? 'AUTO' : itemForm.status)}`)} ({t('inventory.automatic', { defaultValue: 'Automatic' })})
+                    </option>
                     <option value="DISCONTINUED">{t('enums.inventoryStatus.DISCONTINUED')}</option>
                   </select>
                 </div>
@@ -1171,16 +1222,15 @@ export function InventoryPage() {
 
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                   {(() => {
-                    const isLow = viewingItem.currentQuantity <= viewingItem.minQuantity && viewingItem.status !== 'OUT_OF_STOCK' && viewingItem.status !== 'DISCONTINUED';
-                    const isOut = viewingItem.currentQuantity === 0 || viewingItem.status === 'OUT_OF_STOCK';
+                    const effStatus = computeInventoryStatus(viewingItem.currentQuantity, viewingItem.minQuantity, viewingItem.status);
                     let statusClass = 'badge--success';
-                    if (viewingItem.status === 'LOW_STOCK' || isLow) statusClass = 'badge--warning';
-                    if (viewingItem.status === 'OUT_OF_STOCK' || isOut) statusClass = 'badge--danger';
-                    if (viewingItem.status === 'DISCONTINUED') statusClass = 'badge--neutral';
+                    if (effStatus === 'LOW_STOCK') statusClass = 'badge--warning';
+                    if (effStatus === 'OUT_OF_STOCK') statusClass = 'badge--danger';
+                    if (effStatus === 'DISCONTINUED') statusClass = 'badge--neutral';
 
                     return (
                       <span className={`badge ${statusClass}`} style={{ fontSize: '0.8125rem', padding: '4px 10px' }}>
-                        {t(`enums.inventoryStatus.${viewingItem.status}`, { defaultValue: viewingItem.status })}
+                        {t(`enums.inventoryStatus.${effStatus}`, { defaultValue: effStatus })}
                       </span>
                     );
                   })()}

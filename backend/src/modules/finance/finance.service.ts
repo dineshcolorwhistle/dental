@@ -149,36 +149,28 @@ export class FinanceService {
         (p) => p.date >= startDate && p.date <= endDate,
       );
 
-      // 5. Calculate global metrics
-      const totalQuotedAmount = workOrdersInRange.reduce(
-        (sum, wo) => sum + (wo.totalQuote || 0),
-        0,
-      );
-      const totalPaidAmount = paymentsInRange.reduce(
-        (sum, p) => sum + p.amount,
-        0,
-      );
+      // 5. Calculate global metrics (Approach A: Cohort / Work-Order Centric)
+      let totalQuotedAmount = 0;
+      let totalPaidAmount = 0;
+      let totalOutstandingAmount = 0;
+      let paidWorkOrdersCount = 0;
+      let pendingPaymentWorkOrdersCount = 0;
 
-      // Total Outstanding Amount: sum of unpaid balances for work orders in the selected date range
-      const totalOutstandingAmount = workOrdersInRange.reduce(
-        (sum, wo) => {
-          const balance = (wo.totalQuote || 0) - (wo.initialPayment || 0);
-          return sum + (balance > 0 ? balance : 0);
-        },
-        0,
-      );
+      for (const wo of workOrdersInRange) {
+        const quote = wo.totalQuote || 0;
+        const paid = Math.min(quote, wo.initialPayment || 0);
+        const balance = Math.max(0, quote - paid);
 
-      const paidWorkOrdersCount = workOrdersInRange.filter(
-        (wo) =>
-          (wo.totalQuote || 0) > 0 &&
-          (wo.initialPayment || 0) >= (wo.totalQuote || 0),
-      ).length;
+        totalQuotedAmount += quote;
+        totalPaidAmount += paid;
+        totalOutstandingAmount += balance;
 
-      const pendingPaymentWorkOrdersCount = workOrdersInRange.filter(
-        (wo) =>
-          (wo.totalQuote || 0) > 0 &&
-          (wo.initialPayment || 0) < (wo.totalQuote || 0),
-      ).length;
+        if (quote > 0 && paid >= quote) {
+          paidWorkOrdersCount++;
+        } else if (quote > 0 && balance > 0) {
+          pendingPaymentWorkOrdersCount++;
+        }
+      }
 
       const collectionPercentage =
         totalQuotedAmount > 0 ? (totalPaidAmount / totalQuotedAmount) * 100 : 0;
@@ -262,7 +254,7 @@ export class FinanceService {
         });
       }
 
-      // Populate quoted amount and work order counts for branches
+      // Populate quoted amount, paid amount, outstanding amount, and work order counts for branches
       for (const wo of workOrdersInRange) {
         const key = wo.branchId || unassignedKey;
         let stat = branchStatsMap.get(key);
@@ -278,57 +270,19 @@ export class FinanceService {
           };
           branchStatsMap.set(key, stat);
         }
-        stat.quotedAmount += wo.totalQuote || 0;
-        if (
-          (wo.totalQuote || 0) > 0 &&
-          (wo.initialPayment || 0) >= (wo.totalQuote || 0)
-        ) {
+        const quote = wo.totalQuote || 0;
+        const paid = Math.min(quote, wo.initialPayment || 0);
+        const balance = Math.max(0, quote - paid);
+
+        stat.quotedAmount += quote;
+        stat.paidAmount += paid;
+        stat.outstandingAmount += balance;
+
+        if (quote > 0 && paid >= quote) {
           stat.paidWorkOrdersCount++;
-        } else if (
-          (wo.totalQuote || 0) > 0 &&
-          (wo.initialPayment || 0) < (wo.totalQuote || 0)
-        ) {
+        } else if (quote > 0 && balance > 0) {
           stat.pendingPaymentWorkOrdersCount++;
         }
-      }
-
-      // Populate paid amount (collections) for branches
-      for (const p of paymentsInRange) {
-        const key = p.branchId || unassignedKey;
-        let stat = branchStatsMap.get(key);
-        if (!stat) {
-          stat = {
-            branchId: p.branchId,
-            branchName: p.branchName,
-            quotedAmount: 0,
-            paidAmount: 0,
-            outstandingAmount: 0,
-            paidWorkOrdersCount: 0,
-            pendingPaymentWorkOrdersCount: 0,
-          };
-          branchStatsMap.set(key, stat);
-        }
-        stat.paidAmount += p.amount;
-      }
-
-      // Populate outstanding amount for branches using workOrdersInRange
-      for (const wo of workOrdersInRange) {
-        const key = wo.branchId || unassignedKey;
-        let stat = branchStatsMap.get(key);
-        if (!stat) {
-          stat = {
-            branchId: wo.branchId,
-            branchName: wo.branch?.name || 'Unassigned',
-            quotedAmount: 0,
-            paidAmount: 0,
-            outstandingAmount: 0,
-            paidWorkOrdersCount: 0,
-            pendingPaymentWorkOrdersCount: 0,
-          };
-          branchStatsMap.set(key, stat);
-        }
-        const balance = (wo.totalQuote || 0) - (wo.initialPayment || 0);
-        stat.outstandingAmount += balance > 0 ? balance : 0;
       }
 
       const branchPerformance = Array.from(branchStatsMap.values()).map(
@@ -361,16 +315,15 @@ export class FinanceService {
           const woMonth = wo.createdAt.toISOString().substring(0, 7);
           return woMonth === m;
         });
-        const paymentsInMonth = reconstructedPayments.filter((p) => {
-          const pMonth = p.date.toISOString().substring(0, 7);
-          return pMonth === m;
-        });
 
         const quoted = wosInMonth.reduce(
           (sum, wo) => sum + (wo.totalQuote || 0),
           0,
         );
-        const paid = paymentsInMonth.reduce((sum, p) => sum + p.amount, 0);
+        const paid = wosInMonth.reduce(
+          (sum, wo) => sum + Math.min(wo.totalQuote || 0, wo.initialPayment || 0),
+          0,
+        );
 
         const [year, month] = m.split('-');
         const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
@@ -620,7 +573,7 @@ export class FinanceService {
 
         for (const wo of doc.workOrders) {
           const q = wo.totalQuote || 0;
-          const p = wo.initialPayment || 0;
+          const p = Math.min(q, wo.initialPayment || 0);
           const bal = Math.max(0, q - p);
 
           totalQuoted += q;

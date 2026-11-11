@@ -1290,6 +1290,7 @@
   },
   "inventory": {
     "title": "Gestión de Inventario",
+    "automatic": "Automático",
     "description": "Gestione los artículos de su laboratorio, materias primas, cantidades en stock y categorías.",
     "tabs": {
       "items": "Artículos de Inventario",

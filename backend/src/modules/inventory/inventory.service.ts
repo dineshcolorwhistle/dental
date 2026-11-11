@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -12,11 +13,51 @@ import {
   CreateCategoryDto,
 } from './dto';
 
+export function calculateInventoryStatus(
+  currentQuantity: number,
+  minQuantity: number,
+  currentOrRequestedStatus?: string,
+): string {
+  if (currentOrRequestedStatus === 'DISCONTINUED') {
+    return 'DISCONTINUED';
+  }
+  if (currentQuantity <= 0) {
+    return 'OUT_OF_STOCK';
+  }
+  if (currentQuantity <= minQuantity) {
+    return 'LOW_STOCK';
+  }
+  return 'IN_STOCK';
+}
+
 @Injectable()
-export class InventoryService {
+export class InventoryService implements OnModuleInit {
   private readonly logger = new Logger(InventoryService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    try {
+      await this.prisma.$executeRawUnsafe(`
+        UPDATE "inventory_items"
+        SET "status" = 'OUT_OF_STOCK'
+        WHERE "status" != 'DISCONTINUED' AND "current_quantity" <= 0;
+      `);
+      await this.prisma.$executeRawUnsafe(`
+        UPDATE "inventory_items"
+        SET "status" = 'LOW_STOCK'
+        WHERE "status" != 'DISCONTINUED' AND "current_quantity" > 0 AND "current_quantity" <= "min_quantity";
+      `);
+      await this.prisma.$executeRawUnsafe(`
+        UPDATE "inventory_items"
+        SET "status" = 'IN_STOCK'
+        WHERE "status" != 'DISCONTINUED' AND "current_quantity" > "min_quantity";
+      `);
+      this.logger.log('Inventory item statuses successfully synchronized with quantities.');
+    } catch (err: any) {
+      this.logger.warn(`Initial inventory status sync notice: ${err?.message || err}`);
+    }
+  }
 
   // ─── Categories ──────────────────────────────────────────
 
@@ -184,6 +225,12 @@ export class InventoryService {
       );
     }
 
+    const finalStatus = calculateInventoryStatus(
+      currentQuantity ?? 0,
+      minQuantity ?? 5,
+      status,
+    );
+
     return this.prisma.inventoryItem.create({
       data: {
         tenantId,
@@ -191,7 +238,7 @@ export class InventoryService {
         name,
         sku,
         categoryId,
-        status,
+        status: finalStatus,
         currentQuantity,
         minQuantity,
         unitPrice,
@@ -223,7 +270,7 @@ export class InventoryService {
       finalBranchIdFilter = branchIdContext || undefined;
     }
 
-    return this.prisma.inventoryItem.findMany({
+    const items = await this.prisma.inventoryItem.findMany({
       where: {
         tenantId,
         ...(finalBranchIdFilter &&
@@ -240,6 +287,15 @@ export class InventoryService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return items.map((item) => ({
+      ...item,
+      status: calculateInventoryStatus(
+        item.currentQuantity,
+        item.minQuantity,
+        item.status,
+      ),
+    }));
   }
 
   async findOneItem(
@@ -265,7 +321,14 @@ export class InventoryService {
       throw new NotFoundException(`Inventory item not found.`);
     }
 
-    return item;
+    return {
+      ...item,
+      status: calculateInventoryStatus(
+        item.currentQuantity,
+        item.minQuantity,
+        item.status,
+      ),
+    };
   }
 
   async updateItem(
@@ -296,6 +359,17 @@ export class InventoryService {
       description,
       branchId,
     } = dto;
+
+    const finalCurrentQuantity =
+      currentQuantity !== undefined ? currentQuantity : item.currentQuantity;
+    const finalMinQuantity =
+      minQuantity !== undefined ? minQuantity : item.minQuantity;
+    const targetStatus = status !== undefined ? status : item.status;
+    const finalStatus = calculateInventoryStatus(
+      finalCurrentQuantity,
+      finalMinQuantity,
+      targetStatus,
+    );
 
     let finalBranchId = branchId !== undefined ? branchId : item.branchId;
     if (userRole === 'ADMIN') {
@@ -346,7 +420,7 @@ export class InventoryService {
         ...(name && { name }),
         ...(sku && { sku }),
         ...(categoryId && { categoryId }),
-        ...(status && { status }),
+        status: finalStatus,
         ...(currentQuantity !== undefined && { currentQuantity }),
         ...(minQuantity !== undefined && { minQuantity }),
         ...(unitPrice !== undefined && { unitPrice }),

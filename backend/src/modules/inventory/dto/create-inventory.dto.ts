@@ -40,10 +40,11 @@ export class CreateInventoryDto {
   @ApiProperty({
     example: 'IN_STOCK',
     description: 'Current status of the item',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
-  status: string;
+  @IsOptional()
+  status?: string;
 
   @ApiProperty({
     example: 10,

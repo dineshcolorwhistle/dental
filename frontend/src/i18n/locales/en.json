@@ -1290,6 +1290,7 @@
   },
   "inventory": {
     "title": "Inventory Management",
+    "automatic": "Automatic",
     "description": "Manage your laboratory items, raw materials, stock quantities, and categories.",
     "tabs": {
       "items": "Inventory Items",
