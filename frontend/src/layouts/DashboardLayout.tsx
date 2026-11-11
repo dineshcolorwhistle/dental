@@ -15,6 +15,7 @@ import {
   Moon,
   Sun,
   Bell,
+  Clock,
   Building2,
   GitBranch,
   Users,
@@ -48,6 +49,7 @@ import { playNotificationSound, isNotificationSoundEnabled, setNotificationSound
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { ChatWidget } from '../components/ChatWidget';
 import { formatDateTime } from '../utils/dateUtils';
+import { useAppDate } from '../hooks';
 import toast from 'react-hot-toast';
 
 export function DashboardLayout() {
@@ -81,6 +83,16 @@ export function DashboardLayout() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  const { formatDate, formatTime, timezone } = useAppDate();
+  const [currentDateTime, setCurrentDateTime] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [usersExpanded, setUsersExpanded] = useState(false);
@@ -1166,7 +1178,32 @@ export function DashboardLayout() {
 
           <div className="topbar__spacer" />
 
-          <div style={{ display: 'flex', gap: '0.5rem', marginRight: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', marginRight: '1rem', alignItems: 'center' }}>
+            {!isMobile && (
+              <div
+                className="topbar__clock"
+                title={`${t('generalSettings.timezone', { defaultValue: 'Timezone' })}: ${timezone}`}
+              >
+                <Clock size={15} className="topbar__clock-icon" />
+                <span className="topbar__clock-date">
+                  {formatDate(currentDateTime, {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </span>
+                <span className="topbar__clock-divider">•</span>
+                <span className="topbar__clock-time">
+                  {formatTime(currentDateTime, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
+
             <div ref={notifRef} style={{ position: 'relative' }}>
               <button
                 className="topbar__menu-btn"

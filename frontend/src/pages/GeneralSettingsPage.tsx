@@ -169,6 +169,9 @@ export function GeneralSettingsPage() {
         parsed.currency = currency;
         localStorage.setItem('user', JSON.stringify(parsed));
       }
+
+      // Dispatch tenant settings update event to update active session state across the app
+      window.dispatchEvent(new CustomEvent('tenantSettingsUpdated', { detail: { timezone, currency } }));
     } catch (err: any) {
       toast.error(t('generalSettings.saveFailed', { defaultValue: 'Failed to update settings' }));
       console.error(err);

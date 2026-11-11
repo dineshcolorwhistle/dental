@@ -923,7 +923,7 @@ export function ViewWorkOrderModal({ isOpen, onClose, workOrderId, onUpdate, ini
                             <div>
                               <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{t('workOrders.createdAt')}</span>
                               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                {formatDate(selectedWO.createdAt, i18n.language, user?.timezone, {
+                                {formatDateTime(selectedWO.createdAt, i18n.language, user?.timezone, {
                                   day: 'numeric',
                                   month: 'long',
                                   year: 'numeric',

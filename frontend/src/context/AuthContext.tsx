@@ -80,6 +80,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Listen for tenant settings updates (e.g. timezone or currency change from GeneralSettingsPage)
+  useEffect(() => {
+    const handleSettingsUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ timezone?: string; currency?: string }>;
+      if (customEvent.detail) {
+        setUser((prev) => {
+          if (!prev) return null;
+          const updated = {
+            ...prev,
+            timezone: customEvent.detail.timezone || prev.timezone,
+            currency: customEvent.detail.currency || prev.currency,
+          };
+          localStorage.setItem('user', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    };
+
+    window.addEventListener('tenantSettingsUpdated', handleSettingsUpdate);
+    return () => window.removeEventListener('tenantSettingsUpdated', handleSettingsUpdate);
+  }, []);
+
   const login = useCallback(async (payload: LoginPayload) => {
     const data = await authService.login(payload);
 

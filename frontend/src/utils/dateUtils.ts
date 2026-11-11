@@ -18,11 +18,14 @@ export function getDisplayLocale(language?: string): string {
  * Normalizes a date-only string or ISO string to noon UTC.
  * This prevents calendar dates (e.g. "2026-09-02") from shifting backward
  * to the previous day when formatted in negative UTC timezones (like Mexico UTC-6).
+ *
+ * NOTE: Only pure calendar dates (YYYY-MM-DD) or midnight/noon UTC timestamps are normalized.
+ * Full timestamps with actual time of day (e.g. createdAt: 2026-11-11T20:30:00Z) are preserved.
  */
 export function normalizeCalendarDate(date: string | Date): Date {
   if (typeof date === 'string') {
-    // If it's YYYY-MM-DD or YYYY-MM-DDT00:00:00...
-    if (/^\d{4}-\d{2}-\d{2}/.test(date)) {
+    // Only normalize pure calendar dates (YYYY-MM-DD) or midnight UTC dates (YYYY-MM-DDT00:00:00...)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) || /^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?Z?$/.test(date)) {
       const datePart = date.slice(0, 10);
       return new Date(`${datePart}T12:00:00.000Z`);
     }
@@ -52,7 +55,9 @@ export function formatDate(
   };
 
   try {
-    const d = normalizeCalendarDate(date);
+    const d = (date instanceof Date || options?.hour !== undefined)
+      ? new Date(date)
+      : normalizeCalendarDate(date);
     return d.toLocaleDateString(locale, defaultOptions);
   } catch {
     return new Date(date).toLocaleDateString(locale, {
