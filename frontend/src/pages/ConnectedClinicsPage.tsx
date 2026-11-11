@@ -3,7 +3,6 @@ import {
   Building2,
   Loader2,
   Search,
-  ExternalLink,
   Globe,
   ChevronDown,
   ChevronUp,
@@ -13,7 +12,6 @@ import {
   ClipboardList,
   Calendar,
   X,
-  Activity,
   Settings,
   Layers,
   Check,
@@ -21,28 +19,48 @@ import {
   AlertTriangle,
   ShieldCheck,
   Eye,
+  Plus,
+  MapPin,
+  Link2,
+  Copy,
+  CheckCircle2,
+  Clock,
+  Zap,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context';
+import { useAppDate } from '../hooks';
 import {
   connectedClinicService,
   prosthesisTypeService,
+  branchService,
+  apiKeyService,
   type ConnectedClinicListItem,
   type ProsthesisTypeListItem,
   type UpdateClinicProsthesisItem,
+  type BranchListItem,
+  type CreateClinicPayload,
 } from '../services';
 import {
   Pagination,
   ClinicWorkOrdersModal,
   ViewWorkOrderModal,
+  PhoneInput,
 } from '../components';
-import { formatDate as formatDateUtil } from '../utils/dateUtils';
 
 export function ConnectedClinicsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const { formatDate, formatCurrency } = useAppDate();
+  const canCreateClinic =
+    user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+
   const [clinics, setClinics] = useState<ConnectedClinicListItem[]>([]);
+  const [branches, setBranches] = useState<BranchListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'CONNECTED' | 'NOT_CONNECTED'>('ALL');
   const [expandedClinicId, setExpandedClinicId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
@@ -53,6 +71,33 @@ export function ConnectedClinicsPage() {
   // Modal State for Individual Work Order Detail Drill-down
   const [selectedWorkOrderIdForDetail, setSelectedWorkOrderIdForDetail] =
     useState<string | null>(null);
+
+  // Add Clinic Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingClinic, setCreatingClinic] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateClinicPayload>({
+    name: '',
+    url: '',
+    address: '',
+    phone: '',
+    branchId: '',
+  });
+  const [createFormErrors, setCreateFormErrors] = useState<{
+    name?: string;
+    url?: string;
+  }>({});
+
+  // Connect Clinic Modal State
+  const [clinicToConnect, setClinicToConnect] = useState<ConnectedClinicListItem | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [branchApiKey, setBranchApiKey] = useState<string | null>(null);
+  const [loadingApiKey, setLoadingApiKey] = useState(false);
+  const [copiedApiKey, setCopiedApiKey] = useState(false);
+  const [copiedEndpoint, setCopiedEndpoint] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   // Modal State for Prosthesis Types Management
   const [selectedClinicForProsthesis, setSelectedClinicForProsthesis] =
@@ -67,14 +112,6 @@ export function ConnectedClinicsPage() {
   // Modal State for Delete Clinic Confirmation
   const [clinicToDelete, setClinicToDelete] = useState<ConnectedClinicListItem | null>(null);
   const [deletingClinic, setDeletingClinic] = useState(false);
-
-  const formatCurrency = useCallback((val: number | null | undefined) => {
-    return new Intl.NumberFormat(i18n.language?.startsWith('es') ? 'es-MX' : 'en-US', {
-      style: 'currency',
-      currency: 'MXN',
-      maximumFractionDigits: 0,
-    }).format(val || 0);
-  }, [i18n.language]);
 
   const getClinicPendingPayment = useCallback((clinic: ConnectedClinicListItem) => {
     if (clinic.totalPending !== undefined && clinic.totalPending !== null) {
@@ -109,10 +146,157 @@ export function ConnectedClinicsPage() {
     fetchClinics();
   }, [fetchClinics]);
 
-  // Reset pagination when search query changes
+  useEffect(() => {
+    if (user?.role === 'OWNER' || user?.role === 'SUPER_ADMIN') {
+      branchService.getAll().then(setBranches).catch(() => {});
+    }
+  }, [user?.role]);
+
+  // Reset pagination when search query or status filter changes
   useEffect(() => {
     setCurrentPage(0);
-  }, [searchQuery]);
+  }, [searchQuery, statusFilter]);
+
+  const handleOpenCreateModal = () => {
+    setCreateForm({
+      name: '',
+      url: '',
+      address: '',
+      phone: '',
+      branchId: user?.branchId || (branches.length > 0 ? branches[0].id : ''),
+    });
+    setCreateFormErrors({});
+    setShowCreateModal(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    if (creatingClinic) return;
+    setShowCreateModal(false);
+    setCreateFormErrors({});
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors: { name?: string; url?: string } = {};
+    if (!createForm.name.trim()) {
+      errors.name = t('common.required', { defaultValue: 'Required' });
+    }
+    if (!createForm.url.trim()) {
+      errors.url = t('common.required', { defaultValue: 'Required' });
+    }
+    if (Object.keys(errors).length > 0) {
+      setCreateFormErrors(errors);
+      return;
+    }
+
+    try {
+      setCreatingClinic(true);
+      const created = await connectedClinicService.create({
+        name: createForm.name.trim(),
+        url: createForm.url.trim(),
+        address: createForm.address?.trim() || undefined,
+        phone: createForm.phone?.trim() || undefined,
+        branchId: createForm.branchId || undefined,
+      });
+      setClinics((prev) => [created, ...prev]);
+      toast.success(
+        t('connectedClinics.clinicCreatedSuccess') ||
+          'Clinic created successfully!'
+      );
+      setShowCreateModal(false);
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ||
+          t('connectedClinics.clinicCreateError') ||
+          'Failed to create clinic'
+      );
+    } finally {
+      setCreatingClinic(false);
+    }
+  };
+
+  const handleOpenConnectModal = async (clinic: ConnectedClinicListItem) => {
+    setClinicToConnect(clinic);
+    setConnectionTestResult(null);
+    setCopiedApiKey(false);
+    setCopiedEndpoint(false);
+    setBranchApiKey(null);
+    setLoadingApiKey(true);
+
+    try {
+      const keys = await apiKeyService.getAll();
+      const match =
+        keys.find((k) => k.branch?.id === clinic.branch.id && k.isActive) ||
+        keys.find((k) => k.isActive) ||
+        keys[0];
+      if (match) {
+        setBranchApiKey(match.key);
+      }
+    } catch {
+      // API key fetch is non-blocking
+    } finally {
+      setLoadingApiKey(false);
+    }
+  };
+
+  const handleCloseConnectModal = () => {
+    if (connecting) return;
+    setClinicToConnect(null);
+    setConnectionTestResult(null);
+  };
+
+  const handleConnectClinic = async () => {
+    if (!clinicToConnect) return;
+    try {
+      setConnecting(true);
+      const res = await connectedClinicService.connect(clinicToConnect.id);
+      if (res.pingMessage) {
+        setConnectionTestResult({
+          success: res.pingSuccess ?? true,
+          message: res.pingMessage,
+        });
+      }
+      setClinics((prev) =>
+        prev.map((c) =>
+          c.id === clinicToConnect.id
+            ? {
+                ...c,
+                isConnected: true,
+                connectedAt: new Date().toISOString(),
+              }
+            : c
+        )
+      );
+      toast.success(
+        t('connectedClinics.clinicConnectedSuccess') ||
+          'Clinic connected successfully!'
+      );
+      setClinicToConnect(null);
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ||
+          t('connectedClinics.clinicConnectError') ||
+          'Failed to connect clinic'
+      );
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleCopyText = async (text: string, type: 'key' | 'endpoint') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (type === 'key') {
+        setCopiedApiKey(true);
+        setTimeout(() => setCopiedApiKey(false), 2000);
+      } else {
+        setCopiedEndpoint(true);
+        setTimeout(() => setCopiedEndpoint(false), 2000);
+      }
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
+  };
 
   const toggleExpandClinic = (id: string) => {
     setExpandedClinicId((prev) => (prev === id ? null : id));
@@ -249,12 +433,24 @@ export function ConnectedClinicsPage() {
     }
   };
 
-  const filteredClinics = clinics.filter(
-    (c) =>
+  const filteredClinics = clinics.filter((c) => {
+    const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.branch.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      c.branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.address && c.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c.phone && c.phone.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    if (!matchesSearch) return false;
+
+    if (statusFilter === 'CONNECTED') {
+      return !!c.isConnected;
+    }
+    if (statusFilter === 'NOT_CONNECTED') {
+      return !c.isConnected;
+    }
+    return true;
+  });
 
   const paginatedClinics = filteredClinics.slice(
     currentPage * PAGE_SIZE,
@@ -272,13 +468,15 @@ export function ConnectedClinicsPage() {
     return { total, active };
   };
 
-  const formatDate = (dateStr: string) => {
-    return formatDateUtil(dateStr, i18n.language, undefined, { day: 'numeric', month: 'long', year: 'numeric' });
-  };
-
   // Compute stats for all clinics
   const stats = clinics.reduce(
     (acc, c) => {
+      acc.totalClinics += 1;
+      if (c.isConnected) {
+        acc.connectedClinics += 1;
+      } else {
+        acc.unconnectedClinics += 1;
+      }
       c.doctors.forEach((doc) => {
         acc.totalDoctors += 1;
         doc.workOrders.forEach((wo) => {
@@ -294,13 +492,21 @@ export function ConnectedClinicsPage() {
       });
       return acc;
     },
-    { totalClinics: clinics.length, totalDoctors: 0, totalOrders: 0, activeOrders: 0 }
+    {
+      totalClinics: 0,
+      connectedClinics: 0,
+      unconnectedClinics: 0,
+      totalDoctors: 0,
+      totalOrders: 0,
+      activeOrders: 0,
+    }
   );
 
   const filteredModalTypes = allProsthesisTypes.filter(
     (pt) =>
       pt.name.toLowerCase().includes(modalSearchQuery.toLowerCase()) ||
-      (pt.description && pt.description.toLowerCase().includes(modalSearchQuery.toLowerCase()))
+      (pt.description &&
+        pt.description.toLowerCase().includes(modalSearchQuery.toLowerCase()))
   );
 
   return (
@@ -311,6 +517,24 @@ export function ConnectedClinicsPage() {
           <h1 className="page-header__title">{t('connectedClinics.title')}</h1>
           <p className="page-header__subtitle">{t('connectedClinics.subtitle')}</p>
         </div>
+        {canCreateClinic && (
+          <div className="page-header__actions">
+            <button
+              id="btn-add-clinic"
+              className="btn btn--primary"
+              onClick={handleOpenCreateModal}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontWeight: 600,
+              }}
+            >
+              <Plus size={18} />
+              <span>{t('connectedClinics.addClinic', { defaultValue: 'Add Clinic' })}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats Dashboard */}
@@ -327,23 +551,34 @@ export function ConnectedClinicsPage() {
             </div>
           </div>
 
-          {/* Total Doctors */}
+          {/* Connected Clinics */}
           <div className="stat-card">
-            <div
-              className="stat-card__icon"
-              style={{ backgroundColor: '#EFF6FF', color: '#3B82F6' }}
-            >
-              <User size={24} />
+            <div className="stat-card__icon stat-card__icon--success">
+              <CheckCircle2 size={24} />
             </div>
             <div className="stat-card__content">
-              <span className="stat-card__value">{stats.totalDoctors}</span>
-              <span className="stat-card__label">{t('connectedClinics.totalDoctors')}</span>
+              <span className="stat-card__value">{stats.connectedClinics}</span>
+              <span className="stat-card__label">{t('connectedClinics.connected', { defaultValue: 'Connected' })}</span>
+            </div>
+          </div>
+
+          {/* Not Connected Clinics */}
+          <div className="stat-card">
+            <div className="stat-card__icon stat-card__icon--warning">
+              <Clock size={24} />
+            </div>
+            <div className="stat-card__content">
+              <span className="stat-card__value">{stats.unconnectedClinics}</span>
+              <span className="stat-card__label">{t('connectedClinics.notConnected', { defaultValue: 'Not Connected' })}</span>
             </div>
           </div>
 
           {/* Total Orders */}
           <div className="stat-card">
-            <div className="stat-card__icon stat-card__icon--success">
+            <div
+              className="stat-card__icon"
+              style={{ backgroundColor: '#EFF6FF', color: '#3B82F6' }}
+            >
               <ClipboardList size={24} />
             </div>
             <div className="stat-card__content">
@@ -351,23 +586,87 @@ export function ConnectedClinicsPage() {
               <span className="stat-card__label">{t('connectedClinics.totalOrders')}</span>
             </div>
           </div>
-
-          {/* Active Orders */}
-          <div className="stat-card">
-            <div className="stat-card__icon stat-card__icon--warning">
-              <Activity size={24} />
-            </div>
-            <div className="stat-card__content">
-              <span className="stat-card__value">{stats.activeOrders}</span>
-              <span className="stat-card__label">{t('connectedClinics.activeOrders')}</span>
-            </div>
-          </div>
         </div>
       )}
 
       {/* Toolbar */}
       {!loading && clinics.length > 0 && (
-        <div className="table-toolbar">
+        <div
+          className="table-toolbar"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
+          {/* Status Filter Tabs */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              id="filter-all-clinics"
+              type="button"
+              className={`btn btn--sm ${statusFilter === 'ALL' ? 'btn--primary' : 'btn--secondary'}`}
+              onClick={() => setStatusFilter('ALL')}
+              style={{ borderRadius: '20px', padding: '0.35rem 0.85rem' }}
+            >
+              {t('connectedClinics.allClinics', { defaultValue: 'All Clinics' })} ({stats.totalClinics})
+            </button>
+            <button
+              id="filter-connected-clinics"
+              type="button"
+              className={`btn btn--sm ${statusFilter === 'CONNECTED' ? 'btn--primary' : 'btn--secondary'}`}
+              onClick={() => setStatusFilter('CONNECTED')}
+              style={{
+                borderRadius: '20px',
+                padding: '0.35rem 0.85rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+            >
+              <CheckCircle2
+                size={13}
+                style={{
+                  color:
+                    statusFilter === 'CONNECTED'
+                      ? 'inherit'
+                      : 'var(--success, #10B981)',
+                }}
+              />
+              {t('connectedClinics.connected', { defaultValue: 'Connected' })} ({stats.connectedClinics})
+            </button>
+            <button
+              id="filter-not-connected-clinics"
+              type="button"
+              className={`btn btn--sm ${statusFilter === 'NOT_CONNECTED' ? 'btn--primary' : 'btn--secondary'}`}
+              onClick={() => setStatusFilter('NOT_CONNECTED')}
+              style={{
+                borderRadius: '20px',
+                padding: '0.35rem 0.85rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+            >
+              <Clock
+                size={13}
+                style={{
+                  color:
+                    statusFilter === 'NOT_CONNECTED' ? 'inherit' : '#F59E0B',
+                }}
+              />
+              {t('connectedClinics.notConnected', { defaultValue: 'Not Connected' })} ({stats.unconnectedClinics})
+            </button>
+          </div>
+
           <div className="search-input-wrap">
             <Search size={16} className="search-input__icon" />
             <input
@@ -404,12 +703,31 @@ export function ConnectedClinicsPage() {
           <div className="empty-state__icon">
             <Building2 size={48} />
           </div>
-          <h3 className="empty-state__title">{t('connectedClinics.title')}</h3>
+          <h3 className="empty-state__title">
+            {t('connectedClinics.title')}
+          </h3>
           <p className="empty-state__text">
             {clinics.length === 0
               ? t('connectedClinics.noClinics')
               : t('common.noResults')}
           </p>
+          {clinics.length === 0 && canCreateClinic && (
+            <button
+              id="btn-empty-add-clinic"
+              className="btn btn--primary"
+              onClick={handleOpenCreateModal}
+              style={{
+                marginTop: '1rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontWeight: 600,
+              }}
+            >
+              <Plus size={16} />
+              <span>{t('connectedClinics.addClinic', { defaultValue: 'Add Clinic' })}</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -422,6 +740,7 @@ export function ConnectedClinicsPage() {
                 <tr>
                   <th style={{ width: '48px' }}></th>
                   <th>{t('connectedClinics.clinicName')}</th>
+                  <th>{t('connectedClinics.status', { defaultValue: 'Status' })}</th>
                   <th>{t('connectedClinics.branch')}</th>
                   <th>{t('connectedClinics.registeredAt')}</th>
                   <th>{t('connectedClinics.prosthesisTypes')}</th>
@@ -462,21 +781,85 @@ export function ConnectedClinicsPage() {
                           </button>
                         </td>
                         <td>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              fontWeight: 600,
-                              color: 'var(--text-primary)',
-                            }}
-                          >
-                            <Building2
-                              size={16}
-                              style={{ color: 'var(--accent-primary)' }}
-                            />
-                            {clinic.name}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                fontWeight: 600,
+                                color: 'var(--text-primary)',
+                              }}
+                            >
+                              <Building2
+                                size={16}
+                                style={{ color: 'var(--accent-primary)', flexShrink: 0 }}
+                              />
+                              <span>{clinic.name}</span>
+                            </div>
+                            {clinic.url && (
+                              <div
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: 'var(--text-secondary)',
+                                  marginTop: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <Globe size={11} />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px', whiteSpace: 'nowrap' }}>
+                                  {clinic.url.replace(/^https?:\/\//, '')}
+                                </span>
+                              </div>
+                            )}
                           </div>
+                        </td>
+                        <td>
+                          {clinic.isConnected ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: 'var(--success, #10B981)',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <CheckCircle2 size={13} />
+                              {t('connectedClinics.statusConnected', {
+                                defaultValue: 'Connected',
+                              })}
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: '#D97706',
+                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <Clock size={13} />
+                              {t('connectedClinics.statusNotConnected', {
+                                defaultValue: 'Not Connected',
+                              })}
+                            </span>
+                          )}
                         </td>
                         <td>
                           <span className="badge badge--neutral">
@@ -546,9 +929,15 @@ export function ConnectedClinicsPage() {
                                   borderRadius: '6px',
                                   fontSize: '0.8125rem',
                                   fontWeight: 700,
-                                  color: hasPending ? 'var(--danger, #EF4444)' : 'var(--success, #10B981)',
-                                  backgroundColor: hasPending ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)',
-                                  border: hasPending ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(16, 185, 129, 0.2)',
+                                  color: hasPending
+                                    ? 'var(--danger, #EF4444)'
+                                    : 'var(--success, #10B981)',
+                                  backgroundColor: hasPending
+                                    ? 'rgba(239, 68, 68, 0.08)'
+                                    : 'rgba(16, 185, 129, 0.08)',
+                                  border: hasPending
+                                    ? '1px solid rgba(239, 68, 68, 0.2)'
+                                    : '1px solid rgba(16, 185, 129, 0.2)',
                                   whiteSpace: 'nowrap',
                                 }}
                               >
@@ -566,37 +955,68 @@ export function ConnectedClinicsPage() {
                               gap: '0.5rem',
                             }}
                           >
-                            <button
-                              id={`btn-view-orders-${clinic.id}`}
-                              className="btn btn--secondary btn--sm"
-                              onClick={() => setSelectedClinicForOrders(clinic)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
-                                fontSize: '0.8125rem',
-                                padding: '0.35rem 0.75rem',
-                              }}
-                              title={t('connectedClinics.viewOrders', { defaultValue: 'View Orders' })}
-                            >
-                              <Eye size={14} />
-                              {t('connectedClinics.viewOrders', { defaultValue: 'View Orders' })}
-                            </button>
-                            <button
-                              id={`btn-manage-prosthesis-${clinic.id}`}
-                              className="btn btn--secondary btn--sm"
-                              onClick={() => handleOpenProsthesisModal(clinic)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
-                                fontSize: '0.8125rem',
-                                padding: '0.35rem 0.75rem',
-                              }}
-                            >
-                              <Settings size={14} />
-                              {t('connectedClinics.manageProsthesis')}
-                            </button>
+                            {!clinic.isConnected ? (
+                              <button
+                                id={`btn-connect-clinic-${clinic.id}`}
+                                className="btn btn--primary btn--sm"
+                                onClick={() => handleOpenConnectModal(clinic)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  fontSize: '0.8125rem',
+                                  padding: '0.35rem 0.75rem',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                <Link2 size={14} />
+                                {t('connectedClinics.connectClinic', {
+                                  defaultValue: 'Connect Clinic',
+                                })}
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  id={`btn-view-orders-${clinic.id}`}
+                                  className="btn btn--secondary btn--sm"
+                                  onClick={() =>
+                                    setSelectedClinicForOrders(clinic)
+                                  }
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    fontSize: '0.8125rem',
+                                    padding: '0.35rem 0.75rem',
+                                  }}
+                                  title={t('connectedClinics.viewOrders', {
+                                    defaultValue: 'View Orders',
+                                  })}
+                                >
+                                  <Eye size={14} />
+                                  {t('connectedClinics.viewOrders', {
+                                    defaultValue: 'View Orders',
+                                  })}
+                                </button>
+                                <button
+                                  id={`btn-manage-prosthesis-${clinic.id}`}
+                                  className="btn btn--secondary btn--sm"
+                                  onClick={() =>
+                                    handleOpenProsthesisModal(clinic)
+                                  }
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    fontSize: '0.8125rem',
+                                    padding: '0.35rem 0.75rem',
+                                  }}
+                                >
+                                  <Settings size={14} />
+                                  {t('connectedClinics.manageProsthesis')}
+                                </button>
+                              </>
+                            )}
                             <button
                               id={`btn-delete-clinic-${clinic.id}`}
                               className="btn btn--danger btn--sm"
@@ -619,7 +1039,7 @@ export function ConnectedClinicsPage() {
                       {isExpanded && (
                         <tr>
                           <td
-                            colSpan={9}
+                            colSpan={10}
                             style={{
                               background: 'rgba(111, 174, 217, 0.02)',
                               padding: '1.25rem 1.5rem',
@@ -658,49 +1078,178 @@ export function ConnectedClinicsPage() {
                                   {clinic.name} - {t('connectedClinics.details')}
                                 </h4>
 
-                                {clinic.url && (
-                                  <a
-                                    href={clinic.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                </div>
+
+                                {/* Clinic Basic Info Summary */}
+                                <div
+                                  style={{
+                                    display: 'grid',
+                                    gridTemplateColumns:
+                                      'repeat(auto-fit, minmax(220px, 1fr))',
+                                    gap: '0.75rem',
+                                    padding: '0.75rem 1rem',
+                                    background:
+                                      'var(--bg-body, rgba(234, 244, 251, 0.5))',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '8px',
+                                    marginBottom: '1rem',
+                                    fontSize: '0.8125rem',
+                                  }}
+                                >
+                                  {clinic.url && (
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        overflow: 'hidden',
+                                      }}
+                                    >
+                                      <Globe
+                                        size={14}
+                                        style={{
+                                          color: 'var(--accent-primary)',
+                                          flexShrink: 0,
+                                        }}
+                                      />
+                                      <span
+                                        style={{ color: 'var(--text-secondary)' }}
+                                      >
+                                        {t('connectedClinics.clinicWebsiteUrl')}:
+                                      </span>
+                                      <a
+                                        href={
+                                          clinic.url.startsWith('http')
+                                            ? clinic.url
+                                            : `https://${clinic.url}`
+                                        }
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          color: 'var(--accent-primary)',
+                                          textDecoration: 'none',
+                                          fontWeight: 500,
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                        title={clinic.url}
+                                      >
+                                        {clinic.url}
+                                      </a>
+                                    </div>
+                                  )}
+                                  {clinic.address && (
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                      }}
+                                    >
+                                      <MapPin
+                                        size={14}
+                                        style={{
+                                          color: 'var(--accent-primary)',
+                                          flexShrink: 0,
+                                        }}
+                                      />
+                                      <span
+                                        style={{ color: 'var(--text-secondary)' }}
+                                      >
+                                        {t('connectedClinics.address')}:
+                                      </span>
+                                      <span
+                                        style={{
+                                          color: 'var(--text-primary)',
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        {clinic.address}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {clinic.phone && (
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                      }}
+                                    >
+                                      <Phone
+                                        size={14}
+                                        style={{
+                                          color: 'var(--accent-primary)',
+                                          flexShrink: 0,
+                                        }}
+                                      />
+                                      <span
+                                        style={{ color: 'var(--text-secondary)' }}
+                                      >
+                                        {t('connectedClinics.contactNumber')}:
+                                      </span>
+                                      <span
+                                        style={{
+                                          color: 'var(--text-primary)',
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        {clinic.phone}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div
                                     style={{
-                                      display: 'inline-flex',
+                                      display: 'flex',
                                       alignItems: 'center',
-                                      gap: '0.375rem',
-                                      color: 'var(--accent-primary)',
-                                      fontSize: '0.8125rem',
-                                      textDecoration: 'none',
-                                      padding: '0.3125rem 0.625rem',
-                                      borderRadius: '6px',
-                                      background: 'var(--bg-body, rgba(234, 244, 251, 0.5))',
-                                      border: '1px solid var(--border)',
-                                      maxWidth: '100%',
-                                      transition: 'all 0.15s ease',
+                                      gap: '0.5rem',
                                     }}
-                                    title={clinic.url}
                                   >
-                                    <Globe size={13} style={{ flexShrink: 0 }} />
-                                    <span
-                                      style={{
-                                        color: 'var(--text-secondary)',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 500,
-                                      }}
-                                    >
-                                      {t('connectedClinics.clinicUrl')}:
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontWeight: 500,
-                                        wordBreak: 'break-all',
-                                      }}
-                                    >
-                                      {clinic.url}
-                                    </span>
-                                    <ExternalLink size={12} style={{ flexShrink: 0 }} />
-                                  </a>
-                                )}
-                              </div>
+                                    {clinic.isConnected ? (
+                                      <>
+                                        <CheckCircle2
+                                          size={14}
+                                          style={{
+                                            color: 'var(--success, #10B981)',
+                                            flexShrink: 0,
+                                          }}
+                                        />
+                                        <span
+                                          style={{
+                                            color: 'var(--success, #10B981)',
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          {t('connectedClinics.statusConnected', {
+                                            defaultValue: 'Connected',
+                                          })}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Clock
+                                          size={14}
+                                          style={{
+                                            color: '#D97706',
+                                            flexShrink: 0,
+                                          }}
+                                        />
+                                        <span
+                                          style={{
+                                            color: '#D97706',
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          {t(
+                                            'connectedClinics.statusNotConnected',
+                                            { defaultValue: 'Not Connected' }
+                                          )}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
 
                               {clinic.doctors.length === 0 ? (
                                 <p
@@ -1695,6 +2244,618 @@ export function ConnectedClinicsPage() {
                   <>
                     <Trash2 size={16} />
                     <span>{t('common.delete')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Clinic Modal */}
+      {showCreateModal && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseCreateModal}
+          style={{ zIndex: 1100 }}
+        >
+          <div
+            className="modal"
+            style={{ maxWidth: '520px', width: '100%', overflow: 'hidden' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal__header">
+              <div>
+                <h3 className="modal__title">
+                  {t('connectedClinics.createClinicModalTitle', {
+                    defaultValue: 'Add New Clinic',
+                  })}
+                </h3>
+                <p className="modal__subtitle">
+                  {t('connectedClinics.createClinicSubtitle', {
+                    defaultValue:
+                      'Register a clinic now and connect integration later',
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal__close"
+                onClick={handleCloseCreateModal}
+                disabled={creatingClinic}
+                aria-label={t('common.close', { defaultValue: 'Close' })}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSubmit}>
+              <div className="modal__body">
+                {/* Clinic Name */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="clinic-name">
+                    {t('connectedClinics.clinicName')}{' '}
+                    <span style={{ color: 'var(--danger, #EF4444)' }}>*</span>
+                  </label>
+                  <input
+                    id="clinic-name"
+                    type="text"
+                    className={`form-input ${createFormErrors.name ? 'form-input--error' : ''}`}
+                    placeholder={t('connectedClinics.clinicNamePlaceholder', {
+                      defaultValue: 'e.g. Smile Dental Clinic',
+                    })}
+                    value={createForm.name}
+                    onChange={(e) => {
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }));
+                      if (createFormErrors.name)
+                        setCreateFormErrors((prev) => ({
+                          ...prev,
+                          name: undefined,
+                        }));
+                    }}
+                    autoFocus
+                  />
+                  {createFormErrors.name && (
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--danger, #EF4444)',
+                        marginTop: '0.25rem',
+                        display: 'block',
+                      }}
+                    >
+                      {createFormErrors.name}
+                    </span>
+                  )}
+                </div>
+
+                {/* Clinic Website URL */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="clinic-url">
+                    {t('connectedClinics.clinicWebsiteUrl')}{' '}
+                    <span style={{ color: 'var(--danger, #EF4444)' }}>*</span>
+                  </label>
+                  <input
+                    id="clinic-url"
+                    type="text"
+                    className={`form-input ${createFormErrors.url ? 'form-input--error' : ''}`}
+                    placeholder={t(
+                      'connectedClinics.clinicWebsiteUrlPlaceholder',
+                      { defaultValue: 'e.g. https://clinic.example.com' }
+                    )}
+                    value={createForm.url}
+                    onChange={(e) => {
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        url: e.target.value,
+                      }));
+                      if (createFormErrors.url)
+                        setCreateFormErrors((prev) => ({
+                          ...prev,
+                          url: undefined,
+                        }));
+                    }}
+                  />
+                  {createFormErrors.url && (
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--danger, #EF4444)',
+                        marginTop: '0.25rem',
+                        display: 'block',
+                      }}
+                    >
+                      {createFormErrors.url}
+                    </span>
+                  )}
+                </div>
+
+                {/* Address */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="clinic-address">
+                    {t('connectedClinics.address')}
+                  </label>
+                  <input
+                    id="clinic-address"
+                    type="text"
+                    className="form-input"
+                    placeholder={t('connectedClinics.addressPlaceholder', {
+                      defaultValue: 'e.g. 123 Main St, Suite 400',
+                    })}
+                    value={createForm.address || ''}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        address: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                {/* Contact Number */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="clinic-phone">
+                    {t('connectedClinics.contactNumber')}
+                  </label>
+                  <PhoneInput
+                    id="clinic-phone"
+                    value={createForm.phone || ''}
+                    onChange={(val) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        phone: val,
+                      }))
+                    }
+                    disabled={creatingClinic}
+                  />
+                </div>
+
+                {/* Branch selection if multi-branch */}
+                {branches.length > 1 && (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="clinic-branch">
+                      {t('connectedClinics.branch')}
+                    </label>
+                    <select
+                      id="clinic-branch"
+                      className="form-input"
+                      value={createForm.branchId}
+                      onChange={(e) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          branchId: e.target.value,
+                        }))
+                      }
+                    >
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} ({b.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="modal__footer">
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={handleCloseCreateModal}
+                    disabled={creatingClinic}
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn--primary"
+                    disabled={creatingClinic}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      minWidth: '120px',
+                      justifyContent: 'center',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {creatingClinic ? (
+                      <>
+                        <Loader2 size={16} className="spinner" />
+                        <span>
+                          {t('connectedClinics.saving', {
+                            defaultValue: 'Saving...',
+                          })}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} />
+                        <span>
+                          {t('connectedClinics.createClinic', {
+                            defaultValue: 'Create Clinic',
+                          })}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Connect Clinic Integration Modal */}
+      {clinicToConnect && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseConnectModal}
+          style={{ zIndex: 1100 }}
+        >
+          <div
+            className="modal"
+            style={{ maxWidth: '580px', width: '100%', overflow: 'hidden' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal__header">
+              <div>
+                <h3 className="modal__title">
+                  {t('connectedClinics.connectClinicModalTitle', {
+                    defaultValue: 'Connect Clinic Integration',
+                  })}
+                </h3>
+                <p className="modal__subtitle">
+                  {t('connectedClinics.connectClinicSubtitle', {
+                    defaultValue:
+                      'Follow these steps to connect this clinic to your laboratory',
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal__close"
+                onClick={handleCloseConnectModal}
+                disabled={connecting}
+                aria-label={t('common.close', { defaultValue: 'Close' })}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div
+              className="modal__body"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1.25rem',
+                padding: '1.25rem',
+                overflowY: 'auto',
+                maxHeight: 'calc(90vh - 140px)',
+              }}
+            >
+              {/* Target Clinic Card */}
+              <div
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '8px',
+                  backgroundColor:
+                    'var(--bg-body, rgba(234, 244, 251, 0.5))',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      fontSize: '0.925rem',
+                    }}
+                  >
+                    {clinicToConnect.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.8125rem',
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Globe size={12} />
+                    <span>{clinicToConnect.url}</span>
+                  </div>
+                </div>
+                <span className="badge badge--neutral">
+                  {clinicToConnect.branch.name}
+                </span>
+              </div>
+
+              {/* Instructions Callout */}
+              <div
+                style={{
+                  fontSize: '0.8125rem',
+                  lineHeight: '1.5',
+                  color: 'var(--text-primary)',
+                  background: 'rgba(59, 130, 246, 0.05)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: '8px',
+                  padding: '0.85rem 1rem',
+                }}
+              >
+                <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600 }}>
+                  {t('connectedClinics.integrationInstructions', {
+                    defaultValue:
+                      'Provide these credentials to the clinic administrator to configure their clinic portal integration:',
+                  })}
+                </p>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: '1.25rem',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <li>
+                    {t('connectedClinics.step1', {
+                      defaultValue:
+                        '1. Copy the Branch API Key and Integration Endpoint below.',
+                    })}
+                  </li>
+                  <li>
+                    {t('connectedClinics.step2', {
+                      defaultValue:
+                        '2. In the clinic management software, enter this API Key and Lab URL under Integration Settings.',
+                    })}
+                  </li>
+                  <li>
+                    {t('connectedClinics.step3', {
+                      defaultValue:
+                        '3. Click "Connect Clinic" to activate the integration.',
+                    })}
+                  </li>
+                </ul>
+              </div>
+
+              {/* API Key credential */}
+              <div className="form-group">
+                <label
+                  className="form-label"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>
+                    {t('connectedClinics.apiKeyLabel', {
+                      defaultValue: 'Branch API Key',
+                    })}
+                  </span>
+                  {branchApiKey && (
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      {clinicToConnect.branch.name}
+                    </span>
+                  )}
+                </label>
+                {loadingApiKey ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.8125rem',
+                      color: 'var(--text-secondary)',
+                      padding: '0.5rem 0',
+                    }}
+                  >
+                    <Loader2 size={16} className="spinner" />
+                    <span>Loading API Key...</span>
+                  </div>
+                ) : branchApiKey ? (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      readOnly
+                      value={branchApiKey}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '0.8125rem',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() => handleCopyText(branchApiKey, 'key')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {copiedApiKey ? (
+                        <Check
+                          size={14}
+                          style={{ color: 'var(--success, #10B981)' }}
+                        />
+                      ) : (
+                        <Copy size={14} />
+                      )}
+                      <span>
+                        {copiedApiKey
+                          ? t('connectedClinics.copied', {
+                              defaultValue: 'Copied!',
+                            })
+                          : t('connectedClinics.copyApiKey', {
+                              defaultValue: 'Copy Key',
+                            })}
+                      </span>
+                    </button>
+                  </div>
+                ) : (
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.8125rem',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    No active API key found for this branch. You can generate
+                    one on the API Keys page.
+                  </p>
+                )}
+              </div>
+
+              {/* Integration Endpoint URL */}
+              <div className="form-group">
+                <label className="form-label">
+                  {t('connectedClinics.labWebhookEndpoint', {
+                    defaultValue: 'Lab Integration Endpoint',
+                  })}
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    readOnly
+                    value={`${window.location.origin}/api/integration/config`}
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.8125rem',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() =>
+                      handleCopyText(
+                        `${window.location.origin}/api/integration/config`,
+                        'endpoint'
+                      )
+                    }
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {copiedEndpoint ? (
+                      <Check
+                        size={14}
+                        style={{ color: 'var(--success, #10B981)' }}
+                      />
+                    ) : (
+                      <Copy size={14} />
+                    )}
+                    <span>
+                      {copiedEndpoint
+                        ? t('connectedClinics.copied', {
+                            defaultValue: 'Copied!',
+                          })
+                        : t('common.copy', { defaultValue: 'Copy' })}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Connection Test Result Banner */}
+              {connectionTestResult && (
+                <div
+                  style={{
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.8125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    backgroundColor: connectionTestResult.success
+                      ? 'rgba(16, 185, 129, 0.1)'
+                      : 'rgba(245, 158, 11, 0.1)',
+                    color: connectionTestResult.success
+                      ? 'var(--success, #10B981)'
+                      : '#D97706',
+                    border: `1px solid ${
+                      connectionTestResult.success
+                        ? 'rgba(16, 185, 129, 0.25)'
+                        : 'rgba(245, 158, 11, 0.25)'
+                    }`,
+                  }}
+                >
+                  {connectionTestResult.success ? (
+                    <CheckCircle2 size={16} />
+                  ) : (
+                    <AlertTriangle size={16} />
+                  )}
+                  <span>{connectionTestResult.message}</span>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="modal__footer"
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '1rem 1.25rem',
+                borderTop: '1px solid var(--border)',
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={handleCloseConnectModal}
+                disabled={connecting}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={handleConnectClinic}
+                disabled={connecting}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  minWidth: '150px',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                }}
+              >
+                {connecting ? (
+                  <>
+                    <Loader2 size={16} className="spinner" />
+                    <span>
+                      {t('connectedClinics.testingConnection', {
+                        defaultValue: 'Connecting...',
+                      })}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Zap size={16} />
+                    <span>
+                      {t('connectedClinics.connectClinic', {
+                        defaultValue: 'Connect Clinic',
+                      })}
+                    </span>
                   </>
                 )}
               </button>

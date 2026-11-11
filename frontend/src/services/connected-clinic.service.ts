@@ -37,6 +37,10 @@ export interface ConnectedClinicListItem {
   branchId: string;
   name: string;
   url: string;
+  address?: string | null;
+  phone?: string | null;
+  isConnected: boolean;
+  connectedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   branch: {
@@ -98,9 +102,56 @@ export interface UpdateClinicProsthesisItem {
   price?: number;
 }
 
+export interface CreateClinicPayload {
+  name: string;
+  url: string;
+  address?: string;
+  phone?: string;
+  branchId?: string;
+}
+
+export interface UpdateClinicPayload {
+  name?: string;
+  url?: string;
+  address?: string;
+  phone?: string;
+}
+
 export const connectedClinicService = {
   getAll: async (): Promise<ConnectedClinicListItem[]> => {
     const response = await api.get<ConnectedClinicListItem[]>('/connected-clinics');
+    return response.data;
+  },
+
+  create: async (payload: CreateClinicPayload): Promise<ConnectedClinicListItem> => {
+    const response = await api.post<ConnectedClinicListItem>('/connected-clinics', payload);
+    return response.data;
+  },
+
+  update: async (
+    clinicId: string,
+    payload: UpdateClinicPayload
+  ): Promise<ConnectedClinicListItem> => {
+    const response = await api.put<ConnectedClinicListItem>(
+      `/connected-clinics/${clinicId}`,
+      payload
+    );
+    return response.data;
+  },
+
+  connect: async (
+    clinicId: string
+  ): Promise<ConnectedClinicListItem & { pingSuccess?: boolean; pingMessage?: string }> => {
+    const response = await api.post<
+      ConnectedClinicListItem & { pingSuccess?: boolean; pingMessage?: string }
+    >(`/connected-clinics/${clinicId}/connect`);
+    return response.data;
+  },
+
+  disconnect: async (clinicId: string): Promise<ConnectedClinicListItem> => {
+    const response = await api.post<ConnectedClinicListItem>(
+      `/connected-clinics/${clinicId}/disconnect`
+    );
     return response.data;
   },
 

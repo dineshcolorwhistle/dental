@@ -71,6 +71,8 @@ export type {
   UpdateClinicProsthesisItem,
   ClinicWorkOrderListItem,
   ClinicWorkOrdersResponse,
+  CreateClinicPayload,
+  UpdateClinicPayload,
 } from './connected-clinic.service';
 export { interestRequestService } from './interest-request.service';
 export type { PublicWorkOrder, PublicProcessItem, CreateInterestRequestPayload, InterestRequestItem } from './interest-request.service';

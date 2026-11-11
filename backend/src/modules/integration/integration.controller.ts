@@ -111,6 +111,8 @@ export class IntegrationController {
         where: { id: clinic.id },
         data: {
           name: dto.clinicName,
+          isConnected: true,
+          connectedAt: clinic.connectedAt || new Date(),
         },
       });
     } else {
@@ -120,6 +122,8 @@ export class IntegrationController {
           branchId,
           url: dto.clinicUrl,
           name: dto.clinicName,
+          isConnected: true,
+          connectedAt: new Date(),
         },
       });
     }

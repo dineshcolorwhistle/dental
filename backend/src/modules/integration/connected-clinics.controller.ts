@@ -1,12 +1,14 @@
 import {
   Controller,
   Get,
+  Post,
   Put,
   Delete,
   Param,
   Body,
   BadRequestException,
   NotFoundException,
+  ConflictException,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
@@ -15,7 +17,11 @@ import { UserRole, WorkOrderStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { Roles, CurrentUser } from '../../common/decorators';
 import { PrismaService } from '../../prisma/prisma.service';
-import { UpdateClinicProsthesisTypesDto } from './dto';
+import {
+  UpdateClinicProsthesisTypesDto,
+  CreateClinicDto,
+  UpdateClinicDto,
+} from './dto';
 
 @ApiTags('Connected Clinics')
 @ApiBearerAuth()
@@ -33,6 +39,19 @@ export class ConnectedClinicsController {
       );
     } catch {
       // Column may already exist or ALTER not allowed
+    }
+  }
+
+  private async ensureClinicColumnsExist() {
+    try {
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE "clinics" ADD COLUMN IF NOT EXISTS "address" TEXT;
+         ALTER TABLE "clinics" ADD COLUMN IF NOT EXISTS "phone" TEXT;
+         ALTER TABLE "clinics" ADD COLUMN IF NOT EXISTS "is_connected" BOOLEAN NOT NULL DEFAULT false;
+         ALTER TABLE "clinics" ADD COLUMN IF NOT EXISTS "connected_at" TIMESTAMP(3);`,
+      );
+    } catch {
+      // Columns may already exist
     }
   }
 
@@ -81,6 +100,8 @@ export class ConnectedClinicsController {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
     }
+
+    await this.ensureClinicColumnsExist();
 
     const clinics = await this.prisma.clinic.findMany({
       where: {
@@ -153,6 +174,376 @@ export class ConnectedClinicsController {
         };
       }),
     );
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create a new clinic record' })
+  async createClinic(
+    @Body() dto: CreateClinicDto,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+
+    await this.ensureClinicColumnsExist();
+
+    // Determine target branch
+    let targetBranchId = dto.branchId || branchIdContext;
+    if (!targetBranchId) {
+      const defaultBranch = await this.prisma.branch.findFirst({
+        where: { tenantId },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!defaultBranch) {
+        throw new BadRequestException('No branch found for organization.');
+      }
+      targetBranchId = defaultBranch.id;
+    } else {
+      const branch = await this.prisma.branch.findFirst({
+        where: { id: targetBranchId, tenantId },
+      });
+      if (!branch) {
+        throw new BadRequestException(
+          'Selected branch does not belong to this organization.',
+        );
+      }
+    }
+
+    const trimmedUrl = dto.url.trim().replace(/\/+$/, '');
+    const trimmedName = dto.name.trim();
+
+    // Check duplicate URL within the branch
+    const existing = await this.prisma.clinic.findFirst({
+      where: {
+        branchId: targetBranchId,
+        url: trimmedUrl,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        `A clinic with URL "${trimmedUrl}" is already registered in this branch.`,
+      );
+    }
+
+    const clinic = await this.prisma.clinic.create({
+      data: {
+        tenantId,
+        branchId: targetBranchId,
+        name: trimmedName,
+        url: trimmedUrl,
+        address: dto.address?.trim() || null,
+        phone: dto.phone?.trim() || null,
+        isConnected: false,
+      },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        doctors: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            workOrders: {
+              select: {
+                id: true,
+                folioNumber: true,
+                patient: true,
+                status: true,
+                totalQuote: true,
+                initialPayment: true,
+                deliveryDate: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      ...clinic,
+      totalQuoted: 0,
+      totalCollected: 0,
+      totalPending: 0,
+      allowedProsthesisTypes: [],
+    };
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update clinic basic details' })
+  async updateClinic(
+    @Param('id') clinicId: string,
+    @Body() dto: UpdateClinicDto,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+
+    await this.ensureClinicColumnsExist();
+
+    const clinic = await this.prisma.clinic.findFirst({
+      where: {
+        id: clinicId,
+        tenantId,
+        ...(branchIdContext ? { branchId: branchIdContext } : {}),
+      },
+    });
+
+    if (!clinic) {
+      throw new NotFoundException('Clinic not found or access denied.');
+    }
+
+    const dataToUpdate: any = {};
+    if (dto.name !== undefined) dataToUpdate.name = dto.name.trim();
+    if (dto.address !== undefined)
+      dataToUpdate.address = dto.address.trim() || null;
+    if (dto.phone !== undefined)
+      dataToUpdate.phone = dto.phone.trim() || null;
+
+    if (dto.url !== undefined) {
+      const trimmedUrl = dto.url.trim().replace(/\/+$/, '');
+      if (trimmedUrl !== clinic.url) {
+        const existing = await this.prisma.clinic.findFirst({
+          where: {
+            branchId: clinic.branchId,
+            url: trimmedUrl,
+            NOT: { id: clinicId },
+          },
+        });
+        if (existing) {
+          throw new ConflictException(
+            `A clinic with URL "${trimmedUrl}" is already registered in this branch.`,
+          );
+        }
+        dataToUpdate.url = trimmedUrl;
+      }
+    }
+
+    const updated = await this.prisma.clinic.update({
+      where: { id: clinicId },
+      data: dataToUpdate,
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        doctors: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            workOrders: {
+              select: {
+                id: true,
+                folioNumber: true,
+                patient: true,
+                status: true,
+                totalQuote: true,
+                initialPayment: true,
+                deliveryDate: true,
+                createdAt: true,
+                prosthesisType: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      allowedProsthesisTypes: await this.getClinicProsthesisTypes(clinicId),
+    };
+  }
+
+  @Post(':id/connect')
+  @ApiOperation({ summary: 'Connect clinic integration or test connectivity' })
+  async connectClinic(
+    @Param('id') clinicId: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+
+    await this.ensureClinicColumnsExist();
+
+    const clinic = await this.prisma.clinic.findFirst({
+      where: {
+        id: clinicId,
+        tenantId,
+        ...(branchIdContext ? { branchId: branchIdContext } : {}),
+      },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    });
+
+    if (!clinic) {
+      throw new NotFoundException('Clinic not found or access denied.');
+    }
+
+    let pingSuccess = false;
+    let pingMessage = 'Manual connection activated';
+    if (clinic.url) {
+      try {
+        const testUrl = clinic.url.startsWith('http')
+          ? clinic.url
+          : `https://${clinic.url}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const res = await (global as any).fetch(testUrl, {
+          method: 'GET',
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        pingSuccess = res.ok || res.status < 500;
+        pingMessage = `Clinic website responded with status ${res.status}`;
+      } catch (err: any) {
+        this.logger.warn(
+          `Connection test ping to ${clinic.url} failed: ${err.message}`,
+        );
+        pingMessage = `Ping attempted: ${err.message || 'Host not responding'}`;
+      }
+    }
+
+    const updated = await this.prisma.clinic.update({
+      where: { id: clinicId },
+      data: {
+        isConnected: true,
+        connectedAt: new Date(),
+      },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        doctors: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            workOrders: {
+              select: {
+                id: true,
+                folioNumber: true,
+                patient: true,
+                status: true,
+                totalQuote: true,
+                initialPayment: true,
+                deliveryDate: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      pingSuccess,
+      pingMessage,
+      allowedProsthesisTypes: await this.getClinicProsthesisTypes(clinicId),
+    };
+  }
+
+  @Post(':id/disconnect')
+  @ApiOperation({ summary: 'Disconnect clinic integration' })
+  async disconnectClinic(
+    @Param('id') clinicId: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('branchId') branchIdContext: string | null,
+  ) {
+    if (!tenantId) {
+      throw new BadRequestException('Organization context is required.');
+    }
+
+    await this.ensureClinicColumnsExist();
+
+    const clinic = await this.prisma.clinic.findFirst({
+      where: {
+        id: clinicId,
+        tenantId,
+        ...(branchIdContext ? { branchId: branchIdContext } : {}),
+      },
+    });
+
+    if (!clinic) {
+      throw new NotFoundException('Clinic not found or access denied.');
+    }
+
+    const updated = await this.prisma.clinic.update({
+      where: { id: clinicId },
+      data: {
+        isConnected: false,
+      },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        doctors: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            workOrders: {
+              select: {
+                id: true,
+                folioNumber: true,
+                patient: true,
+                status: true,
+                totalQuote: true,
+                initialPayment: true,
+                deliveryDate: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      allowedProsthesisTypes: await this.getClinicProsthesisTypes(clinicId),
+    };
   }
 
   @Get(':id/work-orders')
