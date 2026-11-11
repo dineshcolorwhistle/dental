@@ -30,7 +30,7 @@ import type {
 } from '../services';
 import { useAuth } from '../context';
 import { DateRangePicker, Pagination } from '../components';
-import { formatDate } from '../utils/dateUtils';
+import { useAppDate } from '../hooks';
 
 interface PaymentHistoryItem {
   amount: number;
@@ -72,6 +72,7 @@ interface BranchItem {
 export function FinancePage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { formatDate: appFormatDate, getTodayKey } = useAppDate();
   // --- Active Tab: Overview vs Doctor Balances vs Doctor Lists ---
   const [activeFinanceTab, setActiveFinanceTab] = useState<'OVERVIEW' | 'DOCTOR_BALANCES' | 'DOCTOR_LISTS'>('OVERVIEW');
 
@@ -80,13 +81,7 @@ export function FinancePage() {
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]); // Empty means ALL
 
   const [startDateFilter, setStartDateFilter] = useState<string>('2000-01-01');
-  const [endDateFilter, setEndDateFilter] = useState<string>(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  });
+  const [endDateFilter, setEndDateFilter] = useState<string>(() => getTodayKey());
   const [datePreset, setDatePreset] = useState<string>('allTime');
 
   // Finance Stats data
@@ -247,6 +242,8 @@ export function FinancePage() {
         branchIds: branchIdsParam,
         search: doctorBalancesSearch,
         onlyWithPending: onlyWithPendingFilter,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
       });
       setDoctorBalances(res.data);
       setDoctorBalancesSummary(res.summary);
@@ -469,16 +466,14 @@ export function FinancePage() {
 
   useEffect(() => {
     fetchDoctorBalances();
-  }, [selectedBranches, doctorBalancesSearch, onlyWithPendingFilter]);
+  }, [dateRange, selectedBranches, doctorBalancesSearch, onlyWithPendingFilter]);
 
   useEffect(() => {
     if (activeFinanceTab === 'DOCTOR_LISTS') {
       fetchDoctorLists();
-      if (doctorBalances.length === 0) {
-        fetchDoctorBalances();
-      }
+      fetchDoctorBalances();
     }
-  }, [activeFinanceTab, selectedBranches]);
+  }, [activeFinanceTab, dateRange, selectedBranches]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPendingSearch(e.target.value);
@@ -498,11 +493,15 @@ export function FinancePage() {
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
     setPendingPage(1);
+    setDocBalancesPage(0);
+    setDoctorListsPage(0);
   };
 
   const clearBranchFilter = () => {
     setSelectedBranches([]);
     setPendingPage(1);
+    setDocBalancesPage(0);
+    setDoctorListsPage(0);
   };
 
   // --- SVG Charts Computations ---
@@ -748,6 +747,27 @@ export function FinancePage() {
         {/* Filters Group */}
         <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           
+          {/* Date Range Selector */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+              {t('expenses.dateFilters.dateRangeLabel', { defaultValue: 'Date Range' })}:
+            </span>
+            <DateRangePicker
+              startDate={startDateFilter}
+              endDate={endDateFilter}
+              presetType={datePreset}
+              allowedPresets={['allTime', 'thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'custom']}
+              onChange={(start, end, preset) => {
+                setStartDateFilter(start);
+                setEndDateFilter(end);
+                setDatePreset(preset);
+                setPendingPage(1);
+                setDocBalancesPage(0);
+                setDoctorListsPage(0);
+              }}
+            />
+          </div>
+
           {/* Branch Filter Dropdown */}
           {user?.role === 'OWNER' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -936,20 +956,6 @@ export function FinancePage() {
 
       {activeFinanceTab === 'OVERVIEW' && (
         <>
-          {/* Overview Section Action Bar with Date Range Selector */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <DateRangePicker
-              startDate={startDateFilter}
-              endDate={endDateFilter}
-              presetType={datePreset}
-              allowedPresets={['allTime', 'thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'custom']}
-              onChange={(start, end, preset) => {
-                setStartDateFilter(start);
-                setEndDateFilter(end);
-                setDatePreset(preset);
-              }}
-            />
-          </div>
           {/* KPI Widgets Grid */}
       {statsLoading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1.25rem' }}>
@@ -1915,7 +1921,7 @@ export function FinancePage() {
                           {formatCurrency(wo.outstandingAmount)}
                         </td>
                         <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                          {formatDate(wo.dueDate, i18n.language, user?.timezone, {
+                          {appFormatDate(wo.dueDate, {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',

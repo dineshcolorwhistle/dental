@@ -95,6 +95,8 @@ export class FinanceController {
     @Query('branchIds') branchIds?: string,
     @Query('search') search?: string,
     @Query('onlyWithPending') onlyWithPending?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
@@ -112,6 +114,8 @@ export class FinanceController {
       finalBranchIds,
       search || '',
       isOnlyPending,
+      startDate,
+      endDate,
     );
   }
 }

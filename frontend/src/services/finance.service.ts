@@ -125,6 +125,8 @@ export interface GetDoctorBalancesParams {
   branchIds?: string;
   search?: string;
   onlyWithPending?: boolean;
+  startDate?: string;
+  endDate?: string;
 }
 
 // ─── Service ─────────────────────────────────────────────

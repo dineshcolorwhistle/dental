@@ -159,11 +159,8 @@ export class FinanceService {
         0,
       );
 
-      // Cumulative outstanding: Outstanding = totalQuote - initialPayment (for active work orders created up to endDate)
-      const activeWorkOrdersUpToDate = workOrders.filter(
-        (wo) => wo.createdAt <= endDate,
-      );
-      const totalOutstandingAmount = activeWorkOrdersUpToDate.reduce(
+      // Total Outstanding Amount: sum of unpaid balances for work orders in the selected date range
+      const totalOutstandingAmount = workOrdersInRange.reduce(
         (sum, wo) => {
           const balance = (wo.totalQuote || 0) - (wo.initialPayment || 0);
           return sum + (balance > 0 ? balance : 0);
@@ -314,8 +311,8 @@ export class FinanceService {
         stat.paidAmount += p.amount;
       }
 
-      // Populate cumulative outstanding amount for branches
-      for (const wo of activeWorkOrdersUpToDate) {
+      // Populate outstanding amount for branches using workOrdersInRange
+      for (const wo of workOrdersInRange) {
         const key = wo.branchId || unassignedKey;
         let stat = branchStatsMap.get(key);
         if (!stat) {
@@ -532,6 +529,8 @@ export class FinanceService {
     branchIdsFilter?: string,
     search = '',
     onlyWithPending = false,
+    startDateStr?: string,
+    endDateStr?: string,
   ) {
     try {
       if (branchIdsFilter === 'NONE') {
@@ -555,6 +554,16 @@ export class FinanceService {
           .filter((id) => id.length > 0);
       }
 
+      let workOrderDateFilter: any = {};
+      const isAllTime = !startDateStr || startDateStr.startsWith('2000-01-01');
+      if (startDateStr && endDateStr) {
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(endDateStr);
+        workOrderDateFilter = {
+          createdAt: { gte: startDate, lte: endDate },
+        };
+      }
+
       // Fetch all doctors for tenant
       const doctors = await this.prisma.doctor.findMany({
         where: {
@@ -573,6 +582,7 @@ export class FinanceService {
               ...(branchIdList.length > 0 && {
                 branchId: { in: branchIdList },
               }),
+              ...workOrderDateFilter,
             },
             select: {
               id: true,
@@ -666,6 +676,10 @@ export class FinanceService {
       });
 
       let filtered = items;
+      if (!isAllTime && !search?.trim() && !onlyWithPending) {
+        filtered = filtered.filter((d) => d.totalOrders > 0 || d.pendingBalance > 0);
+      }
+
       if (search && search.trim()) {
         const q = search.trim().toLowerCase();
         filtered = filtered.filter(
@@ -686,13 +700,17 @@ export class FinanceService {
         return a.doctorName.localeCompare(b.doctorName);
       });
 
+      const totalActiveDoctors = isAllTime
+        ? doctors.length
+        : items.filter((d) => d.totalOrders > 0 || d.pendingBalance > 0).length;
+
       return {
         summary: {
           totalOutstanding: totalTenantOutstanding,
           totalQuoted: totalTenantQuoted,
           totalPaid: totalTenantPaid,
           totalDoctorsWithPending: doctorsWithPendingCount,
-          totalDoctors: doctors.length,
+          totalDoctors: totalActiveDoctors,
         },
         data: filtered,
       };
