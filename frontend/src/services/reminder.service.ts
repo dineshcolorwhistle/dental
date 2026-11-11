@@ -23,6 +23,7 @@ export interface ReminderItem {
   description: string | null;
   category: string | null;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  startDate?: string | null;
   reminderDate: string | null;
   reminderTime: string;
   recurrence: 'ONE_TIME' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';

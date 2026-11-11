@@ -895,6 +895,7 @@ model Reminder {
   description     String?
   category        String?
   priority        ReminderPriority   @default(MEDIUM)
+  startDate       DateTime?          @map("start_date")
   reminderDate    DateTime?          @map("reminder_date")
   reminderTime    String             @map("reminder_time")
   recurrence      ReminderRecurrence @default(ONE_TIME)

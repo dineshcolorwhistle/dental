@@ -169,6 +169,42 @@ export function getDateKeyInTz(date: Date, timezone: string = 'America/Mexico_Ci
 }
 
 /**
+ * Get the HH:mm string for a Date in the specified timezone.
+ */
+export function getHHmmInTz(date: Date = new Date(), timezone: string = 'America/Mexico_City'): string {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return formatter.format(date);
+}
+
+/**
+ * Check if a one-time reminder has already passed based on date and time in the specified timezone.
+ */
+export function isOneTimeReminderPast(
+  reminder: { recurrence: string; reminderDate?: string | Date | null; reminderTime?: string },
+  timezone: string = 'America/Mexico_City',
+): boolean {
+  if (reminder.recurrence !== 'ONE_TIME' || !reminder.reminderDate) return false;
+  const todayKey = getTodayKeyInTz(timezone);
+  const dateKey =
+    typeof reminder.reminderDate === 'string'
+      ? reminder.reminderDate.slice(0, 10)
+      : getDateKeyInTz(reminder.reminderDate, timezone);
+
+  if (dateKey < todayKey) return true;
+  if (dateKey > todayKey) return false;
+
+  // On the same day, check if reminderTime has passed
+  if (!reminder.reminderTime) return false;
+  const currentHHmm = getHHmmInTz(new Date(), timezone);
+  return currentHHmm >= reminder.reminderTime;
+}
+
+/**
  * Default timezone fallback.
  */
 export const DEFAULT_TIMEZONE = 'America/Mexico_City';

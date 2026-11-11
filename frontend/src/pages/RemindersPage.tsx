@@ -37,6 +37,8 @@ import {
   formatDateTime,
   normalizeCalendarDate,
   getTodayKeyInTz,
+  getDateKeyInTz,
+  isOneTimeReminderPast,
 } from '../utils/dateUtils';
 import { getOccurrenceKeys } from '../utils/recurrence.util';
 
@@ -72,6 +74,91 @@ const getMaxAllowedDate = (): string => {
   const d = new Date();
   d.setFullYear(d.getFullYear() + 3);
   return d.toISOString().slice(0, 10);
+};
+
+const getReminderOccurrences = (r: ReminderItem): string[] => {
+  const startKey = (r.startDate || r.reminderDate || r.createdAt).slice(0, 10);
+  let weeklyDaysList: number[] | undefined;
+  if (r.weeklyDays) {
+    try {
+      weeklyDaysList = typeof r.weeklyDays === 'string' ? JSON.parse(r.weeklyDays) : r.weeklyDays;
+    } catch {
+      weeklyDaysList = undefined;
+    }
+  }
+
+  const maxCount =
+    r.endType === 'AFTER' && r.endAfterOccurrences
+      ? r.endAfterOccurrences
+      : r.endType === 'ON_DATE'
+        ? 50
+        : 15;
+
+  return Array.from(
+    getOccurrenceKeys(
+      {
+        recurrence: r.recurrence,
+        startDate: startKey,
+        repeatInterval: r.repeatInterval || 1,
+        endType: (r.endType as 'ON_DATE' | 'AFTER' | 'NEVER') || 'NEVER',
+        endDate: r.endDate ? r.endDate.slice(0, 10) : undefined,
+        endAfterOccurrences: r.endAfterOccurrences ?? undefined,
+        weeklyDays: weeklyDaysList,
+        monthlyPattern: (r.monthlyPattern as 'DAY_OF_MONTH' | 'POSITIONAL_WEEKDAY') || undefined,
+        monthlyDayOfMonth: r.monthlyDayOfMonth ?? undefined,
+        monthlyWeekPosition: (r.monthlyWeekPosition as 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 'LAST') || undefined,
+        monthlyWeekDay: r.monthlyWeekDay ?? undefined,
+      },
+      0,
+      maxCount,
+    ),
+  );
+};
+
+const getReminderCompletedCount = (r: ReminderItem, tz?: string): number => {
+  if (r.recurrence === 'ONE_TIME') {
+    return r.status === 'COMPLETED' ? 1 : 0;
+  }
+  if (r.status === 'COMPLETED') {
+    return r.endAfterOccurrences || r.completedOccurrences || 0;
+  }
+
+  const userTz = tz || 'America/Mexico_City';
+  const todayKey = getTodayKeyInTz(userTz);
+  const lastNotifiedKey = r.lastNotifiedAt
+    ? getDateKeyInTz(new Date(r.lastNotifiedAt), userTz)
+    : null;
+
+  const occurrences = getReminderOccurrences(r);
+  const pastCount = occurrences.filter((k) => k < todayKey).length;
+  const todayCount = occurrences.includes(todayKey) && lastNotifiedKey === todayKey ? 1 : 0;
+  return Math.max(r.completedOccurrences || 0, pastCount + todayCount);
+};
+
+const getReminderDisplayDate = (r: ReminderItem, tz?: string): string => {
+  if (r.recurrence === 'ONE_TIME' || r.status !== 'PENDING') {
+    return r.reminderDate || '';
+  }
+
+  const userTz = tz || 'America/Mexico_City';
+  const todayKey = getTodayKeyInTz(userTz);
+  const lastNotifiedKey = r.lastNotifiedAt
+    ? getDateKeyInTz(new Date(r.lastNotifiedAt), userTz)
+    : null;
+
+  const occurrences = getReminderOccurrences(r);
+  if (occurrences.length === 0) return r.reminderDate || '';
+
+  if (occurrences.includes(todayKey)) {
+    if (lastNotifiedKey === todayKey) {
+      const next = occurrences.find((k) => k > todayKey);
+      return next ? `${next}T12:00:00.000Z` : r.reminderDate || '';
+    }
+    return `${todayKey}T12:00:00.000Z`;
+  }
+
+  const next = occurrences.find((k) => k > todayKey);
+  return next ? `${next}T12:00:00.000Z` : r.reminderDate || '';
 };
 
 interface ReminderFormState {
@@ -721,9 +808,7 @@ export function RemindersPage() {
   const viewingOccurrencesList = useMemo(() => {
     if (!viewingReminder || viewingReminder.recurrence === 'ONE_TIME') return [];
 
-    const startDateStr = viewingReminder.reminderDate
-      ? viewingReminder.reminderDate.slice(0, 10)
-      : viewingReminder.createdAt.slice(0, 10);
+    const startDateStr = (viewingReminder.startDate || viewingReminder.reminderDate || viewingReminder.createdAt).slice(0, 10);
     const endDateStr = viewingReminder.endDate ? viewingReminder.endDate.slice(0, 10) : undefined;
 
     let weeklyDaysList: number[] | undefined;
@@ -762,22 +847,56 @@ export function RemindersPage() {
       ),
     );
 
-    const completed = viewingReminder.completedOccurrences || 0;
+    const tz = user?.timezone || 'America/Mexico_City';
+    const todayKey = getTodayKeyInTz(tz);
+    const lastNotifiedKey = viewingReminder.lastNotifiedAt
+      ? getDateKeyInTz(new Date(viewingReminder.lastNotifiedAt), tz)
+      : null;
+
+    let currentDueIndex = -1;
+    if (viewingReminder.status === 'PENDING') {
+      const todayIndex = keys.findIndex((k) => k === todayKey);
+      if (todayIndex !== -1) {
+        if (lastNotifiedKey === todayKey) {
+          currentDueIndex = keys.findIndex((k) => k > todayKey);
+        } else {
+          currentDueIndex = todayIndex;
+        }
+      } else {
+        currentDueIndex = keys.findIndex((k) => k > todayKey);
+      }
+    }
 
     return keys.map((key, index) => {
       let status: 'COMPLETED' | 'CURRENT' | 'UPCOMING' | 'CANCELLED';
-      if (index < completed) {
-        status = 'COMPLETED';
-      } else if (index === completed) {
-        if (viewingReminder.status === 'COMPLETED') {
+
+      if (viewingReminder.status === 'CANCELLED') {
+        if (key < todayKey || (lastNotifiedKey && key <= lastNotifiedKey)) {
           status = 'COMPLETED';
-        } else if (viewingReminder.status === 'CANCELLED') {
-          status = 'CANCELLED';
         } else {
-          status = 'CURRENT';
+          status = 'CANCELLED';
         }
+      } else if (viewingReminder.status === 'COMPLETED') {
+        status = 'COMPLETED';
       } else {
-        status = viewingReminder.status === 'CANCELLED' ? 'CANCELLED' : 'UPCOMING';
+        // PENDING: All previous reminder dates are marked as completed
+        if (key < todayKey) {
+          status = 'COMPLETED';
+        } else if (key === todayKey) {
+          // Today's reminder date: completed once notification is sent
+          if (lastNotifiedKey === todayKey) {
+            status = 'COMPLETED';
+          } else {
+            status = 'CURRENT';
+          }
+        } else {
+          // Future occurrence
+          if (index === currentDueIndex) {
+            status = 'CURRENT';
+          } else {
+            status = 'UPCOMING';
+          }
+        }
       }
 
       return {
@@ -786,7 +905,11 @@ export function RemindersPage() {
         status,
       };
     });
-  }, [viewingReminder]);
+  }, [viewingReminder, user?.timezone]);
+
+  const viewingCompletedCount = useMemo(() => {
+    return viewingOccurrencesList.filter((occ) => occ.status === 'COMPLETED').length;
+  }, [viewingOccurrencesList]);
 
   // Helper to format human-readable recurrence summary
   const formatRecurrenceSummary = (r: ReminderItem): string => {
@@ -1461,8 +1584,8 @@ export function RemindersPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem' }}>
                           <Clock size={14} style={{ color: 'var(--text-muted)' }} />
                           <span>
-                            {r.reminderDate
-                              ? formatDate(r.reminderDate, i18n.language, user?.timezone)
+                            {getReminderDisplayDate(r, user?.timezone)
+                              ? formatDate(getReminderDisplayDate(r, user?.timezone), i18n.language, user?.timezone)
                               : '—'}
                             {' '}
                             <strong style={{ fontWeight: 600 }}>{r.reminderTime}</strong>
@@ -1496,13 +1619,13 @@ export function RemindersPage() {
                                   fontWeight: 600,
                                   padding: '2px 8px',
                                   borderRadius: '12px',
-                                  backgroundColor: (r.completedOccurrences || 0) >= r.endAfterOccurrences ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
-                                  color: (r.completedOccurrences || 0) >= r.endAfterOccurrences ? '#059669' : 'var(--primary, #3B82F6)',
-                                  border: `1px solid ${(r.completedOccurrences || 0) >= r.endAfterOccurrences ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.2)'}`,
+                                  backgroundColor: getReminderCompletedCount(r, user?.timezone) >= r.endAfterOccurrences ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
+                                  color: getReminderCompletedCount(r, user?.timezone) >= r.endAfterOccurrences ? '#059669' : 'var(--primary, #3B82F6)',
+                                  border: `1px solid ${getReminderCompletedCount(r, user?.timezone) >= r.endAfterOccurrences ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.2)'}`,
                                 }}
-                                title={`${r.completedOccurrences || 0} of ${r.endAfterOccurrences} occurrences completed`}
+                                title={`${getReminderCompletedCount(r, user?.timezone)} of ${r.endAfterOccurrences} occurrences completed`}
                               >
-                                {r.completedOccurrences || 0}/{r.endAfterOccurrences} {t('common.done', { defaultValue: 'done' })}
+                                {getReminderCompletedCount(r, user?.timezone)}/{r.endAfterOccurrences} {t('common.done', { defaultValue: 'done' })}
                               </span>
                             ) : r.endType === 'ON_DATE' && r.endDate ? (
                               <span
@@ -1601,14 +1724,16 @@ export function RemindersPage() {
                                 <span>{t('reminders.actions.stopRecurrence', { defaultValue: 'Stop Recurrence' })}</span>
                               </button>
                             ) : (
-                              <button
-                                className="btn-action btn-action--danger"
-                                title={t('reminders.cancelReminder.title', { defaultValue: 'Cancel Reminder' })}
-                                onClick={() => setStoppingReminder(r)}
-                              >
-                                <XCircle size={14} />
-                                <span>{t('common.cancel', { defaultValue: 'Cancel' })}</span>
-                              </button>
+                              !isOneTimeReminderPast(r, user?.timezone) && (
+                                <button
+                                  className="btn-action btn-action--danger"
+                                  title={t('reminders.cancelReminder.title', { defaultValue: 'Cancel Reminder' })}
+                                  onClick={() => setStoppingReminder(r)}
+                                >
+                                  <XCircle size={14} />
+                                  <span>{t('common.cancel', { defaultValue: 'Cancel' })}</span>
+                                </button>
+                              )
                             )
                           )}
                           {canDelete && (
@@ -2218,7 +2343,7 @@ export function RemindersPage() {
                     📅 {viewingReminder.recurrence === 'ONE_TIME' ? t('reminders.fields.reminderDate', { defaultValue: 'Reminder Date' }) : t('reminders.recurrencePanel.startDate', { defaultValue: 'Start Date' })}
                   </span>
                   <p style={{ margin: 0, fontWeight: 500 }}>
-                    {viewingReminder.reminderDate ? formatDate(viewingReminder.reminderDate, i18n.language, user?.timezone, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                    {(viewingReminder.startDate || viewingReminder.reminderDate) ? formatDate(viewingReminder.startDate || viewingReminder.reminderDate, i18n.language, user?.timezone, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                   </p>
                 </div>
 
@@ -2242,16 +2367,16 @@ export function RemindersPage() {
                     <div style={{ marginTop: '0.625rem', paddingTop: '0.625rem', borderTop: '1px dashed var(--border)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 500 }}>
                         <span>{t('reminders.occurrenceProgress', { defaultValue: 'Occurrence Progress' })}</span>
-                        <strong style={{ color: (viewingReminder.completedOccurrences || 0) >= viewingReminder.endAfterOccurrences ? '#059669' : 'var(--primary, #3B82F6)' }}>
-                          {viewingReminder.completedOccurrences || 0} / {viewingReminder.endAfterOccurrences} {t('common.done', { defaultValue: 'done' })}
+                        <strong style={{ color: viewingCompletedCount >= viewingReminder.endAfterOccurrences ? '#059669' : 'var(--primary, #3B82F6)' }}>
+                          {viewingCompletedCount} / {viewingReminder.endAfterOccurrences} {t('common.done', { defaultValue: 'done' })}
                         </strong>
                       </div>
                       <div style={{ width: '100%', height: '6px', borderRadius: '4px', backgroundColor: 'var(--bg-secondary)', overflow: 'hidden' }}>
                         <div
                           style={{
-                            width: `${Math.min(100, Math.round(((viewingReminder.completedOccurrences || 0) / viewingReminder.endAfterOccurrences) * 100))}%`,
+                            width: `${Math.min(100, Math.round((viewingCompletedCount / viewingReminder.endAfterOccurrences) * 100))}%`,
                             height: '100%',
-                            backgroundColor: (viewingReminder.completedOccurrences || 0) >= viewingReminder.endAfterOccurrences ? '#10B981' : 'var(--primary, #3B82F6)',
+                            backgroundColor: viewingCompletedCount >= viewingReminder.endAfterOccurrences ? '#10B981' : 'var(--primary, #3B82F6)',
                             borderRadius: '4px',
                             transition: 'width 0.3s ease',
                           }}
@@ -2352,9 +2477,9 @@ export function RemindersPage() {
                     {viewingReminder.endType === 'AFTER' && viewingReminder.endAfterOccurrences && (
                       <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                         {t('reminders.occurrenceBreakdown.totalOccurrences', {
-                          completed: viewingReminder.completedOccurrences || 0,
+                          completed: viewingCompletedCount,
                           total: viewingReminder.endAfterOccurrences,
-                          defaultValue: `${viewingReminder.completedOccurrences || 0} of ${viewingReminder.endAfterOccurrences} completed`,
+                          defaultValue: `${viewingCompletedCount} of ${viewingReminder.endAfterOccurrences} completed`,
                         })}
                       </span>
                     )}

@@ -6,7 +6,7 @@ import { ReminderRecurrence, ReminderStatus } from '@prisma/client';
 import { getHHmmInTz, getDateKeyInTz } from '../../common/utils/timezone.util';
 import {
   isOccurrenceDate,
-  getNextOccurrence,
+  generateOccurrences,
   type RecurrenceConfig,
 } from '../../common/utils/recurrence.util';
 
@@ -66,13 +66,15 @@ export class RemindersSchedulerService {
         const tz =
           (reminder.tenant as any)?.settings?.timezone || 'America/Mexico_City';
 
-        // Calculate "2 hours from now" in the tenant's timezone
+        // Calculate "2 hours from now" in the tenant's timezone to target the occurrence
         const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+        const targetDateKey = getDateKeyInTz(twoHoursFromNow, tz);
         const targetHHmm = getHHmmInTz(twoHoursFromNow, tz);
 
         const shouldNotify = this.shouldSendNotification(
           reminder,
           now,
+          targetDateKey,
           targetHHmm,
           tz,
         );
@@ -96,52 +98,66 @@ export class RemindersSchedulerService {
           } else {
             // Recurring reminder: advance occurrence or complete if end condition is met
             const config = this.buildRecurrenceConfig(reminder);
-            const newCompletedCount = (reminder.completedOccurrences || 0) + 1;
-            let isComplete = false;
-            let nextDate: Date | null = null;
-
             if (config) {
+              const maxOcc = config.endAfterOccurrences || 365;
+              const allOccurrences = generateOccurrences(config, 0, maxOcc);
+
+              // All occurrences up to and including targetDateKey are completed
+              const completedCount = allOccurrences.filter(
+                (d) => getDateKeyInTz(d, tz) <= targetDateKey,
+              ).length;
+
+              // Next upcoming occurrence after targetDateKey
+              const nextOccurrence = allOccurrences.find(
+                (d) => getDateKeyInTz(d, tz) > targetDateKey,
+              );
+
+              let isComplete = false;
               if (
                 config.endType === 'AFTER' &&
                 config.endAfterOccurrences != null &&
-                newCompletedCount >= config.endAfterOccurrences
+                completedCount >= config.endAfterOccurrences
               ) {
                 isComplete = true;
-              } else {
-                const currentDate = reminder.reminderDate || now;
-                nextDate = getNextOccurrence(config, currentDate);
-                if (!nextDate) {
-                  isComplete = true;
-                }
+              } else if (
+                config.endType === 'ON_DATE' &&
+                config.endDate &&
+                (!nextOccurrence ||
+                  getDateKeyInTz(nextOccurrence, tz) >
+                    getDateKeyInTz(config.endDate, tz))
+              ) {
+                isComplete = true;
+              } else if (!nextOccurrence) {
+                isComplete = true;
               }
-            }
 
-            if (isComplete) {
-              await this.prisma.reminder.update({
-                where: { id: reminder.id },
-                data: {
-                  lastNotifiedAt: now,
-                  completedOccurrences: newCompletedCount,
-                  status: ReminderStatus.COMPLETED,
-                },
-              });
+              if (isComplete) {
+                await this.prisma.reminder.update({
+                  where: { id: reminder.id },
+                  data: {
+                    lastNotifiedAt: now,
+                    completedOccurrences: completedCount,
+                    status: ReminderStatus.COMPLETED,
+                  },
+                });
 
-              this.logger.log(
-                `Sent and COMPLETED recurring reminder "${reminder.title}" (ID: ${reminder.id}) - end condition reached.`,
-              );
-            } else {
-              await this.prisma.reminder.update({
-                where: { id: reminder.id },
-                data: {
-                  lastNotifiedAt: now,
-                  completedOccurrences: newCompletedCount,
-                  ...(nextDate ? { reminderDate: nextDate } : {}),
-                },
-              });
+                this.logger.log(
+                  `Sent and COMPLETED recurring reminder "${reminder.title}" (ID: ${reminder.id}) - all occurrences finished (${completedCount}).`,
+                );
+              } else {
+                await this.prisma.reminder.update({
+                  where: { id: reminder.id },
+                  data: {
+                    lastNotifiedAt: now,
+                    completedOccurrences: completedCount,
+                    ...(nextOccurrence ? { reminderDate: nextOccurrence } : {}),
+                  },
+                });
 
-              this.logger.log(
-                `Sent recurring reminder notification for "${reminder.title}" (ID: ${reminder.id}). Next date: ${nextDate?.toISOString()}`,
-              );
+                this.logger.log(
+                  `Sent recurring reminder notification for "${reminder.title}" (ID: ${reminder.id}). Completed: ${completedCount}. Next date: ${nextOccurrence?.toISOString() || 'None'}`,
+                );
+              }
             }
           }
         }
@@ -159,6 +175,7 @@ export class RemindersSchedulerService {
   private shouldSendNotification(
     reminder: {
       recurrence: ReminderRecurrence;
+      startDate?: Date | null;
       reminderDate: Date | null;
       reminderTime: string;
       lastNotifiedAt: Date | null;
@@ -174,43 +191,51 @@ export class RemindersSchedulerService {
       monthlyWeekDay: number | null;
     },
     now: Date,
+    targetDateKey: string,
     targetHHmm: string,
     tz: string,
   ): boolean {
-    // Only process if the current 5-min window aligns with the reminder time
     const reminderMinutes = this.parseTimeToMinutes(reminder.reminderTime);
     const targetMinutes = this.parseTimeToMinutes(targetHHmm);
 
-    // Check if we're within a 5-minute window
-    if (Math.abs(reminderMinutes - targetMinutes) > 5) {
+    // Trigger window: notification is scheduled 2 hours before reminderTime.
+    // Allow a catch-up window of up to 60 minutes after trigger time.
+    if (
+      targetMinutes < reminderMinutes - 5 ||
+      targetMinutes > reminderMinutes + 60
+    ) {
       return false;
     }
 
-    // Get "today" in the tenant's timezone (YYYY-MM-DD key)
-    const todayKey = getDateKeyInTz(now, tz);
-
-    // Check if already notified today
+    // Check if already notified within the last 18 hours
     if (reminder.lastNotifiedAt) {
-      const lastNotifiedKey = getDateKeyInTz(reminder.lastNotifiedAt, tz);
-      if (lastNotifiedKey === todayKey) return false;
+      const hoursSinceLast =
+        (now.getTime() - new Date(reminder.lastNotifiedAt).getTime()) /
+        (1000 * 60 * 60);
+      if (hoursSinceLast < 18) {
+        return false;
+      }
     }
 
     // ONE_TIME: simple date comparison
     if (reminder.recurrence === ReminderRecurrence.ONE_TIME) {
       if (!reminder.reminderDate) return false;
       const reminderDateKey = getDateKeyInTz(reminder.reminderDate, tz);
-      return reminderDateKey === todayKey;
+      return reminderDateKey === targetDateKey;
     }
 
-    // Recurring types: use the recurrence utility
+    // Recurring types: check if targetDateKey is a valid occurrence date
     const config = this.buildRecurrenceConfig(reminder);
     if (!config) return false;
 
-    // Create a noon-UTC date for "today" to check against
-    const [year, month, day] = todayKey.split('-').map(Number);
-    const todayNoon = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    const [year, month, day] = targetDateKey.split('-').map(Number);
+    const targetDateNoon = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 
-    return isOccurrenceDate(config, todayNoon, reminder.completedOccurrences);
+    return isOccurrenceDate(
+      config,
+      targetDateNoon,
+      reminder.completedOccurrences,
+    );
   }
 
   /**
@@ -218,6 +243,7 @@ export class RemindersSchedulerService {
    */
   private buildRecurrenceConfig(reminder: {
     recurrence: ReminderRecurrence;
+    startDate?: Date | null;
     reminderDate: Date | null;
     repeatInterval: number;
     endType: string;
@@ -230,11 +256,12 @@ export class RemindersSchedulerService {
     monthlyWeekDay: number | null;
   }): RecurrenceConfig | null {
     if (reminder.recurrence === ReminderRecurrence.ONE_TIME) return null;
-    if (!reminder.reminderDate) return null;
+    const baseDate = reminder.startDate || reminder.reminderDate;
+    if (!baseDate) return null;
 
     return {
       recurrence: reminder.recurrence,
-      startDate: reminder.reminderDate,
+      startDate: baseDate,
       repeatInterval: reminder.repeatInterval || 1,
       endType: (reminder.endType || 'NEVER') as RecurrenceConfig['endType'],
       endDate: reminder.endDate,

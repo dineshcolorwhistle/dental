@@ -179,6 +179,7 @@ export class RemindersService {
    */
   private buildRecurrenceConfig(reminder: {
     recurrence: ReminderRecurrence;
+    startDate?: Date | null;
     reminderDate: Date | null;
     repeatInterval: number;
     endType: string;
@@ -191,11 +192,12 @@ export class RemindersService {
     monthlyWeekDay: number | null;
   }): RecurrenceConfig | null {
     if (reminder.recurrence === ReminderRecurrence.ONE_TIME) return null;
-    if (!reminder.reminderDate) return null;
+    const baseDate = reminder.startDate || reminder.reminderDate;
+    if (!baseDate) return null;
 
     return {
       recurrence: reminder.recurrence,
-      startDate: reminder.reminderDate,
+      startDate: baseDate,
       repeatInterval: reminder.repeatInterval || 1,
       endType: (reminder.endType || 'NEVER') as RecurrenceConfig['endType'],
       endDate: reminder.endDate,
@@ -298,6 +300,9 @@ export class RemindersService {
         description: dto.description || null,
         category: dto.category || null,
         priority: dto.priority || 'MEDIUM',
+        startDate: dto.reminderDate
+          ? parseCalendarDate(dto.reminderDate)
+          : null,
         reminderDate: dto.reminderDate
           ? parseCalendarDate(dto.reminderDate)
           : null,
@@ -497,10 +502,13 @@ export class RemindersService {
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.category !== undefined) updateData.category = dto.category;
     if (dto.priority !== undefined) updateData.priority = dto.priority;
-    if (dto.reminderDate !== undefined)
-      updateData.reminderDate = dto.reminderDate
+    if (dto.reminderDate !== undefined) {
+      const parsedDate = dto.reminderDate
         ? parseCalendarDate(dto.reminderDate)
         : null;
+      updateData.reminderDate = parsedDate;
+      updateData.startDate = parsedDate;
+    }
     if (dto.reminderTime !== undefined)
       updateData.reminderTime = dto.reminderTime;
     if (dto.recurrence !== undefined) updateData.recurrence = dto.recurrence;
