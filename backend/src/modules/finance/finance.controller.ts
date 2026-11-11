@@ -55,6 +55,7 @@ export class FinanceController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('status') status?: string,
   ) {
     if (!tenantId) {
       throw new BadRequestException('Organization context is required.');
@@ -81,6 +82,7 @@ export class FinanceController {
       pageNum,
       limitNum,
       search || '',
+      status || 'ALL',
     );
   }
 

@@ -33,11 +33,7 @@ import { workOrderService } from '../services';
 import { ViewWorkOrderModal, SendWhatsAppModal, WhatsAppIcon } from '../components';
 
 export function DashboardPage() {
-  const { t } = useTranslation();
-  const { formatDateTime } = useAppDate();
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
 
   if (user?.role === 'SUPER_ADMIN') {
     return <SuperAdminDashboardPage />;
@@ -50,6 +46,16 @@ export function DashboardPage() {
   if (user?.role === 'OWNER') {
     return <OwnerDashboardPage />;
   }
+
+  return <AdminDashboardPage />;
+}
+
+function AdminDashboardPage() {
+  const { t } = useTranslation();
+  const { formatDateTime } = useAppDate();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
 
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -210,15 +216,6 @@ export function DashboardPage() {
     return t('dashboard.greetingEvening');
   };
 
-  if (loading && !stats) {
-    return (
-      <div className="table-loading" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <Loader2 size={36} className="spinner" />
-        <span style={{ marginLeft: '12px' }}>{t('dashboard.loadingAnalytics')}</span>
-      </div>
-    );
-  }
-
   const alerts = (stats?.verificationAlerts || []).filter((a: any) => a.status === 'NOT_STARTED' || a.status === 'IN_PROGRESS');
   const assignedProductionTasks = stats?.assignedProductionSteps || [];
 
@@ -267,6 +264,15 @@ export function DashboardPage() {
       );
     });
   }, [alerts, actionCenterSearch]);
+
+  if (loading && !stats) {
+    return (
+      <div className="table-loading" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <Loader2 size={36} className="spinner" />
+        <span style={{ marginLeft: '12px' }}>{t('dashboard.loadingAnalytics')}</span>
+      </div>
+    );
+  }
 
   const displayedProductionTasks = actionCenterSearch.trim()
     ? filteredProductionTasks

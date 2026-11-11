@@ -94,6 +94,7 @@ export function FinancePage() {
   const [pendingPage, setPendingPage] = useState(1);
   const [pendingLimit] = useState(10);
   const [pendingSearch, setPendingSearch] = useState('');
+  const [pendingStatusFilter, setPendingStatusFilter] = useState<string>('ALL');
   const [pendingLoading, setPendingLoading] = useState(false);
 
   // Doctor Balances list & summary
@@ -223,6 +224,7 @@ export function FinancePage() {
         page: pendingPage,
         limit: pendingLimit,
         search: pendingSearch,
+        status: pendingStatusFilter,
       });
       setPendingWOs(pendingData.data);
       setPendingTotal(pendingData.meta.total);
@@ -462,7 +464,7 @@ export function FinancePage() {
 
   useEffect(() => {
     fetchPendingPayments();
-  }, [dateRange, selectedBranches, pendingPage, pendingSearch]);
+  }, [dateRange, selectedBranches, pendingPage, pendingSearch, pendingStatusFilter]);
 
   useEffect(() => {
     fetchDoctorBalances();
@@ -748,11 +750,9 @@ export function FinancePage() {
         <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           
           {/* Date Range Selector */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-              {t('expenses.dateFilters.dateRangeLabel', { defaultValue: 'Date Range' })}:
-            </span>
+          <div>
             <DateRangePicker
+              showLabel={false}
               startDate={startDateFilter}
               endDate={endDateFilter}
               presetType={datePreset}
@@ -1821,19 +1821,55 @@ export function FinancePage() {
             </p>
           </div>
 
-          {/* Search Box */}
-          <div style={{ position: 'relative', width: '280px' }}>
-            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
-              <Search size={16} />
-            </span>
-            <input
-              type="text"
-              placeholder={t('finance.searchPendingPlaceholder', { defaultValue: 'Search by Patient, Doctor or Folio...' })}
-              value={pendingSearch}
-              onChange={handleSearchChange}
-              className="form-input"
-              style={{ paddingLeft: '2.25rem', borderRadius: '8px', fontSize: '0.875rem', width: '100%', height: '38px' }}
-            />
+          {/* Controls: Status Filter & Search Box */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {/* Work Order Status Filter */}
+            <div style={{ minWidth: '170px' }}>
+              <select
+                value={pendingStatusFilter}
+                onChange={(e) => {
+                  setPendingStatusFilter(e.target.value);
+                  setPendingPage(1);
+                }}
+                className="form-input"
+                style={{ height: '38px', borderRadius: '8px', fontSize: '0.875rem' }}
+              >
+                <option value="ALL">{t('workOrders.allStatuses', { defaultValue: 'All Statuses' })}</option>
+                <option value="CREATED">{t('enums.workOrderStatus.CREATED', { defaultValue: 'Created' })}</option>
+                <option value="ASSIGNED">{t('enums.workOrderStatus.ASSIGNED', { defaultValue: 'Assigned' })}</option>
+                <option value="IN_PROGRESS">{t('enums.workOrderStatus.IN_PROGRESS', { defaultValue: 'In Progress' })}</option>
+                <option value="INTERNAL_VERIFICATION">{t('enums.workOrderStatus.INTERNAL_VERIFICATION', { defaultValue: 'Internal Verification' })}</option>
+                <option value="EXTERNAL_VERIFICATION">{t('enums.workOrderStatus.EXTERNAL_VERIFICATION', { defaultValue: 'External Verification' })}</option>
+                <option value="COMPLETED">{t('enums.workOrderStatus.COMPLETED', { defaultValue: 'Completed' })}</option>
+                <option value="FAILED">{t('enums.workOrderStatus.FAILED', { defaultValue: 'Failed' })}</option>
+              </select>
+            </div>
+
+            {/* Search Box */}
+            <div style={{ position: 'relative', width: '280px' }}>
+              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                <Search size={16} />
+              </span>
+              <input
+                type="text"
+                placeholder={t('finance.searchPendingPlaceholder', { defaultValue: 'Search by Patient, Doctor or Folio...' })}
+                value={pendingSearch}
+                onChange={handleSearchChange}
+                className="form-input"
+                style={{ paddingLeft: '2.25rem', borderRadius: '8px', fontSize: '0.875rem', width: '100%', height: '38px' }}
+              />
+              {pendingSearch && (
+                <button
+                  onClick={() => {
+                    setPendingSearch('');
+                    setPendingPage(1);
+                  }}
+                  style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

@@ -426,6 +426,7 @@ export class FinanceService {
     page = 1,
     limit = 10,
     search = '',
+    statusFilter = 'ALL',
   ) {
     try {
       const startDate = new Date(startDateStr);
@@ -446,7 +447,10 @@ export class FinanceService {
 
       const whereClause: any = {
         tenantId,
-        status: { not: WorkOrderStatus.CANCELLED },
+        status:
+          statusFilter && statusFilter !== 'ALL'
+            ? (statusFilter as WorkOrderStatus)
+            : { not: WorkOrderStatus.CANCELLED },
         createdAt: { gte: startDate, lte: endDate },
         ...(branchIdList.length > 0 && { branchId: { in: branchIdList } }),
       };

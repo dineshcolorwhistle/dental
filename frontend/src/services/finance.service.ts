@@ -75,6 +75,7 @@ export interface GetPendingPaymentsParams extends GetFinanceParams {
   page?: number;
   limit?: number;
   search?: string;
+  status?: string;
 }
 
 export interface DoctorBalanceWorkOrder {
