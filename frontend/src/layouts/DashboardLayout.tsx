@@ -138,6 +138,7 @@ export function DashboardLayout() {
     '/prosthesis-types',
     '/processes',
     '/process-areas',
+    '/api-keys',
     '/settings/general',
     '/settings/delivery',
     '/settings/whatsapp-templates',
@@ -564,20 +565,6 @@ export function DashboardLayout() {
                 <span>{t('navigation.expenses')}</span>
               </NavLink>
 
-              {user?.role === 'ADMIN' && (
-                <NavLink
-                  to="/api-keys"
-                  className={({ isActive }) =>
-                    `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
-                  }
-                  onClick={() => setSidebarOpen(false)}
-                  data-tooltip={t('navigation.apiKeys')}
-                >
-                  <Key size={20} />
-                  <span>{t('navigation.apiKeys')}</span>
-                </NavLink>
-              )}
-
               <NavLink
                 to="/clinics"
                 className={({ isActive }) =>
@@ -801,6 +788,21 @@ export function DashboardLayout() {
                       >
                         <CreditCard size={16} />
                         <span>{t('navigation.paymentMethods', { defaultValue: 'Payment Methods' })}</span>
+                      </NavLink>
+                    )}
+
+                    {/* API Keys — Admin only */}
+                    {user?.role === 'ADMIN' && (
+                      <NavLink
+                        to="/api-keys"
+                        className={({ isActive }) =>
+                          `sidebar__submenu-link ${isActive ? 'sidebar__submenu-link--active' : ''}`
+                        }
+                        onClick={() => setSidebarOpen(false)}
+                        data-tooltip={t('navigation.apiKeys')}
+                      >
+                        <Key size={16} />
+                        <span>{t('navigation.apiKeys')}</span>
                       </NavLink>
                     )}
                   </div>
@@ -1119,6 +1121,23 @@ export function DashboardLayout() {
               >
                 <CreditCard size={16} />
                 <span>{t('navigation.paymentMethods', { defaultValue: 'Payment Methods' })}</span>
+              </NavLink>
+            )}
+
+            {/* API Keys — Admin only */}
+            {user?.role === 'ADMIN' && (
+              <NavLink
+                to="/api-keys"
+                className={({ isActive }) =>
+                  `sidebar__flyout-link ${isActive ? 'sidebar__flyout-link--active' : ''}`
+                }
+                onClick={() => {
+                  setCollapsedFlyoutOpen(false);
+                  setSidebarOpen(false);
+                }}
+              >
+                <Key size={16} />
+                <span>{t('navigation.apiKeys')}</span>
               </NavLink>
             )}
           </div>

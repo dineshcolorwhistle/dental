@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
@@ -77,6 +77,7 @@ export function DashboardPage() {
   const [showAllAlerts, setShowAllAlerts] = useState(false);
   const [showAllProductionTasks, setShowAllProductionTasks] = useState(false);
   const [activeActionTab, setActiveActionTab] = useState<'production' | 'verification' | null>(null);
+  const [actionCenterSearch, setActionCenterSearch] = useState('');
   const [inProgressSearch, setInProgressSearch] = useState('');
   const [verificationSearch, setVerificationSearch] = useState('');
 
@@ -219,9 +220,60 @@ export function DashboardPage() {
   }
 
   const alerts = (stats?.verificationAlerts || []).filter((a: any) => a.status === 'NOT_STARTED' || a.status === 'IN_PROGRESS');
-  const displayedAlerts = showAllAlerts ? alerts : alerts.slice(0, 3);
   const assignedProductionTasks = stats?.assignedProductionSteps || [];
-  const displayedProductionTasks = showAllProductionTasks ? assignedProductionTasks : assignedProductionTasks.slice(0, 3);
+
+  const filteredProductionTasks = useMemo(() => {
+    if (!actionCenterSearch.trim()) return assignedProductionTasks;
+    const term = actionCenterSearch.trim().toLowerCase();
+    return assignedProductionTasks.filter((task: any) => {
+      const folio = (task.folioNumber || '').toLowerCase();
+      const patient = (task.patient || '').toLowerCase();
+      const box = task.boxNumber ? String(task.boxNumber).toLowerCase() : '';
+      const processName = (task.processName || '').toLowerCase();
+      const doctor = (task.doctorName || '').toLowerCase();
+      const status = (task.status || '').toLowerCase();
+      return (
+        folio.includes(term) ||
+        patient.includes(term) ||
+        box.includes(term) ||
+        processName.includes(term) ||
+        doctor.includes(term) ||
+        status.includes(term)
+      );
+    });
+  }, [assignedProductionTasks, actionCenterSearch]);
+
+  const filteredAlerts = useMemo(() => {
+    if (!actionCenterSearch.trim()) return alerts;
+    const term = actionCenterSearch.trim().toLowerCase();
+    return alerts.filter((alert: any) => {
+      const folio = (alert.folioNumber || '').toLowerCase();
+      const patient = (alert.patient || '').toLowerCase();
+      const box = alert.boxNumber ? String(alert.boxNumber).toLowerCase() : '';
+      const assignedTo = (alert.assignedTo || '').toLowerCase();
+      const type = (alert.type || '').toLowerCase();
+      const status = (alert.status || '').toLowerCase();
+      const docNotes = (alert.externalDoctorNotes || '').toLowerCase();
+      const docStatus = (alert.externalDoctorStatus || '').toLowerCase();
+      return (
+        folio.includes(term) ||
+        patient.includes(term) ||
+        box.includes(term) ||
+        assignedTo.includes(term) ||
+        type.includes(term) ||
+        status.includes(term) ||
+        docNotes.includes(term) ||
+        docStatus.includes(term)
+      );
+    });
+  }, [alerts, actionCenterSearch]);
+
+  const displayedProductionTasks = actionCenterSearch.trim()
+    ? filteredProductionTasks
+    : (showAllProductionTasks ? filteredProductionTasks : filteredProductionTasks.slice(0, 3));
+  const displayedAlerts = actionCenterSearch.trim()
+    ? filteredAlerts
+    : (showAllAlerts ? filteredAlerts : filteredAlerts.slice(0, 3));
   const effectiveActionTab = activeActionTab || (assignedProductionTasks.length > 0 ? 'production' : 'verification');
   const statusSummary = stats?.woStatusSummary || {};
   const pendingProcs = stats?.pendingProcesses || [];
@@ -293,26 +345,6 @@ export function DashboardPage() {
           <p className="dashboard-page__subtitle" style={{ color: 'var(--text-secondary)' }}>
             {t('dashboard.branchManagementConsole')} {isAdmin && user?.branchId ? ` ${t('dashboard.branchScoped')}` : ''}
           </p>
-        </div>
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '4px 10px',
-          borderRadius: '6px',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          color: '#10B981'
-        }}>
-          <span style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: '#10B981',
-            display: 'inline-block'
-          }} />
-          <span>{t('dashboard.realTimeMonitoring')}</span>
         </div>
       </div>
 
@@ -420,7 +452,9 @@ export function DashboardPage() {
                     borderRadius: '100px',
                     fontWeight: 700
                   }}>
-                    {assignedProductionTasks.length}
+                    {actionCenterSearch.trim() && effectiveActionTab === 'production'
+                      ? `${filteredProductionTasks.length} / ${assignedProductionTasks.length}`
+                      : assignedProductionTasks.length}
                   </span>
                 </button>
               )}
@@ -455,73 +489,128 @@ export function DashboardPage() {
                     borderRadius: '100px',
                     fontWeight: 700
                   }}>
-                    {alerts.length}
+                    {actionCenterSearch.trim() && effectiveActionTab === 'verification'
+                      ? `${filteredAlerts.length} / ${alerts.length}`
+                      : alerts.length}
                   </span>
                 </button>
               )}
             </div>
 
-            {/* Right: Show All / Show Top 3 Toggle */}
-            {effectiveActionTab === 'production' && assignedProductionTasks.length > 3 && (
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                style={{
-                  fontSize: '0.75rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  color: '#3B82F6',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                  backgroundColor: 'rgba(59, 130, 246, 0.05)'
-                }}
-                onClick={() => setShowAllProductionTasks(prev => !prev)}
-              >
-                {showAllProductionTasks
-                  ? t('dashboard.showTop3', { defaultValue: 'Show top 3' })
-                  : t('dashboard.showAllWithCount', { count: assignedProductionTasks.length, defaultValue: `Show all (${assignedProductionTasks.length})` })}
-                {showAllProductionTasks ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            )}
+            {/* Right: Search Bar & Show All / Show Top 3 Toggle */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              flexWrap: 'wrap'
+            }}>
+              <div className="search-input-wrap" style={{ minWidth: '180px', maxWidth: '240px', flex: '1 1 180px' }}>
+                <Search size={14} className="search-input__icon" />
+                <input
+                  type="text"
+                  className="form-input search-input"
+                  style={{ height: '32px', fontSize: '0.8rem', paddingLeft: '2.1rem', paddingRight: '1.75rem' }}
+                  placeholder={
+                    effectiveActionTab === 'production'
+                      ? t('dashboard.searchProductionTasks', { defaultValue: 'Search production tasks...' })
+                      : t('dashboard.searchVerificationAlerts', { defaultValue: 'Search verification alerts...' })
+                  }
+                  value={actionCenterSearch}
+                  onChange={(e) => setActionCenterSearch(e.target.value)}
+                />
+                {actionCenterSearch && (
+                  <button
+                    type="button"
+                    className="search-input__clear"
+                    onClick={() => setActionCenterSearch('')}
+                    title={t('dashboard.clearSearch', { defaultValue: 'Clear search' })}
+                    style={{ padding: '2px' }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
 
-            {effectiveActionTab === 'verification' && alerts.length > 3 && (
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                style={{
-                  fontSize: '0.75rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  color: '#8B5CF6',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(139, 92, 246, 0.25)',
-                  backgroundColor: 'rgba(139, 92, 246, 0.05)'
-                }}
-                onClick={() => setShowAllAlerts(prev => !prev)}
-              >
-                {showAllAlerts
-                  ? t('dashboard.showTop3', { defaultValue: 'Show top 3' })
-                  : t('dashboard.showAllWithCount', { count: alerts.length, defaultValue: `Show all (${alerts.length})` })}
-                {showAllAlerts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            )}
+              {effectiveActionTab === 'production' && !actionCenterSearch.trim() && assignedProductionTasks.length > 3 && (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  style={{
+                    fontSize: '0.75rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    color: '#3B82F6',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.05)'
+                  }}
+                  onClick={() => setShowAllProductionTasks(prev => !prev)}
+                >
+                  {showAllProductionTasks
+                    ? t('dashboard.showTop3', { defaultValue: 'Show top 3' })
+                    : t('dashboard.showAllWithCount', { count: assignedProductionTasks.length, defaultValue: `Show all (${assignedProductionTasks.length})` })}
+                  {showAllProductionTasks ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+              )}
+
+              {effectiveActionTab === 'verification' && !actionCenterSearch.trim() && alerts.length > 3 && (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  style={{
+                    fontSize: '0.75rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    color: '#8B5CF6',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                    backgroundColor: 'rgba(139, 92, 246, 0.05)'
+                  }}
+                  onClick={() => setShowAllAlerts(prev => !prev)}
+                >
+                  {showAllAlerts
+                    ? t('dashboard.showTop3', { defaultValue: 'Show top 3' })
+                    : t('dashboard.showAllWithCount', { count: alerts.length, defaultValue: `Show all (${alerts.length})` })}
+                  {showAllAlerts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Tab 1: Production Tasks Content */}
           {effectiveActionTab === 'production' && (
+            filteredProductionTasks.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <Search size={24} style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
+                <h4 style={{ fontWeight: 500, fontSize: '0.85rem', margin: 0 }}>
+                  {t('dashboard.noMatchingTasks', { defaultValue: 'No matching production tasks found' })}
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  {t('dashboard.adjustSearchCriteria', { defaultValue: 'Try adjusting your search terms.' })}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn--outline btn--sm"
+                  style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}
+                  onClick={() => setActionCenterSearch('')}
+                >
+                  {t('dashboard.clearSearch', { defaultValue: 'Clear search' })}
+                </button>
+              </div>
+            ) : (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '0.625rem',
-              ...(showAllProductionTasks && { maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' })
+              ...((showAllProductionTasks || Boolean(actionCenterSearch.trim())) && { maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' })
             }}>
               {displayedProductionTasks.map((task: any) => {
                 const isNotStarted = task.status === 'NOT_STARTED';
@@ -697,15 +786,35 @@ export function DashboardPage() {
                 );
               })}
             </div>
+            )
           )}
 
           {/* Tab 2: Verification Alerts Content */}
           {effectiveActionTab === 'verification' && (
+            filteredAlerts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <Search size={24} style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
+                <h4 style={{ fontWeight: 500, fontSize: '0.85rem', margin: 0 }}>
+                  {t('dashboard.noMatchingAlerts', { defaultValue: 'No matching verification alerts found' })}
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  {t('dashboard.adjustSearchCriteria', { defaultValue: 'Try adjusting your search terms.' })}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn--outline btn--sm"
+                  style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}
+                  onClick={() => setActionCenterSearch('')}
+                >
+                  {t('dashboard.clearSearch', { defaultValue: 'Clear search' })}
+                </button>
+              </div>
+            ) : (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '0.625rem',
-              ...(showAllAlerts && { maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' })
+              ...((showAllAlerts || Boolean(actionCenterSearch.trim())) && { maxHeight: '360px', overflowY: 'auto', paddingRight: '4px' })
             }}>
               {displayedAlerts.map((alert: any) => {
                 const isNotStarted = alert.status === 'NOT_STARTED';
@@ -870,6 +979,7 @@ export function DashboardPage() {
                 );
               })}
             </div>
+            )
           )}
         </div>
       )}
