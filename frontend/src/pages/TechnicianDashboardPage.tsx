@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useSocket } from '../context';
 import {
@@ -13,10 +13,13 @@ import {
   AlertTriangle,
   Eye,
   Calendar,
+  Search,
+  X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import { useAppDate } from '../hooks';
+import { ToothIcon } from '../components';
 import {
   technicianPortalService,
   type TechnicianDashboardStats,
@@ -34,6 +37,7 @@ export function TechnicianDashboardPage() {
   const [stats, setStats] = useState<TechnicianDashboardStats | null>(null);
   const [assignedJobs, setAssignedJobs] = useState<TechnicianWorkOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Helper check if previous sequence steps are completed
   const isPrecedingStepCompleted = useCallback((currentProc: TechnicianProcessItem, processes: TechnicianProcessItem[]) => {
@@ -140,7 +144,7 @@ export function TechnicianDashboardPage() {
   };
 
   // Find process assigned to this technician in a work order
-  const getAssignedProcess = (wo: TechnicianWorkOrderListItem) => {
+  const getAssignedProcess = useCallback((wo: TechnicianWorkOrderListItem) => {
     // 1. First look for IN_PROGRESS or PAUSED step assigned to tech
     const activeStep = wo.processes.find(
       (p) => p.technicianId === user?.id && (p.status === 'IN_PROGRESS' || p.status === 'PAUSED')
@@ -151,7 +155,23 @@ export function TechnicianDashboardPage() {
     return wo.processes.find(
       (p) => p.technicianId === user?.id && p.status === 'NOT_STARTED'
     );
-  };
+  }, [user?.id]);
+
+  const filteredJobs = useMemo(() => {
+    if (!searchQuery.trim()) return assignedJobs;
+    const q = searchQuery.toLowerCase().trim();
+    return assignedJobs.filter((wo) => {
+      const folioMatch = wo.folioNumber?.toLowerCase().includes(q);
+      const patientMatch = wo.patient?.toLowerCase().includes(q);
+      const doctorMatch = wo.doctor?.name?.toLowerCase().includes(q);
+      const clinicMatch = wo.doctor?.clinicName?.toLowerCase().includes(q);
+      const prosthesisMatch = wo.prosthesisType?.name?.toLowerCase().includes(q);
+      const boxMatch = wo.boxNumber?.toLowerCase().includes(q);
+      const proc = getAssignedProcess(wo);
+      const processMatch = proc?.processName?.toLowerCase().includes(q);
+      return folioMatch || patientMatch || doctorMatch || clinicMatch || prosthesisMatch || boxMatch || processMatch;
+    });
+  }, [assignedJobs, searchQuery, getAssignedProcess]);
 
   if (loading && !stats) {
     return (
@@ -221,30 +241,80 @@ export function TechnicianDashboardPage() {
         {/* Work Queue Control Section */}
         <div className="lg:col-span-2">
           <div className="dashboard-card" style={{ padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 className="dashboard-card__title" style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Activity size={18} style={{ color: 'var(--success)' }} />
-                {t('techDashboard.myWorkQueue')}
-              </h3>
-              <Link to="/tech/work-orders" className="btn btn--outline btn--sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {t('techDashboard.viewAllQueue')} <ChevronRight size={14} />
-              </Link>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h3 className="dashboard-card__title" style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Activity size={18} style={{ color: 'var(--success)' }} />
+                  {t('techDashboard.myWorkQueue')}
+                </h3>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(111, 174, 217, 0.1)',
+                  color: 'var(--accent-primary)',
+                  border: '1px solid rgba(111, 174, 217, 0.2)'
+                }}>
+                  {filteredJobs.length}{filteredJobs.length !== assignedJobs.length ? ` / ${assignedJobs.length}` : ''}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: '1 1 auto', justifyContent: 'flex-end' }}>
+                <div className="search-input-wrap" style={{ minWidth: '180px', maxWidth: '280px', flex: '1 1 180px' }}>
+                  <Search size={14} className="search-input__icon" />
+                  <input
+                    id="input-tech-queue-search"
+                    type="text"
+                    className="form-input search-input"
+                    style={{ height: '32px', fontSize: '0.8rem', paddingLeft: '2.1rem', paddingRight: '1.75rem' }}
+                    placeholder={t('workOrders.searchPlaceholder', { defaultValue: 'Search by folio, patient, doctor...' })}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="search-input__clear"
+                      onClick={() => setSearchQuery('')}
+                      title={t('common.clear', { defaultValue: 'Clear' })}
+                      style={{ padding: '2px' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <Link to="/tech/work-orders" className="btn btn--outline btn--sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', height: '32px' }}>
+                  {t('techDashboard.viewAllQueue')} <ChevronRight size={14} />
+                </Link>
+              </div>
             </div>
 
-            {assignedJobs.length === 0 ? (
+            {filteredJobs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem 1.5rem', border: '1.5px dashed var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <ClipboardList size={36} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                <h4 style={{ fontWeight: 500, fontSize: '0.95rem' }}>{t('techDashboard.noQueueWorkOrders')}</h4>
+                <h4 style={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                  {searchQuery ? t('common.noResultsFound', { defaultValue: 'No results found' }) : t('techDashboard.noQueueWorkOrders')}
+                </h4>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '340px', margin: '0' }}>
-                  {t('techDashboard.noQueueWorkOrdersDesc')}
+                  {searchQuery
+                    ? t('processesPage.adjustFilters', { defaultValue: 'Try adjusting your search or filter criteria.' })
+                    : t('techDashboard.noQueueWorkOrdersDesc')}
                 </p>
-                <Link to="/tech/work-orders" className="btn btn--primary btn--sm" style={{ marginTop: '0.5rem' }}>
-                  {t('techDashboard.openMyWorkOrders')}
-                </Link>
+                {searchQuery ? (
+                  <button type="button" className="btn btn--outline btn--sm" onClick={() => setSearchQuery('')} style={{ marginTop: '0.5rem' }}>
+                    {t('common.clear', { defaultValue: 'Clear' })}
+                  </button>
+                ) : (
+                  <Link to="/tech/work-orders" className="btn btn--primary btn--sm" style={{ marginTop: '0.5rem' }}>
+                    {t('techDashboard.openMyWorkOrders')}
+                  </Link>
+                )}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {assignedJobs.map((wo) => {
+                {filteredJobs.map((wo) => {
                   const proc = getAssignedProcess(wo);
                   if (!proc) return null;
 
@@ -390,6 +460,15 @@ export function TechnicianDashboardPage() {
 
                       {/* Action Control Panel */}
                       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Link
+                          to={`/work-orders/${wo.id}/odontogram`}
+                          className="btn btn--outline btn--sm"
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0284C7', borderColor: '#BAE6FD' }}
+                          title={t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}
+                        >
+                          <ToothIcon size={14} /> {t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}
+                        </Link>
+
                         <Link
                           to={`/tech/work-orders?selectWo=${wo.id}`}
                           className="btn btn--outline btn--sm"

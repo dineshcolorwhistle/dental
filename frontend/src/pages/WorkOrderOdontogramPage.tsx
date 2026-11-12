@@ -87,11 +87,11 @@ export const WorkOrderOdontogramPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { formatDateTime } = useAppDate();
 
-  // Guard: Owner and Admin only
+  // Guard: Owner, Admin, Super Admin, and Technician
   useEffect(() => {
-    if (user && user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    if (user && user.role !== 'OWNER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.role !== 'TECHNICIAN') {
       toast.error(t('common.unauthorized', { defaultValue: 'Unauthorized access' }));
-      navigate('/work-orders');
+      navigate('/login');
     }
   }, [user, navigate, t]);
 
@@ -821,7 +821,7 @@ export const WorkOrderOdontogramPage: React.FC = () => {
         </h3>
         <button
           className="btn btn--outline"
-          onClick={() => navigate('/work-orders')}
+          onClick={() => navigate(user?.role === 'TECHNICIAN' ? '/tech/work-orders' : '/work-orders')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}
         >
           <ArrowLeft size={16} />
@@ -838,7 +838,7 @@ export const WorkOrderOdontogramPage: React.FC = () => {
         <button
           type="button"
           className="btn btn--ghost btn--sm"
-          onClick={() => navigate('/work-orders')}
+          onClick={() => navigate(user?.role === 'TECHNICIAN' ? '/tech/work-orders' : '/work-orders')}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}
         >
           <ArrowLeft size={16} />
@@ -848,7 +848,7 @@ export const WorkOrderOdontogramPage: React.FC = () => {
         <button
           type="button"
           className="btn btn--ghost btn--sm"
-          onClick={() => navigate(`/work-orders/${workOrderId}`)}
+          onClick={() => navigate(user?.role === 'TECHNICIAN' ? `/tech/work-orders?selectWo=${workOrderId}` : `/work-orders/${workOrderId}`)}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-primary)' }}
         >
           <span>{t('workOrders.viewWorkOrder', { defaultValue: 'View Work Order Details' })}</span>
@@ -1665,7 +1665,7 @@ export const WorkOrderOdontogramPage: React.FC = () => {
           <button
             type="button"
             className="btn btn--outline"
-            onClick={() => navigate('/work-orders')}
+            onClick={() => navigate(user?.role === 'TECHNICIAN' ? '/tech/work-orders' : '/work-orders')}
             disabled={saving}
           >
             {t('common.cancel', { defaultValue: 'Back to Work Orders' })}

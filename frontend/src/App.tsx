@@ -174,7 +174,7 @@ function App() {
             <Route
               path="/work-orders/:id/odontogram"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN', 'TECHNICIAN']}>
                   <WorkOrderOdontogramPage />
                 </ProtectedRoute>
               }

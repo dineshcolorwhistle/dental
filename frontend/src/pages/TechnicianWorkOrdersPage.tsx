@@ -22,7 +22,7 @@ import {
   QrCode,
   MessageCircle,
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import {
@@ -34,7 +34,7 @@ import {
 } from '../services';
 import { formatDate, formatDateTime, formatTime } from '../utils/dateUtils';
 import { useAppDate } from '../hooks';
-import { QRLabelModal, WorkOrderChat, RoleBadge } from '../components';
+import { QRLabelModal, WorkOrderChat, RoleBadge, ToothIcon } from '../components';
 import { formatAuditNote } from '../utils/audit-formatter';
 import { NoteHistoryThread } from '../components/NoteHistoryThread';
 
@@ -230,6 +230,7 @@ const getCombinedProcessLogs = (proc: any, workOrder: any, t: any) => {
 };
 
 export function TechnicianWorkOrdersPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -494,13 +495,19 @@ export function TechnicianWorkOrdersPage() {
       .every((p) => p.status === 'COMPLETED');
   };
 
-  // Filter local items by search query (folio or patient name) and unread filter
+  // Filter local items by search query and unread filter
   const filteredOrders = workOrders
     .filter((wo) => {
       if (onlyUnreadFilter && !(unreadChatCounts[wo.id] > 0)) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
       return (
-        wo.folioNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (wo.patient && wo.patient.toLowerCase().includes(searchQuery.toLowerCase()))
+        wo.folioNumber.toLowerCase().includes(q) ||
+        (wo.patient && wo.patient.toLowerCase().includes(q)) ||
+        (wo.doctor?.name && wo.doctor.name.toLowerCase().includes(q)) ||
+        (wo.doctor?.clinicName && wo.doctor.clinicName.toLowerCase().includes(q)) ||
+        (wo.prosthesisType?.name && wo.prosthesisType.name.toLowerCase().includes(q)) ||
+        (wo.boxNumber && wo.boxNumber.toLowerCase().includes(q))
       );
     })
     .sort((a, b) => {
@@ -593,15 +600,26 @@ export function TechnicianWorkOrdersPage() {
           </p>
         </div>
 
-        <div className="search-bar" style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 12px', minWidth: '280px' }}>
-          <Search size={16} style={{ color: 'var(--text-muted)', marginRight: '8px' }} />
+        <div className="search-input-wrap">
+          <Search size={16} className="search-input__icon" />
           <input
+            id="input-tech-wo-search"
             type="text"
-            placeholder={t('workOrder.searchPlaceholder')}
+            className="form-input search-input"
+            placeholder={t('workOrders.searchPlaceholder', { defaultValue: 'Search by folio, patient, doctor...' })}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '0.85rem', color: 'var(--text-primary)' }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="search-input__clear"
+              onClick={() => setSearchQuery('')}
+              title={t('common.clear', { defaultValue: 'Clear' })}
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -756,6 +774,25 @@ export function TechnicianWorkOrdersPage() {
                             border: 'none',
                             background: 'transparent',
                             cursor: 'pointer',
+                            color: '#0284C7',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '2px',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/work-orders/${wo.id}/odontogram`);
+                          }}
+                          title={t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}
+                        >
+                          <ToothIcon size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
                             color: 'var(--text-muted)',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -902,6 +939,29 @@ export function TechnicianWorkOrdersPage() {
                   >
                     <QrCode size={13} />
                     <span>{t('workOrder.printQR')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    style={{
+                      padding: '3px 10px',
+                      fontSize: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      borderRadius: '6px',
+                      height: '26px',
+                      color: '#0284C7',
+                      borderColor: '#BAE6FD'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/work-orders/${selectedOrder.id}/odontogram`);
+                    }}
+                    title={t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}
+                  >
+                    <ToothIcon size={13} />
+                    <span>{t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}</span>
                   </button>
                 </h2>
                 <p className="modal__subtitle" style={{ marginTop: '4px' }}>
@@ -1050,6 +1110,63 @@ export function TechnicianWorkOrdersPage() {
                         {selectedOrder.specification}
                       </div>
                     )}
+
+                    {/* Odontogram Quick Access */}
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '0.875rem 1rem',
+                      backgroundColor: 'rgba(2, 132, 199, 0.05)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(2, 132, 199, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '6px',
+                          backgroundColor: '#E0F2FE',
+                          color: '#0284C7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <ToothIcon size={18} />
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', display: 'block' }}>
+                            {t('odontogram.actionTitle', { defaultValue: 'Odontogram' })}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            {t('odontogram.technicianSubtitle', { defaultValue: 'View and edit teeth diagnostics and treatment plan' })}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn--outline btn--sm"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          color: '#0284C7',
+                          borderColor: '#BAE6FD',
+                          backgroundColor: '#FFFFFF',
+                          fontSize: '0.8rem',
+                          fontWeight: 600
+                        }}
+                        onClick={() => {
+                          navigate(`/work-orders/${selectedOrder.id}/odontogram`);
+                        }}
+                      >
+                        <ToothIcon size={14} />
+                        <span>{t('odontogram.openOdontogram', { defaultValue: 'Open Odontogram' })}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Collapsible Notes Section */}

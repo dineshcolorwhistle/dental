@@ -33,7 +33,7 @@ export class OdontogramController {
   // ─── Config Endpoints ────────────────────────────────────
 
   @Get('config')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
   @ApiOperation({ summary: 'Get odontogram default configuration' })
   async getConfig(
     @CurrentUser('tenantId') tenantId: string,
@@ -46,7 +46,7 @@ export class OdontogramController {
       userRole,
     );
     const branchId =
-      userRole === UserRole.ADMIN ? branchIdContext || undefined : branchIdFilter;
+      userRole === UserRole.ADMIN || userRole === UserRole.TECHNICIAN ? branchIdContext || undefined : branchIdFilter;
     return this.odontogramService.getConfig(resolvedTenantId, branchId);
   }
 
@@ -74,7 +74,7 @@ export class OdontogramController {
   // ─── Treatments Endpoints ────────────────────────────────
 
   @Get('treatments')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
   @ApiOperation({ summary: 'List all treatments' })
   async findAllTreatments(
     @CurrentUser('tenantId') tenantId: string,
@@ -87,7 +87,7 @@ export class OdontogramController {
       userRole,
     );
     const branchId =
-      userRole === UserRole.ADMIN ? branchIdContext || undefined : branchIdFilter;
+      userRole === UserRole.ADMIN || userRole === UserRole.TECHNICIAN ? branchIdContext || undefined : branchIdFilter;
     return this.odontogramService.findAllTreatments(resolvedTenantId, branchId);
   }
 
@@ -155,7 +155,7 @@ export class OdontogramController {
   // ─── Diagnostics Endpoints ───────────────────────────────
 
   @Get('diagnostics')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
   @ApiOperation({ summary: 'List all diagnostics' })
   async findAllDiagnostics(
     @CurrentUser('tenantId') tenantId: string,
@@ -168,7 +168,7 @@ export class OdontogramController {
       userRole,
     );
     const branchId =
-      userRole === UserRole.ADMIN ? branchIdContext || undefined : branchIdFilter;
+      userRole === UserRole.ADMIN || userRole === UserRole.TECHNICIAN ? branchIdContext || undefined : branchIdFilter;
     return this.odontogramService.findAllDiagnostics(resolvedTenantId, branchId);
   }
 
@@ -236,7 +236,7 @@ export class OdontogramController {
   // ─── Work Order Odontogram Endpoints ─────────────────────
 
   @Get('work-order/:workOrderId')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
   @ApiOperation({ summary: 'Get odontogram data for a specific work order' })
   async getWorkOrderOdontogram(
     @CurrentUser('tenantId') tenantId: string,
@@ -254,7 +254,7 @@ export class OdontogramController {
   }
 
   @Put('work-order/:workOrderId')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
   @ApiOperation({ summary: 'Save or update odontogram data for a work order' })
   async saveWorkOrderOdontogram(
     @CurrentUser('tenantId') tenantId: string,
@@ -274,7 +274,7 @@ export class OdontogramController {
   }
 
   @Delete('work-order/:workOrderId')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN, UserRole.TECHNICIAN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset odontogram data for a work order' })
   async deleteWorkOrderOdontogram(

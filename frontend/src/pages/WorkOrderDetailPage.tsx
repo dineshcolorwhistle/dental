@@ -460,7 +460,7 @@ export function WorkOrderDetailPage() {
               )}
             </div>
           )}
-          {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (
+          {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TECHNICIAN') && (
             <button
               className="btn btn--secondary"
               onClick={() => navigate(`/work-orders/${id}/odontogram`)}
