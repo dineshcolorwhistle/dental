@@ -2344,6 +2344,10 @@
     "treatmentInstruction": "Haga clic en un bloque dental para agregar tratamientos clínicos. El color del tratamiento se aplica al bloque seleccionado. Los tratamientos guardados aparecen en ZONA POSTERIOR o ZONA ANTERIOR.",
     "clear": "Limpiar",
     "posteriorZone": "ZONA POSTERIOR",
-    "anteriorZone": "ZONA ANTERIOR"
+    "anteriorZone": "ZONA ANTERIOR",
+    "scrollHint": "Desliza horizontalmente para ver toda la arcada (18 — 28)",
+    "viewRightArch": "Derecha (18-11)",
+    "viewCenterArch": "Centro (11, 21)",
+    "viewLeftArch": "Izquierda (21-28)"
   }
 }

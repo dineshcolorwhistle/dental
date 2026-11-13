@@ -2344,6 +2344,10 @@
     "treatmentInstruction": "Click a tooth block to add clinical treatments. The treatment color is applied to the selected block. Saved treatments appear in ZONA POSTERIOR or ZONA ANTERIOR.",
     "clear": "Clear",
     "posteriorZone": "ZONA POSTERIOR",
-    "anteriorZone": "ZONA ANTERIOR"
+    "anteriorZone": "ZONA ANTERIOR",
+    "scrollHint": "Swipe horizontally to view full arch (18 — 28)",
+    "viewRightArch": "Right (18-11)",
+    "viewCenterArch": "Center (11, 21)",
+    "viewLeftArch": "Left (21-28)"
   }
 }

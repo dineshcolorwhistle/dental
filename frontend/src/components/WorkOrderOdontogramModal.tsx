@@ -9,6 +9,7 @@ import {
   Check,
   Info,
   Trash2,
+  MoveHorizontal,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -483,26 +484,64 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
     onPartClick: (tNum: number, part: ToothPart) => void
   ) => {
     return (
-      <div
-        style={{
-          backgroundColor: '#FFFFFF',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '1.5rem 1rem',
-          overflowX: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-        }}
-      >
-        <div style={{ display: 'inline-flex', flexDirection: 'column', minWidth: '880px', width: '100%', maxWidth: '1020px' }}>
+      <div className="odontogram-chart-card">
+        {/* Mobile / Tablet Horizontal Scroll Hint & Quick Nav */}
+        <div className="odontogram-chart-scroll-hint">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            <MoveHorizontal size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+            <span>{t('odontogram.scrollHint', { defaultValue: 'Swipe horizontally to view full arch (18 — 28)' })}</span>
+          </div>
+          <div className="odontogram-chart-quick-scrolls">
+            <button
+              type="button"
+              className="btn btn--secondary btn--xs"
+              onClick={(e) => {
+                const card = e.currentTarget.closest('.odontogram-chart-card');
+                const scrollArea = card?.querySelector('.odontogram-chart-scroll-area');
+                if (scrollArea) scrollArea.scrollTo({ left: 0, behavior: 'smooth' });
+              }}
+              style={{ fontSize: '0.6875rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+            >
+              <span>◀</span>
+              <span>{t('odontogram.viewRightArch', { defaultValue: 'Right (18-11)' })}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--xs"
+              onClick={(e) => {
+                const card = e.currentTarget.closest('.odontogram-chart-card');
+                const scrollArea = card?.querySelector('.odontogram-chart-scroll-area');
+                if (scrollArea) scrollArea.scrollTo({ left: (scrollArea.scrollWidth - scrollArea.clientWidth) / 2, behavior: 'smooth' });
+              }}
+              style={{ fontSize: '0.6875rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+            >
+              <span>{t('odontogram.viewCenterArch', { defaultValue: 'Center (11, 21)' })}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--xs"
+              onClick={(e) => {
+                const card = e.currentTarget.closest('.odontogram-chart-card');
+                const scrollArea = card?.querySelector('.odontogram-chart-scroll-area');
+                if (scrollArea) scrollArea.scrollTo({ left: scrollArea.scrollWidth, behavior: 'smooth' });
+              }}
+              style={{ fontSize: '0.6875rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+            >
+              <span>{t('odontogram.viewLeftArch', { defaultValue: 'Left (21-28)' })}</span>
+              <span>▶</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable Teeth Arch Viewport */}
+        <div className="odontogram-chart-scroll-area">
+          <div className="odontogram-chart-inner">
           {/* UPPER ARCH (Maxillary) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
             {/* Adult Upper Teeth (18–11 | 21–28) */}
             {(viewMode === 'ADULT' || viewMode === 'BOTH') && (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flex: 1, paddingRight: '0.875rem' }}>
+                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flex: 1, paddingLeft: '1.5rem', paddingRight: '0.875rem' }}>
                   {ADULT_UPPER_RIGHT.map((num) => (
                     <ToothSvg
                       key={num}
@@ -518,7 +557,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
 
                 <div style={{ width: '1.5px', height: '62px', backgroundColor: '#CBD5E1' }} />
 
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', flex: 1, paddingLeft: '0.875rem' }}>
+                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', flex: 1, paddingLeft: '0.875rem', paddingRight: '1.5rem' }}>
                   {ADULT_UPPER_LEFT.map((num) => (
                     <ToothSvg
                       key={num}
@@ -537,7 +576,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
             {/* Child Upper Teeth (55–51 | 61–65) */}
             {(viewMode === 'CHILD' || viewMode === 'BOTH') && (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flex: 1, paddingRight: '0.875rem' }}>
+                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flex: 1, paddingLeft: '1.5rem', paddingRight: '0.875rem' }}>
                   {CHILD_UPPER_RIGHT.map((num) => (
                     <ToothSvg
                       key={num}
@@ -553,7 +592,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
 
                 <div style={{ width: '1.5px', height: '62px', backgroundColor: '#CBD5E1' }} />
 
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', flex: 1, paddingLeft: '0.875rem' }}>
+                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', flex: 1, paddingLeft: '0.875rem', paddingRight: '1.5rem' }}>
                   {CHILD_UPPER_LEFT.map((num) => (
                     <ToothSvg
                       key={num}
@@ -578,7 +617,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
             {/* Child Lower Teeth (85–81 | 71–75) */}
             {(viewMode === 'CHILD' || viewMode === 'BOTH') && (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flex: 1, paddingRight: '0.875rem' }}>
+                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flex: 1, paddingLeft: '1.5rem', paddingRight: '0.875rem' }}>
                   {CHILD_LOWER_RIGHT.map((num) => (
                     <ToothSvg
                       key={num}
@@ -594,7 +633,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
 
                 <div style={{ width: '1.5px', height: '62px', backgroundColor: '#CBD5E1' }} />
 
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', flex: 1, paddingLeft: '0.875rem' }}>
+                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', flex: 1, paddingLeft: '0.875rem', paddingRight: '1.5rem' }}>
                   {CHILD_LOWER_LEFT.map((num) => (
                     <ToothSvg
                       key={num}
@@ -613,7 +652,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
             {/* Adult Lower Teeth (48–41 | 31–38) */}
             {(viewMode === 'ADULT' || viewMode === 'BOTH') && (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flex: 1, paddingRight: '0.875rem' }}>
+                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flex: 1, paddingLeft: '1.5rem', paddingRight: '0.875rem' }}>
                   {ADULT_LOWER_RIGHT.map((num) => (
                     <ToothSvg
                       key={num}
@@ -629,7 +668,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
 
                 <div style={{ width: '1.5px', height: '62px', backgroundColor: '#CBD5E1' }} />
 
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', flex: 1, paddingLeft: '0.875rem' }}>
+                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', flex: 1, paddingLeft: '0.875rem', paddingRight: '1.5rem' }}>
                   {ADULT_LOWER_LEFT.map((num) => (
                     <ToothSvg
                       key={num}
@@ -647,7 +686,8 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
           </div>
         </div>
       </div>
-    );
+    </div>
+  );
   };
 
   // ─── Render Treatment Quadrant Box ───────────────────────
@@ -662,20 +702,22 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
 
     return (
       <div
+        className="odontogram-quadrant-box"
         style={{
           backgroundColor: '#FFFFFF',
           border: '1px solid #E2E8F0',
           borderLeft: accentBorderColor ? `3px solid ${accentBorderColor}` : '1px solid #E2E8F0',
           borderRadius: '8px',
-          padding: '0.625rem 0.75rem',
-          minHeight: '115px',
-          maxHeight: '145px',
+          padding: '0.75rem 1rem',
+          minHeight: items.length === 0 ? '46px' : '72px',
+          maxHeight: '220px',
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
+          minWidth: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span
             style={{
               fontSize: '0.6875rem',
@@ -689,62 +731,82 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
           >
             {quadrant}
           </span>
-          {items.length > 0 && (
+          {items.length > 0 ? (
             <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>
               {items.length} {items.length === 1 ? 'item' : 'items'}
+            </span>
+          ) : (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              —
             </span>
           )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-          {items.map((item, idx) => (
-            <div
-              key={`${item.toothNumber}-${item.part}-${idx}`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '3px 6px',
-                borderRadius: '4px',
-                backgroundColor: `${item.finding.color}15`,
-                border: `1px solid ${item.finding.color}40`,
-                fontSize: '0.75rem',
-              }}
-            >
-              <span
+        {items.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0, marginTop: '0.5rem' }}>
+            {items.map((item, idx) => (
+              <div
+                key={`${item.toothNumber}-${item.part}-${idx}`}
                 style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '2px',
-                  backgroundColor: item.finding.color,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>
-                T{item.toothNumber}
-              </span>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {item.finding.name} ({item.part === 'whole' ? t('odontogram.wholeBadge', { defaultValue: 'Whole' }) : getSurfaceDisplayName(item.toothNumber, item.part, i18n.language)})
-              </span>
-              <button
-                type="button"
-                onClick={() => handleRemoveTreatmentPart(item.toothNumber, item.part)}
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '0 2px',
                   display: 'flex',
                   alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 6px',
+                  borderRadius: '4px',
+                  backgroundColor: `${item.finding.color}15`,
+                  border: `1px solid ${item.finding.color}40`,
+                  fontSize: '0.75rem',
+                  maxWidth: '100%',
+                  minWidth: 0,
                 }}
-                title={t('common.delete', { defaultValue: 'Remove' })}
               >
-                <X size={11} />
-              </button>
-            </div>
-          ))}
-        </div>
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '2px',
+                    backgroundColor: item.finding.color,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontWeight: 700, color: 'var(--text-heading)', flexShrink: 0 }}>
+                  T{item.toothNumber}
+                </span>
+                <span
+                  style={{
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.6875rem',
+                    flex: 1,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    minWidth: 0,
+                  }}
+                  title={`${getSurfaceDisplayName(item.toothNumber, item.part, i18n.language)}: ${item.finding.name}`}
+                >
+                  {item.finding.name} ({item.part === 'whole' ? t('odontogram.wholeBadge', { defaultValue: 'Whole' }) : getSurfaceDisplayName(item.toothNumber, item.part, i18n.language)})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTreatmentPart(item.toothNumber, item.part)}
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '0 2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                  }}
+                  title={t('common.delete', { defaultValue: 'Remove' })}
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -1107,7 +1169,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
                   )}
 
                   {/* Bottom: Applied Findings & Clinical Notes */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem' }}>
+                  <div className="odontogram-diagnostics-bottom-grid">
                     {/* Findings Summary */}
                     <div
                       style={{
@@ -1379,23 +1441,10 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
                     </div>
                   )}
 
-                  {/* ─── 8 SEPARATE QUADRANTS (Image 2) ─────── */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-                      gap: '1.25rem',
-                    }}
-                  >
+                  {/* ─── 8 SEPARATE QUADRANTS: ZONA POSTERIOR & ZONA ANTERIOR ─── */}
+                  <div className="odontogram-zones-grid">
                     {/* LEFT CONTAINER: ZONA POSTERIOR */}
-                    <div
-                      style={{
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-lg)',
-                        padding: '1rem',
-                      }}
-                    >
+                    <div className="odontogram-zone-card">
                       <div
                         style={{
                           fontSize: '0.8438rem',
@@ -1404,12 +1453,20 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
                           textTransform: 'uppercase',
                           letterSpacing: '0.04em',
                           marginBottom: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
                         }}
                       >
-                        {t('odontogram.posteriorZone', { defaultValue: 'ZONA POSTERIOR' })}
+                        <span>{t('odontogram.posteriorZone', { defaultValue: 'ZONA POSTERIOR' })}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                          Q1 · Q2 · Q3 · Q4
+                        </span>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
+                      <div className="odontogram-quadrants-subgrid">
                         {/* Q1 */}
                         {renderQuadrantBox('POSTERIOR', 'Q1')}
                         {/* Q2 (with blue left accent border) */}
@@ -1422,14 +1479,7 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
                     </div>
 
                     {/* RIGHT CONTAINER: ZONA ANTERIOR */}
-                    <div
-                      style={{
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-lg)',
-                        padding: '1rem',
-                      }}
-                    >
+                    <div className="odontogram-zone-card">
                       <div
                         style={{
                           fontSize: '0.8438rem',
@@ -1438,12 +1488,20 @@ export const WorkOrderOdontogramModal: React.FC<WorkOrderOdontogramModalProps> =
                           textTransform: 'uppercase',
                           letterSpacing: '0.04em',
                           marginBottom: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
                         }}
                       >
-                        {t('odontogram.anteriorZone', { defaultValue: 'ZONA ANTERIOR' })}
+                        <span>{t('odontogram.anteriorZone', { defaultValue: 'ZONA ANTERIOR' })}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                          Q1 · Q2 · Q3 · Q4
+                        </span>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
+                      <div className="odontogram-quadrants-subgrid">
                         {/* Q1 */}
                         {renderQuadrantBox('ANTERIOR', 'Q1')}
                         {/* Q2 (with magenta left accent border) */}
